@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+apply plugin: 'com.google.protobuf'
+
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.3"
@@ -23,10 +24,38 @@ android {
         }
     }
 
-    android {
-        compileOptions {
-            sourceCompatibility java_version
-            targetCompatibility java_version
+    sourceSets {
+        main.java.srcDirs += "${protobuf.generatedFilesBaseDir}/main/javalite"
+        main.proto.srcDirs += "${generated.protoSrc}"
+    }
+
+    compileOptions {
+        sourceCompatibility java_version
+        targetCompatibility java_version
+    }
+}
+
+protobuf {
+    protoc {
+        // You still need protoc like in the non-Android case
+        artifact = 'com.google.protobuf:protoc:3.0.0'
+    }
+    plugins {
+        javalite {
+            // The codegen for lite comes as a separate artifact
+            artifact = 'com.google.protobuf:protoc-gen-javalite:3.0.0'
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                // In most cases you don't need the full Java output
+                // if you use the lite output.
+                remove java
+            }
+            task.plugins {
+                javalite {}
+            }
         }
     }
 }
@@ -37,12 +66,13 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
     implementation 'org.webrtc:google-webrtc:1.0.32006'
     implementation "com.squareup.okhttp3:okhttp:4.9.0"
+    implementation 'com.google.protobuf:protobuf-lite:3.0.1'
 
     implementation 'com.google.dagger:dagger:2.32'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.32'
 
     implementation 'com.github.ajalt:timberkt:1.5.1'
-    
+
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
