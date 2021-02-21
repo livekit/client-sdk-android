@@ -37,14 +37,12 @@ android {
 
 protobuf {
     protoc {
-        // You still need protoc like in the non-Android case
         artifact = "com.google.protobuf:protoc:${versions.protobuf}"
     }
     generateProtoTasks {
         all().each { task ->
             task.builtins {
                 java {
-                    option "lite"
                 }
             }
         }
