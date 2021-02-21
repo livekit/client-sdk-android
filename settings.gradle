@@ -1,2 +1,2 @@
-include ':app', ':livekit-android-sdk'
+include ':sample-app', ':livekit-android-sdk'
 rootProject.name='livekit-android'
