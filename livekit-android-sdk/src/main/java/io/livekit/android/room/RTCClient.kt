@@ -2,6 +2,9 @@ package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import livekit.Model
 import livekit.Rtc
 import okhttp3.Request
@@ -9,6 +12,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import org.webrtc.IceCandidate
 import org.webrtc.SessionDescription
 import javax.inject.Inject
 
@@ -102,6 +106,85 @@ constructor(
         return sdBuilder.build()
     }
 
+    fun sendOffer(offer: SessionDescription) {
+        val sd = toProtoSessionDescription(offer)
+        val request = Rtc.SignalRequest.newBuilder()
+            .setOffer(sd)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendAnswer(answer: SessionDescription) {
+        val sd = toProtoSessionDescription(answer)
+        val request = Rtc.SignalRequest.newBuilder()
+            .setAnswer(sd)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendCandidate(candidate: IceCandidate, target: Rtc.SignalTarget){
+        val iceCandidateJSON = IceCandidateJSON(
+            sdp = candidate.sdp,
+            sdpMid = candidate.sdpMid,
+            sdpMLineIndex = candidate.sdpMLineIndex
+        )
+
+        val trickleRequest = Rtc.TrickleRequest.newBuilder()
+            .setCandidateInit(Json.encodeToString(iceCandidateJSON))
+            .setTarget(target)
+            .build()
+
+        val request = Rtc.SignalRequest.newBuilder()
+            .setTrickle(trickleRequest)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendMuteTrack(trackSid: String, muted: Boolean) {
+        val muteRequest = Rtc.MuteTrackRequest.newBuilder()
+            .setSid(trackSid)
+            .setMuted(muted)
+            .build()
+
+        val request = Rtc.SignalRequest.newBuilder()
+            .setMute(muteRequest)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendAddTrack(cid: String, name: String, type: Model.TrackType) {
+        val addTrackRequest = Rtc.AddTrackRequest.newBuilder()
+            .setCid(cid)
+            .setName(name)
+            .setType(type)
+            .build()
+
+        val request = Rtc.SignalRequest.newBuilder()
+            .setAddTrack(addTrackRequest)
+            .build()
+        
+        sendRequest(request)
+    }
+
+    fun sendRequest(request: Rtc.SignalRequest) {
+        Timber.v { "sending request: $request" }
+        if (!isConnected || currentWs != null) {
+            throw IllegalStateException("not connected!")
+        }
+        val message = toJson.print(request)
+        val sent = currentWs?.send(message) ?: false
+
+        if (!sent) {
+            Timber.d { "error sending request: $request" }
+            throw IllegalStateException()
+        }
+
+    }
+
     fun handleSignalResponse(response: Rtc.SignalResponse) {
         if (!isConnected) {
             Timber.e { "Received response while not connected. ${toJson.print(response)}" }
@@ -116,9 +199,16 @@ constructor(
                 val sd = fromProtoSessionDescription(response.offer)
                 listener?.onOffer(sd)
             }
-//            Rtc.SignalResponse.MessageCase.TRICKLE -> {
-//                TODO()
-//            }
+            Rtc.SignalResponse.MessageCase.TRICKLE -> {
+                val iceCandidateJson =
+                    Json.decodeFromString<IceCandidateJSON>(response.trickle.candidateInit)
+                val iceCandidate = IceCandidate(
+                    iceCandidateJson.sdpMid,
+                    iceCandidateJson.sdpMLineIndex,
+                    iceCandidateJson.sdp
+                )
+                listener?.onTrickle(iceCandidate, response.trickle.target)
+            }
             Rtc.SignalResponse.MessageCase.UPDATE -> {
                 listener?.onParticipantUpdate(response.update.participantsList)
             }
@@ -131,7 +221,6 @@ constructor(
                 Timber.v { "unhandled response type: ${response.messageCase.name}" }
             }
         }
-
     }
 
     interface Listener {
@@ -140,7 +229,7 @@ constructor(
         fun onAnswer(sessionDescription: SessionDescription)
         fun onOffer(sessionDescription: SessionDescription)
 
-        //fun onTrickle(candidate: RTCIceCandidate, target: Rtc.SignalTarget)
+        fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget)
         fun onLocalTrackPublished(trackPublished: Rtc.TrackPublishedResponse)
         fun onParticipantUpdate(updates: List<Model.ParticipantInfo>)
         fun onClose(reason: String, code: Int)
