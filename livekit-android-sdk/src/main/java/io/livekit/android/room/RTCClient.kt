@@ -13,10 +13,11 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import org.webrtc.IceCandidate
+import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
 import javax.inject.Inject
 
-internal class RTCClient
+class RTCClient
 @Inject
 constructor(
     private val websocketFactory: WebSocket.Factory,
@@ -28,7 +29,7 @@ constructor(
     private var currentWs: WebSocket? = null
     var listener: Listener? = null
 
-    fun connect(
+    fun join(
         host: String,
         token: String,
         isSecure: Boolean,
@@ -166,7 +167,7 @@ constructor(
         val request = Rtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()
-        
+
         sendRequest(request)
     }
 
@@ -240,5 +241,16 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
+
+        private fun iceServer(url: String) =
+            PeerConnection.IceServer.builder(url).createIceServer()
+
+        val DEFAULT_ICE_SERVERS = listOf(
+            iceServer("stun:stun.l.google.com:19302"),
+            iceServer("stun:stun1.l.google.com:19302"),
+            iceServer("stun:stun2.l.google.com:19302"),
+            iceServer("stun:stun3.l.google.com:19302"),
+            iceServer("stun:stun4.l.google.com:19302"),
+        )
     }
 }
