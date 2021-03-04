@@ -11,7 +11,7 @@ constructor(
     @Assisted private val engine: RTCEngine,
 ) {
 
-    suspend fun connect() {
-        engine.join(connectOptions)
+    suspend fun connect(url: String, token: String, isSecure: Boolean) {
+        engine.join(url, token, isSecure)
     }
 }

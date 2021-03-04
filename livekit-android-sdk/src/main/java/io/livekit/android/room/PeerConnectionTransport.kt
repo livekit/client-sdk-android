@@ -1,15 +1,16 @@
 package io.livekit.android.room
 
 import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import org.webrtc.*
 
 class PeerConnectionTransport
 @AssistedInject
 constructor(
-    config: PeerConnection.RTCConfiguration,
-    listener: PeerConnection.Observer,
-    @Assisted connectionFactory: PeerConnectionFactory
+    @Assisted config: PeerConnection.RTCConfiguration,
+    @Assisted listener: PeerConnection.Observer,
+    connectionFactory: PeerConnectionFactory
 ) {
     val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
         config,
@@ -48,5 +49,13 @@ constructor(
 
     fun close() {
         peerConnection.close()
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            config: PeerConnection.RTCConfiguration,
+            listener: PeerConnection.Observer
+        ): PeerConnectionTransport
     }
 }
