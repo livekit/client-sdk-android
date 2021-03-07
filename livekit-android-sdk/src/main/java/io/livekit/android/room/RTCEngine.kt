@@ -1,16 +1,21 @@
 package io.livekit.android.room
 
+import android.content.Context
+import io.livekit.android.room.track.Track
 import livekit.Model
 import livekit.Rtc
 import org.webrtc.*
 import javax.inject.Inject
+import kotlin.coroutines.Continuation
+
 
 class RTCEngine
 @Inject
 constructor(
+    private val appContext: Context,
     val client: RTCClient,
     pctFactory: PeerConnectionTransport.Factory,
-) {
+) : RTCClient.Listener {
 
     var listener: Listener? = null
     var rtcConnected: Boolean = false
@@ -24,11 +29,15 @@ constructor(
             }
         }
     val pendingCandidates = mutableListOf<IceCandidate>()
+    private val pendingTrackResolvers: MutableMap<Track.Cid, Continuation<Model.TrackInfo>> =
+        mutableMapOf()
 
     private val publisherObserver = PublisherTransportObserver(this)
     private val subscriberObserver = SubscriberTransportObserver(this)
     private val publisher: PeerConnectionTransport
     private val subscriber: PeerConnectionTransport
+
+    private var privateDataChannel: DataChannel
 
     init {
         val rtcConfig = PeerConnection.RTCConfiguration(RTCClient.DEFAULT_ICE_SERVERS).apply {
@@ -38,7 +47,12 @@ constructor(
 
         publisher = pctFactory.create(rtcConfig, publisherObserver)
         subscriber = pctFactory.create(rtcConfig, subscriberObserver)
+        client.listener = this
 
+        privateDataChannel = publisher.peerConnection.createDataChannel(
+            PRIVATE_DATA_CHANNEL_LABEL,
+            DataChannel.Init()
+        )
     }
 
     suspend fun join(url: String, token: String, isSecure: Boolean) {
@@ -58,5 +72,41 @@ constructor(
         fun onUpdateSpeakers(speakers: Array<out Rtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Error)
+    }
+
+    companion object {
+        private const val PRIVATE_DATA_CHANNEL_LABEL = "_private"
+    }
+
+    override fun onJoin(info: Rtc.JoinResponse) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onAnswer(sessionDescription: SessionDescription) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onOffer(sessionDescription: SessionDescription) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onLocalTrackPublished(trackPublished: Rtc.TrackPublishedResponse) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onParticipantUpdate(updates: List<Model.ParticipantInfo>) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onClose(reason: String, code: Int) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onError(error: Error) {
+        TODO("Not yet implemented")
     }
 }

@@ -7,8 +7,8 @@ class PublisherTransportObserver(
     private val engine: RTCEngine
 ) : PeerConnection.Observer {
 
-    override fun onIceCandidate(candidate: IceCandidate?) {
-        val candidate = candidate ?: return
+    override fun onIceCandidate(iceCandidate: IceCandidate?) {
+        val candidate = iceCandidate ?: return
         if (engine.rtcConnected) {
             engine.client.sendCandidate(candidate, target = Rtc.SignalTarget.PUBLISHER)
         } else {
@@ -21,10 +21,10 @@ class PublisherTransportObserver(
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-        val newState = newState ?: throw NullPointerException("unexpected null new state, what do?")
-        if (newState == PeerConnection.IceConnectionState.CONNECTED && !engine.iceConnected) {
+        val state = newState ?: throw NullPointerException("unexpected null new state, what do?")
+        if (state == PeerConnection.IceConnectionState.CONNECTED && !engine.iceConnected) {
             engine.iceConnected = true
-        } else if (newState == PeerConnection.IceConnectionState.DISCONNECTED) {
+        } else if (state == PeerConnection.IceConnectionState.DISCONNECTED) {
             engine.iceConnected = false
             engine.listener?.onDisconnect("Peer connection disconnected")
         }
