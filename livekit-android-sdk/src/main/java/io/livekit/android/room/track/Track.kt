@@ -44,16 +44,20 @@ class Track(name: String, state: State) {
     }
 }
 
-sealed class TrackException(message: String?, cause: Throwable?) : Exception(message, cause) {
-    class InvalidTrackTypeException(message: String?, cause: Throwable?) :
+sealed class TrackException(message: String? = null, cause: Throwable? = null) :
+    Exception(message, cause) {
+    class InvalidTrackTypeException(message: String? = null, cause: Throwable? = null) :
         TrackException(message, cause)
 
-    class DuplicateTrackException(message: String?, cause: Throwable?) :
+    class DuplicateTrackException(message: String? = null, cause: Throwable? = null) :
         TrackException(message, cause)
 
-    class InvalidTrackStateException(message: String?, cause: Throwable?) :
+    class InvalidTrackStateException(message: String? = null, cause: Throwable? = null) :
         TrackException(message, cause)
 
-    class MediaException(message: String?, cause: Throwable?) : TrackException(message, cause)
-    class PublishException(message: String?, cause: Throwable?) : TrackException(message, cause)
+    class MediaException(message: String? = null, cause: Throwable? = null) :
+        TrackException(message, cause)
+
+    class PublishException(message: String? = null, cause: Throwable? = null) :
+        TrackException(message, cause)
 }

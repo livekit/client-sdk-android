@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.room.track.Track
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -144,9 +145,9 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendMuteTrack(trackSid: String, muted: Boolean) {
+    fun sendMuteTrack(trackSid: Track.Sid, muted: Boolean) {
         val muteRequest = Rtc.MuteTrackRequest.newBuilder()
-            .setSid(trackSid)
+            .setSid(trackSid.sid)
             .setMuted(muted)
             .build()
 
@@ -157,9 +158,9 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendAddTrack(cid: String, name: String, type: Model.TrackType) {
+    fun sendAddTrack(cid: Track.Cid, name: String, type: Model.TrackType) {
         val addTrackRequest = Rtc.AddTrackRequest.newBuilder()
-            .setCid(cid)
+            .setCid(cid.cid)
             .setName(name)
             .setType(type)
             .build()
@@ -183,7 +184,6 @@ constructor(
             Timber.d { "error sending request: $request" }
             throw IllegalStateException()
         }
-
     }
 
     fun handleSignalResponse(response: Rtc.SignalResponse) {
@@ -224,15 +224,18 @@ constructor(
         }
     }
 
+    fun close() {
+        TODO("Not yet implemented")
+    }
+
     interface Listener {
         fun onJoin(info: Rtc.JoinResponse)
-
         fun onAnswer(sessionDescription: SessionDescription)
         fun onOffer(sessionDescription: SessionDescription)
-
         fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget)
-        fun onLocalTrackPublished(trackPublished: Rtc.TrackPublishedResponse)
+        fun onLocalTrackPublished(response: Rtc.TrackPublishedResponse)
         fun onParticipantUpdate(updates: List<Model.ParticipantInfo>)
+        fun onActiveSpeakersChanged(speakers: List<Rtc.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onError(error: Error)
     }
