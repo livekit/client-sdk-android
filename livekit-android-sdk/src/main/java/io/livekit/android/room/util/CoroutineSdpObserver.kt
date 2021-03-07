@@ -8,7 +8,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class CoroutineSdpObserver : SdpObserver {
-    private var createOutcome: Either<SessionDescription?, String?>? = null
+    private var createOutcome: Either<SessionDescription, String?>? = null
         set(value) {
             field = value
             if (value != null) {
@@ -19,7 +19,7 @@ class CoroutineSdpObserver : SdpObserver {
                 }
             }
         }
-    private var pendingCreate = mutableListOf<Continuation<Either<SessionDescription?, String?>>>()
+    private var pendingCreate = mutableListOf<Continuation<Either<SessionDescription, String?>>>()
 
     private var setOutcome: Either<Unit, String?>? = null
         set(value) {
@@ -35,7 +35,11 @@ class CoroutineSdpObserver : SdpObserver {
     private var pendingSets = mutableListOf<Continuation<Either<Unit, String?>>>()
 
     override fun onCreateSuccess(sdp: SessionDescription?) {
-        createOutcome = Either.Left(sdp)
+        createOutcome = if (sdp == null) {
+            Either.Right("empty sdp")
+        } else {
+            Either.Left(sdp)
+        }
     }
 
     override fun onSetSuccess() {
@@ -50,7 +54,7 @@ class CoroutineSdpObserver : SdpObserver {
         setOutcome = Either.Right(message)
     }
 
-    suspend fun awaitCreate() = suspendCoroutine<Either<SessionDescription?, String?>> { cont ->
+    suspend fun awaitCreate() = suspendCoroutine<Either<SessionDescription, String?>> { cont ->
         val curOutcome = createOutcome
         if (curOutcome != null) {
             cont.resume(curOutcome)

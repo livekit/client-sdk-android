@@ -14,6 +14,7 @@ constructor(
 ) {
     val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
         config,
+        RTCEngine.CONN_CONSTRAINTS,
         listener
     ) ?: throw IllegalStateException("peer connection creation failed?")
     val pendingCandidates = mutableListOf<IceCandidate>()

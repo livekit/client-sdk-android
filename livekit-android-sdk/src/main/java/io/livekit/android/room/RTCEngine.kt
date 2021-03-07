@@ -107,11 +107,6 @@ constructor(
                 }
             }
 
-            if (sdpOffer == null) {
-                Timber.d { "sdp is missing during negotiation?" }
-                return@launch
-            }
-
             val setObserver = CoroutineSdpObserver()
             publisher.peerConnection.setLocalDescription(setObserver, sdpOffer)
             val setOutcome = setObserver.awaitSet()
@@ -136,7 +131,7 @@ constructor(
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onPublishLocalTrack(cid: String, track: Model.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
-        fun onUpdateParticipants(updates: Array<out Model.ParticipantInfo>)
+        fun onUpdateParticipants(updates: List<Model.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<Rtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Error)
@@ -154,7 +149,7 @@ constructor(
 
         private val MEDIA_CONSTRAINTS = MediaConstraints()
 
-        private val CONN_CONSTRAINTS = MediaConstraints().apply {
+        internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
                 add(MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"))
             }
@@ -167,40 +162,87 @@ constructor(
         coroutineScope.launch {
             val offerObserver = CoroutineSdpObserver()
             publisher.peerConnection.createOffer(offerObserver, OFFER_CONSTRAINTS)
-            val offerOutcome = offerObserver.awaitCreate()
-            val sdpOffer = when (offerOutcome) {
-                is Either.Left -> offerOutcome.value
+            val sdpOffer = when (val outcome = offerObserver.awaitCreate()) {
+                is Either.Left -> outcome.value
                 is Either.Right -> {
-                    Timber.d { "error creating offer: ${offerOutcome.value}" }
+                    Timber.d { "error creating offer: ${outcome.value}" }
                     return@launch
                 }
             }
 
-            if (sdpOffer == null) {
-                Timber.d { "sdp is missing during negotiation?" }
-                return@launch
-            }
-
             val setObserver = CoroutineSdpObserver()
             publisher.peerConnection.setLocalDescription(setObserver, sdpOffer)
-            val setOutcome = setObserver.awaitSet()
-            when (setOutcome) {
+            when (val outcome = setObserver.awaitSet()) {
                 is Either.Left -> client.sendOffer(sdpOffer)
-                is Either.Right -> Timber.d { "error setting local description: ${setOutcome.value}" }
+                is Either.Right -> Timber.d { "error setting local description: ${outcome.value}" }
             }
         }
     }
 
     override fun onAnswer(sessionDescription: SessionDescription) {
-        TODO("Not yet implemented")
+        Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
+        val observer = CoroutineSdpObserver()
+        publisher.peerConnection.setRemoteDescription(observer, sessionDescription)
+        coroutineScope.launch {
+            when (val outcome = observer.awaitSet()) {
+                is Either.Left -> {
+                    if (!rtcConnected) {
+                        onRTCConnected()
+                    }
+                }
+                is Either.Right -> {
+                    Timber.e { "error setting remote description for answer: ${outcome.value} " }
+                }
+            }
+        }
     }
 
     override fun onOffer(sessionDescription: SessionDescription) {
-        TODO("Not yet implemented")
+        Timber.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
+        coroutineScope.launch {
+            run<Unit> {
+                val observer = CoroutineSdpObserver()
+                subscriber.peerConnection.setRemoteDescription(observer, sessionDescription)
+                when (val outcome = observer.awaitSet()) {
+                    is Either.Right -> {
+                        Timber.e { "error setting remote description for answer: ${outcome.value} " }
+                        return@launch
+                    }
+                }
+            }
+
+            val answer = run {
+                val observer = CoroutineSdpObserver()
+                subscriber.peerConnection.createAnswer(observer, OFFER_CONSTRAINTS)
+                when (val outcome = observer.awaitCreate()) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        Timber.e { "error creating answer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+            }
+
+            run<Unit> {
+                val observer = CoroutineSdpObserver()
+                subscriber.peerConnection.setLocalDescription(observer, answer)
+                when (val outcome = observer.awaitCreate()) {
+                    is Either.Left -> client.sendAnswer(answer)
+                    is Either.Right -> {
+                        Timber.e { "error setting local description for answer: ${outcome.value}" }
+                    }
+                }
+            }
+        }
     }
 
     override fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget) {
-        TODO("Not yet implemented")
+        Timber.v { "received ice candidate from peer: $candidate, $target" }
+        when (target) {
+            Rtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
+            Rtc.SignalTarget.SUBSCRIBER -> publisher.addIceCandidate(candidate)
+            else -> Timber.i { "unknown ice candidate target?" }
+        }
     }
 
     override fun onLocalTrackPublished(response: Rtc.TrackPublishedResponse) {
@@ -226,7 +268,7 @@ constructor(
     }
 
     override fun onParticipantUpdate(updates: List<Model.ParticipantInfo>) {
-        TODO("Not yet implemented")
+        listener?.onUpdateParticipants(updates)
     }
 
     override fun onActiveSpeakersChanged(speakers: List<Rtc.SpeakerInfo>) {
@@ -234,10 +276,11 @@ constructor(
     }
 
     override fun onClose(reason: String, code: Int) {
-        TODO("Not yet implemented")
+        Timber.i { "received close event: $reason, code: $code" }
+        listener?.onDisconnect(reason)
     }
 
     override fun onError(error: Error) {
-        TODO("Not yet implemented")
+        listener?.onFailToConnect(error)
     }
 }
