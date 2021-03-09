@@ -9,6 +9,7 @@ import javax.inject.Singleton
 @Singleton
 @Component(
     modules = [
+        CoroutinesModule::class,
         RTCModule::class,
         WebModule::class,
         JsonFormatModule::class,

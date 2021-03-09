@@ -3,7 +3,7 @@ package io.livekit.android.room.track
 import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 
-class Track(name: String, state: State) {
+open class Track(name: String, state: State) {
 
     var name = name
         internal set
