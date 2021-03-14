@@ -44,7 +44,7 @@ ext {
             protobuf     : "3.15.1",
     ]
     generated = [
-            protoSrc: "$projectDir/../livekit-server/proto",
+            protoSrc: "$projectDir/../protocol",
     ]
     deps = [
     ]
