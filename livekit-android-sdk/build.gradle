@@ -37,6 +37,7 @@ android {
     }
     kotlinOptions {
         freeCompilerArgs = ["-Xinline-classes"]
+        jvmTarget = java_version
     }
 }
 
