@@ -14,10 +14,10 @@ import org.webrtc.VideoTrack
 import java.nio.ByteBuffer
 
 class RemoteParticipant(
-    sid: String, name: String? = null
+    sid: Sid, name: String? = null
 ) : Participant(sid, name), RemoteDataTrack.Listener {
 
-    constructor(info: Model.ParticipantInfo) : this(info.sid, info.identity) {
+    constructor(info: Model.ParticipantInfo) : this(Sid(info.sid), info.identity) {
         updateFromInfo(info)
     }
 
@@ -42,7 +42,7 @@ class RemoteParticipant(
 
     fun updateFromInfo(info: Model.ParticipantInfo) {
         val hadInfo = hasInfo
-        sid = info.sid
+        sid = Sid(info.sid)
         name = info.identity
         participantInfo = info
         metadata = info.metadata

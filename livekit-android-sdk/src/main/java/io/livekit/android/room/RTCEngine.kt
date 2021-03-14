@@ -47,7 +47,7 @@ constructor(
 
     private val publisherObserver = PublisherTransportObserver(this)
     private val subscriberObserver = SubscriberTransportObserver(this)
-    private val publisher: PeerConnectionTransport
+    internal val publisher: PeerConnectionTransport
     private val subscriber: PeerConnectionTransport
 
     private var privateDataChannel: DataChannel

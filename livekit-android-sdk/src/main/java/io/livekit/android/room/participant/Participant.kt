@@ -2,7 +2,7 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.room.track.*
 
-open class Participant(var sid: String, name: String? = null) {
+open class Participant(var sid: Sid, name: String? = null) {
     inline class Sid(val sid: String)
 
     var metadata: String? = null
