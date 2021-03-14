@@ -1,9 +1,8 @@
 package io.livekit.android.room.participant
 
-import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.track.*
 
-class Participant(val sid: String, name: String? = null) {
+open class Participant(var sid: String, name: String? = null) {
     inline class Sid(val sid: String)
 
     var metadata: String? = null
@@ -20,10 +19,28 @@ class Participant(val sid: String, name: String? = null) {
     var dataTracks = mutableMapOf<Track.Sid, TrackPublication>()
         private set
 
-    fun addTrack(publication: TrackPublication){
+    fun addTrack(publication: TrackPublication) {
         tracks[publication.trackSid] = publication
-        when(publication) {
-
+        when (publication) {
+            is RemoteAudioTrackPublication -> audioTracks[publication.trackSid] = publication
+            is RemoteVideoTrackPublication -> videoTracks[publication.trackSid] = publication
+            is RemoteDataTrackPublication -> dataTracks[publication.trackSid] = publication
         }
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Participant
+
+        if (sid != other.sid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return sid.hashCode()
+    }
+
 }
