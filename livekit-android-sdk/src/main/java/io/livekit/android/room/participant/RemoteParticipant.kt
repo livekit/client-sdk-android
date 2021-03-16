@@ -173,7 +173,7 @@ class RemoteParticipant(
         listener?.onSubscribe(dataTrack = publication, participant = this)
     }
 
-    private fun unpublishTrack(trackSid: Track.Sid, sendUnpublish: Boolean) {
+    fun unpublishTrack(trackSid: Track.Sid, sendUnpublish: Boolean = false) {
         val publication = tracks.remove(trackSid) ?: return
 
         when (publication) {

@@ -69,6 +69,7 @@ dependencies {
     kapt 'com.google.dagger:dagger-compiler:2.33'
 
     implementation 'com.github.ajalt:timberkt:1.5.1'
+    implementation 'com.vdurmont:semver4j:3.1.0'
 
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

@@ -237,7 +237,7 @@ constructor(
         fun onParticipantUpdate(updates: List<Model.ParticipantInfo>)
         fun onActiveSpeakersChanged(speakers: List<Rtc.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
-        fun onError(error: Error)
+        fun onError(error: Exception)
     }
 
     companion object {

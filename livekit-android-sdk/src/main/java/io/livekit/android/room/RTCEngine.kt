@@ -37,7 +37,8 @@ constructor(
         set(value) {
             field = value
             if (field) {
-                listener?.onJoin(joinResponse)
+                // TODO get rid of this assertion
+                listener?.onJoin(joinResponse!!)
                 joinResponse = null
             }
         }
@@ -127,14 +128,14 @@ constructor(
     }
 
     interface Listener {
-        fun onJoin(response: Rtc.JoinResponse?)
+        fun onJoin(response: Rtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onPublishLocalTrack(cid: String, track: Model.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
         fun onUpdateParticipants(updates: List<Model.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<Rtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
-        fun onFailToConnect(error: Error)
+        fun onFailToConnect(error: Exception)
     }
 
     companion object {
@@ -280,7 +281,7 @@ constructor(
         listener?.onDisconnect(reason)
     }
 
-    override fun onError(error: Error) {
+    override fun onError(error: Exception) {
         listener?.onFailToConnect(error)
     }
 }
