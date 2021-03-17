@@ -25,13 +25,15 @@ class RTCClient
 @Inject
 constructor(
     private val websocketFactory: WebSocket.Factory,
-    private val fromJson: JsonFormat.Parser,
-    private val toJson: JsonFormat.Printer,
+    private val fromJsonProtobuf: JsonFormat.Parser,
+    private val toJsonProtobuf: JsonFormat.Printer,
+    private val json: Json,
     @Named(InjectionNames.SIGNAL_JSON_ENABLED)
     private val useJson: Boolean,
 ) : WebSocketListener() {
 
-    private var isConnected = false
+    var isConnected = false
+        private set
     private var currentWs: WebSocket? = null
     var listener: Listener? = null
 
@@ -52,12 +54,14 @@ constructor(
     }
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
+        Timber.v { response.message }
         super.onOpen(webSocket, response)
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
+        Timber.v { text }
         val signalResponseBuilder = Rtc.SignalResponse.newBuilder()
-        fromJson.merge(text, signalResponseBuilder)
+        fromJsonProtobuf.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
 
         handleSignalResponse(response)
@@ -73,14 +77,18 @@ constructor(
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+        Timber.v { "websocket closed" }
         super.onClosed(webSocket, code, reason)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+        Timber.v { "websocket closing" }
         super.onClosing(webSocket, code, reason)
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        Timber.v(t) { "websocket failure: ${response}" }
+
         super.onFailure(webSocket, t, response)
     }
 
@@ -128,13 +136,13 @@ constructor(
 
     fun sendCandidate(candidate: IceCandidate, target: Rtc.SignalTarget){
         val iceCandidateJSON = IceCandidateJSON(
-            sdp = candidate.sdp,
+            candidate = candidate.sdp,
             sdpMid = candidate.sdpMid,
             sdpMLineIndex = candidate.sdpMLineIndex
         )
 
         val trickleRequest = Rtc.TrickleRequest.newBuilder()
-            .setCandidateInit(Json.encodeToString(iceCandidateJSON))
+            .setCandidateInit(json.encodeToString(iceCandidateJSON))
             .setTarget(target)
             .build()
 
@@ -174,12 +182,12 @@ constructor(
 
     fun sendRequest(request: Rtc.SignalRequest) {
         Timber.v { "sending request: $request" }
-        if (!isConnected || currentWs != null) {
+        if (!isConnected || currentWs == null) {
             throw IllegalStateException("not connected!")
         }
         val sent: Boolean
         if (useJson) {
-            val message = toJson.print(request)
+            val message = toJsonProtobuf.print(request)
             sent = currentWs?.send(message) ?: false
         } else {
             val message = request.toByteArray().toByteString()
@@ -199,7 +207,7 @@ constructor(
                 isConnected = true
                 listener?.onJoin(response.join)
             } else {
-                Timber.e { "Received response while not connected. ${toJson.print(response)}" }
+                Timber.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
             }
             return
         }
@@ -214,11 +222,11 @@ constructor(
             }
             Rtc.SignalResponse.MessageCase.TRICKLE -> {
                 val iceCandidateJson =
-                    Json.decodeFromString<IceCandidateJSON>(response.trickle.candidateInit)
+                    json.decodeFromString<IceCandidateJSON>(response.trickle.candidateInit)
                 val iceCandidate = IceCandidate(
                     iceCandidateJson.sdpMid,
                     iceCandidateJson.sdpMLineIndex,
-                    iceCandidateJson.sdp
+                    iceCandidateJson.candidate
                 )
                 listener?.onTrickle(iceCandidate, response.trickle.target)
             }

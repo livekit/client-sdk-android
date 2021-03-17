@@ -96,24 +96,26 @@ constructor(
     }
 
     fun negotiate() {
+
+        if (!client.isConnected) {
+            return
+        }
         coroutineScope.launch {
             val offerObserver = CoroutineSdpObserver()
             publisher.peerConnection.createOffer(offerObserver, OFFER_CONSTRAINTS)
-            val offerOutcome = offerObserver.awaitCreate()
-            val sdpOffer = when (offerOutcome) {
-                is Either.Left -> offerOutcome.value
+            val sdpOffer = when (val outcome = offerObserver.awaitCreate()) {
+                is Either.Left -> outcome.value
                 is Either.Right -> {
-                    Timber.d { "error creating offer: ${offerOutcome.value}" }
+                    Timber.d { "error creating offer: ${outcome.value}" }
                     return@launch
                 }
             }
 
             val setObserver = CoroutineSdpObserver()
             publisher.peerConnection.setLocalDescription(setObserver, sdpOffer)
-            val setOutcome = setObserver.awaitSet()
-            when (setOutcome) {
+            when (val outcome = setObserver.awaitSet()) {
                 is Either.Left -> client.sendOffer(sdpOffer)
-                is Either.Right -> Timber.d { "error setting local description: ${setOutcome.value}" }
+                is Either.Right -> Timber.d { "error setting local description: ${outcome.value}" }
             }
         }
     }

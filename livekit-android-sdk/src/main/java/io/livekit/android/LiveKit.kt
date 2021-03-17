@@ -2,6 +2,7 @@ package io.livekit.android
 
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
+import io.livekit.android.room.Room
 
 class LiveKit {
     companion object {
@@ -9,8 +10,9 @@ class LiveKit {
             appContext: Context,
             url: String,
             token: String,
-            options: ConnectOptions
-        ) {
+            options: ConnectOptions,
+            listener: Room.Listener?
+        ): Room {
 
             val component = DaggerLiveKitComponent
                 .factory()
@@ -18,7 +20,10 @@ class LiveKit {
 
             val room = component.roomFactory()
                 .create(options)
-            room.connect(url, token, false)
+            room.listener = listener
+            room.connect(url, token, options.isSecure)
+
+            return room
         }
     }
 }

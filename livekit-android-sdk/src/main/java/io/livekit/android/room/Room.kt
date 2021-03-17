@@ -13,15 +13,14 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.Model
 import livekit.Rtc
-import org.webrtc.DataChannel
-import org.webrtc.MediaStream
-import org.webrtc.MediaStreamTrack
+import org.webrtc.*
 
 class Room
 @AssistedInject
 constructor(
     @Assisted private val connectOptions: ConnectOptions,
     private val engine: RTCEngine,
+    private val eglBase: EglBase,
 ) : RTCEngine.Listener {
     init {
         engine.listener = this
@@ -74,7 +73,7 @@ constructor(
             removedParticipant.unpublishTrack(publication.trackSid)
         }
 
-        listener?.onparticipantDisconnected(this, removedParticipant)
+        listener?.onParticipantDisconnected(this, removedParticipant)
     }
 
     private fun getOrCreateRemoteParticipant(
@@ -136,7 +135,7 @@ constructor(
         fun onConnect(room: Room)
         fun onDisconnect(room: Room, error: Exception?)
         fun onParticipantConnected(room: Room, participant: RemoteParticipant)
-        fun onparticipantDisconnected(room: Room, participant: RemoteParticipant)
+        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant)
         fun onFailedToConnect(room: Room, error: Exception)
         fun onReconnecting(room: Room, error: Exception)
         fun onReconnect(room: Room)
@@ -224,5 +223,11 @@ constructor(
 
     override fun onFailToConnect(error: Exception) {
         listener?.onFailedToConnect(this, error)
+    }
+
+    fun setupVideo(viewRenderer: SurfaceViewRenderer) {
+        viewRenderer.init(eglBase.eglBaseContext, null)
+        viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+        viewRenderer.setEnableHardwareScaler(false /* enabled */);
     }
 }

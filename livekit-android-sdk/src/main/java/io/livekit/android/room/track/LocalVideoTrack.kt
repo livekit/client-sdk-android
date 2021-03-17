@@ -19,11 +19,11 @@ class LocalVideoTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
             enabled: Boolean,
-            name: String
+            name: String,
+            rootEglBase: EglBase,
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(false)
             val capturer = createVideoCapturer(context) ?: TODO()
-            val rootEglBase = EglBase.create()
             capturer.initialize(
                 SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext),
                 context,

@@ -4,6 +4,7 @@ import android.content.Context
 import com.github.ajalt.timberkt.Timber
 import dagger.Module
 import dagger.Provides
+import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -98,6 +99,13 @@ class RTCModule {
             return PeerConnectionFactory.builder()
                 .setAudioDeviceModule(audioDeviceModule)
                 .createPeerConnectionFactory()
+        }
+
+
+        @Provides
+        @Singleton
+        fun eglBase(): EglBase {
+            return EglBase.create()
         }
     }
 }

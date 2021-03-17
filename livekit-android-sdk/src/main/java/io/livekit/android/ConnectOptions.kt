@@ -2,5 +2,5 @@ package io.livekit.android
 
 
 data class ConnectOptions(
-    val isSecure: Boolean
+    val isSecure: Boolean = true
 )

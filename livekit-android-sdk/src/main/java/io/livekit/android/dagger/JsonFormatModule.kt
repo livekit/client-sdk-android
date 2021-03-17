@@ -3,20 +3,29 @@ package io.livekit.android.dagger
 import com.google.protobuf.util.JsonFormat
 import dagger.Module
 import dagger.Provides
+import dagger.Reusable
+import kotlinx.serialization.json.Json
 import javax.inject.Named
 
 @Module
 class JsonFormatModule {
     companion object {
         @Provides
-        fun jsonFormatParser(): JsonFormat.Parser {
+        fun protobufJsonFormatParser(): JsonFormat.Parser {
             return JsonFormat.parser()
         }
 
         @Provides
-        fun jsonFormatPrinter(): JsonFormat.Printer {
+        fun protobufJsonFormatPrinter(): JsonFormat.Printer {
             return JsonFormat.printer()
         }
+
+        @Provides
+        @Reusable
+        fun kotlinSerializationJson(): Json =
+            Json {
+                ignoreUnknownKeys = true
+            }
 
         @Provides
         @Named(InjectionNames.SIGNAL_JSON_ENABLED)
