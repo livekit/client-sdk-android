@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -13,10 +14,12 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
 import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
 import javax.inject.Inject
+import javax.inject.Named
 
 class RTCClient
 @Inject
@@ -24,6 +27,8 @@ constructor(
     private val websocketFactory: WebSocket.Factory,
     private val fromJson: JsonFormat.Parser,
     private val toJson: JsonFormat.Printer,
+    @Named(InjectionNames.SIGNAL_JSON_ENABLED)
+    private val useJson: Boolean,
 ) : WebSocketListener() {
 
     private var isConnected = false
@@ -55,21 +60,16 @@ constructor(
         fromJson.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
 
-        if (!isConnected) {
-            // Only handle joins if not connected.
-            if (response.hasJoin()) {
-                isConnected = true
-                listener?.onJoin(response.join)
-            } else {
-                Timber.e { "out of order message?" }
-            }
-            return
-        }
         handleSignalResponse(response)
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-        super.onMessage(webSocket, bytes)
+        val byteArray = bytes.toByteArray()
+        val signalResponseBuilder = Rtc.SignalResponse.newBuilder()
+            .mergeFrom(byteArray)
+        val response = signalResponseBuilder.build()
+
+        handleSignalResponse(response)
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -177,8 +177,14 @@ constructor(
         if (!isConnected || currentWs != null) {
             throw IllegalStateException("not connected!")
         }
-        val message = toJson.print(request)
-        val sent = currentWs?.send(message) ?: false
+        val sent: Boolean
+        if (useJson) {
+            val message = toJson.print(request)
+            sent = currentWs?.send(message) ?: false
+        } else {
+            val message = request.toByteArray().toByteString()
+            sent = currentWs?.send(message) ?: false
+        }
 
         if (!sent) {
             Timber.d { "error sending request: $request" }
@@ -188,7 +194,13 @@ constructor(
 
     fun handleSignalResponse(response: Rtc.SignalResponse) {
         if (!isConnected) {
-            Timber.e { "Received response while not connected. ${toJson.print(response)}" }
+            // Only handle joins if not connected.
+            if (response.hasJoin()) {
+                isConnected = true
+                listener?.onJoin(response.join)
+            } else {
+                Timber.e { "Received response while not connected. ${toJson.print(response)}" }
+            }
             return
         }
         when (response.messageCase) {

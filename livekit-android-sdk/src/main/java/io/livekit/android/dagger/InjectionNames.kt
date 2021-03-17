@@ -7,5 +7,7 @@ class InjectionNames {
         const val DISPATCHER_IO = "dispatcher_io";
         const val DISPATCHER_MAIN = "dispatcher_main"
         const val DISPATCHER_UNCONFINED = "dispatcher_unconfined"
+
+        const val SIGNAL_JSON_ENABLED = "signal_json_enabled"
     }
 }
