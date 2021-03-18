@@ -28,7 +28,7 @@ class RemoteParticipant(
     val remoteDataTracks
         get() = dataTracks.values.toList()
 
-    val listener: Listener? = null
+    var listener: Listener? = null
 
     var participantInfo: Model.ParticipantInfo? = null
 
@@ -237,53 +237,65 @@ class RemoteParticipant(
     }
 
     interface Listener {
-        fun onPublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
-        fun onUnpublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
-        fun onPublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
-        fun onUnpublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
-        fun onPublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant)
-        fun onUnpublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant)
+        fun onPublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
+        fun onUnpublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
+        fun onPublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
+        fun onUnpublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
+        fun onPublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
+        fun onUnpublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
 
-        fun onEnable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
-        fun onDisable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
-        fun onEnable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
-        fun onDisable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
+        fun onEnable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
+        fun onDisable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
+        fun onEnable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
+        fun onDisable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
 
-        fun onSubscribe(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
+        fun onSubscribe(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
         fun onFailToSubscribe(
             audioTrack: RemoteAudioTrack,
             exception: Exception,
             participant: RemoteParticipant
-        )
+        ) {
+        }
 
-        fun onUnsubscribe(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant)
+        fun onUnsubscribe(
+            audioTrack: RemoteAudioTrackPublication,
+            participant: RemoteParticipant
+        ) {
+        }
 
-        fun onSubscribe(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
+        fun onSubscribe(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
         fun onFailToSubscribe(
             videoTrack: RemoteVideoTrack,
             exception: Exception,
             participant: RemoteParticipant
-        )
+        ) {
+        }
 
-        fun onUnsubscribe(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant)
+        fun onUnsubscribe(
+            videoTrack: RemoteVideoTrackPublication,
+            participant: RemoteParticipant
+        ) {
+        }
 
-        fun onSubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant)
+        fun onSubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
         fun onFailToSubscribe(
             dataTrack: RemoteDataTrackPublication,
             exception: Exception,
             participant: RemoteParticipant
-        )
+        ) {
+        }
 
-        fun onUnsubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant)
+        fun onUnsubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
         fun onReceive(
             data: ByteBuffer,
             dataTrack: RemoteDataTrackPublication,
             participant: RemoteParticipant
-        )
+        ) {
+        }
 
         //fun networkQualityDidChange(networkQualityLevel: NetworkQualityLevel, participant: remoteParticipant)
-        fun switchedOffVideo(track: RemoteVideoTrack, participant: RemoteParticipant)
-        fun switchedOnVideo(track: RemoteVideoTrack, participant: RemoteParticipant)
+        fun switchedOffVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
+        fun switchedOnVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
 //        fun onChangePublishPriority(videoTrack: RemoteVideoTrackPublication, priority: PublishPriority, participant: RemoteParticipant)
 //        fun onChangePublishPriority(audioTrack: RemoteAudioTrackPublication, priority: PublishPriority, participant: RemoteParticipant)
 //        fun onChangePublishPriority(dataTrack: RemoteDataTrackPublication, priority: PublishPriority, participant: RemoteParticipant)

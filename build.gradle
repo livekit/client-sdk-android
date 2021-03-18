@@ -39,9 +39,11 @@ ext {
             minVersion    : 21,
     ]
     versions = [
-            androidx_core: "1.2.0",
-            dagger       : "2.27",
-            protobuf     : "3.15.1",
+            androidx_core     : "1.2.0",
+            androidx_lifecycle: "2.3.0",
+            dagger            : "2.27",
+            groupie           : "2.9.0",
+            protobuf          : "3.15.1",
     ]
     generated = [
             protoSrc: "$projectDir/../protocol",

@@ -236,7 +236,9 @@ constructor(
             Rtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
                 listener?.onLocalTrackPublished(response.trackPublished)
             }
-            Rtc.SignalResponse.MessageCase.SPEAKER -> TODO()
+            Rtc.SignalResponse.MessageCase.SPEAKER -> {
+                listener?.onActiveSpeakersChanged(response.speaker.speakersList)
+            }
             Rtc.SignalResponse.MessageCase.MESSAGE_NOT_SET -> TODO()
             else -> {
                 Timber.v { "unhandled response type: ${response.messageCase.name}" }

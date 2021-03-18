@@ -225,7 +225,7 @@ constructor(
         listener?.onFailedToConnect(this, error)
     }
 
-    fun setupVideo(viewRenderer: SurfaceViewRenderer) {
+    fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false /* enabled */);
