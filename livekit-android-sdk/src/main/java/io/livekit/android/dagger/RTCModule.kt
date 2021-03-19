@@ -4,11 +4,11 @@ import android.content.Context
 import com.github.ajalt.timberkt.Timber
 import dagger.Module
 import dagger.Provides
-import org.webrtc.EglBase
-import org.webrtc.PeerConnectionFactory
+import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
 import javax.inject.Singleton
+
 
 @Module
 class RTCModule {
@@ -87,25 +87,45 @@ class RTCModule {
 
         @Provides
         @Singleton
+        fun eglBase(): EglBase {
+            return EglBase.create()
+        }
+
+        @Provides
+        fun eglContext(eglBase: EglBase): EglBase.Context = eglBase.eglBaseContext
+
+        @Provides
+        fun videoEncoderFactory(eglContext: EglBase.Context): VideoEncoderFactory =
+            DefaultVideoEncoderFactory(
+                eglContext,
+                true,
+                true
+            )
+
+        @Provides
+        fun videoDecoderFactory(eglContext: EglBase.Context): VideoDecoderFactory =
+            DefaultVideoDecoderFactory(eglContext)
+
+        @Provides
+        @Singleton
         fun peerConnectionFactory(
             appContext: Context,
-            audioDeviceModule: AudioDeviceModule
+            audioDeviceModule: AudioDeviceModule,
+            videoEncoderFactory: VideoEncoderFactory,
+            videoDecoderFactory: VideoDecoderFactory,
         ): PeerConnectionFactory {
             PeerConnectionFactory.initialize(
-                PeerConnectionFactory.InitializationOptions.builder(appContext)
+                PeerConnectionFactory.InitializationOptions
+                    .builder(appContext)
                     .createInitializationOptions()
             )
 
             return PeerConnectionFactory.builder()
                 .setAudioDeviceModule(audioDeviceModule)
+                .setVideoEncoderFactory(videoEncoderFactory)
+                .setVideoDecoderFactory(videoDecoderFactory)
                 .createPeerConnectionFactory()
         }
 
-
-        @Provides
-        @Singleton
-        fun eglBase(): EglBase {
-            return EglBase.create()
-        }
     }
 }
