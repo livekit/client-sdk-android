@@ -247,7 +247,8 @@ constructor(
     }
 
     fun close() {
-        TODO("Not yet implemented")
+        isConnected = false
+        currentWs?.close(1000, "Normal Closure")
     }
 
     interface Listener {

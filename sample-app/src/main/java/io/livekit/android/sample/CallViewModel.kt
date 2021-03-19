@@ -78,10 +78,17 @@ class CallViewModel(
     }
 
     fun updateParticipants(room: Room) {
-        mutableRemoteParticipants.value = room.remoteParticipants
-            .keys
-            .sortedBy { it.sid }
-            .mapNotNull { room.remoteParticipants[it] }
+        mutableRemoteParticipants.postValue(
+            room.remoteParticipants
+                .keys
+                .sortedBy { it.sid }
+                .mapNotNull { room.remoteParticipants[it] }
+        )
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        mutableRoom.value?.disconnect()
+        mutableRoom.value = null
+    }
 }

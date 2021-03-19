@@ -10,11 +10,13 @@ class SubscriberTransportObserver(
 
 
     override fun onIceCandidate(candidate: IceCandidate) {
+        Timber.v { "onIceCandidate: $candidate" }
         engine.client.sendCandidate(candidate, Rtc.SignalTarget.SUBSCRIBER)
     }
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
         val track = receiver.track() ?: return
+        Timber.v { "onAddTrack: $track, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
         engine.listener?.onAddTrack(track, streams)
     }
 
@@ -27,6 +29,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onDataChannel(channel: DataChannel) {
+        Timber.v { "onDataChannel" }
         engine.listener?.onAddDataChannel(channel)
     }
 

@@ -1,6 +1,7 @@
 package io.livekit.android.sample
 
 import android.view.View
+import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
@@ -19,12 +20,13 @@ class ParticipantItem(
     private var videoBound = false
 
     override fun initializeViewBinding(view: View): ParticipantItemBinding {
-        return ParticipantItemBinding.bind(view)
+        val binding = ParticipantItemBinding.bind(view)
+        room.initVideoRenderer(binding.renderer)
+        return binding
     }
 
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
         viewBinding.run {
-            room.initVideoRenderer(renderer)
 
             val existingTrack = getVideoTrack()
             if (existingTrack != null) {
@@ -58,6 +60,7 @@ class ParticipantItem(
             return
         }
 
+        Timber.v { "adding renderer to $videoTrack" }
         videoTrack.addRenderer(viewBinding.renderer)
     }
 
