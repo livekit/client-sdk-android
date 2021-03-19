@@ -1,13 +1,14 @@
 package io.livekit.android.room.track
 
 class RemoteAudioTrack(
-    sid: Track.Sid,
+    sid: Sid,
     playbackEnabled: Boolean = true,
     name: String,
     rtcTrack: org.webrtc.AudioTrack
 ) : AudioTrack(name, rtcTrack), RemoteTrack {
 
-    override var sid: Track.Sid = sid
+
+    override var sid: Sid = sid
     var playbackEnabled = playbackEnabled
         internal set
 

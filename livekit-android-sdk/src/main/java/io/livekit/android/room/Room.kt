@@ -199,6 +199,11 @@ constructor(
     override fun onUpdateParticipants(updates: List<Model.ParticipantInfo>) {
         for (info in updates) {
             val participantSid = Participant.Sid(info.sid)
+
+            if(localParticipant?.sid == participantSid) {
+                localParticipant?.updateFromInfo(info)
+            }
+
             val isNewParticipant = remoteParticipants.contains(participantSid)
             val participant = getOrCreateRemoteParticipant(participantSid, info)
 

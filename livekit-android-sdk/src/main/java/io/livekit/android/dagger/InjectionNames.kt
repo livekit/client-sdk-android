@@ -9,5 +9,7 @@ class InjectionNames {
         const val DISPATCHER_UNCONFINED = "dispatcher_unconfined"
 
         const val SIGNAL_JSON_ENABLED = "signal_json_enabled"
+
+        const val OPTIONS_VIDEO_HW_ACCEL = "options_video_hw_accel"
     }
 }

@@ -16,7 +16,7 @@ class SubscriberTransportObserver(
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
         val track = receiver.track() ?: return
-        Timber.v { "onAddTrack: $track, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
+        Timber.v { "onAddTrack: ${track.kind()}, ${track.id()}, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
         engine.listener?.onAddTrack(track, streams)
     }
 

@@ -1,8 +1,10 @@
 package io.livekit.android.sample
 
+import android.media.AudioManager
 import android.os.Bundle
 import android.os.Parcelable
 import androidx.appcompat.app.AppCompatActivity
+import com.github.ajalt.timberkt.Timber
 import com.snakydesign.livedataextensions.combineLatest
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.sample.databinding.CallActivityBinding
@@ -25,6 +27,7 @@ class CallActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
+        // Viewpager setup
         val adapter = GroupieAdapter()
         binding.viewPager.apply {
             this.adapter = adapter
@@ -39,6 +42,22 @@ class CallActivity : AppCompatActivity() {
                 val items = participants.map { participant -> ParticipantItem(room, participant) }
                 adapter.update(items)
             }
+
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        with(audioManager) {
+            isSpeakerphoneOn = true
+            isMicrophoneMute = false
+            mode = AudioManager.MODE_IN_COMMUNICATION
+        }
+        val result = audioManager.requestAudioFocus(
+            { },
+            AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN
+        )
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            Timber.v { "Audio focus request granted for VOICE_CALL streams" }
+        } else {
+            Timber.v { "Audio focus request failed" }
+        }
     }
 
 

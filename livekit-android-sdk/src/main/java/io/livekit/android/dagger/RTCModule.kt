@@ -7,6 +7,7 @@ import dagger.Provides
 import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
+import javax.inject.Named
 import javax.inject.Singleton
 
 
@@ -76,8 +77,6 @@ class RTCModule {
             }
 
             return JavaAudioDeviceModule.builder(appContext)
-                .setUseHardwareAcousticEchoCanceler(true)
-                .setUseHardwareNoiseSuppressor(true)
                 .setAudioRecordErrorCallback(audioRecordErrorCallback)
                 .setAudioTrackErrorCallback(audioTrackErrorCallback)
                 .setAudioRecordStateCallback(audioRecordStateCallback)
@@ -95,16 +94,35 @@ class RTCModule {
         fun eglContext(eglBase: EglBase): EglBase.Context = eglBase.eglBaseContext
 
         @Provides
-        fun videoEncoderFactory(eglContext: EglBase.Context): VideoEncoderFactory =
-            DefaultVideoEncoderFactory(
-                eglContext,
-                true,
-                true
-            )
+        fun videoEncoderFactory(
+            @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
+            videoHwAccel: Boolean,
+            eglContext: EglBase.Context
+        ): VideoEncoderFactory {
+
+            return if (videoHwAccel) {
+                DefaultVideoEncoderFactory(
+                    eglContext,
+                    true,
+                    true
+                )
+            } else {
+                SoftwareVideoEncoderFactory()
+            }
+        }
 
         @Provides
-        fun videoDecoderFactory(eglContext: EglBase.Context): VideoDecoderFactory =
-            DefaultVideoDecoderFactory(eglContext)
+        fun videoDecoderFactory(
+            @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
+            videoHwAccel: Boolean,
+            eglContext: EglBase.Context,
+        ): VideoDecoderFactory {
+            return if (videoHwAccel) {
+                DefaultVideoDecoderFactory(eglContext)
+            } else {
+                SoftwareVideoDecoderFactory()
+            }
+        }
 
         @Provides
         @Singleton
@@ -127,5 +145,8 @@ class RTCModule {
                 .createPeerConnectionFactory()
         }
 
+        @Provides
+        @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
+        fun videoHwAccel() = false
     }
 }

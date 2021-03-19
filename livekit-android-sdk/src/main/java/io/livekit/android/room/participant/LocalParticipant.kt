@@ -29,6 +29,12 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     var engine: RTCEngine? = null
     val listener: Listener? = null
 
+    fun updateFromInfo(info: Model.ParticipantInfo) {
+        sid = Sid(info.sid)
+        name = info.identity
+        metadata = info.metadata
+    }
+
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
         options: LocalTrackPublicationOptions? = null

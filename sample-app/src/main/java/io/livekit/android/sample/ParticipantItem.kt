@@ -28,21 +28,20 @@ class ParticipantItem(
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
         viewBinding.run {
 
+            remoteParticipant.listener = object : RemoteParticipant.Listener {
+                override fun onSubscribe(
+                    videoTrack: RemoteVideoTrackPublication,
+                    participant: RemoteParticipant
+                ) {
+                    val track = videoTrack.videoTrack
+                    if (track != null) {
+                        setupVideoIfNeeded(track, viewBinding)
+                    }
+                }
+            }
             val existingTrack = getVideoTrack()
             if (existingTrack != null) {
                 setupVideoIfNeeded(existingTrack, viewBinding)
-            } else {
-                remoteParticipant.listener = object : RemoteParticipant.Listener {
-                    override fun onSubscribe(
-                        videoTrack: RemoteVideoTrackPublication,
-                        participant: RemoteParticipant
-                    ) {
-                        val track = videoTrack.videoTrack
-                        if (track != null) {
-                            setupVideoIfNeeded(track, viewBinding)
-                        }
-                    }
-                }
             }
         }
     }
@@ -60,6 +59,7 @@ class ParticipantItem(
             return
         }
 
+        videoBound = true
         Timber.v { "adding renderer to $videoTrack" }
         videoTrack.addRenderer(viewBinding.renderer)
     }

@@ -35,6 +35,7 @@ class CallViewModel(
                 ConnectOptions(false),
                 object : Room.Listener {
                     override fun onConnect(room: Room) {
+                        updateParticipants(room)
                     }
 
                     override fun onDisconnect(room: Room, error: Exception?) {
@@ -61,6 +62,7 @@ class CallViewModel(
                     }
 
                     override fun onReconnect(room: Room) {
+                        updateParticipants(room)
                     }
 
                     override fun onStartRecording(room: Room) {
