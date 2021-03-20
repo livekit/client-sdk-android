@@ -32,7 +32,9 @@ class LiveKit {
             if (localParticipant != null) {
                 val factory = component.peerConnectionFactory()
                 if (options.sendAudio) {
-                    localParticipant.publishAudioTrack(createLocalAudioTrack(factory))
+                    val audioTrack = createLocalAudioTrack(factory)
+                    localParticipant.publishAudioTrack(audioTrack)
+                    audioTrack.enabled = true
                 }
                 if (options.sendVideo) {
                     val videoTrack = createLocalVideoTrack(

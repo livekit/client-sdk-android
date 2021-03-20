@@ -74,7 +74,8 @@ class CallActivity : AppCompatActivity() {
         }
         val result = audioManager.requestAudioFocus(
             { },
-            AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN
+            AudioManager.STREAM_VOICE_CALL,
+            AudioManager.AUDIOFOCUS_GAIN,
         )
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             Timber.v { "Audio focus request granted for VOICE_CALL streams" }
