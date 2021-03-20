@@ -229,13 +229,15 @@ constructor(
             run<Unit> {
                 val observer = CoroutineSdpObserver()
                 subscriber.peerConnection.setLocalDescription(observer, answer)
-                when (val outcome = observer.awaitCreate()) {
-                    is Either.Left -> client.sendAnswer(answer)
+                when (val outcome = observer.awaitSet()) {
                     is Either.Right -> {
                         Timber.e { "error setting local description for answer: ${outcome.value}" }
+                        return@launch
                     }
                 }
             }
+
+            client.sendAnswer(answer)
         }
     }
 
