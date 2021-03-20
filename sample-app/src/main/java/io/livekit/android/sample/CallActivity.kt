@@ -8,6 +8,7 @@ import com.github.ajalt.timberkt.Timber
 import com.google.android.material.tabs.TabLayoutMediator
 import com.snakydesign.livedataextensions.combineLatest
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.sample.databinding.CallActivityBinding
 import kotlinx.parcelize.Parcelize
 
@@ -55,6 +56,16 @@ class CallActivity : AppCompatActivity() {
                 tabLayoutMediator?.attach()
             }
 
+        viewModel.room.observe(this) { room ->
+            room.initVideoRenderer(binding.pipVideoView)
+            val localParticipant = room.localParticipant
+            if (localParticipant != null) {
+                val videoTrack = localParticipant.localVideoTrackPublications
+                    .firstOrNull()
+                    ?.track as? LocalVideoTrack
+                videoTrack?.addRenderer(binding.pipVideoView)
+            }
+        }
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
             isSpeakerphoneOn = true
