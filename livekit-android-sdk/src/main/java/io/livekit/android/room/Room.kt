@@ -132,16 +132,16 @@ constructor(
     }
 
     interface Listener {
-        fun onConnect(room: Room)
-        fun onDisconnect(room: Room, error: Exception?)
-        fun onParticipantConnected(room: Room, participant: RemoteParticipant)
-        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant)
-        fun onFailedToConnect(room: Room, error: Exception)
-        fun onReconnecting(room: Room, error: Exception)
-        fun onReconnect(room: Room)
-        fun onStartRecording(room: Room)
-        fun onStopRecording(room: Room)
-        fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room)
+        fun onConnect(room: Room) {}
+        fun onDisconnect(room: Room, error: Exception?) {}
+        fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
+        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
+        fun onFailedToConnect(room: Room, error: Exception) {}
+        fun onReconnecting(room: Room, error: Exception) {}
+        fun onReconnect(room: Room) {}
+        fun onStartRecording(room: Room) {}
+        fun onStopRecording(room: Room) {}
+        fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
     }
 
     override fun onJoin(response: Rtc.JoinResponse) {
