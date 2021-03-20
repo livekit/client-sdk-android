@@ -14,7 +14,6 @@ import kotlinx.parcelize.Parcelize
 class CallActivity : AppCompatActivity() {
 
     val viewModel: CallViewModel by viewModelByFactory {
-
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
         CallViewModel(args.url, args.token, application)

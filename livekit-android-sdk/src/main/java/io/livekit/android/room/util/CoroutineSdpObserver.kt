@@ -1,6 +1,8 @@
 package io.livekit.android.room.util
 
 import io.livekit.android.util.Either
+import org.webrtc.MediaConstraints
+import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import kotlin.coroutines.Continuation
@@ -71,4 +73,28 @@ class CoroutineSdpObserver : SdpObserver {
             pendingSets.add(cont)
         }
     }
+}
+
+suspend fun PeerConnection.createOffer(constraints: MediaConstraints): Either<SessionDescription, String?> {
+    val observer = CoroutineSdpObserver()
+    this.createOffer(observer, constraints)
+    return observer.awaitCreate()
+}
+
+suspend fun PeerConnection.createAnswer(constraints: MediaConstraints): Either<SessionDescription, String?> {
+    val observer = CoroutineSdpObserver()
+    this.createAnswer(observer, constraints)
+    return observer.awaitCreate()
+}
+
+suspend fun PeerConnection.setRemoteDescription(description: SessionDescription): Either<Unit, String?> {
+    val observer = CoroutineSdpObserver()
+    this.setRemoteDescription(observer, description)
+    return observer.awaitSet()
+}
+
+suspend fun PeerConnection.setLocalDescription(description: SessionDescription): Either<Unit, String?> {
+    val observer = CoroutineSdpObserver()
+    this.setLocalDescription(observer, description)
+    return observer.awaitSet()
 }

@@ -5,7 +5,7 @@ import com.github.ajalt.timberkt.Timber
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
-import io.livekit.android.room.util.CoroutineSdpObserver
+import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import kotlinx.coroutines.CoroutineDispatcher
@@ -101,22 +101,23 @@ constructor(
             return
         }
         coroutineScope.launch {
-            val offerObserver = CoroutineSdpObserver()
-            publisher.peerConnection.createOffer(offerObserver, OFFER_CONSTRAINTS)
-            val sdpOffer = when (val outcome = offerObserver.awaitCreate()) {
-                is Either.Left -> outcome.value
+            val sdpOffer =
+                when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        Timber.d { "error creating offer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+
+            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
                 is Either.Right -> {
-                    Timber.d { "error creating offer: ${outcome.value}" }
+                    Timber.d { "error setting local description: ${outcome.value}" }
                     return@launch
                 }
             }
 
-            val setObserver = CoroutineSdpObserver()
-            publisher.peerConnection.setLocalDescription(setObserver, sdpOffer)
-            when (val outcome = setObserver.awaitSet()) {
-                is Either.Left -> client.sendOffer(sdpOffer)
-                is Either.Right -> Timber.d { "error setting local description: ${outcome.value}" }
-            }
+            client.sendOffer(sdpOffer)
         }
     }
 
@@ -163,31 +164,29 @@ constructor(
         joinResponse = info
 
         coroutineScope.launch {
-            val offerObserver = CoroutineSdpObserver()
-            publisher.peerConnection.createOffer(offerObserver, OFFER_CONSTRAINTS)
-            val sdpOffer = when (val outcome = offerObserver.awaitCreate()) {
-                is Either.Left -> outcome.value
+            val sdpOffer =
+                when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        Timber.d { "error creating offer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+
+            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
                 is Either.Right -> {
-                    Timber.d { "error creating offer: ${outcome.value}" }
-                    return@launch
+                    Timber.d { "error setting local description: ${outcome.value}" }
                 }
             }
 
-            val setObserver = CoroutineSdpObserver()
-            publisher.peerConnection.setLocalDescription(setObserver, sdpOffer)
-            when (val outcome = setObserver.awaitSet()) {
-                is Either.Left -> client.sendOffer(sdpOffer)
-                is Either.Right -> Timber.d { "error setting local description: ${outcome.value}" }
-            }
+            client.sendOffer(sdpOffer)
         }
     }
 
     override fun onAnswer(sessionDescription: SessionDescription) {
         Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
-        val observer = CoroutineSdpObserver()
-        publisher.peerConnection.setRemoteDescription(observer, sessionDescription)
         coroutineScope.launch {
-            when (val outcome = observer.awaitSet()) {
+            when (val outcome = publisher.peerConnection.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
                     if (!rtcConnected) {
                         onRTCConnected()
@@ -204,9 +203,8 @@ constructor(
         Timber.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
         coroutineScope.launch {
             run<Unit> {
-                val observer = CoroutineSdpObserver()
-                subscriber.peerConnection.setRemoteDescription(observer, sessionDescription)
-                when (val outcome = observer.awaitSet()) {
+                when (val outcome =
+                    subscriber.peerConnection.setRemoteDescription(sessionDescription)) {
                     is Either.Right -> {
                         Timber.e { "error setting remote description for answer: ${outcome.value} " }
                         return@launch
@@ -215,9 +213,7 @@ constructor(
             }
 
             val answer = run {
-                val observer = CoroutineSdpObserver()
-                subscriber.peerConnection.createAnswer(observer, OFFER_CONSTRAINTS)
-                when (val outcome = observer.awaitCreate()) {
+                when (val outcome = subscriber.peerConnection.createAnswer(OFFER_CONSTRAINTS)) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         Timber.e { "error creating answer: ${outcome.value}" }
@@ -227,9 +223,7 @@ constructor(
             }
 
             run<Unit> {
-                val observer = CoroutineSdpObserver()
-                subscriber.peerConnection.setLocalDescription(observer, answer)
-                when (val outcome = observer.awaitSet()) {
+                when (val outcome = subscriber.peerConnection.setLocalDescription(answer)) {
                     is Either.Right -> {
                         Timber.e { "error setting local description for answer: ${outcome.value}" }
                         return@launch
