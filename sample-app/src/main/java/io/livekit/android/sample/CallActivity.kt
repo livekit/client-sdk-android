@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Parcelable
 import androidx.appcompat.app.AppCompatActivity
 import com.github.ajalt.timberkt.Timber
+import com.google.android.material.tabs.TabLayoutMediator
 import com.snakydesign.livedataextensions.combineLatest
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.sample.databinding.CallActivityBinding
@@ -19,6 +20,7 @@ class CallActivity : AppCompatActivity() {
         CallViewModel(args.url, args.token, application)
     }
     lateinit var binding: CallActivityBinding
+    var tabLayoutMediator: TabLayoutMediator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +31,7 @@ class CallActivity : AppCompatActivity() {
 
         // Viewpager setup
         val adapter = GroupieAdapter()
+
         binding.viewPager.apply {
             this.adapter = adapter
         }
@@ -38,9 +41,19 @@ class CallActivity : AppCompatActivity() {
             viewModel.remoteParticipants
         ) { room, participants -> room to participants }
             .observe(this) {
+
+                tabLayoutMediator?.detach()
+                tabLayoutMediator = null
+
                 val (room, participants) = it
                 val items = participants.map { participant -> ParticipantItem(room, participant) }
                 adapter.update(items)
+
+                tabLayoutMediator =
+                    TabLayoutMediator(binding.tabs, binding.viewPager) { tab, position ->
+                        tab.text = participants[position].name
+                    }
+                tabLayoutMediator?.attach()
             }
 
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -59,7 +72,6 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request failed" }
         }
     }
-
 
     companion object {
         const val KEY_ARGS = "args"

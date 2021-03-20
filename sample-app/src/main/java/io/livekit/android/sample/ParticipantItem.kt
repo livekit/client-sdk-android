@@ -10,6 +10,8 @@ import io.livekit.android.room.track.RemoteVideoTrackPublication
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.room.track.VideoTrackPublication
 import io.livekit.android.sample.databinding.ParticipantItemBinding
+import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
 
 class ParticipantItem(
     val room: Room,
@@ -61,6 +63,12 @@ class ParticipantItem(
 
         videoBound = true
         Timber.v { "adding renderer to $videoTrack" }
+        videoTrack.addRenderer(object : VideoSink {
+            override fun onFrame(frame: VideoFrame?) {
+                Timber.v { "$frame" }
+            }
+
+        })
         videoTrack.addRenderer(viewBinding.renderer)
     }
 
