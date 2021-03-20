@@ -6,6 +6,7 @@ import io.livekit.android.room.track.*
 import livekit.Model
 import org.webrtc.DataChannel
 import org.webrtc.RtpTransceiver
+import java.util.*
 
 class LocalParticipant(sid: Sid, name: String? = null) :
     Participant(sid, name) {
@@ -17,7 +18,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         this.engine = engine
     }
 
-    private val streamId = "stream"
+    private val streamId = UUID.randomUUID().toString()
 
     val localAudioTrackPublications
         get() = audioTracks.values.toList()

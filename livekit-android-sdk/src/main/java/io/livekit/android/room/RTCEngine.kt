@@ -36,9 +36,9 @@ constructor(
     var iceConnected: Boolean = false
         set(value) {
             field = value
-            if (field) {
-                // TODO get rid of this assertion
-                listener?.onJoin(joinResponse!!)
+            val savedJoinResponse = joinResponse
+            if (field && savedJoinResponse != null) {
+                listener?.onJoin(savedJoinResponse)
                 joinResponse = null
             }
         }
@@ -90,6 +90,7 @@ constructor(
     }
 
     fun close() {
+        coroutineScope.close()
         publisher.close()
         subscriber.close()
         client.close()
@@ -110,6 +111,7 @@ constructor(
                     }
                 }
 
+            Timber.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
             when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
                 is Either.Right -> {
                     Timber.d { "error setting local description: ${outcome.value}" }

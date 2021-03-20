@@ -1,5 +1,6 @@
 package io.livekit.android.room
 
+import com.github.ajalt.timberkt.Timber
 import livekit.Rtc
 import org.webrtc.*
 
@@ -22,6 +23,7 @@ class PublisherTransportObserver(
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
         val state = newState ?: throw NullPointerException("unexpected null new state, what do?")
+        Timber.v { "onIceConnection new state: $newState" }
         if (state == PeerConnection.IceConnectionState.CONNECTED && !engine.iceConnected) {
             engine.iceConnected = true
         } else if (state == PeerConnection.IceConnectionState.DISCONNECTED) {

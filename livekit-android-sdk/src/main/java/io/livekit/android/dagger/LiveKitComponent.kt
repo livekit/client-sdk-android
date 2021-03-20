@@ -4,6 +4,8 @@ import android.content.Context
 import dagger.BindsInstance
 import dagger.Component
 import io.livekit.android.room.Room
+import org.webrtc.EglBase
+import org.webrtc.PeerConnectionFactory
 import javax.inject.Singleton
 
 @Singleton
@@ -18,6 +20,10 @@ import javax.inject.Singleton
 interface LiveKitComponent {
 
     fun roomFactory(): Room.Factory
+
+    fun peerConnectionFactory(): PeerConnectionFactory
+
+    fun eglBase(): EglBase
 
     @Component.Factory
     interface Factory {

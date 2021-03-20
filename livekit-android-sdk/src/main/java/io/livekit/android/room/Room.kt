@@ -14,6 +14,9 @@ import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.Model
 import livekit.Rtc
 import org.webrtc.*
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class Room
 @AssistedInject
@@ -53,12 +56,15 @@ constructor(
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
 
+    private var connectContinuation: Continuation<Unit>? = null
     suspend fun connect(url: String, token: String, isSecure: Boolean) {
         if (localParticipant != null) {
             Timber.d { "Attempting to connect to room when already connected." }
             return
         }
         engine.join(url, token, isSecure)
+
+        return suspendCoroutine { connectContinuation = it }
     }
 
     fun disconnect() {
@@ -170,6 +176,8 @@ constructor(
             }
         }
 
+        connectContinuation?.resume(Unit)
+        connectContinuation = null
         listener?.onConnect(this)
     }
 
@@ -192,7 +200,7 @@ constructor(
         participant.addSubscribedDataTrack(channel, trackSid, name)
     }
 
-    override fun onPublishLocalTrack(cid: String, track: Model.TrackInfo) {
+    override fun onPublishLocalTrack(cid: Track.Cid, track: Model.TrackInfo) {
     }
 
 
