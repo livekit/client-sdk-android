@@ -12,6 +12,10 @@ class LocalVideoTrack(
     name: String,
     rtcTrack: org.webrtc.VideoTrack
 ) : VideoTrack(name, rtcTrack) {
+    fun startCapture() {
+        capturer.startCapture(400, 400, 30)
+    }
+
     var sid: Sid? = null
 
     companion object {

@@ -35,13 +35,13 @@ class LiveKit {
                     localParticipant.publishAudioTrack(createLocalAudioTrack(factory))
                 }
                 if (options.sendVideo) {
-                    localParticipant.publishVideoTrack(
-                        createLocalVideoTrack(
-                            factory,
-                            appContext,
-                            component.eglBase()
-                        )
+                    val videoTrack = createLocalVideoTrack(
+                        factory,
+                        appContext,
+                        component.eglBase()
                     )
+                    localParticipant.publishVideoTrack(videoTrack)
+                    videoTrack.startCapture()
                 }
             }
             return room
