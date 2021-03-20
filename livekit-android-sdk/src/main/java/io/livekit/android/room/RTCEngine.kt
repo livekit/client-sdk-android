@@ -133,7 +133,7 @@ constructor(
     interface Listener {
         fun onJoin(response: Rtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
-        fun onPublishLocalTrack(cid: String, track: Model.TrackInfo)
+        fun onPublishLocalTrack(cid: Track.Cid, track: Model.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
         fun onUpdateParticipants(updates: List<Model.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<Rtc.SpeakerInfo>)
@@ -245,10 +245,11 @@ constructor(
     }
 
     override fun onLocalTrackPublished(response: Rtc.TrackPublishedResponse) {
-        val cid = response.cid ?: run {
+        val signalCid = response.cid ?: run {
             Timber.e { "local track published with null cid?" }
             return
         }
+        val cid = Track.Cid(signalCid)
 
         val track = response.track
         if (track == null) {
