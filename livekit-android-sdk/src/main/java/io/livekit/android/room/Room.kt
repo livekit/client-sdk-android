@@ -120,7 +120,7 @@ constructor(
             }
         }
 
-        if (localParticipant != null && seenSids.contains(localParticipant.sid)) {
+        if (localParticipant != null && !seenSids.contains(localParticipant.sid)) {
             localParticipant.audioLevel = 0.0f
         }
         remoteParticipants.values
