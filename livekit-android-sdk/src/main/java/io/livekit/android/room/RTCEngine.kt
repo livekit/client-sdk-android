@@ -11,8 +11,8 @@ import io.livekit.android.util.Either
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import livekit.Model
-import livekit.Rtc
+import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.*
 import javax.inject.Inject
 import javax.inject.Named
@@ -32,7 +32,7 @@ constructor(
 
     var listener: Listener? = null
     var rtcConnected: Boolean = false
-    var joinResponse: Rtc.JoinResponse? = null
+    var joinResponse: LivekitRtc.JoinResponse? = null
     var iceConnected: Boolean = false
         set(value) {
             field = value
@@ -43,7 +43,7 @@ constructor(
             }
         }
     val pendingCandidates = mutableListOf<IceCandidate>()
-    private val pendingTrackResolvers: MutableMap<Track.Cid, Continuation<Model.TrackInfo>> =
+    private val pendingTrackResolvers: MutableMap<Track.Cid, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
 
     private val publisherObserver = PublisherTransportObserver(this)
@@ -74,7 +74,7 @@ constructor(
         client.join(url, token, isSecure)
     }
 
-    suspend fun addTrack(cid: Track.Cid, name: String, kind: Model.TrackType): Model.TrackInfo {
+    suspend fun addTrack(cid: Track.Cid, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
@@ -127,18 +127,18 @@ constructor(
         Timber.v { "RTC Connected" }
         rtcConnected = true
         pendingCandidates.forEach { candidate ->
-            client.sendCandidate(candidate, Rtc.SignalTarget.PUBLISHER)
+            client.sendCandidate(candidate, LivekitRtc.SignalTarget.PUBLISHER)
         }
         pendingCandidates.clear()
     }
 
     interface Listener {
-        fun onJoin(response: Rtc.JoinResponse)
+        fun onJoin(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
-        fun onPublishLocalTrack(cid: Track.Cid, track: Model.TrackInfo)
+        fun onPublishLocalTrack(cid: Track.Cid, track: LivekitModels.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
-        fun onUpdateParticipants(updates: List<Model.ParticipantInfo>)
-        fun onUpdateSpeakers(speakers: List<Rtc.SpeakerInfo>)
+        fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
+        fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
     }
@@ -162,7 +162,7 @@ constructor(
         }
     }
 
-    override fun onJoin(info: Rtc.JoinResponse) {
+    override fun onJoin(info: LivekitRtc.JoinResponse) {
         joinResponse = info
 
         coroutineScope.launch {
@@ -237,16 +237,16 @@ constructor(
         }
     }
 
-    override fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget) {
+    override fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
         Timber.v { "received ice candidate from peer: $candidate, $target" }
         when (target) {
-            Rtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
-            Rtc.SignalTarget.SUBSCRIBER -> publisher.addIceCandidate(candidate)
+            LivekitRtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
+            LivekitRtc.SignalTarget.SUBSCRIBER -> publisher.addIceCandidate(candidate)
             else -> Timber.i { "unknown ice candidate target?" }
         }
     }
 
-    override fun onLocalTrackPublished(response: Rtc.TrackPublishedResponse) {
+    override fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse) {
         val signalCid = response.cid ?: run {
             Timber.e { "local track published with null cid?" }
             return
@@ -269,11 +269,11 @@ constructor(
 
     }
 
-    override fun onParticipantUpdate(updates: List<Model.ParticipantInfo>) {
+    override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {
         listener?.onUpdateParticipants(updates)
     }
 
-    override fun onActiveSpeakersChanged(speakers: List<Rtc.SpeakerInfo>) {
+    override fun onActiveSpeakersChanged(speakers: List<LivekitRtc.SpeakerInfo>) {
         listener?.onUpdateSpeakers(speakers)
     }
 

@@ -11,8 +11,8 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.util.unpackedTrackLabel
-import livekit.Model
-import livekit.Rtc
+import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.*
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
@@ -84,7 +84,7 @@ constructor(
 
     private fun getOrCreateRemoteParticipant(
         sid: Participant.Sid,
-        info: Model.ParticipantInfo? = null
+        info: LivekitModels.ParticipantInfo? = null
     ): RemoteParticipant {
         var participant = remoteParticipants[sid]
         if (participant != null) {
@@ -100,7 +100,7 @@ constructor(
         return participant
     }
 
-    private fun handleSpeakerUpdate(speakerInfos: List<Rtc.SpeakerInfo>) {
+    private fun handleSpeakerUpdate(speakerInfos: List<LivekitRtc.SpeakerInfo>) {
         val speakers = mutableListOf<Participant>()
         val seenSids = mutableSetOf<Participant.Sid>()
         val localParticipant = localParticipant
@@ -150,7 +150,7 @@ constructor(
         fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
     }
 
-    override fun onJoin(response: Rtc.JoinResponse) {
+    override fun onJoin(response: LivekitRtc.JoinResponse) {
         Timber.v { "engine did join, version: ${response.serverVersion}" }
 
         try {
@@ -200,11 +200,11 @@ constructor(
         participant.addSubscribedDataTrack(channel, trackSid, name)
     }
 
-    override fun onPublishLocalTrack(cid: Track.Cid, track: Model.TrackInfo) {
+    override fun onPublishLocalTrack(cid: Track.Cid, track: LivekitModels.TrackInfo) {
     }
 
 
-    override fun onUpdateParticipants(updates: List<Model.ParticipantInfo>) {
+    override fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>) {
         for (info in updates) {
             val participantSid = Participant.Sid(info.sid)
 
@@ -215,7 +215,7 @@ constructor(
             val isNewParticipant = remoteParticipants.contains(participantSid)
             val participant = getOrCreateRemoteParticipant(participantSid, info)
 
-            if (info.state == Model.ParticipantInfo.State.DISCONNECTED) {
+            if (info.state == LivekitModels.ParticipantInfo.State.DISCONNECTED) {
                 handleParticipantDisconnect(participantSid, participant)
             } else if (isNewParticipant) {
                 listener?.onParticipantConnected(this, participant)
@@ -225,7 +225,7 @@ constructor(
         }
     }
 
-    override fun onUpdateSpeakers(speakers: List<Rtc.SpeakerInfo>) {
+    override fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>) {
         handleSpeakerUpdate(speakers)
     }
 

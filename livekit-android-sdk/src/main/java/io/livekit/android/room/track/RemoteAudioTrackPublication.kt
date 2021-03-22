@@ -1,9 +1,9 @@
 package io.livekit.android.room.track
 
-import livekit.Model
+import livekit.LivekitModels
 
 class RemoteAudioTrackPublication(
-    info: Model.TrackInfo,
+    info: LivekitModels.TrackInfo,
     track: Track? = null
 ) : RemoteTrackPublication(info, track), AudioTrackPublication {
     override val audioTrack: AudioTrack?

@@ -1,7 +1,7 @@
 package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
-import livekit.Rtc
+import livekit.LivekitRtc
 import org.webrtc.*
 
 class SubscriberTransportObserver(
@@ -11,7 +11,7 @@ class SubscriberTransportObserver(
 
     override fun onIceCandidate(candidate: IceCandidate) {
         Timber.v { "onIceCandidate: $candidate" }
-        engine.client.sendCandidate(candidate, Rtc.SignalTarget.SUBSCRIBER)
+        engine.client.sendCandidate(candidate, LivekitRtc.SignalTarget.SUBSCRIBER)
     }
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {

@@ -1,8 +1,8 @@
 package io.livekit.android.room.track
 
-import livekit.Model
+import livekit.LivekitModels
 
-open class RemoteTrackPublication(info: Model.TrackInfo, track: Track? = null) :
+open class RemoteTrackPublication(info: LivekitModels.TrackInfo, track: Track? = null) :
     TrackPublication(info, track) {
 
     val remoteTrack: Track?

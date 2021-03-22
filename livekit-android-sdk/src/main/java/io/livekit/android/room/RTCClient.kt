@@ -7,8 +7,8 @@ import io.livekit.android.room.track.Track
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import livekit.Model
-import livekit.Rtc
+import livekit.LivekitModels
+import livekit.LivekitRtc
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -60,7 +60,7 @@ constructor(
 
     override fun onMessage(webSocket: WebSocket, text: String) {
         Timber.v { text }
-        val signalResponseBuilder = Rtc.SignalResponse.newBuilder()
+        val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
         fromJsonProtobuf.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
 
@@ -69,7 +69,7 @@ constructor(
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         val byteArray = bytes.toByteArray()
-        val signalResponseBuilder = Rtc.SignalResponse.newBuilder()
+        val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
             .mergeFrom(byteArray)
         val response = signalResponseBuilder.build()
 
@@ -93,7 +93,7 @@ constructor(
     }
 
 
-    fun fromProtoSessionDescription(sd: Rtc.SessionDescription): SessionDescription {
+    fun fromProtoSessionDescription(sd: LivekitRtc.SessionDescription): SessionDescription {
         val rtcSdpType = when (sd.type) {
             SD_TYPE_ANSWER -> SessionDescription.Type.ANSWER
             SD_TYPE_OFFER -> SessionDescription.Type.OFFER
@@ -103,8 +103,8 @@ constructor(
         return SessionDescription(rtcSdpType, sd.sdp)
     }
 
-    fun toProtoSessionDescription(sdp: SessionDescription): Rtc.SessionDescription {
-        val sdBuilder = Rtc.SessionDescription.newBuilder()
+    fun toProtoSessionDescription(sdp: SessionDescription): LivekitRtc.SessionDescription {
+        val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
         sdBuilder.sdp = sdp.description
         sdBuilder.type = when (sdp.type) {
             SessionDescription.Type.ANSWER -> SD_TYPE_ANSWER
@@ -118,7 +118,7 @@ constructor(
 
     fun sendOffer(offer: SessionDescription) {
         val sd = toProtoSessionDescription(offer)
-        val request = Rtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
             .build()
 
@@ -127,26 +127,26 @@ constructor(
 
     fun sendAnswer(answer: SessionDescription) {
         val sd = toProtoSessionDescription(answer)
-        val request = Rtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)
             .build()
 
         sendRequest(request)
     }
 
-    fun sendCandidate(candidate: IceCandidate, target: Rtc.SignalTarget){
+    fun sendCandidate(candidate: IceCandidate, target: LivekitRtc.SignalTarget){
         val iceCandidateJSON = IceCandidateJSON(
             candidate = candidate.sdp,
             sdpMid = candidate.sdpMid,
             sdpMLineIndex = candidate.sdpMLineIndex
         )
 
-        val trickleRequest = Rtc.TrickleRequest.newBuilder()
+        val trickleRequest = LivekitRtc.TrickleRequest.newBuilder()
             .setCandidateInit(json.encodeToString(iceCandidateJSON))
             .setTarget(target)
             .build()
 
-        val request = Rtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setTrickle(trickleRequest)
             .build()
 
@@ -154,33 +154,33 @@ constructor(
     }
 
     fun sendMuteTrack(trackSid: Track.Sid, muted: Boolean) {
-        val muteRequest = Rtc.MuteTrackRequest.newBuilder()
+        val muteRequest = LivekitRtc.MuteTrackRequest.newBuilder()
             .setSid(trackSid.sid)
             .setMuted(muted)
             .build()
 
-        val request = Rtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setMute(muteRequest)
             .build()
 
         sendRequest(request)
     }
 
-    fun sendAddTrack(cid: Track.Cid, name: String, type: Model.TrackType) {
-        val addTrackRequest = Rtc.AddTrackRequest.newBuilder()
+    fun sendAddTrack(cid: Track.Cid, name: String, type: LivekitModels.TrackType) {
+        val addTrackRequest = LivekitRtc.AddTrackRequest.newBuilder()
             .setCid(cid.cid)
             .setName(name)
             .setType(type)
             .build()
 
-        val request = Rtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()
 
         sendRequest(request)
     }
 
-    fun sendRequest(request: Rtc.SignalRequest) {
+    fun sendRequest(request: LivekitRtc.SignalRequest) {
         Timber.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
             throw IllegalStateException("not connected!")
@@ -200,7 +200,7 @@ constructor(
         }
     }
 
-    fun handleSignalResponse(response: Rtc.SignalResponse) {
+    fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
         if (!isConnected) {
             // Only handle joins if not connected.
             if (response.hasJoin()) {
@@ -212,15 +212,15 @@ constructor(
             return
         }
         when (response.messageCase) {
-            Rtc.SignalResponse.MessageCase.ANSWER -> {
+            LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
                 listener?.onAnswer(sd)
             }
-            Rtc.SignalResponse.MessageCase.OFFER -> {
+            LivekitRtc.SignalResponse.MessageCase.OFFER -> {
                 val sd = fromProtoSessionDescription(response.offer)
                 listener?.onOffer(sd)
             }
-            Rtc.SignalResponse.MessageCase.TRICKLE -> {
+            LivekitRtc.SignalResponse.MessageCase.TRICKLE -> {
                 val iceCandidateJson =
                     json.decodeFromString<IceCandidateJSON>(response.trickle.candidateInit)
                 val iceCandidate = IceCandidate(
@@ -230,16 +230,16 @@ constructor(
                 )
                 listener?.onTrickle(iceCandidate, response.trickle.target)
             }
-            Rtc.SignalResponse.MessageCase.UPDATE -> {
+            LivekitRtc.SignalResponse.MessageCase.UPDATE -> {
                 listener?.onParticipantUpdate(response.update.participantsList)
             }
-            Rtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
+            LivekitRtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
                 listener?.onLocalTrackPublished(response.trackPublished)
             }
-            Rtc.SignalResponse.MessageCase.SPEAKER -> {
+            LivekitRtc.SignalResponse.MessageCase.SPEAKER -> {
                 listener?.onActiveSpeakersChanged(response.speaker.speakersList)
             }
-            Rtc.SignalResponse.MessageCase.MESSAGE_NOT_SET -> TODO()
+            LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET -> TODO()
             else -> {
                 Timber.v { "unhandled response type: ${response.messageCase.name}" }
             }
@@ -252,13 +252,13 @@ constructor(
     }
 
     interface Listener {
-        fun onJoin(info: Rtc.JoinResponse)
+        fun onJoin(info: LivekitRtc.JoinResponse)
         fun onAnswer(sessionDescription: SessionDescription)
         fun onOffer(sessionDescription: SessionDescription)
-        fun onTrickle(candidate: IceCandidate, target: Rtc.SignalTarget)
-        fun onLocalTrackPublished(response: Rtc.TrackPublishedResponse)
-        fun onParticipantUpdate(updates: List<Model.ParticipantInfo>)
-        fun onActiveSpeakersChanged(speakers: List<Rtc.SpeakerInfo>)
+        fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
+        fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
+        fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
+        fun onActiveSpeakersChanged(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onError(error: Exception)
     }

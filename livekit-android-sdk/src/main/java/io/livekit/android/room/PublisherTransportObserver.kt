@@ -1,7 +1,7 @@
 package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
-import livekit.Rtc
+import livekit.LivekitRtc
 import org.webrtc.*
 
 class PublisherTransportObserver(
@@ -11,7 +11,7 @@ class PublisherTransportObserver(
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         val candidate = iceCandidate ?: return
         if (engine.rtcConnected) {
-            engine.client.sendCandidate(candidate, target = Rtc.SignalTarget.PUBLISHER)
+            engine.client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
         } else {
             engine.pendingCandidates.add(candidate)
         }

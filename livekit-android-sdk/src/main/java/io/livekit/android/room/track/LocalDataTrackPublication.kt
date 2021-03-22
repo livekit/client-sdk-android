@@ -1,8 +1,8 @@
 package io.livekit.android.room.track
 
-import livekit.Model
+import livekit.LivekitModels
 
-class LocalDataTrackPublication(info: Model.TrackInfo, track: Track? = null) :
+class LocalDataTrackPublication(info: LivekitModels.TrackInfo, track: Track? = null) :
     LocalTrackPublication(info, track), DataTrackPublication {
     override val dataTrack: DataTrack?
         get() = track as? DataTrack

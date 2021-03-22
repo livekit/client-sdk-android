@@ -3,14 +3,14 @@ package io.livekit.android.room.participant
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
-import livekit.Model
+import livekit.LivekitModels
 import org.webrtc.DataChannel
 import org.webrtc.RtpTransceiver
 import java.util.*
 
 class LocalParticipant(sid: Sid, name: String? = null) :
     Participant(sid, name) {
-    constructor(info: Model.ParticipantInfo, engine: RTCEngine) : this(
+    constructor(info: LivekitModels.ParticipantInfo, engine: RTCEngine) : this(
         Sid(info.sid),
         info.identity
     ) {
@@ -30,7 +30,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     var engine: RTCEngine? = null
     val listener: Listener? = null
 
-    fun updateFromInfo(info: Model.ParticipantInfo) {
+    fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         sid = Sid(info.sid)
         name = info.identity
         metadata = info.metadata
@@ -52,7 +52,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         }
 
         val trackInfo =
-            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = Model.TrackType.AUDIO)
+            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.AUDIO)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(streamId)
@@ -89,7 +89,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         }
 
         val trackInfo =
-            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = Model.TrackType.VIDEO)
+            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.VIDEO)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(streamId)
@@ -126,7 +126,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         }
 
         val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = Model.TrackType.DATA)
+            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.DATA)
         val publication = LocalDataTrackPublication(trackInfo, track)
         val trackSid = Track.Sid(trackInfo.sid)
         track.sid = trackSid

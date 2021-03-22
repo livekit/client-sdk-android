@@ -1,8 +1,8 @@
 package io.livekit.android.room.track
 
-import livekit.Model
+import livekit.LivekitModels
 
-open class TrackPublication(info: Model.TrackInfo, track: Track? = null) {
+open class TrackPublication(info: LivekitModels.TrackInfo, track: Track? = null) {
     var track: Track? = track
         internal set
     var trackName: String
@@ -15,7 +15,7 @@ open class TrackPublication(info: Model.TrackInfo, track: Track? = null) {
         trackName = info.name
     }
 
-    fun updateFromInfo(info: Model.TrackInfo) {
+    fun updateFromInfo(info: LivekitModels.TrackInfo) {
         trackSid = Track.Sid(info.sid)
         trackName = info.name
     }

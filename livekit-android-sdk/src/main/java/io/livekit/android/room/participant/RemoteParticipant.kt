@@ -6,7 +6,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import livekit.Model
+import livekit.LivekitModels
 import org.webrtc.AudioTrack
 import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
@@ -17,7 +17,7 @@ class RemoteParticipant(
     sid: Sid, name: String? = null
 ) : Participant(sid, name), RemoteDataTrack.Listener {
 
-    constructor(info: Model.ParticipantInfo) : this(Sid(info.sid), info.identity) {
+    constructor(info: LivekitModels.ParticipantInfo) : this(Sid(info.sid), info.identity) {
         updateFromInfo(info)
     }
 
@@ -30,7 +30,7 @@ class RemoteParticipant(
 
     var listener: Listener? = null
 
-    var participantInfo: Model.ParticipantInfo? = null
+    var participantInfo: LivekitModels.ParticipantInfo? = null
 
     val hasInfo
         get() = participantInfo != null
@@ -40,7 +40,7 @@ class RemoteParticipant(
     fun getTrackPublication(sid: Track.Sid): RemoteTrackPublication? =
         tracks[sid] as? RemoteTrackPublication
 
-    fun updateFromInfo(info: Model.ParticipantInfo) {
+    fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         val hadInfo = hasInfo
         sid = Sid(info.sid)
         name = info.identity
@@ -56,10 +56,10 @@ class RemoteParticipant(
 
             if (publication == null) {
                 publication = when (trackInfo.type) {
-                    Model.TrackType.AUDIO -> RemoteAudioTrackPublication(trackInfo)
-                    Model.TrackType.VIDEO -> RemoteVideoTrackPublication(trackInfo)
-                    Model.TrackType.DATA -> RemoteDataTrackPublication(trackInfo)
-                    Model.TrackType.UNRECOGNIZED -> throw TrackException.InvalidTrackTypeException()
+                    LivekitModels.TrackType.AUDIO -> RemoteAudioTrackPublication(trackInfo)
+                    LivekitModels.TrackType.VIDEO -> RemoteVideoTrackPublication(trackInfo)
+                    LivekitModels.TrackType.DATA -> RemoteDataTrackPublication(trackInfo)
+                    LivekitModels.TrackType.UNRECOGNIZED -> throw TrackException.InvalidTrackTypeException()
                     null -> throw NullPointerException("trackInfo.type is null")
                 }
 
@@ -143,10 +143,10 @@ class RemoteParticipant(
         if (publication != null) {
             publication.track = track
         } else {
-            val trackInfo = Model.TrackInfo.newBuilder()
+            val trackInfo = LivekitModels.TrackInfo.newBuilder()
                 .setSid(sid.sid)
                 .setName(name)
-                .setType(Model.TrackType.DATA)
+                .setType(LivekitModels.TrackType.DATA)
                 .build()
             publication = RemoteDataTrackPublication(info = trackInfo, track = track)
             addTrack(publication)
