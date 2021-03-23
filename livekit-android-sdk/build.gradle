@@ -3,6 +3,9 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'org.jetbrains.dokka'
+
+import java.net.URL
 
 android {
     compileSdkVersion 29
@@ -50,6 +53,27 @@ protobuf {
             task.builtins {
                 java {
                 }
+            }
+        }
+    }
+}
+
+dokkaHtml {
+    moduleName.set("livekit-android-sdk")
+    dokkaSourceSets {
+        configureEach {
+            skipEmptyPackages.set(true)
+            includeNonPublic.set(false)
+            includes.from("module.md")
+
+            sourceLink {
+                localDirectory.set(file("src/main/java"))
+
+                // URL showing where the source code can be accessed through the web browser
+                remoteUrl.set(new URL(
+                    "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-sdk/src/main/java"))
+                // Suffix which is used to append the line number to the URL. Use #L for GitHub
+                remoteLineSuffix.set("#L")
             }
         }
     }

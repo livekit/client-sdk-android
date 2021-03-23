@@ -1,2 +1,8 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        jcenter()
+    }
+}
 include ':sample-app', ':livekit-android-sdk'
 rootProject.name='livekit-android'
