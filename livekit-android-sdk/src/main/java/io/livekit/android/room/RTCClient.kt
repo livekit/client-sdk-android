@@ -21,6 +21,9 @@ import org.webrtc.SessionDescription
 import javax.inject.Inject
 import javax.inject.Named
 
+/**
+ * @suppress
+ */
 class RTCClient
 @Inject
 constructor(
@@ -38,13 +41,10 @@ constructor(
     var listener: Listener? = null
 
     fun join(
-        host: String,
+        url: String,
         token: String,
-        isSecure: Boolean,
     ) {
-        val protocol = if (isSecure) "wss" else "ws"
-
-        val wsUrlString = "$protocol://$host/rtc?access_token=$token"
+        val wsUrlString = "$url/rtc?access_token=$token"
         Timber.i { "connecting to $wsUrlString" }
 
         val request = Request.Builder()

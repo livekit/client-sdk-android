@@ -71,8 +71,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        val URL = SpannableStringBuilder("192.168.11.2:7880")
+        val URL = SpannableStringBuilder("ws://192.168.91.198:7880")
         val TOKEN =
-            SpannableStringBuilder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTg2MjY0NDAsImlzcyI6IkFQSXdMZWFoN2c0ZnVMWURZQUplYUtzU0UiLCJqdGkiOiJwaG9uZSIsIm5iZiI6MTYxNjAzNDQ0MCwidmlkZW8iOnsicm9vbSI6Im15cm9vbSIsInJvb21Kb2luIjp0cnVlfX0.QWN0B_DO8eSP2sJivnr_QzBud_sdIgJeWDQGQz67DvY")
+            SpannableStringBuilder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTgyMDg0NTAsImlzcyI6IkFQSU1teGlMOHJxdUt6dFpFb1pKVjlGYiIsImp0aSI6ImZvcnRoIiwibmJmIjoxNjE1NjE2NDUwLCJ2aWRlbyI6eyJyb29tIjoibXlyb29tIiwicm9vbUpvaW4iOnRydWV9fQ.nu-fOZA-TPFvzleyXk2Zz9b5lFApCXV1npUAexttXQA")
     }
 }

@@ -20,7 +20,9 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-
+/**
+ * @suppress
+ */
 class RTCEngine
 @Inject
 constructor(
@@ -70,8 +72,8 @@ constructor(
         )
     }
 
-    fun join(url: String, token: String, isSecure: Boolean) {
-        client.join(url, token, isSecure)
+    fun join(url: String, token: String) {
+        client.join(url, token)
     }
 
     suspend fun addTrack(cid: Track.Cid, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {

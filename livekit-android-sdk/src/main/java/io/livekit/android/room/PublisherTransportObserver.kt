@@ -4,6 +4,9 @@ import com.github.ajalt.timberkt.Timber
 import livekit.LivekitRtc
 import org.webrtc.*
 
+/**
+ * @suppress
+ */
 class PublisherTransportObserver(
     private val engine: RTCEngine
 ) : PeerConnection.Observer {

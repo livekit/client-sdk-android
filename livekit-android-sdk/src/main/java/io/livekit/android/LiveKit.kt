@@ -11,6 +11,11 @@ import org.webrtc.PeerConnectionFactory
 
 class LiveKit {
     companion object {
+        /**
+         * Connect to a LiveKit room
+         * @param url URL to LiveKit server (i.e. ws://mylivekitdeploy.io)
+         * @param listener Listener to Room events. LiveKit interactions take place with these callbacks
+         */
         suspend fun connect(
             appContext: Context,
             url: String,
@@ -26,7 +31,7 @@ class LiveKit {
             val room = component.roomFactory()
                 .create(options)
             room.listener = listener
-            room.connect(url, token, options.isSecure)
+            room.connect(url, token)
 
             val localParticipant = room.localParticipant
             if (localParticipant != null) {
@@ -54,7 +59,7 @@ class LiveKit {
             context: Context,
             rootEglBase: EglBase,
         ): LocalVideoTrack {
-            return LocalVideoTrack.track(
+            return LocalVideoTrack.createTrack(
                 peerConnectionFactory,
                 context,
                 true,

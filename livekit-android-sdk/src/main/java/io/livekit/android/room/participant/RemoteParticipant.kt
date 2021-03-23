@@ -16,7 +16,9 @@ import java.nio.ByteBuffer
 class RemoteParticipant(
     sid: Sid, name: String? = null
 ) : Participant(sid, name), RemoteDataTrack.Listener {
-
+    /**
+     * @suppress
+     */
     constructor(info: LivekitModels.ParticipantInfo) : this(Sid(info.sid), info.identity) {
         updateFromInfo(info)
     }
@@ -40,6 +42,9 @@ class RemoteParticipant(
     fun getTrackPublication(sid: Track.Sid): RemoteTrackPublication? =
         tracks[sid] as? RemoteTrackPublication
 
+    /**
+     * @suppress
+     */
     fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         val hadInfo = hasInfo
         sid = Sid(info.sid)
@@ -85,6 +90,9 @@ class RemoteParticipant(
         }
     }
 
+    /**
+     * @suppress
+     */
     fun addSubscribedMediaTrack(rtcTrack: MediaStreamTrack, sid: Track.Sid, triesLeft: Int = 20) {
         val publication = getTrackPublication(sid)
         val track: Track = when (val kind = rtcTrack.kind()) {
@@ -136,6 +144,9 @@ class RemoteParticipant(
         }
     }
 
+    /**
+     * @suppress
+     */
     fun addSubscribedDataTrack(rtcTrack: DataChannel, sid: Track.Sid, name: String) {
         val track = RemoteDataTrack(sid, name, rtcTrack)
         var publication = getTrackPublication(sid) as? RemoteDataTrackPublication

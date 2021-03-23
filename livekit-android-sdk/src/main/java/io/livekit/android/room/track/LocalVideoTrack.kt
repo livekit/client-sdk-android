@@ -19,7 +19,7 @@ class LocalVideoTrack(
     var sid: Sid? = null
 
     companion object {
-        internal fun track(
+        internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
             enabled: Boolean,
@@ -83,6 +83,5 @@ class LocalVideoTrack(
             }
             return null
         }
-
     }
 }

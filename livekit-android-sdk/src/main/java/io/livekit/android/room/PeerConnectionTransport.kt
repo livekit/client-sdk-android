@@ -5,6 +5,9 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import org.webrtc.*
 
+/**
+ * @suppress
+ */
 class PeerConnectionTransport
 @AssistedInject
 constructor(

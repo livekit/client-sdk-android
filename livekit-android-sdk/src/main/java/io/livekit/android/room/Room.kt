@@ -57,12 +57,12 @@ constructor(
         get() = mutableActiveSpeakers
 
     private var connectContinuation: Continuation<Unit>? = null
-    suspend fun connect(url: String, token: String, isSecure: Boolean) {
+    suspend fun connect(url: String, token: String) {
         if (localParticipant != null) {
             Timber.d { "Attempting to connect to room when already connected." }
             return
         }
-        engine.join(url, token, isSecure)
+        engine.join(url, token)
 
         return suspendCoroutine { connectContinuation = it }
     }
@@ -132,11 +132,18 @@ constructor(
         listener?.onActiveSpeakersChanged(speakers, this)
     }
 
+    /**
+     * @suppress
+     */
     @AssistedFactory
     interface Factory {
         fun create(connectOptions: ConnectOptions): Room
     }
 
+    /**
+     * Room Listener, this class provides callbacks that clients should override.
+     *
+     */
     interface Listener {
         fun onConnect(room: Room) {}
         fun onDisconnect(room: Room, error: Exception?) {}
@@ -150,6 +157,9 @@ constructor(
         fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
     }
 
+    /**
+     * @suppress
+     */
     override fun onJoin(response: LivekitRtc.JoinResponse) {
         Timber.v { "engine did join, version: ${response.serverVersion}" }
 
@@ -181,6 +191,9 @@ constructor(
         listener?.onConnect(this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>) {
         if (streams.count() < 0) {
             Timber.i { "add track with empty streams?" }
@@ -193,6 +206,9 @@ constructor(
         participant.addSubscribedMediaTrack(track, trackSid)
     }
 
+    /**
+     * @suppress
+     */
     override fun onAddDataChannel(channel: DataChannel) {
         val unpackedTrackLabel = channel.unpackedTrackLabel()
         val (participantSid, trackSid, name) = unpackedTrackLabel
@@ -200,10 +216,15 @@ constructor(
         participant.addSubscribedDataTrack(channel, trackSid, name)
     }
 
+    /**
+     * @suppress
+     */
     override fun onPublishLocalTrack(cid: Track.Cid, track: LivekitModels.TrackInfo) {
     }
 
-
+    /**
+     * @suppress
+     */
     override fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>) {
         for (info in updates) {
             val participantSid = Participant.Sid(info.sid)
@@ -225,19 +246,32 @@ constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     override fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>) {
         handleSpeakerUpdate(speakers)
     }
 
+    /**
+     * @suppress
+     */
     override fun onDisconnect(reason: String) {
         Timber.v { "engine did disconnect: $reason" }
         listener?.onDisconnect(this, null)
     }
 
+    /**
+     * @suppress
+     */
     override fun onFailToConnect(error: Exception) {
         listener?.onFailedToConnect(this, error)
     }
 
+    /**
+     * @suppress
+     * // TODO(@dl): can this be moved out of Room/SDK?
+     */
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)

@@ -10,6 +10,10 @@ import java.util.*
 
 class LocalParticipant(sid: Sid, name: String? = null) :
     Participant(sid, name) {
+
+    /**
+     * @suppress
+     */
     constructor(info: LivekitModels.ParticipantInfo, engine: RTCEngine) : this(
         Sid(info.sid),
         info.identity
@@ -17,8 +21,6 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         metadata = info.metadata
         this.engine = engine
     }
-
-    private val streamId = UUID.randomUUID().toString()
 
     val localAudioTrackPublications
         get() = audioTracks.values.toList()
@@ -30,6 +32,9 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     var engine: RTCEngine? = null
     val listener: Listener? = null
 
+    /**
+     * @suppress
+     */
     fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         sid = Sid(info.sid)
         name = info.identity
@@ -55,7 +60,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
             engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.AUDIO)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(streamId)
+            listOf(this.sid.sid)
         )
         val transceiver =
             engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
@@ -92,7 +97,7 @@ class LocalParticipant(sid: Sid, name: String? = null) :
             engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.VIDEO)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(streamId)
+            listOf(this.sid.sid)
         )
         val transceiver =
             engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
@@ -166,7 +171,6 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     }
 
     fun unpublishDataTrack(track: LocalDataTrack) {
-
         val sid = track.sid ?: run {
             Timber.d { "this track was never published." }
             return
@@ -202,7 +206,6 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     }
 
     interface Listener {
-
         fun onPublishAudioTrack(track: LocalAudioTrack)
         fun onFailToPublishAudioTrack(exception: Exception)
         fun onPublishVideoTrack(track: LocalVideoTrack)
@@ -211,5 +214,4 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         fun onFailToPublishDataTrack(exception: Exception)
         //fun onNetworkQualityLevelChange
     }
-
 }

@@ -19,6 +19,9 @@ open class Participant(var sid: Sid, name: String? = null) {
     var dataTracks = mutableMapOf<Track.Sid, TrackPublication>()
         private set
 
+    /**
+     * @suppress
+     */
     fun addTrack(publication: TrackPublication) {
         tracks[publication.trackSid] = publication
         when (publication) {

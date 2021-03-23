@@ -65,7 +65,7 @@ dokkaHtml {
             skipEmptyPackages.set(true)
             includeNonPublic.set(false)
             includes.from("module.md")
-
+            displayName.set("SDK")
             sourceLink {
                 localDirectory.set(file("src/main/java"))
 
@@ -74,6 +74,16 @@ dokkaHtml {
                     "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-sdk/src/main/java"))
                 // Suffix which is used to append the line number to the URL. Use #L for GitHub
                 remoteLineSuffix.set("#L")
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.dagger.*")
+                suppress.set(true)
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.util.*")
+                suppress.set(true)
             }
         }
     }
