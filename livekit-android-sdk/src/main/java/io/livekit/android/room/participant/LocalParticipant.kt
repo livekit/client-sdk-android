@@ -29,17 +29,12 @@ class LocalParticipant(sid: Sid, name: String? = null) :
     val localDataTrackPublications
         get() = dataTracks.values.toList()
 
-    var engine: RTCEngine? = null
-    val listener: Listener? = null
-
-    /**
-     * @suppress
-     */
-    fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
-        sid = Sid(info.sid)
-        name = info.identity
-        metadata = info.metadata
-    }
+    private var engine: RTCEngine? = null
+    var listener: Listener? = null
+        set(v) {
+            field = v
+            participantListener = v
+        }
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
@@ -205,13 +200,14 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         }
     }
 
-    interface Listener {
-        fun onPublishAudioTrack(track: LocalAudioTrack)
-        fun onFailToPublishAudioTrack(exception: Exception)
-        fun onPublishVideoTrack(track: LocalVideoTrack)
-        fun onFailToPublishVideoTrack(exception: Exception)
-        fun onPublishDataTrack(track: LocalDataTrack)
-        fun onFailToPublishDataTrack(exception: Exception)
+    interface Listener : Participant.Listener {
+        // TODO: can we move these to exceptions? instead of callbacks
+        fun onPublishAudioTrack(track: LocalAudioTrack) {}
+        fun onFailToPublishAudioTrack(exception: Exception) {}
+        fun onPublishVideoTrack(track: LocalVideoTrack) {}
+        fun onFailToPublishVideoTrack(exception: Exception) {}
+        fun onPublishDataTrack(track: LocalDataTrack) {}
+        fun onFailToPublishDataTrack(exception: Exception) {}
         //fun onNetworkQualityLevelChange
     }
 }

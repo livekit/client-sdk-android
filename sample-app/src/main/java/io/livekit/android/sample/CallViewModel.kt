@@ -65,15 +65,16 @@ class CallViewModel(
                         updateParticipants(room)
                     }
 
-                    override fun onStartRecording(room: Room) {
-                    }
-
-                    override fun onStopRecording(room: Room) {
-                    }
-
                     override fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {
                     }
 
+                    override fun onMetadataChanged(
+                        room: Room,
+                        Participant: Participant,
+                        prevMetadata: String?
+                    ) {
+
+                    }
                 }
             )
         }

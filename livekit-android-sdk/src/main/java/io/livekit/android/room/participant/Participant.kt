@@ -1,15 +1,21 @@
 package io.livekit.android.room.participant
 
 import io.livekit.android.room.track.*
+import livekit.LivekitModels
 
 open class Participant(var sid: Sid, name: String? = null) {
     inline class Sid(val sid: String)
 
-    var metadata: String? = null
+    var participantInfo: LivekitModels.ParticipantInfo? = null
+        private set
     var name: String? = name
         internal set
     var audioLevel: Float = 0f
         internal set
+    var metadata: String? = null
+    var participantListener: Listener? = null
+    val hasInfo
+        get() = participantInfo != null
 
     var tracks = mutableMapOf<Track.Sid, TrackPublication>()
     var audioTracks = mutableMapOf<Track.Sid, TrackPublication>()
@@ -31,6 +37,22 @@ open class Participant(var sid: Sid, name: String? = null) {
         }
     }
 
+    /**
+     * @suppress
+     */
+    open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
+        sid = Sid(info.sid)
+        name = info.identity
+        participantInfo = info
+
+        val prevMetadata = metadata
+        metadata = info.metadata
+
+        if (prevMetadata != metadata) {
+            participantListener?.onMetadataChanged(this, prevMetadata)
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -46,4 +68,7 @@ open class Participant(var sid: Sid, name: String? = null) {
         return sid.hashCode()
     }
 
+    interface Listener {
+        fun onMetadataChanged(participant: Participant, prevMetadata: String?) {}
+    }
 }

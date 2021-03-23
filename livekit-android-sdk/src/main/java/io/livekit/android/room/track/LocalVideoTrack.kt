@@ -44,6 +44,7 @@ class LocalVideoTrack(
             )
         }
 
+
         private fun createVideoCapturer(context: Context): VideoCapturer? {
             val videoCapturer: VideoCapturer? = if (Camera2Enumerator.isSupported(context)) {
                 createCameraCapturer(Camera2Enumerator(context))

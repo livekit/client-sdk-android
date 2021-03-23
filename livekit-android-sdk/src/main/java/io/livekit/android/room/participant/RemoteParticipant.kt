@@ -31,11 +31,10 @@ class RemoteParticipant(
         get() = dataTracks.values.toList()
 
     var listener: Listener? = null
-
-    var participantInfo: LivekitModels.ParticipantInfo? = null
-
-    val hasInfo
-        get() = participantInfo != null
+        set(v) {
+            field = v
+            participantListener = v
+        }
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
 
@@ -45,12 +44,9 @@ class RemoteParticipant(
     /**
      * @suppress
      */
-    fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
+    override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         val hadInfo = hasInfo
-        sid = Sid(info.sid)
-        name = info.identity
-        participantInfo = info
-        metadata = info.metadata
+        super.updateFromInfo(info)
 
         val validTrackPublication = mutableMapOf<Track.Sid, RemoteTrackPublication>()
         val newTrackPublications = mutableMapOf<Track.Sid, RemoteTrackPublication>()
@@ -247,7 +243,7 @@ class RemoteParticipant(
         private const val KIND_VIDEO = "video"
     }
 
-    interface Listener {
+    interface Listener: Participant.Listener {
         fun onPublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
         fun onUnpublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
         fun onPublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}

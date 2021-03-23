@@ -24,7 +24,7 @@ constructor(
     @Assisted private val connectOptions: ConnectOptions,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-) : RTCEngine.Listener {
+) : RTCEngine.Listener, RemoteParticipant.Listener, LocalParticipant.Listener {
     init {
         engine.listener = this
     }
@@ -96,6 +96,7 @@ constructor(
         } else {
             RemoteParticipant(sid, null)
         }
+        participant.listener = this
         mutableRemoteParticipants[sid] = participant
         return participant
     }
@@ -152,11 +153,11 @@ constructor(
         fun onFailedToConnect(room: Room, error: Exception) {}
         fun onReconnecting(room: Room, error: Exception) {}
         fun onReconnect(room: Room) {}
-        fun onStartRecording(room: Room) {}
-        fun onStopRecording(room: Room) {}
+        fun onMetadataChanged(room: Room, Participant: Participant, prevMetadata: String?) {}
         fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
     }
 
+    //----------------------------------- RTCEngine.Listener ------------------------------------//
     /**
      * @suppress
      */
@@ -178,7 +179,9 @@ constructor(
         name = response.room.name
 
         if (response.hasParticipant()) {
-            localParticipant = LocalParticipant(response.participant, engine)
+            val lp = LocalParticipant(response.participant, engine)
+            lp.listener = this
+            localParticipant = lp
         }
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
@@ -267,6 +270,15 @@ constructor(
     override fun onFailToConnect(error: Exception) {
         listener?.onFailedToConnect(this, error)
     }
+
+    //------------------------------- RemoteParticipant.Listener --------------------------------//
+        /**
+     * @suppress
+     */
+    override fun onMetadataChanged(participant: Participant, prevMetadata: String?) {
+        listener?.onMetadataChanged(this, participant, prevMetadata)
+    }
+
 
     /**
      * @suppress
