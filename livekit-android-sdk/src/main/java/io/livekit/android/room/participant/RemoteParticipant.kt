@@ -14,21 +14,14 @@ import org.webrtc.VideoTrack
 import java.nio.ByteBuffer
 
 class RemoteParticipant(
-    sid: Sid, name: String? = null
+    sid: String, name: String? = null
 ) : Participant(sid, name), RemoteDataTrack.Listener {
     /**
      * @suppress
      */
-    constructor(info: LivekitModels.ParticipantInfo) : this(Sid(info.sid), info.identity) {
+    constructor(info: LivekitModels.ParticipantInfo) : this(info.sid, info.identity) {
         updateFromInfo(info)
     }
-
-    val remoteAudioTracks
-        get() = audioTracks.values.toList()
-    val remoteVideoTracks
-        get() = videoTracks.values.toList()
-    val remoteDataTracks
-        get() = dataTracks.values.toList()
 
     var listener: Listener? = null
         set(v) {
@@ -38,8 +31,8 @@ class RemoteParticipant(
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
 
-    fun getTrackPublication(sid: Track.Sid): RemoteTrackPublication? =
-        tracks[sid] as? RemoteTrackPublication
+    fun getTrackPublication(sid: String): TrackPublication? =
+        tracks[sid]
 
     /**
      * @suppress
@@ -48,24 +41,18 @@ class RemoteParticipant(
         val hadInfo = hasInfo
         super.updateFromInfo(info)
 
-        val validTrackPublication = mutableMapOf<Track.Sid, RemoteTrackPublication>()
-        val newTrackPublications = mutableMapOf<Track.Sid, RemoteTrackPublication>()
+        val validTrackPublication = mutableMapOf<String, TrackPublication>()
+        val newTrackPublications = mutableMapOf<String, TrackPublication>()
 
         for (trackInfo in info.tracksList) {
-            val trackSid = Track.Sid(trackInfo.sid)
+            val trackSid = trackInfo.sid
             var publication = getTrackPublication(trackSid)
 
             if (publication == null) {
-                publication = when (trackInfo.type) {
-                    LivekitModels.TrackType.AUDIO -> RemoteAudioTrackPublication(trackInfo)
-                    LivekitModels.TrackType.VIDEO -> RemoteVideoTrackPublication(trackInfo)
-                    LivekitModels.TrackType.DATA -> RemoteDataTrackPublication(trackInfo)
-                    LivekitModels.TrackType.UNRECOGNIZED -> throw TrackException.InvalidTrackTypeException()
-                    null -> throw NullPointerException("trackInfo.type is null")
-                }
+                publication = TrackPublication(trackInfo)
 
                 newTrackPublications[trackSid] = publication
-                addTrack(publication)
+                addTrackPublication(publication)
             } else {
                 publication.updateFromInfo(trackInfo)
             }
@@ -75,25 +62,25 @@ class RemoteParticipant(
 
         if (hadInfo) {
             for (publication in newTrackPublications.values) {
-                sendTrackPublishedEvent(publication)
+                listener?.onPublish(publication, this)
             }
         }
 
         val invalidKeys = tracks.keys - validTrackPublication.keys
         for (invalidKey in invalidKeys) {
             val publication = tracks[invalidKey] ?: continue
-            unpublishTrack(publication.trackSid, true)
+            unpublishTrack(publication.sid, true)
         }
     }
 
     /**
      * @suppress
      */
-    fun addSubscribedMediaTrack(rtcTrack: MediaStreamTrack, sid: Track.Sid, triesLeft: Int = 20) {
+    fun addSubscribedMediaTrack(mediaTrack: MediaStreamTrack, sid: String, triesLeft: Int = 20) {
         val publication = getTrackPublication(sid)
-        val track: Track = when (val kind = rtcTrack.kind()) {
-            KIND_AUDIO -> RemoteAudioTrack(sid = sid, rtcTrack = rtcTrack as AudioTrack, name = "")
-            KIND_VIDEO -> RemoteVideoTrack(sid = sid, rtcTrack = rtcTrack as VideoTrack, name = "")
+        val track: Track = when (val kind = mediaTrack.kind()) {
+            KIND_AUDIO -> RemoteAudioTrack(sid = sid, mediaTrack = mediaTrack as AudioTrack, name = "")
+            KIND_VIDEO -> RemoteVideoTrack(sid = sid, mediaTrack = mediaTrack as VideoTrack, name = "")
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
 
@@ -102,27 +89,12 @@ class RemoteParticipant(
                 val message = "Could not find published track with sid: $sid"
                 val exception = TrackException.InvalidTrackStateException(message)
                 Timber.e { "remote participant ${this.sid} --- $message" }
-                when (rtcTrack.kind()) {
-                    KIND_AUDIO -> {
-                        listener?.onFailToSubscribe(
-                            audioTrack = track as RemoteAudioTrack,
-                            exception = exception,
-                            participant = this
-                        )
-                    }
 
-                    KIND_VIDEO -> {
-                        listener?.onFailToSubscribe(
-                            videoTrack = track as RemoteVideoTrack,
-                            exception = exception,
-                            participant = this
-                        )
-                    }
-                }
+                listener?.onFailToSubscribe(sid, exception, this)
             } else {
                 coroutineScope.launch {
                     delay(150)
-                    addSubscribedMediaTrack(rtcTrack, sid, triesLeft - 1)
+                    addSubscribedMediaTrack(mediaTrack, sid, triesLeft - 1)
                 }
             }
             return
@@ -130,103 +102,70 @@ class RemoteParticipant(
 
         val remoteTrack = track as RemoteTrack
         publication.track = track
-        track.name = publication.trackName
-        remoteTrack.sid = publication.trackSid
+        track.name = publication.name
+        remoteTrack.sid = publication.sid
 
-        when (publication) {
-            is RemoteAudioTrackPublication -> listener?.onSubscribe(publication, this)
-            is RemoteVideoTrackPublication -> listener?.onSubscribe(publication, this)
-            else -> throw TrackException.InvalidTrackTypeException()
-        }
+        // TODO: how does mediatrack send ended event?
+
+        listener?.onSubscribe(track, publication, this)
     }
 
     /**
      * @suppress
      */
-    fun addSubscribedDataTrack(rtcTrack: DataChannel, sid: Track.Sid, name: String) {
-        val track = RemoteDataTrack(sid, name, rtcTrack)
-        var publication = getTrackPublication(sid) as? RemoteDataTrackPublication
+    fun addSubscribedDataTrack(dataChannel: DataChannel, sid: String, name: String) {
+        val track = DataTrack(name, dataChannel)
+        var publication = getTrackPublication(sid)
 
         if (publication != null) {
             publication.track = track
         } else {
             val trackInfo = LivekitModels.TrackInfo.newBuilder()
-                .setSid(sid.sid)
+                .setSid(sid)
                 .setName(name)
                 .setType(LivekitModels.TrackType.DATA)
                 .build()
-            publication = RemoteDataTrackPublication(info = trackInfo, track = track)
-            addTrack(publication)
+            publication = TrackPublication(info = trackInfo, track = track)
+            addTrackPublication(publication)
             if (hasInfo) {
-                sendTrackPublishedEvent(publication)
+                listener?.onPublish(publication, this)
             }
         }
 
-
-        rtcTrack.registerObserver(object : DataChannel.Observer {
+        dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(previousAmount: Long) {}
 
             override fun onStateChange() {
-                val newState = rtcTrack.state()
+                val newState = dataChannel.state()
                 if (newState == DataChannel.State.CLOSED) {
-                    listener?.onUnsubscribe(publication, this@RemoteParticipant)
+                    publication.track = null
+                    listener?.onUnsubscribe(track, publication, this@RemoteParticipant)
                 }
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
-                listener?.onReceive(buffer.data, publication, this@RemoteParticipant)
+                listener?.onReceive(buffer.data, track, this@RemoteParticipant)
             }
         })
-        listener?.onSubscribe(dataTrack = publication, participant = this)
+        listener?.onSubscribe(track, publication, participant = this)
     }
 
-    fun unpublishTrack(trackSid: Track.Sid, sendUnpublish: Boolean = false) {
+    fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
         val publication = tracks.remove(trackSid) ?: return
-
-        when (publication) {
-            is RemoteAudioTrackPublication -> audioTracks.remove(trackSid)
-            is RemoteVideoTrackPublication -> videoTracks.remove(trackSid)
-            is RemoteDataTrackPublication -> {
-                dataTracks.remove(trackSid)
-                publication.dataTrack?.rtcTrack?.unregisterObserver()
-            }
+        when (publication.kind) {
+            LivekitModels.TrackType.AUDIO -> audioTracks.remove(trackSid)
+            LivekitModels.TrackType.VIDEO -> videoTracks.remove(trackSid)
+            LivekitModels.TrackType.DATA -> dataTracks.remove(trackSid)
             else -> throw TrackException.InvalidTrackTypeException()
         }
 
-        if (publication.track != null) {
-            // TODO: need to stop track?
-            publication.track
-            sendTrackUnsubscribedEvent(publication)
+        val track = publication.track
+        if (track != null) {
+            track.stop()
+            listener?.onUnsubscribe(track, publication, this)
         }
         if (sendUnpublish) {
-            sendTrackUnpublishedEvent(publication)
-        }
-    }
-
-    private fun sendTrackUnsubscribedEvent(publication: TrackPublication) {
-        when (publication) {
-            is RemoteAudioTrackPublication -> listener?.onUnsubscribe(publication, this)
-            is RemoteVideoTrackPublication -> listener?.onUnsubscribe(publication, this)
-            is RemoteDataTrackPublication -> listener?.onUnsubscribe(publication, this)
-            else -> throw TrackException.InvalidTrackTypeException()
-        }
-    }
-
-    private fun sendTrackUnpublishedEvent(publication: TrackPublication) {
-        when (publication) {
-            is RemoteAudioTrackPublication -> listener?.onUnpublish(publication, this)
-            is RemoteVideoTrackPublication -> listener?.onUnpublish(publication, this)
-            is RemoteDataTrackPublication -> listener?.onUnpublish(publication, this)
-            else -> throw TrackException.InvalidTrackTypeException()
-        }
-    }
-
-    private fun sendTrackPublishedEvent(publication: RemoteTrackPublication) {
-        when (publication) {
-            is RemoteAudioTrackPublication -> listener?.onPublish(publication, this)
-            is RemoteVideoTrackPublication -> listener?.onPublish(publication, this)
-            is RemoteDataTrackPublication -> listener?.onPublish(publication, this)
-            else -> throw TrackException.InvalidTrackTypeException()
+            listener?.onUnpublish(publication, this)
         }
     }
 
@@ -244,68 +183,36 @@ class RemoteParticipant(
     }
 
     interface Listener: Participant.Listener {
-        fun onPublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
-        fun onUnpublish(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
-        fun onPublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
-        fun onUnpublish(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
-        fun onPublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
-        fun onUnpublish(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
+        fun onPublish(publication: TrackPublication, participant: RemoteParticipant) {}
+        fun onUnpublish(publication: TrackPublication, participant: RemoteParticipant) {}
 
-        fun onEnable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
-        fun onDisable(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
-        fun onEnable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
-        fun onDisable(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
+        fun onEnable(publication: TrackPublication, participant: RemoteParticipant) {}
+        fun onDisable(publication: TrackPublication, participant: RemoteParticipant) {}
 
-        fun onSubscribe(audioTrack: RemoteAudioTrackPublication, participant: RemoteParticipant) {}
+        fun onSubscribe(track: Track, publication: TrackPublication, participant: RemoteParticipant) {}
         fun onFailToSubscribe(
-            audioTrack: RemoteAudioTrack,
+            sid: String,
             exception: Exception,
             participant: RemoteParticipant
         ) {
         }
 
         fun onUnsubscribe(
-            audioTrack: RemoteAudioTrackPublication,
+            track: Track,
+            publications: TrackPublication,
             participant: RemoteParticipant
         ) {
         }
 
-        fun onSubscribe(videoTrack: RemoteVideoTrackPublication, participant: RemoteParticipant) {}
-        fun onFailToSubscribe(
-            videoTrack: RemoteVideoTrack,
-            exception: Exception,
-            participant: RemoteParticipant
-        ) {
-        }
-
-        fun onUnsubscribe(
-            videoTrack: RemoteVideoTrackPublication,
-            participant: RemoteParticipant
-        ) {
-        }
-
-        fun onSubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
-        fun onFailToSubscribe(
-            dataTrack: RemoteDataTrackPublication,
-            exception: Exception,
-            participant: RemoteParticipant
-        ) {
-        }
-
-        fun onUnsubscribe(dataTrack: RemoteDataTrackPublication, participant: RemoteParticipant) {}
         fun onReceive(
             data: ByteBuffer,
-            dataTrack: RemoteDataTrackPublication,
+            dataTrack: DataTrack,
             participant: RemoteParticipant
         ) {
         }
 
-        //fun networkQualityDidChange(networkQualityLevel: NetworkQualityLevel, participant: remoteParticipant)
         fun switchedOffVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
         fun switchedOnVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
-//        fun onChangePublishPriority(videoTrack: RemoteVideoTrackPublication, priority: PublishPriority, participant: RemoteParticipant)
-//        fun onChangePublishPriority(audioTrack: RemoteAudioTrackPublication, priority: PublishPriority, participant: RemoteParticipant)
-//        fun onChangePublishPriority(dataTrack: RemoteDataTrackPublication, priority: PublishPriority, participant: RemoteParticipant)
     }
 
 }

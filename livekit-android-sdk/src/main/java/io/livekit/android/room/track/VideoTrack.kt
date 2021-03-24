@@ -1,15 +1,11 @@
 package io.livekit.android.room.track
 
-import org.webrtc.MediaStreamTrack
+import livekit.LivekitModels
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
-open class VideoTrack(name: String, val rtcTrack: VideoTrack) :
-    Track(name, stateFromRTCMediaTrackState(rtcTrack.state())),
-    MediaTrack {
-
-    override val mediaTrack: MediaStreamTrack
-        get() = rtcTrack
+open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
+    MediaTrack(name, LivekitModels.TrackType.VIDEO, rtcTrack){
 
     var enabled: Boolean
         get() = rtcTrack.enabled()

@@ -5,21 +5,20 @@ import java.nio.ByteBuffer
 import java.util.*
 
 class LocalDataTrack(
-    val options: DataTrackOptions,
-    rtcTrack: DataChannel
-) : DataTrack(options.name, rtcTrack) {
-    var sid: Sid? = null
+    val options: DataTrackOptions
+) : DataTrack(options.name) {
+    var sid: String? = null
         internal set
-    var cid: Cid = Cid(UUID.randomUUID().toString())
+    var cid: String = UUID.randomUUID().toString()
 
     fun sendString(message: String) {
         val byteBuffer = ByteBuffer.wrap(message.toByteArray())
         val buffer = DataChannel.Buffer(byteBuffer, false)
-        rtcTrack?.send(buffer)
+        dataChannel?.send(buffer)
     }
 
     fun sendBytes(byteBuffer: ByteBuffer) {
         val buffer = DataChannel.Buffer(byteBuffer, true)
-        rtcTrack?.send(buffer)
+        dataChannel?.send(buffer)
     }
 }

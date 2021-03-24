@@ -1,14 +1,13 @@
 package io.livekit.android.sample
 
+import android.provider.MediaStore
 import android.view.View
 import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.RemoteVideoTrackPublication
-import io.livekit.android.room.track.VideoTrack
-import io.livekit.android.room.track.VideoTrackPublication
+import io.livekit.android.room.track.*
 import io.livekit.android.sample.databinding.ParticipantItemBinding
 
 class ParticipantItem(
@@ -30,11 +29,11 @@ class ParticipantItem(
 
             remoteParticipant.listener = object : RemoteParticipant.Listener {
                 override fun onSubscribe(
-                    videoTrack: RemoteVideoTrackPublication,
+                    track: Track,
+                    publication: TrackPublication,
                     participant: RemoteParticipant
                 ) {
-                    val track = videoTrack.videoTrack
-                    if (track != null) {
+                    if (track is VideoTrack) {
                         setupVideoIfNeeded(track, viewBinding)
                     }
                 }
@@ -48,10 +47,8 @@ class ParticipantItem(
 
     private fun getVideoTrack(): VideoTrack? {
         return remoteParticipant
-            .remoteVideoTracks
-            .firstOrNull()
-            .let { it as? VideoTrackPublication }
-            ?.videoTrack
+            .videoTracks.values
+            .firstOrNull()?.track as? VideoTrack
     }
 
     private fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {

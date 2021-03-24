@@ -1,12 +1,9 @@
 package io.livekit.android.room.track
 
+import livekit.LivekitModels
 import org.webrtc.AudioTrack
-import org.webrtc.MediaStreamTrack
 
-open class AudioTrack(name: String, val rtcTrack: AudioTrack) :
-    Track(name, stateFromRTCMediaTrackState(rtcTrack.state())),
-    MediaTrack {
+open class AudioTrack(name: String, override val rtcTrack: AudioTrack) :
+    MediaTrack(name, LivekitModels.TrackType.AUDIO, rtcTrack) {
 
-    override val mediaTrack: MediaStreamTrack
-        get() = rtcTrack
 }

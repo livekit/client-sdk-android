@@ -45,7 +45,7 @@ constructor(
             }
         }
     val pendingCandidates = mutableListOf<IceCandidate>()
-    private val pendingTrackResolvers: MutableMap<Track.Cid, Continuation<LivekitModels.TrackInfo>> =
+    private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
 
     private val publisherObserver = PublisherTransportObserver(this)
@@ -76,7 +76,7 @@ constructor(
         client.join(url, token)
     }
 
-    suspend fun addTrack(cid: Track.Cid, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {
+    suspend fun addTrack(cid: String, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
@@ -87,7 +87,7 @@ constructor(
         }
     }
 
-    fun updateMuteStatus(sid: Track.Sid, muted: Boolean) {
+    fun updateMuteStatus(sid: String, muted: Boolean) {
         client.sendMuteTrack(sid, muted)
     }
 
@@ -137,7 +137,7 @@ constructor(
     interface Listener {
         fun onJoin(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
-        fun onPublishLocalTrack(cid: Track.Cid, track: LivekitModels.TrackInfo)
+        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
@@ -253,7 +253,7 @@ constructor(
             Timber.e { "local track published with null cid?" }
             return
         }
-        val cid = Track.Cid(signalCid)
+        val cid = signalCid
 
         val track = response.track
         if (track == null) {

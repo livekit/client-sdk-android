@@ -8,28 +8,16 @@ import org.webrtc.DataChannel
 import org.webrtc.RtpTransceiver
 import java.util.*
 
-class LocalParticipant(sid: Sid, name: String? = null) :
-    Participant(sid, name) {
+class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: RTCEngine) :
+    Participant(info.sid, info.identity) {
 
-    /**
-     * @suppress
-     */
-    constructor(info: LivekitModels.ParticipantInfo, engine: RTCEngine) : this(
-        Sid(info.sid),
-        info.identity
-    ) {
-        metadata = info.metadata
-        this.engine = engine
+    init {
+        updateFromInfo(info)
     }
 
-    val localAudioTrackPublications
-        get() = audioTracks.values.toList()
-    val localVideoTrackPublications
-        get() = videoTracks.values.toList()
-    val localDataTrackPublications
-        get() = dataTracks.values.toList()
+    val localTrackPublications
+        get() = tracks.values.toList()
 
-    private var engine: RTCEngine? = null
     var listener: Listener? = null
         set(v) {
             field = v
@@ -38,98 +26,77 @@ class LocalParticipant(sid: Sid, name: String? = null) :
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
-        options: LocalTrackPublicationOptions? = null
+        publishListener: PublishListener? = null
     ) {
-        if (localAudioTrackPublications.any { it.track == track }) {
-            listener?.onFailToPublishAudioTrack(TrackException.PublishException("Track has already been published"))
+        if (localTrackPublications.any { it.track == track }) {
+            publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
             return
         }
 
         val cid = track.rtcTrack.id()
-        val engine = this.engine ?: run {
-            listener?.onFailToPublishAudioTrack(IllegalStateException("engine is null!"))
-            return
-        }
-
         val trackInfo =
-            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.AUDIO)
+            engine.addTrack(cid = cid, name = track.name, kind = track.kind)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid.sid)
+            listOf(this.sid)
         )
+        // TODO: sendEncodings to customize
         val transceiver =
             engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
         if (transceiver == null) {
-            listener?.onFailToPublishAudioTrack(TrackException.PublishException("null sender returned from peer connection"))
+            publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
             return
         }
 
-        val publication = LocalAudioTrackPublication(trackInfo)
-        val trackSid = Track.Sid(trackInfo.sid)
-        track.sid = trackSid
-        audioTracks[trackSid] = publication
-        listener?.onPublishAudioTrack(track)
+        val publication = TrackPublication(trackInfo, track)
+        addTrackPublication(publication)
+        publishListener?.onPublishSuccess(publication)
     }
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
-        options: LocalTrackPublicationOptions? = null
+        publishListener: PublishListener? = null
     ) {
-
-        if (localVideoTrackPublications.any { it.track == track }) {
-            listener?.onFailToPublishVideoTrack(TrackException.PublishException("Track has already been published"))
+        if (localTrackPublications.any { it.track == track }) {
+            publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
             return
         }
 
         val cid = track.rtcTrack.id()
-        val engine = this.engine ?: run {
-            listener?.onFailToPublishVideoTrack(IllegalStateException("engine is null!"))
-            return
-        }
-
         val trackInfo =
-            engine.addTrack(cid = Track.Cid(cid), name = track.name, kind = LivekitModels.TrackType.VIDEO)
+            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.VIDEO)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid.sid)
+            listOf(this.sid)
         )
+        // TODO: video encodings & simulcast
         val transceiver =
             engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
         if (transceiver == null) {
-            listener?.onFailToPublishVideoTrack(TrackException.PublishException("null sender returned from peer connection"))
+            publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
             return
         }
 
-        val publication = LocalVideoTrackPublication(trackInfo)
-        val trackSid = Track.Sid(trackInfo.sid)
-        track.sid = trackSid
-        videoTracks[trackSid] = publication
-        listener?.onPublishVideoTrack(track)
+        val publication = TrackPublication(trackInfo, track)
+        addTrackPublication(publication)
+        publishListener?.onPublishSuccess(publication)
     }
 
     suspend fun publishDataTrack(
         track: LocalDataTrack,
-        options: LocalTrackPublicationOptions? = null
+        publishListener: PublishListener? = null
     ) {
-
-        if (localDataTrackPublications.any { it.track == track }) {
-            listener?.onFailToPublishDataTrack(TrackException.PublishException("Track has already been published"))
+        if (localTrackPublications.any { it.track == track }) {
+            publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
             return
         }
 
         val cid = track.cid
-        val engine = this.engine ?: run {
-            listener?.onFailToPublishDataTrack(IllegalStateException("engine is null!"))
-            return
-        }
-
         val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.DATA)
-        val publication = LocalDataTrackPublication(trackInfo, track)
-        val trackSid = Track.Sid(trackInfo.sid)
-        track.sid = trackSid
+            engine.addTrack(cid = cid, name = track.name, track.kind)
+        val publication = TrackPublication(trackInfo, track)
 
         val config = DataChannel.Init().apply {
             ordered = track.options.ordered
@@ -138,76 +105,51 @@ class LocalParticipant(sid: Sid, name: String? = null) :
         }
 
         val dataChannel = engine.publisher.peerConnection.createDataChannel(track.name, config)
-        if (dataChannel != null) {
-            track.rtcTrack = dataChannel
-            track.updateConfig(config)
-            dataTracks[trackSid] = publication
-            listener?.onPublishDataTrack(track)
-        } else {
-            Timber.d { "error creating data channel with name: $name" }
-            unpublishDataTrack(track)
+        if (dataChannel == null) {
+            publishListener?.onPublishFailure(TrackException.PublishException("could not create data channel"))
+            return
         }
+        track.dataChannel = dataChannel
+        track.updateConfig(config)
+        addTrackPublication(publication)
+
+        publishListener?.onPublishSuccess(publication)
     }
 
-    fun unpublishAudioTrack(track: LocalAudioTrack) {
-        val sid = track.sid ?: run {
+    fun unpublishTrack(track: Track) {
+        val publication = localTrackPublications.firstOrNull { it.track == track }
+        if (publication === null) {
             Timber.d { "this track was never published." }
             return
         }
-        unpublishMediaTrack(track, sid, audioTracks)
-    }
-
-    fun unpublishVideoTrack(track: LocalVideoTrack) {
-        val sid = track.sid ?: run {
-            Timber.d { "this track was never published." }
-            return
+        track.stop()
+        if (track is MediaTrack) {
+            unpublishMediaTrack(track, sid)
         }
-        unpublishMediaTrack(track, sid, audioTracks)
-    }
-
-    fun unpublishDataTrack(track: LocalDataTrack) {
-        val sid = track.sid ?: run {
-            Timber.d { "this track was never published." }
-            return
+        val sid = publication.sid
+        tracks.remove(sid)
+        when (publication.kind) {
+            LivekitModels.TrackType.AUDIO -> audioTracks.remove(sid)
+            LivekitModels.TrackType.VIDEO -> videoTracks.remove(sid)
+            LivekitModels.TrackType.DATA -> dataTracks.remove(sid)
         }
-
-        val publication = dataTracks.remove(sid) as? LocalDataTrackPublication
-        if (publication == null) {
-            Timber.d { "track was not published with sid: $sid" }
-            return
-        }
-        publication.dataTrack?.rtcTrack?.dispose()
     }
 
     private fun <T> unpublishMediaTrack(
         track: T,
-        sid: Track.Sid,
-        publications: MutableMap<Track.Sid, TrackPublication>
-    ) where T : Track, T : MediaTrack {
-        val removed = publications.remove(sid)
-        if (removed != null) {
-            Timber.d { "track was not published with sid: $sid" }
-            return
-        }
-
-        track.mediaTrack.setEnabled(false)
+        sid: String
+    ) where T : MediaTrack {
         val senders = engine?.publisher?.peerConnection?.senders ?: return
         for (sender in senders) {
             val t = sender.track() ?: continue
-            if (t == track.mediaTrack) {
+            if (t == track.rtcTrack) {
                 engine?.publisher?.peerConnection?.removeTrack(sender)
             }
         }
     }
 
-    interface Listener : Participant.Listener {
-        // TODO: can we move these to exceptions? instead of callbacks
-        fun onPublishAudioTrack(track: LocalAudioTrack) {}
-        fun onFailToPublishAudioTrack(exception: Exception) {}
-        fun onPublishVideoTrack(track: LocalVideoTrack) {}
-        fun onFailToPublishVideoTrack(exception: Exception) {}
-        fun onPublishDataTrack(track: LocalDataTrack) {}
-        fun onFailToPublishDataTrack(exception: Exception) {}
-        //fun onNetworkQualityLevelChange
+    interface PublishListener {
+        fun onPublishSuccess(publication: TrackPublication) {}
+        fun onPublishFailure(exception: Exception) {}
     }
 }

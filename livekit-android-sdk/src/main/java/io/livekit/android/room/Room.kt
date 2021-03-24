@@ -9,7 +9,6 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.Track
 import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -24,7 +23,7 @@ constructor(
     @Assisted private val connectOptions: ConnectOptions,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-) : RTCEngine.Listener, RemoteParticipant.Listener, LocalParticipant.Listener {
+) : RTCEngine.Listener, RemoteParticipant.Listener {
     init {
         engine.listener = this
     }
@@ -48,8 +47,8 @@ constructor(
         private set
     var localParticipant: LocalParticipant? = null
         private set
-    private val mutableRemoteParticipants = mutableMapOf<Participant.Sid, RemoteParticipant>()
-    val remoteParticipants: Map<Participant.Sid, RemoteParticipant>
+    private val mutableRemoteParticipants = mutableMapOf<String, RemoteParticipant>()
+    val remoteParticipants: Map<String, RemoteParticipant>
         get() = mutableRemoteParticipants
 
     private val mutableActiveSpeakers = mutableListOf<Participant>()
@@ -73,17 +72,17 @@ constructor(
         listener?.onDisconnect(this, null)
     }
 
-    private fun handleParticipantDisconnect(sid: Participant.Sid, participant: RemoteParticipant) {
+    private fun handleParticipantDisconnect(sid: String, participant: RemoteParticipant) {
         val removedParticipant = mutableRemoteParticipants.remove(sid) ?: return
         removedParticipant.tracks.values.forEach { publication ->
-            removedParticipant.unpublishTrack(publication.trackSid)
+            removedParticipant.unpublishTrack(publication.sid)
         }
 
         listener?.onParticipantDisconnected(this, removedParticipant)
     }
 
     private fun getOrCreateRemoteParticipant(
-        sid: Participant.Sid,
+        sid: String,
         info: LivekitModels.ParticipantInfo? = null
     ): RemoteParticipant {
         var participant = remoteParticipants[sid]
@@ -103,10 +102,10 @@ constructor(
 
     private fun handleSpeakerUpdate(speakerInfos: List<LivekitRtc.SpeakerInfo>) {
         val speakers = mutableListOf<Participant>()
-        val seenSids = mutableSetOf<Participant.Sid>()
+        val seenSids = mutableSetOf<String>()
         val localParticipant = localParticipant
         speakerInfos.forEach { speakerInfo ->
-            val speakerSid = Participant.Sid(speakerInfo.sid)
+            val speakerSid = speakerInfo.sid!!
             seenSids.add(speakerSid)
 
             if (speakerSid == localParticipant?.sid) {
@@ -185,7 +184,7 @@ constructor(
         }
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
-                getOrCreateRemoteParticipant(Participant.Sid(it.sid), it)
+                getOrCreateRemoteParticipant(it.sid, it)
             }
         }
 
@@ -203,8 +202,8 @@ constructor(
             return
         }
 
-        val participantSid = Participant.Sid(streams.first().id)
-        val trackSid = Track.Sid(track.id())
+        val participantSid = streams.first().id
+        val trackSid = track.id()
         val participant = getOrCreateRemoteParticipant(participantSid)
         participant.addSubscribedMediaTrack(track, trackSid)
     }
@@ -222,7 +221,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onPublishLocalTrack(cid: Track.Cid, track: LivekitModels.TrackInfo) {
+    override fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo) {
     }
 
     /**
@@ -230,7 +229,7 @@ constructor(
      */
     override fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>) {
         for (info in updates) {
-            val participantSid = Participant.Sid(info.sid)
+            val participantSid = info.sid
 
             if(localParticipant?.sid == participantSid) {
                 localParticipant?.updateFromInfo(info)

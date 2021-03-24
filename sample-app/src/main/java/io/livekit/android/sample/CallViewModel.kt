@@ -84,7 +84,7 @@ class CallViewModel(
         mutableRemoteParticipants.postValue(
             room.remoteParticipants
                 .keys
-                .sortedBy { it.sid }
+                .sortedBy { it }
                 .mapNotNull { room.remoteParticipants[it] }
         )
     }

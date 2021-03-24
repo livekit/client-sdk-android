@@ -3,12 +3,10 @@ package io.livekit.android.room.participant
 import io.livekit.android.room.track.*
 import livekit.LivekitModels
 
-open class Participant(var sid: Sid, name: String? = null) {
-    inline class Sid(val sid: String)
-
+open class Participant(var sid: String, identity: String? = null) {
     var participantInfo: LivekitModels.ParticipantInfo? = null
         private set
-    var name: String? = name
+    var identity: String? = identity
         internal set
     var audioLevel: Float = 0f
         internal set
@@ -17,23 +15,23 @@ open class Participant(var sid: Sid, name: String? = null) {
     val hasInfo
         get() = participantInfo != null
 
-    var tracks = mutableMapOf<Track.Sid, TrackPublication>()
-    var audioTracks = mutableMapOf<Track.Sid, TrackPublication>()
+    var tracks = mutableMapOf<String, TrackPublication>()
+    var audioTracks = mutableMapOf<String, TrackPublication>()
         private set
-    var videoTracks = mutableMapOf<Track.Sid, TrackPublication>()
+    var videoTracks = mutableMapOf<String, TrackPublication>()
         private set
-    var dataTracks = mutableMapOf<Track.Sid, TrackPublication>()
+    var dataTracks = mutableMapOf<String, TrackPublication>()
         private set
 
     /**
      * @suppress
      */
-    fun addTrack(publication: TrackPublication) {
-        tracks[publication.trackSid] = publication
-        when (publication) {
-            is RemoteAudioTrackPublication -> audioTracks[publication.trackSid] = publication
-            is RemoteVideoTrackPublication -> videoTracks[publication.trackSid] = publication
-            is RemoteDataTrackPublication -> dataTracks[publication.trackSid] = publication
+    fun addTrackPublication(publication: TrackPublication) {
+        tracks[publication.sid] = publication
+        when (publication.kind) {
+            LivekitModels.TrackType.AUDIO -> audioTracks[publication.sid] = publication
+            LivekitModels.TrackType.VIDEO -> videoTracks[publication.sid] = publication
+            LivekitModels.TrackType.DATA -> dataTracks[publication.sid] = publication
         }
     }
 
@@ -41,8 +39,8 @@ open class Participant(var sid: Sid, name: String? = null) {
      * @suppress
      */
     open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
-        sid = Sid(info.sid)
-        name = info.identity
+        sid = info.sid
+        identity = info.identity
         participantInfo = info
 
         val prevMetadata = metadata

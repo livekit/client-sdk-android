@@ -1,9 +1,8 @@
 package io.livekit.android.room.track
 
 class RemoteVideoTrack(
-    override var sid: Sid,
+    override var sid: String,
     var switchedOff: Boolean = false,
-    var priority: Priority? = null,
     name: String,
-    rtcTrack: org.webrtc.VideoTrack
-) : VideoTrack(name, rtcTrack), RemoteTrack
+    mediaTrack: org.webrtc.VideoTrack
+) : VideoTrack(name, mediaTrack), RemoteTrack

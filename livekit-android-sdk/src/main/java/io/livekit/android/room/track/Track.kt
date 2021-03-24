@@ -1,24 +1,22 @@
 package io.livekit.android.room.track
 
+import livekit.LivekitModels
 import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 
-open class Track(name: String, state: State) {
-
+open class Track(name: String, kind: LivekitModels.TrackType) {
     var name = name
         internal set
-    var state = state
+    var kind = kind
         internal set
-
-    inline class Sid(val sid: String)
-    inline class Cid(val cid: String)
-
-    enum class Priority {
-        STANDARD, HIGH, LOW;
-    }
+    var state: State = State.NONE
 
     enum class State {
         ENDED, LIVE, NONE;
+    }
+
+    open fun stop() {
+        // subclasses override to provide stop behavior
     }
 
     companion object {
@@ -42,6 +40,7 @@ open class Track(name: String, state: State) {
             }
         }
     }
+
 }
 
 sealed class TrackException(message: String? = null, cause: Throwable? = null) :

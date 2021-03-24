@@ -4,19 +4,19 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.Track
 import org.webrtc.DataChannel
 
-fun DataChannel.unpackedTrackLabel(): Triple<Participant.Sid, Track.Sid, String> {
+fun DataChannel.unpackedTrackLabel(): Triple<String, String, String> {
     val parts = label().split("|")
-    val participantSid: Participant.Sid
-    val trackSid: Track.Sid
+    val participantSid: String
+    val trackSid: String
     val name: String
 
     if (parts.count() == 3) {
-        participantSid = Participant.Sid(parts[0])
-        trackSid = Track.Sid(parts[1])
+        participantSid = parts[0]
+        trackSid = parts[1]
         name = parts[2]
     } else {
-        participantSid = Participant.Sid("")
-        trackSid = Track.Sid("")
+        participantSid = ""
+        trackSid = ""
         name = ""
     }
     

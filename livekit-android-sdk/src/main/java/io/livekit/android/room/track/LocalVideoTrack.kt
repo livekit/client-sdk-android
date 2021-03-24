@@ -16,8 +16,6 @@ class LocalVideoTrack(
         capturer.startCapture(400, 400, 30)
     }
 
-    var sid: Sid? = null
-
     companion object {
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,

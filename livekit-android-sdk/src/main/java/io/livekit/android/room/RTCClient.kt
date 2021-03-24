@@ -153,9 +153,9 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendMuteTrack(trackSid: Track.Sid, muted: Boolean) {
+    fun sendMuteTrack(trackSid: String, muted: Boolean) {
         val muteRequest = LivekitRtc.MuteTrackRequest.newBuilder()
-            .setSid(trackSid.sid)
+            .setSid(trackSid)
             .setMuted(muted)
             .build()
 
@@ -166,9 +166,9 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendAddTrack(cid: Track.Cid, name: String, type: LivekitModels.TrackType) {
+    fun sendAddTrack(cid: String, name: String, type: LivekitModels.TrackType) {
         val addTrackRequest = LivekitRtc.AddTrackRequest.newBuilder()
-            .setCid(cid.cid)
+            .setCid(cid)
             .setName(name)
             .setType(type)
             .build()

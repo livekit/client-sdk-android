@@ -51,7 +51,7 @@ class CallActivity : AppCompatActivity() {
 
                 tabLayoutMediator =
                     TabLayoutMediator(binding.tabs, binding.viewPager) { tab, position ->
-                        tab.text = participants[position].name
+                        tab.text = participants[position].identity
                     }
                 tabLayoutMediator?.attach()
             }

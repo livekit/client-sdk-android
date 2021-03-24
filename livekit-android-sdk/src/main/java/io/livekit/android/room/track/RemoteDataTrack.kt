@@ -3,7 +3,7 @@ package io.livekit.android.room.track
 import org.webrtc.DataChannel
 
 class RemoteDataTrack(
-    override var sid: Sid,
+    override var sid: String,
     name: String,
     rtcTrack: DataChannel
 ) :

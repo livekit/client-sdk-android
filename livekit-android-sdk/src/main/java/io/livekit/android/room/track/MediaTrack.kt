@@ -1,7 +1,14 @@
 package io.livekit.android.room.track
 
+import livekit.LivekitModels
 import org.webrtc.MediaStreamTrack
 
-interface MediaTrack {
-    val mediaTrack: MediaStreamTrack
+
+open class MediaTrack(name: String, kind: LivekitModels.TrackType, open val rtcTrack: MediaStreamTrack) :
+    Track(name, kind) {
+
+    override fun stop() {
+        rtcTrack.setEnabled(false)
+        rtcTrack.dispose()
+    }
 }

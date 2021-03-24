@@ -7,16 +7,14 @@ import java.util.*
 class LocalAudioTrack(
     name: String,
     audioOptions: AudioOptions? = null,
-    rtcTrack: org.webrtc.AudioTrack
-) : AudioTrack(name, rtcTrack) {
+    mediaTrack: org.webrtc.AudioTrack
+) : AudioTrack(name, mediaTrack) {
     var enabled: Boolean
         get() = rtcTrack.enabled()
         set(value) {
             rtcTrack.setEnabled(value)
         }
 
-    var sid: Sid? = null
-        internal set
     var audioOptions = audioOptions
         private set
 
@@ -31,7 +29,7 @@ class LocalAudioTrack(
             val rtcAudioTrack =
                 factory.createAudioTrack(UUID.randomUUID().toString(), audioSource)
 
-            return LocalAudioTrack(name = name, rtcTrack = rtcAudioTrack)
+            return LocalAudioTrack(name = name, mediaTrack = rtcAudioTrack)
         }
     }
 }
