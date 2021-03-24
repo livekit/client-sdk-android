@@ -60,7 +60,7 @@ class CallActivity : AppCompatActivity() {
             room.initVideoRenderer(binding.pipVideoView)
             val localParticipant = room.localParticipant
             if (localParticipant != null) {
-                val videoTrack = localParticipant.localVideoTrackPublications
+                val videoTrack = localParticipant.videoTracks.values
                     .firstOrNull()
                     ?.track as? LocalVideoTrack
                 videoTrack?.addRenderer(binding.pipVideoView)
