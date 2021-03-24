@@ -15,7 +15,7 @@ import java.nio.ByteBuffer
 
 class RemoteParticipant(
     sid: String, name: String? = null
-) : Participant(sid, name), RemoteDataTrack.Listener {
+) : Participant(sid, name) {
     /**
      * @suppress
      */
@@ -31,8 +31,7 @@ class RemoteParticipant(
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
 
-    fun getTrackPublication(sid: String): TrackPublication? =
-        tracks[sid]
+    fun getTrackPublication(sid: String): TrackPublication? = tracks[sid]
 
     /**
      * @suppress
@@ -62,7 +61,7 @@ class RemoteParticipant(
 
         if (hadInfo) {
             for (publication in newTrackPublications.values) {
-                listener?.onPublish(publication, this)
+                listener?.onTrackPublished(publication, this)
             }
         }
 
@@ -79,8 +78,8 @@ class RemoteParticipant(
     fun addSubscribedMediaTrack(mediaTrack: MediaStreamTrack, sid: String, triesLeft: Int = 20) {
         val publication = getTrackPublication(sid)
         val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> RemoteAudioTrack(sid = sid, mediaTrack = mediaTrack as AudioTrack, name = "")
-            KIND_VIDEO -> RemoteVideoTrack(sid = sid, mediaTrack = mediaTrack as VideoTrack, name = "")
+            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_VIDEO -> VideoTrack(rtcTrack = mediaTrack as VideoTrack, name = "")
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
 
@@ -90,7 +89,7 @@ class RemoteParticipant(
                 val exception = TrackException.InvalidTrackStateException(message)
                 Timber.e { "remote participant ${this.sid} --- $message" }
 
-                listener?.onFailToSubscribe(sid, exception, this)
+                listener?.onTrackSubscriptionFailed(sid, exception, this)
             } else {
                 coroutineScope.launch {
                     delay(150)
@@ -100,14 +99,14 @@ class RemoteParticipant(
             return
         }
 
-        val remoteTrack = track as RemoteTrack
         publication.track = track
         track.name = publication.name
-        remoteTrack.sid = publication.sid
+        track.sid = publication.sid
+        addTrackPublication(publication)
 
         // TODO: how does mediatrack send ended event?
 
-        listener?.onSubscribe(track, publication, this)
+        listener?.onTrackSubscribed(track, publication, this)
     }
 
     /**
@@ -117,20 +116,19 @@ class RemoteParticipant(
         val track = DataTrack(name, dataChannel)
         var publication = getTrackPublication(sid)
 
-        if (publication != null) {
-            publication.track = track
-        } else {
+        if (publication == null) {
             val trackInfo = LivekitModels.TrackInfo.newBuilder()
                 .setSid(sid)
                 .setName(name)
                 .setType(LivekitModels.TrackType.DATA)
                 .build()
-            publication = TrackPublication(info = trackInfo, track = track)
+            publication = TrackPublication(info = trackInfo)
             addTrackPublication(publication)
             if (hasInfo) {
-                listener?.onPublish(publication, this)
+                listener?.onTrackPublished(publication, this)
             }
         }
+        publication.track = track
 
         dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(previousAmount: Long) {}
@@ -139,15 +137,15 @@ class RemoteParticipant(
                 val newState = dataChannel.state()
                 if (newState == DataChannel.State.CLOSED) {
                     publication.track = null
-                    listener?.onUnsubscribe(track, publication, this@RemoteParticipant)
+                    listener?.onTrackUnsubscribed(track, publication, this@RemoteParticipant)
                 }
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
-                listener?.onReceive(buffer.data, track, this@RemoteParticipant)
+                listener?.onDataReceived(buffer.data, track, this@RemoteParticipant)
             }
         })
-        listener?.onSubscribe(track, publication, participant = this)
+        listener?.onTrackSubscribed(track, publication, participant = this)
     }
 
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
@@ -162,19 +160,11 @@ class RemoteParticipant(
         val track = publication.track
         if (track != null) {
             track.stop()
-            listener?.onUnsubscribe(track, publication, this)
+            listener?.onTrackUnsubscribed(track, publication, this)
         }
         if (sendUnpublish) {
-            listener?.onUnpublish(publication, this)
+            listener?.onTrackUnpublished(publication, this)
         }
-    }
-
-    override fun onReceiveString(message: String, dataTrack: DataTrack) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onReceiveData(message: DataChannel.Buffer, dataTrack: DataTrack) {
-        TODO("Not yet implemented")
     }
 
     companion object {
@@ -183,36 +173,36 @@ class RemoteParticipant(
     }
 
     interface Listener: Participant.Listener {
-        fun onPublish(publication: TrackPublication, participant: RemoteParticipant) {}
-        fun onUnpublish(publication: TrackPublication, participant: RemoteParticipant) {}
+        fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {}
+        fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {}
 
         fun onEnable(publication: TrackPublication, participant: RemoteParticipant) {}
         fun onDisable(publication: TrackPublication, participant: RemoteParticipant) {}
 
-        fun onSubscribe(track: Track, publication: TrackPublication, participant: RemoteParticipant) {}
-        fun onFailToSubscribe(
+        fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {}
+        fun onTrackSubscriptionFailed(
             sid: String,
             exception: Exception,
             participant: RemoteParticipant
         ) {
         }
 
-        fun onUnsubscribe(
+        fun onTrackUnsubscribed(
             track: Track,
-            publications: TrackPublication,
+            publication: TrackPublication,
             participant: RemoteParticipant
         ) {
         }
 
-        fun onReceive(
+        fun onDataReceived(
             data: ByteBuffer,
             dataTrack: DataTrack,
             participant: RemoteParticipant
         ) {
         }
 
-        fun switchedOffVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
-        fun switchedOnVideo(track: RemoteVideoTrack, participant: RemoteParticipant) {}
+        fun switchedOffVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
+        fun switchedOnVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
     }
 
 }

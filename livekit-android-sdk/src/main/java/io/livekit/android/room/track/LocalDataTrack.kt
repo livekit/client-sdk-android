@@ -7,8 +7,6 @@ import java.util.*
 class LocalDataTrack(
     val options: DataTrackOptions
 ) : DataTrack(options.name) {
-    var sid: String? = null
-        internal set
     var cid: String = UUID.randomUUID().toString()
 
     fun sendString(message: String) {

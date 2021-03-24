@@ -28,7 +28,7 @@ class ParticipantItem(
         viewBinding.run {
 
             remoteParticipant.listener = object : RemoteParticipant.Listener {
-                override fun onSubscribe(
+                override fun onTrackSubscribed(
                     track: Track,
                     publication: TrackPublication,
                     participant: RemoteParticipant

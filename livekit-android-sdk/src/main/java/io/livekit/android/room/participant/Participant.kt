@@ -27,6 +27,8 @@ open class Participant(var sid: String, identity: String? = null) {
      * @suppress
      */
     fun addTrackPublication(publication: TrackPublication) {
+        val track = publication.track
+        track?.sid = publication.sid
         tracks[publication.sid] = publication
         when (publication.kind) {
             LivekitModels.TrackType.AUDIO -> audioTracks[publication.sid] = publication

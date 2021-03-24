@@ -9,10 +9,14 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.track.DataTrack
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
+import java.nio.ByteBuffer
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -45,7 +49,7 @@ constructor(
         private set
     var state: State = State.DISCONNECTED
         private set
-    var localParticipant: LocalParticipant? = null
+    lateinit var localParticipant: LocalParticipant
         private set
     private val mutableRemoteParticipants = mutableMapOf<String, RemoteParticipant>()
     val remoteParticipants: Map<String, RemoteParticipant>
@@ -57,10 +61,6 @@ constructor(
 
     private var connectContinuation: Continuation<Unit>? = null
     suspend fun connect(url: String, token: String) {
-        if (localParticipant != null) {
-            Timber.d { "Attempting to connect to room when already connected." }
-            return
-        }
         engine.join(url, token)
 
         return suspendCoroutine { connectContinuation = it }
@@ -120,7 +120,7 @@ constructor(
             }
         }
 
-        if (localParticipant != null && !seenSids.contains(localParticipant.sid)) {
+        if (!seenSids.contains(localParticipant.sid)) {
             localParticipant.audioLevel = 0.0f
         }
         remoteParticipants.values
@@ -140,22 +140,6 @@ constructor(
         fun create(connectOptions: ConnectOptions): Room
     }
 
-    /**
-     * Room Listener, this class provides callbacks that clients should override.
-     *
-     */
-    interface Listener {
-        fun onConnect(room: Room) {}
-        fun onDisconnect(room: Room, error: Exception?) {}
-        fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
-        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
-        fun onFailedToConnect(room: Room, error: Exception) {}
-        fun onReconnecting(room: Room, error: Exception) {}
-        fun onReconnect(room: Room) {}
-        fun onMetadataChanged(room: Room, Participant: Participant, prevMetadata: String?) {}
-        fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
-    }
-
     //----------------------------------- RTCEngine.Listener ------------------------------------//
     /**
      * @suppress
@@ -163,25 +147,18 @@ constructor(
     override fun onJoin(response: LivekitRtc.JoinResponse) {
         Timber.v { "engine did join, version: ${response.serverVersion}" }
 
-        try {
-            val serverVersion = Semver(response.serverVersion)
-            if (serverVersion.major == 0 && serverVersion.minor < 5) {
-                Timber.e { "This version of livekit requires server version >= 0.5.x" }
-                return
-            }
-        } catch (e: Exception) {
-            Timber.e { "Unable to parse server version!" }
-            return
-        }
         state = State.CONNECTED
         sid = Sid(response.room.sid)
         name = response.room.name
 
-        if (response.hasParticipant()) {
-            val lp = LocalParticipant(response.participant, engine)
-            lp.listener = this
-            localParticipant = lp
+        if (!response.hasParticipant()) {
+            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
+            return
         }
+
+        val lp = LocalParticipant(response.participant, engine)
+        lp.listener = this
+        localParticipant = lp
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
                 getOrCreateRemoteParticipant(it.sid, it)
@@ -190,7 +167,6 @@ constructor(
 
         connectContinuation?.resume(Unit)
         connectContinuation = null
-        listener?.onConnect(this)
     }
 
     /**
@@ -218,11 +194,6 @@ constructor(
         participant.addSubscribedDataTrack(channel, trackSid, name)
     }
 
-    /**
-     * @suppress
-     */
-    override fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo) {
-    }
 
     /**
      * @suppress
@@ -231,8 +202,9 @@ constructor(
         for (info in updates) {
             val participantSid = info.sid
 
-            if(localParticipant?.sid == participantSid) {
-                localParticipant?.updateFromInfo(info)
+            if(localParticipant.sid == participantSid) {
+                localParticipant.updateFromInfo(info)
+                continue
             }
 
             val isNewParticipant = remoteParticipants.contains(participantSid)
@@ -271,13 +243,49 @@ constructor(
     }
 
     //------------------------------- RemoteParticipant.Listener --------------------------------//
-        /**
+    /**
+     * This is called for both Local and Remote participants
      * @suppress
      */
     override fun onMetadataChanged(participant: Participant, prevMetadata: String?) {
-        listener?.onMetadataChanged(this, participant, prevMetadata)
+        listener?.onMetadataChanged(participant, prevMetadata, this)
     }
 
+    override fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {
+        listener?.onTrackPublished(publication,  participant, this)
+    }
+
+    override fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {
+        listener?.onTrackUnpublished(publication,  participant, this)
+    }
+
+    override fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {
+        listener?.onTrackSubscribed(track, publication, participant, this)
+    }
+
+    override fun onTrackSubscriptionFailed(
+        sid: String,
+        exception: Exception,
+        participant: RemoteParticipant
+    ) {
+        listener?.onTrackSubscriptionFailed(sid, exception, participant, this)
+    }
+
+    override fun onTrackUnsubscribed(
+        track: Track,
+        publication: TrackPublication,
+        participant: RemoteParticipant
+    ) {
+        listener?.onTrackUnsubscribed(track, publication, participant, this)
+    }
+
+    override fun onDataReceived(
+        data: ByteBuffer,
+        dataTrack: DataTrack,
+        participant: RemoteParticipant
+    ) {
+        listener?.onDataReceived(data, dataTrack, participant, this)
+    }
 
     /**
      * @suppress
@@ -288,4 +296,86 @@ constructor(
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false /* enabled */);
     }
+
+    /**
+     * Room Listener, this class provides callbacks that clients should override.
+     *
+     */
+    interface Listener {
+        /**
+         * Disconnected from room
+         */
+        fun onDisconnect(room: Room, error: Exception?) {}
+
+        /**
+         * When a [RemoteParticipant] joins after the local participant. It will not emit events
+         * for participants that are already in the room
+         */
+        fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
+
+        /**
+         * When a [RemoteParticipant] leaves after the local participant has joined.
+         */
+        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
+
+        /**
+         * Could not connect to the room
+         */
+        fun onFailedToConnect(room: Room, error: Exception) {}
+//        fun onReconnecting(room: Room, error: Exception) {}
+//        fun onReconnect(room: Room) {}
+
+        /**
+         * Active speakers changed. List of speakers are ordered by their audio level. loudest
+         * speakers first. This will include the [LocalParticipant] too.
+         */
+        fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
+
+        // Participant callbacks
+        /**
+         * Participant metadata is a simple way for app-specific state to be pushed to all users.
+         * When RoomService.UpdateParticipantMetadata is called to change a participant's state,
+         * this event will be fired for all clients in the room.
+         */
+        fun onMetadataChanged(Participant: Participant, prevMetadata: String?, room: Room) {}
+
+        /**
+         * When a new track is published to room after the local participant has joined. It will
+         * not fire for tracks that are already published
+         */
+        fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+
+        /**
+         * A [RemoteParticipant] has unpublished a track
+         */
+        fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+
+        /**
+         * The [LocalParticipant] has subscribed to a new track. This event will always fire as
+         * long as new tracks are ready for use.
+         */
+        fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+
+        /**
+         * Could not subscribe to a track
+         */
+        fun onTrackSubscriptionFailed(sid: String, exception: Exception, participant: RemoteParticipant, room: Room) {}
+
+        /**
+         * A subscribed track is no longer available. Clients should listen to this event and ensure
+         * the track removes all renderers
+         */
+        fun onTrackUnsubscribed(track: Track, publications: TrackPublication, participant: RemoteParticipant, room: Room) {}
+
+        /**
+         * Message received over a [DataTrack]
+         */
+        fun onDataReceived(data: ByteBuffer, dataTrack: DataTrack, participant: RemoteParticipant, room: Room) {}
+    }
+}
+
+sealed class RoomException(message: String? = null, cause: Throwable? = null) :
+    Exception(message, cause) {
+    class ConnectException(message: String? = null, cause: Throwable? = null) :
+        RoomException(message, cause)
 }

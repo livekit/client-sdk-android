@@ -34,10 +34,6 @@ class CallViewModel(
                 token,
                 ConnectOptions(false),
                 object : Room.Listener {
-                    override fun onConnect(room: Room) {
-                        updateParticipants(room)
-                    }
-
                     override fun onDisconnect(room: Room, error: Exception?) {
                     }
 
@@ -58,25 +54,15 @@ class CallViewModel(
                     override fun onFailedToConnect(room: Room, error: Exception) {
                     }
 
-                    override fun onReconnecting(room: Room, error: Exception) {
-                    }
-
-                    override fun onReconnect(room: Room) {
-                        updateParticipants(room)
-                    }
-
                     override fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {
                     }
 
-                    override fun onMetadataChanged(
-                        room: Room,
-                        Participant: Participant,
-                        prevMetadata: String?
-                    ) {
+                    override fun onMetadataChanged(Participant: Participant, prevMetadata: String?, room: Room) {
 
                     }
                 }
             )
+            updateParticipants(mutableRoom.value!!)
         }
     }
 

@@ -137,7 +137,7 @@ constructor(
     interface Listener {
         fun onJoin(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
-        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
+//        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
@@ -267,8 +267,7 @@ constructor(
             return
         }
         cont.resume(response.track)
-        listener?.onPublishLocalTrack(cid, track)
-
+//        listener?.onPublishLocalTrack(cid, track)
     }
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {

@@ -10,6 +10,8 @@ open class Track(name: String, kind: LivekitModels.TrackType) {
     var kind = kind
         internal set
     var state: State = State.NONE
+    var sid: String? = null
+        internal set
 
     enum class State {
         ENDED, LIVE, NONE;
