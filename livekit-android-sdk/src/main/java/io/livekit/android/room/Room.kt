@@ -1,13 +1,13 @@
 package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
-import com.vdurmont.semver4j.Semver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.DataTrack
 import io.livekit.android.room.track.Track
@@ -27,7 +27,7 @@ constructor(
     @Assisted private val connectOptions: ConnectOptions,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-) : RTCEngine.Listener, RemoteParticipant.Listener {
+) : RTCEngine.Listener, ParticipantListener {
     init {
         engine.listener = this
     }
@@ -41,7 +41,7 @@ constructor(
 
     inline class Sid(val sid: String)
 
-    var listener: Listener? = null
+    var listener: RoomListener? = null
 
     var sid: Sid? = null
         private set
@@ -95,7 +95,7 @@ constructor(
         } else {
             RemoteParticipant(sid, null)
         }
-        participant.listener = this
+        participant.internalListener = this
         mutableRemoteParticipants[sid] = participant
         return participant
     }
@@ -108,13 +108,15 @@ constructor(
             val speakerSid = speakerInfo.sid!!
             seenSids.add(speakerSid)
 
-            if (speakerSid == localParticipant?.sid) {
+            if (speakerSid == localParticipant.sid) {
                 localParticipant.audioLevel = speakerInfo.level
+                localParticipant.isSpeaking = true
                 speakers.add(localParticipant)
             } else {
                 val participant = remoteParticipants[speakerSid]
                 if (participant != null) {
                     participant.audioLevel = speakerInfo.level
+                    participant.isSpeaking = true
                     speakers.add(participant)
                 }
             }
@@ -122,10 +124,14 @@ constructor(
 
         if (!seenSids.contains(localParticipant.sid)) {
             localParticipant.audioLevel = 0.0f
+            localParticipant.isSpeaking = false
         }
         remoteParticipants.values
             .filterNot { seenSids.contains(it.sid) }
-            .forEach { it.audioLevel = 0.0f }
+            .forEach {
+                it.audioLevel = 0.0f
+                it.isSpeaking = false
+            }
 
         mutableActiveSpeakers.clear()
         mutableActiveSpeakers.addAll(speakers)
@@ -296,82 +302,82 @@ constructor(
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false /* enabled */);
     }
+}
+
+/**
+ * Room Listener, this class provides callbacks that clients should override.
+ *
+ */
+interface RoomListener {
+    /**
+     * Disconnected from room
+     */
+    fun onDisconnect(room: Room, error: Exception?) {}
 
     /**
-     * Room Listener, this class provides callbacks that clients should override.
-     *
+     * When a [RemoteParticipant] joins after the local participant. It will not emit events
+     * for participants that are already in the room
      */
-    interface Listener {
-        /**
-         * Disconnected from room
-         */
-        fun onDisconnect(room: Room, error: Exception?) {}
+    fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
 
-        /**
-         * When a [RemoteParticipant] joins after the local participant. It will not emit events
-         * for participants that are already in the room
-         */
-        fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
+    /**
+     * When a [RemoteParticipant] leaves after the local participant has joined.
+     */
+    fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
 
-        /**
-         * When a [RemoteParticipant] leaves after the local participant has joined.
-         */
-        fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
-
-        /**
-         * Could not connect to the room
-         */
-        fun onFailedToConnect(room: Room, error: Exception) {}
+    /**
+     * Could not connect to the room
+     */
+    fun onFailedToConnect(room: Room, error: Exception) {}
 //        fun onReconnecting(room: Room, error: Exception) {}
 //        fun onReconnect(room: Room) {}
 
-        /**
-         * Active speakers changed. List of speakers are ordered by their audio level. loudest
-         * speakers first. This will include the [LocalParticipant] too.
-         */
-        fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
+    /**
+     * Active speakers changed. List of speakers are ordered by their audio level. loudest
+     * speakers first. This will include the [LocalParticipant] too.
+     */
+    fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
 
-        // Participant callbacks
-        /**
-         * Participant metadata is a simple way for app-specific state to be pushed to all users.
-         * When RoomService.UpdateParticipantMetadata is called to change a participant's state,
-         * this event will be fired for all clients in the room.
-         */
-        fun onMetadataChanged(Participant: Participant, prevMetadata: String?, room: Room) {}
+    // Participant callbacks
+    /**
+     * Participant metadata is a simple way for app-specific state to be pushed to all users.
+     * When RoomService.UpdateParticipantMetadata is called to change a participant's state,
+     * this event will be fired for all clients in the room.
+     */
+    fun onMetadataChanged(participant: Participant, prevMetadata: String?, room: Room) {}
 
-        /**
-         * When a new track is published to room after the local participant has joined. It will
-         * not fire for tracks that are already published
-         */
-        fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    /**
+     * When a new track is published to room after the local participant has joined. It will
+     * not fire for tracks that are already published
+     */
+    fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
 
-        /**
-         * A [RemoteParticipant] has unpublished a track
-         */
-        fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    /**
+     * A [RemoteParticipant] has unpublished a track
+     */
+    fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
 
-        /**
-         * The [LocalParticipant] has subscribed to a new track. This event will always fire as
-         * long as new tracks are ready for use.
-         */
-        fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    /**
+     * The [LocalParticipant] has subscribed to a new track. This event will always fire as
+     * long as new tracks are ready for use.
+     */
+    fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
 
-        /**
-         * Could not subscribe to a track
-         */
-        fun onTrackSubscriptionFailed(sid: String, exception: Exception, participant: RemoteParticipant, room: Room) {}
+    /**
+     * Could not subscribe to a track
+     */
+    fun onTrackSubscriptionFailed(sid: String, exception: Exception, participant: RemoteParticipant, room: Room) {}
 
-        /**
-         * A subscribed track is no longer available. Clients should listen to this event and ensure
-         * the track removes all renderers
-         */
-        fun onTrackUnsubscribed(track: Track, publications: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    /**
+     * A subscribed track is no longer available. Clients should listen to this event and ensure
+     * the track removes all renderers
+     */
+    fun onTrackUnsubscribed(track: Track, publications: TrackPublication, participant: RemoteParticipant, room: Room) {}
 
-        /**
-         * Message received over a [DataTrack]
-         */
-        fun onDataReceived(data: ByteBuffer, dataTrack: DataTrack, participant: RemoteParticipant, room: Room) {}
-    }
+    /**
+     * Message received over a [DataTrack]
+     */
+    fun onDataReceived(data: ByteBuffer, dataTrack: DataTrack, participant: RemoteParticipant, room: Room) {}
 }
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :

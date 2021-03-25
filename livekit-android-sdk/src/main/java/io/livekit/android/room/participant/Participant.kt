@@ -2,6 +2,7 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.room.track.*
 import livekit.LivekitModels
+import java.nio.ByteBuffer
 
 open class Participant(var sid: String, identity: String? = null) {
     var participantInfo: LivekitModels.ParticipantInfo? = null
@@ -10,8 +11,27 @@ open class Participant(var sid: String, identity: String? = null) {
         internal set
     var audioLevel: Float = 0f
         internal set
+    var isSpeaking: Boolean = false
+        internal set(v) {
+            val changed = v == field
+            field = v
+            if (changed) {
+                listener?.onSpeakingChanged(this)
+                internalListener?.onSpeakingChanged(this)
+            }
+        }
     var metadata: String? = null
-    var participantListener: Listener? = null
+
+    /**
+     * Listener for when participant properties change
+     */
+    var listener: ParticipantListener? = null
+
+    /**
+     * @suppress
+     */
+    internal var internalListener: ParticipantListener? = null
+
     val hasInfo
         get() = participantInfo != null
 
@@ -49,7 +69,8 @@ open class Participant(var sid: String, identity: String? = null) {
         metadata = info.metadata
 
         if (prevMetadata != metadata) {
-            participantListener?.onMetadataChanged(this, prevMetadata)
+            listener?.onMetadataChanged(this, prevMetadata)
+            internalListener?.onMetadataChanged(this, prevMetadata)
         }
     }
 
@@ -67,8 +88,48 @@ open class Participant(var sid: String, identity: String? = null) {
     override fun hashCode(): Int {
         return sid.hashCode()
     }
+}
 
-    interface Listener {
-        fun onMetadataChanged(participant: Participant, prevMetadata: String?) {}
+
+interface ParticipantListener {
+    /**
+     * When a participant's metadata is updated, fired for all participants
+     */
+    fun onMetadataChanged(participant: Participant, prevMetadata: String?) {}
+
+    /**
+     * Fired when the current participant's isSpeaking property changes. (including LocalParticipant)
+     */
+    fun onSpeakingChanged(participant: Participant) {}
+
+    fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {}
+    fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {}
+
+    fun onEnable(publication: TrackPublication, participant: RemoteParticipant) {}
+    fun onDisable(publication: TrackPublication, participant: RemoteParticipant) {}
+
+    fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {}
+    fun onTrackSubscriptionFailed(
+        sid: String,
+        exception: Exception,
+        participant: RemoteParticipant
+    ) {
     }
+
+    fun onTrackUnsubscribed(
+        track: Track,
+        publication: TrackPublication,
+        participant: RemoteParticipant
+    ) {
+    }
+
+    fun onDataReceived(
+        data: ByteBuffer,
+        dataTrack: DataTrack,
+        participant: RemoteParticipant
+    ) {
+    }
+
+    fun switchedOffVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
+    fun switchedOnVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
 }

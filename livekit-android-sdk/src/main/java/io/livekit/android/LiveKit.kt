@@ -3,6 +3,7 @@ package io.livekit.android
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.room.Room
+import io.livekit.android.room.RoomListener
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import org.webrtc.EglBase
@@ -21,7 +22,7 @@ class LiveKit {
             url: String,
             token: String,
             options: ConnectOptions,
-            listener: Room.Listener?
+            listener: RoomListener?
         ): Room {
 
             val component = DaggerLiveKitComponent

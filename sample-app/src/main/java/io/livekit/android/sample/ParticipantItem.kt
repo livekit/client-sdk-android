@@ -1,11 +1,11 @@
 package io.livekit.android.sample
 
-import android.provider.MediaStore
 import android.view.View
 import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
 import io.livekit.android.sample.databinding.ParticipantItemBinding
@@ -27,7 +27,7 @@ class ParticipantItem(
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
         viewBinding.run {
 
-            remoteParticipant.listener = object : RemoteParticipant.Listener {
+            remoteParticipant.listener = object : ParticipantListener {
                 override fun onTrackSubscribed(
                     track: Track,
                     publication: TrackPublication,
@@ -51,7 +51,7 @@ class ParticipantItem(
             .firstOrNull()?.track as? VideoTrack
     }
 
-    private fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {
+    internal fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {
         if (videoBound) {
             return
         }

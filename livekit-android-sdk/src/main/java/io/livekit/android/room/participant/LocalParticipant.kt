@@ -15,14 +15,8 @@ class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: 
         updateFromInfo(info)
     }
 
-    val localTrackPublications
+    private val localTrackPublications
         get() = tracks.values.toList()
-
-    var listener: Listener? = null
-        set(v) {
-            field = v
-            participantListener = v
-        }
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,

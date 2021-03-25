@@ -41,7 +41,6 @@ class CallActivity : AppCompatActivity() {
             viewModel.remoteParticipants
         ) { room, participants -> room to participants }
             .observe(this) {
-
                 tabLayoutMediator?.detach()
                 tabLayoutMediator = null
 
@@ -58,13 +57,10 @@ class CallActivity : AppCompatActivity() {
 
         viewModel.room.observe(this) { room ->
             room.initVideoRenderer(binding.pipVideoView)
-            val localParticipant = room.localParticipant
-            if (localParticipant != null) {
-                val videoTrack = localParticipant.videoTracks.values
-                    .firstOrNull()
-                    ?.track as? LocalVideoTrack
-                videoTrack?.addRenderer(binding.pipVideoView)
-            }
+            val videoTrack = room.localParticipant.videoTracks.values
+                .firstOrNull()
+                ?.track as? LocalVideoTrack
+            videoTrack?.addRenderer(binding.pipVideoView)
         }
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {

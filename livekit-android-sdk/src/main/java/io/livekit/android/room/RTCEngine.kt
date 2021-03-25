@@ -26,7 +26,6 @@ import kotlin.coroutines.suspendCoroutine
 class RTCEngine
 @Inject
 constructor(
-    private val appContext: Context,
     val client: RTCClient,
     pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
@@ -190,6 +189,7 @@ constructor(
     override fun onAnswer(sessionDescription: SessionDescription) {
         Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
         coroutineScope.launch {
+            Timber.i { sessionDescription.toString() }
             when (val outcome = publisher.peerConnection.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
                     if (!rtcConnected) {
