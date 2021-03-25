@@ -23,7 +23,6 @@ class CallViewModel(
     val room: LiveData<Room> = mutableRoom
     private val mutableRemoteParticipants = MutableLiveData<List<RemoteParticipant>>()
     val remoteParticipants: LiveData<List<RemoteParticipant>> = mutableRemoteParticipants
-    private val participants = HashMap<String, LiveData<RemoteParticipant>>()
 
     init {
         viewModelScope.launch {
@@ -31,16 +30,10 @@ class CallViewModel(
                 application,
                 url,
                 token,
-                ConnectOptions(false),
+                ConnectOptions(true),
                 this@CallViewModel
             )
             updateParticipants(room)
-            for (p in room.remoteParticipants.values) {
-                if (p.identity == null) {
-                    continue
-                }
-                participants[p.identity!!] = MutableLiveData(p)
-            }
             mutableRoom.value = room
         }
     }
@@ -52,10 +45,6 @@ class CallViewModel(
                 .sortedBy { it }
                 .mapNotNull { room.remoteParticipants[it] }
         )
-    }
-
-    fun getParticipantObservable(identity: String): LiveData<RemoteParticipant>? {
-        return participants[identity]
     }
 
     override fun onCleared() {
@@ -72,8 +61,6 @@ class CallViewModel(
         participant: RemoteParticipant
     ) {
         updateParticipants(room)
-        participants[participant.identity!!] = MutableLiveData(participant)
-
     }
 
     override fun onParticipantDisconnected(
@@ -81,7 +68,6 @@ class CallViewModel(
         participant: RemoteParticipant
     ) {
         updateParticipants(room)
-        participants.remove(participant.identity!!)
     }
 
     override fun onFailedToConnect(room: Room, error: Exception) {
