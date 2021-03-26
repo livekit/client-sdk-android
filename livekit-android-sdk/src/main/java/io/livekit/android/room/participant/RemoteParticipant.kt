@@ -127,6 +127,7 @@ class RemoteParticipant(
             }
         }
         publication.track = track
+        track.sid = publication.sid
 
         dataChannel.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(previousAmount: Long) {}
