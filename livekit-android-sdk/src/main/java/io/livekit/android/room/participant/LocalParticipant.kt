@@ -87,7 +87,8 @@ class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: 
             return
         }
 
-        val cid = track.cid
+        // data track cid isn't ready until peer connection creates it, so we'll use name
+        val cid = track.name
         val trackInfo =
             engine.addTrack(cid = cid, name = track.name, track.kind)
         val publication = TrackPublication(trackInfo, track)
