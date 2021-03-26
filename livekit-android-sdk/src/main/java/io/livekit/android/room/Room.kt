@@ -257,18 +257,30 @@ constructor(
         listener?.onMetadataChanged(participant, prevMetadata, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {
         listener?.onTrackPublished(publication,  participant, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {
         listener?.onTrackUnpublished(publication,  participant, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onTrackSubscriptionFailed(
         sid: String,
         exception: Exception,
@@ -277,6 +289,9 @@ constructor(
         listener?.onTrackSubscriptionFailed(sid, exception, participant, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onTrackUnsubscribed(
         track: Track,
         publication: TrackPublication,
@@ -285,6 +300,9 @@ constructor(
         listener?.onTrackUnsubscribed(track, publication, participant, this)
     }
 
+    /**
+     * @suppress
+     */
     override fun onDataReceived(
         data: ByteBuffer,
         dataTrack: DataTrack,
