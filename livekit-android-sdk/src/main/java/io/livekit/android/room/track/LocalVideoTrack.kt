@@ -5,7 +5,11 @@ import com.github.ajalt.timberkt.Timber
 import org.webrtc.*
 import java.util.*
 
-
+/**
+ * A representation of a local video track (generally input coming from camera or screen).
+ *
+ * [startCapture] should be called before use.
+ */
 class LocalVideoTrack(
     private val capturer: VideoCapturer,
     private val source: VideoSource,
@@ -20,19 +24,18 @@ class LocalVideoTrack(
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
-            enabled: Boolean,
+            isScreencast: Boolean,
             name: String,
             rootEglBase: EglBase,
         ): LocalVideoTrack {
-            val source = peerConnectionFactory.createVideoSource(false)
+            val source = peerConnectionFactory.createVideoSource(isScreencast)
             val capturer = createVideoCapturer(context) ?: TODO()
             capturer.initialize(
-                SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext),
+                SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
                 context,
                 source.capturerObserver
             )
             val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
-            track.setEnabled(enabled)
 
             return LocalVideoTrack(
                 capturer = capturer,

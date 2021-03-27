@@ -27,6 +27,7 @@ constructor(
     @Assisted private val connectOptions: ConnectOptions,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
+    private val localParticipantFactory: LocalParticipant.Factory
 ) : RTCEngine.Listener, ParticipantListener {
     init {
         engine.listener = this
@@ -162,7 +163,7 @@ constructor(
             return
         }
 
-        val lp = LocalParticipant(response.participant, engine)
+        val lp = localParticipantFactory.create(response.participant)
         lp.listener = this
         localParticipant = lp
         if (response.otherParticipantsList.isNotEmpty()) {

@@ -30,9 +30,17 @@ class CallViewModel(
                 application,
                 url,
                 token,
-                ConnectOptions(true),
+                ConnectOptions(),
                 this@CallViewModel
             )
+
+            val localParticipant = room.localParticipant
+            val audioTrack = localParticipant.createAudioTrack()
+            localParticipant.publishAudioTrack(audioTrack)
+            val videoTrack = localParticipant.createVideoTrack()
+            localParticipant.publishVideoTrack(videoTrack)
+            videoTrack.startCapture()
+
             updateParticipants(room)
             mutableRoom.value = room
         }
@@ -50,7 +58,6 @@ class CallViewModel(
     override fun onCleared() {
         super.onCleared()
         mutableRoom.value?.disconnect()
-        mutableRoom.value = null
     }
 
     override fun onDisconnect(room: Room, error: Exception?) {

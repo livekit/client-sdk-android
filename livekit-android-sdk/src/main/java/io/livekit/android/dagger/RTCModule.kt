@@ -77,11 +77,6 @@ class RTCModule {
             }
 
             return JavaAudioDeviceModule.builder(appContext)
-                .setSamplesReadyCallback(object : JavaAudioDeviceModule.SamplesReadyCallback {
-                    override fun onWebRtcAudioRecordSamplesReady(samples: JavaAudioDeviceModule.AudioSamples?) {
-                        Timber.v { "samples: $samples" }
-                    }
-                })
                 .setUseHardwareAcousticEchoCanceler(true)
                 .setUseHardwareNoiseSuppressor(true)
                 .setAudioRecordErrorCallback(audioRecordErrorCallback)

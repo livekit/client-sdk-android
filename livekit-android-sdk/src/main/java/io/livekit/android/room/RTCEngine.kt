@@ -1,9 +1,7 @@
 package io.livekit.android.room
 
-import android.content.Context
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
@@ -16,6 +14,7 @@ import livekit.LivekitRtc
 import org.webrtc.*
 import javax.inject.Inject
 import javax.inject.Named
+import javax.inject.Singleton
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -23,6 +22,7 @@ import kotlin.coroutines.suspendCoroutine
 /**
  * @suppress
  */
+@Singleton
 class RTCEngine
 @Inject
 constructor(

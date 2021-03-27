@@ -20,9 +20,8 @@
     <org.webrtc.SurfaceViewRenderer
         android:id="@+id/pip_video_view"
         android:layout_height="144dp"
-        android:layout_width="0dp"
+        android:layout_width="144dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         android:layout_margin="16dp" />
 </androidx.constraintlayout.widget.ConstraintLayout>

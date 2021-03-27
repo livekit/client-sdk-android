@@ -1,14 +1,25 @@
 package io.livekit.android.room.participant
 
+import android.content.Context
 import com.github.ajalt.timberkt.Timber
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import livekit.LivekitModels
-import org.webrtc.DataChannel
-import org.webrtc.RtpTransceiver
-import java.util.*
+import org.webrtc.*
 
-class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: RTCEngine) :
+class LocalParticipant
+@AssistedInject
+internal constructor(
+    @Assisted
+    info: LivekitModels.ParticipantInfo,
+    private val engine: RTCEngine,
+    private val peerConnectionFactory: PeerConnectionFactory,
+    private val context: Context,
+    private val eglBase: EglBase,
+) :
     Participant(info.sid, info.identity) {
 
     init {
@@ -17,6 +28,24 @@ class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: 
 
     private val localTrackPublications
         get() = tracks.values.toList()
+
+    fun createAudioTrack(
+        audioConstraints: MediaConstraints = MediaConstraints(),
+        name: String = ""
+    ) = LocalAudioTrack.createTrack(peerConnectionFactory, audioConstraints, name)
+
+    fun createVideoTrack(
+        isScreencast: Boolean = false,
+        name: String = "",
+    ): LocalVideoTrack {
+        return LocalVideoTrack.createTrack(
+            peerConnectionFactory,
+            context,
+            isScreencast,
+            name,
+            eglBase
+        )
+    }
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
@@ -146,5 +175,10 @@ class LocalParticipant(info: LivekitModels.ParticipantInfo, private val engine: 
     interface PublishListener {
         fun onPublishSuccess(publication: TrackPublication) {}
         fun onPublishFailure(exception: Exception) {}
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(info: LivekitModels.ParticipantInfo): LocalParticipant
     }
 }

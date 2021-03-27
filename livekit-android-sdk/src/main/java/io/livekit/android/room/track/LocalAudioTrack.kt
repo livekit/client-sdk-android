@@ -4,6 +4,11 @@ import org.webrtc.MediaConstraints
 import org.webrtc.PeerConnectionFactory
 import java.util.*
 
+/**
+ * Represents a local audio track (generally using the microphone as input).
+ *
+ * This class should not be constructed directly, but rather through [LocalParticipant]
+ */
 class LocalAudioTrack(
     name: String,
     audioOptions: AudioOptions? = null,
@@ -19,9 +24,9 @@ class LocalAudioTrack(
         private set
 
     companion object {
-        fun createTrack(
+        internal fun createTrack(
             factory: PeerConnectionFactory,
-            audioConstraints: MediaConstraints,
+            audioConstraints: MediaConstraints = MediaConstraints(),
             name: String = ""
         ): LocalAudioTrack {
 
