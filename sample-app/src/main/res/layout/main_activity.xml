@@ -32,6 +32,18 @@
         android:id="@+id/connect_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/connect"/>
+        android:text="@string/connect" />
+
+    <Button
+        android:id="@+id/save_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/save_values" />
+
+    <Button
+        android:id="@+id/reset_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/reset_values" />
 
 </LinearLayout>

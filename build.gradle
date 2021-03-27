@@ -45,7 +45,7 @@ ext {
     ]
     versions = [
             androidx_core     : "1.2.0",
-            androidx_lifecycle: "2.3.0",
+            androidx_lifecycle: "2.3.1",
             dagger            : "2.27",
             groupie           : "2.9.0",
             protobuf          : "3.15.1",

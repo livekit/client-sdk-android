@@ -3,4 +3,6 @@
     <string name="connect">Connect</string>
     <string name="token">Token</string>
     <string name="url">URL</string>
+    <string name="save_values">Save Values</string>
+    <string name="reset_values">Reset Values</string>
 </resources>
