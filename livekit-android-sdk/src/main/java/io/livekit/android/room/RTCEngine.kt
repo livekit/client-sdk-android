@@ -190,7 +190,7 @@ constructor(
         Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
         coroutineScope.launch {
             Timber.i { sessionDescription.toString() }
-            when (val outcome = publisher.peerConnection.setRemoteDescription(sessionDescription)) {
+            when (val outcome = publisher.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
                     if (!rtcConnected) {
                         onRTCConnected()
@@ -208,7 +208,7 @@ constructor(
         coroutineScope.launch {
             run<Unit> {
                 when (val outcome =
-                    subscriber.peerConnection.setRemoteDescription(sessionDescription)) {
+                    subscriber.setRemoteDescription(sessionDescription)) {
                     is Either.Right -> {
                         Timber.e { "error setting remote description for answer: ${outcome.value} " }
                         return@launch

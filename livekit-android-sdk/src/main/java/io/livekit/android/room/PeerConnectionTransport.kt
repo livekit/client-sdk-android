@@ -3,7 +3,12 @@ package io.livekit.android.room
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import org.webrtc.*
+import io.livekit.android.room.util.CoroutineSdpObserver
+import io.livekit.android.util.Either
+import org.webrtc.IceCandidate
+import org.webrtc.PeerConnection
+import org.webrtc.PeerConnectionFactory
+import org.webrtc.SessionDescription
 
 /**
  * @suppress
@@ -30,25 +35,20 @@ constructor(
         }
     }
 
-    fun setRemoteDescription(sd: SessionDescription) {
-        peerConnection.setRemoteDescription(object : SdpObserver {
-            override fun onCreateSuccess(p0: SessionDescription?) {
-            }
+    suspend fun setRemoteDescription(sd: SessionDescription): Either<Unit, String?> {
 
+        val observer = object : CoroutineSdpObserver() {
             override fun onSetSuccess() {
                 pendingCandidates.forEach { pending ->
                     peerConnection.addIceCandidate(pending)
                 }
                 pendingCandidates.clear()
+                super.onSetSuccess()
             }
-
-            override fun onCreateFailure(p0: String?) {
-            }
-
-            override fun onSetFailure(p0: String?) {
-            }
-
-        }, sd)
+        }
+        
+        peerConnection.setRemoteDescription(observer, sd)
+        return observer.awaitSet()
     }
 
     fun close() {

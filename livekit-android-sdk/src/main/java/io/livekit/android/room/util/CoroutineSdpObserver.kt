@@ -9,7 +9,7 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class CoroutineSdpObserver : SdpObserver {
+open class CoroutineSdpObserver : SdpObserver {
     private var createOutcome: Either<SessionDescription, String?>? = null
         set(value) {
             field = value
