@@ -180,6 +180,32 @@ constructor(
         sendRequest(request)
     }
 
+    fun sendUpdateTrackSettings(sid: String, disabled: Boolean, videoQuality: LivekitRtc.VideoQuality) {
+        val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
+            .setTrackSids(0, sid)
+            .setDisabled(disabled)
+            .setQuality(videoQuality)
+
+         val request = LivekitRtc.SignalRequest.newBuilder()
+            .setTrackSetting(trackSettings)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendUpdateSubscription(sid: String, subscribe: Boolean, videoQuality: LivekitRtc.VideoQuality) {
+        val subscription = LivekitRtc.UpdateSubscription.newBuilder()
+            .setTrackSids(0, sid)
+            .setSubscribe(subscribe)
+            .setQuality(videoQuality)
+
+         val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSubscription(subscription)
+            .build()
+
+        sendRequest(request)
+    }
+
     fun sendRequest(request: LivekitRtc.SignalRequest) {
         Timber.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {

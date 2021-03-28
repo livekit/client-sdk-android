@@ -60,7 +60,7 @@ open class Participant(var sid: String, identity: String? = null) {
     /**
      * @suppress
      */
-    open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
+    internal open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         sid = info.sid
         identity = info.identity
         participantInfo = info
@@ -92,6 +92,7 @@ open class Participant(var sid: String, identity: String? = null) {
 
 
 interface ParticipantListener {
+    // all participants
     /**
      * When a participant's metadata is updated, fired for all participants
      */
@@ -102,13 +103,44 @@ interface ParticipantListener {
      */
     fun onSpeakingChanged(participant: Participant) {}
 
-    fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {}
-    fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {}
+    /**
+     * The participant was muted.
+     *
+     * For the local participant, the callback will be called if setMute was called on the
+     * [LocalTrackPublication], or if the server has requested the participant to be muted
+     */
+    fun onTrackMuted(publication: TrackPublication, participant: Participant) {}
 
-    fun onEnable(publication: TrackPublication, participant: RemoteParticipant) {}
-    fun onDisable(publication: TrackPublication, participant: RemoteParticipant) {}
+    /**
+     * The participant was unmuted.
+     *
+     * For the local participant, the callback will be called if setMute was called on the
+     * [LocalTrackPublication], or if the server has requested the participant to be muted
+     */
+    fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {}
 
-    fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {}
+
+    // remote participants
+    /**
+     * When a new track is published to room after the local participant has joined.
+     *
+     * It will not fire for tracks that are already published
+     */
+    fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {}
+
+    /**
+     * A [RemoteParticipant] has unpublished a track
+     */
+    fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {}
+
+    /**
+     * Subscribed to a new track
+     */
+    fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {}
+
+    /**
+     * Error had occurred while subscribing to a track
+     */
     fun onTrackSubscriptionFailed(
         sid: String,
         exception: Exception,
@@ -116,20 +148,24 @@ interface ParticipantListener {
     ) {
     }
 
+    /**
+     * A subscribed track is no longer available.
+     * Clients should listen to this event and handle cleanup
+     */
     fun onTrackUnsubscribed(
         track: Track,
-        publication: TrackPublication,
+        publication: RemoteTrackPublication,
         participant: RemoteParticipant
     ) {
     }
 
+    /**
+     * Data was received on a data track
+     */
     fun onDataReceived(
         data: ByteBuffer,
         dataTrack: DataTrack,
         participant: RemoteParticipant
     ) {
     }
-
-    fun switchedOffVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
-    fun switchedOnVideo(track: VideoTrack, publication: TrackPublication, participant: RemoteParticipant) {}
 }

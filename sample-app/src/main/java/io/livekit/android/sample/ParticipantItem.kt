@@ -30,7 +30,7 @@ class ParticipantItem(
             remoteParticipant.listener = object : ParticipantListener {
                 override fun onTrackSubscribed(
                     track: Track,
-                    publication: TrackPublication,
+                    publication: RemoteTrackPublication,
                     participant: RemoteParticipant
                 ) {
                     if (track is VideoTrack) {

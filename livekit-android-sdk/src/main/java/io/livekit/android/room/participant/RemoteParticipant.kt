@@ -1,6 +1,7 @@
 package io.livekit.android.room.participant
 
 import com.github.ajalt.timberkt.Timber
+import io.livekit.android.room.RTCClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -11,21 +12,21 @@ import org.webrtc.AudioTrack
 import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
-import java.nio.ByteBuffer
 
 class RemoteParticipant(
-    sid: String, name: String? = null
+    val rtcClient: RTCClient,
+    sid: String, name: String? = null,
 ) : Participant(sid, name) {
     /**
      * @suppress
      */
-    constructor(info: LivekitModels.ParticipantInfo) : this(info.sid, info.identity) {
+    constructor(rtcClient: RTCClient, info: LivekitModels.ParticipantInfo) : this(rtcClient, info.sid, info.identity) {
         updateFromInfo(info)
     }
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
 
-    fun getTrackPublication(sid: String): TrackPublication? = tracks[sid]
+    fun getTrackPublication(sid: String): RemoteTrackPublication? = tracks[sid] as? RemoteTrackPublication
 
     /**
      * @suppress
@@ -34,15 +35,15 @@ class RemoteParticipant(
         val hadInfo = hasInfo
         super.updateFromInfo(info)
 
-        val validTrackPublication = mutableMapOf<String, TrackPublication>()
-        val newTrackPublications = mutableMapOf<String, TrackPublication>()
+        val validTrackPublication = mutableMapOf<String, RemoteTrackPublication>()
+        val newTrackPublications = mutableMapOf<String, RemoteTrackPublication>()
 
         for (trackInfo in info.tracksList) {
             val trackSid = trackInfo.sid
             var publication = getTrackPublication(trackSid)
 
             if (publication == null) {
-                publication = TrackPublication(trackInfo)
+                publication = RemoteTrackPublication(trackInfo, participant = this)
 
                 newTrackPublications[trackSid] = publication
                 addTrackPublication(publication)
@@ -119,7 +120,7 @@ class RemoteParticipant(
                 .setName(name)
                 .setType(LivekitModels.TrackType.DATA)
                 .build()
-            publication = TrackPublication(info = trackInfo)
+            publication = RemoteTrackPublication(info = trackInfo, participant = this)
             addTrackPublication(publication)
             if (hasInfo) {
                 internalListener?.onTrackPublished(publication, this)
@@ -151,7 +152,7 @@ class RemoteParticipant(
     }
 
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
-        val publication = tracks.remove(trackSid) ?: return
+        val publication = tracks.remove(trackSid) as? RemoteTrackPublication ?: return
         when (publication.kind) {
             LivekitModels.TrackType.AUDIO -> audioTracks.remove(trackSid)
             LivekitModels.TrackType.VIDEO -> videoTracks.remove(trackSid)

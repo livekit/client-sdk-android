@@ -9,9 +9,7 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.DataTrack
-import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.track.*
 import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -92,9 +90,9 @@ constructor(
         }
 
         participant = if (info != null) {
-            RemoteParticipant(info)
+            RemoteParticipant(engine.client, info)
         } else {
-            RemoteParticipant(sid, null)
+            RemoteParticipant(engine.client, sid, null)
         }
         participant.internalListener = this
         mutableRemoteParticipants[sid] = participant
@@ -258,24 +256,34 @@ constructor(
         listener?.onMetadataChanged(participant, prevMetadata, this)
     }
 
+    /** @suppress */
+    override fun onTrackMuted(publication: TrackPublication, participant: Participant) {
+        listener?.onTrackMuted(publication, participant, this)
+    }
+
+    /** @suppress */
+    override fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {
+        listener?.onTrackUnmuted(publication, participant, this)
+    }
+
     /**
      * @suppress
      */
-    override fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant) {
+    override fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackPublished(publication,  participant, this)
     }
 
     /**
      * @suppress
      */
-    override fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant) {
+    override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackUnpublished(publication,  participant, this)
     }
 
     /**
      * @suppress
      */
-    override fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant) {
+    override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
     }
 
@@ -295,7 +303,7 @@ constructor(
      */
     override fun onTrackUnsubscribed(
         track: Track,
-        publication: TrackPublication,
+        publication: RemoteTrackPublication,
         participant: RemoteParticipant
     ) {
         listener?.onTrackUnsubscribed(track, publication, participant, this)
@@ -364,6 +372,22 @@ interface RoomListener {
      * this event will be fired for all clients in the room.
      */
     fun onMetadataChanged(participant: Participant, prevMetadata: String?, room: Room) {}
+
+    /**
+     * The participant was muted.
+     *
+     * For the local participant, the callback will be called if setMute was called on the
+     * [LocalTrackPublication], or if the server has requested the participant to be muted
+     */
+    fun onTrackMuted(publication: TrackPublication, participant: Participant, room: Room) {}
+
+    /**
+     * The participant was unmuted.
+     *
+     * For the local participant, the callback will be called if setMute was called on the
+     * [LocalTrackPublication], or if the server has requested the participant to be muted
+     */
+    fun onTrackUnmuted(publication: TrackPublication, participant: Participant, room: Room) {}
 
     /**
      * When a new track is published to room after the local participant has joined. It will

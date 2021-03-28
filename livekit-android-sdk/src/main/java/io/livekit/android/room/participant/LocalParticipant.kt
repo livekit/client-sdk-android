@@ -15,7 +15,7 @@ class LocalParticipant
 internal constructor(
     @Assisted
     info: LivekitModels.ParticipantInfo,
-    private val engine: RTCEngine,
+    internal val engine: RTCEngine,
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
     private val eglBase: EglBase,
@@ -72,7 +72,7 @@ internal constructor(
             return
         }
 
-        val publication = TrackPublication(trackInfo, track)
+        val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
     }
@@ -102,7 +102,7 @@ internal constructor(
             return
         }
 
-        val publication = TrackPublication(trackInfo, track)
+        val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
     }
@@ -120,7 +120,7 @@ internal constructor(
         val cid = track.name
         val trackInfo =
             engine.addTrack(cid = cid, name = track.name, track.kind)
-        val publication = TrackPublication(trackInfo, track)
+        val publication = LocalTrackPublication(trackInfo, track, this)
 
         val config = DataChannel.Init().apply {
             ordered = track.options.ordered
@@ -159,15 +159,27 @@ internal constructor(
         }
     }
 
+    override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
+        super.updateFromInfo(info)
+
+        // detect tracks that have been muted on the server side, apply those changes
+        for (ti in info.tracksList) {
+            val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
+            if (ti.muted != publication.muted) {
+                publication.setMuted(ti.muted)
+            }
+        }
+    }
+
     private fun <T> unpublishMediaTrack(
         track: T,
         sid: String
     ) where T : MediaTrack {
-        val senders = engine?.publisher?.peerConnection?.senders ?: return
+        val senders = engine.publisher?.peerConnection?.senders ?: return
         for (sender in senders) {
             val t = sender.track() ?: continue
             if (t == track.rtcTrack) {
-                engine?.publisher?.peerConnection?.removeTrack(sender)
+                engine.publisher?.peerConnection?.removeTrack(sender)
             }
         }
     }
