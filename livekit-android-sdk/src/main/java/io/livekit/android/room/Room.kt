@@ -73,7 +73,7 @@ constructor(
 
     private fun handleParticipantDisconnect(sid: String, participant: RemoteParticipant) {
         val removedParticipant = mutableRemoteParticipants.remove(sid) ?: return
-        removedParticipant.tracks.values.forEach { publication ->
+        removedParticipant.tracks.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid)
         }
 
