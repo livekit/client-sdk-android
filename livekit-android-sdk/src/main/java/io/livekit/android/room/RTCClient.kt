@@ -237,6 +237,8 @@ constructor(
             }
             return
         }
+
+        Timber.v { "response: $response" }
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)

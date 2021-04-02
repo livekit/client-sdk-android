@@ -212,7 +212,7 @@ constructor(
                 continue
             }
 
-            val isNewParticipant = remoteParticipants.contains(participantSid)
+            val isNewParticipant = !remoteParticipants.contains(participantSid)
             val participant = getOrCreateRemoteParticipant(participantSid, info)
 
             if (info.state == LivekitModels.ParticipantInfo.State.DISCONNECTED) {
