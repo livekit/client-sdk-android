@@ -4,9 +4,11 @@ import io.livekit.android.room.participant.RemoteParticipant
 import livekit.LivekitModels
 import livekit.LivekitRtc
 
-class RemoteTrackPublication(info: LivekitModels.TrackInfo,
-                             track: Track? = null, participant:
-                             RemoteParticipant? = null): TrackPublication(info, track, participant) {
+class RemoteTrackPublication(
+    info: LivekitModels.TrackInfo,
+    track: Track? = null,
+    participant: RemoteParticipant
+) : TrackPublication(info, track, participant) {
 
     private var unsubscribed: Boolean = false
     private var disabled: Boolean = false
@@ -25,7 +27,7 @@ class RemoteTrackPublication(info: LivekitModels.TrackInfo,
                 return
             }
             field = v
-            val participant = this.participant.get() as? RemoteParticipant ?: return
+            val participant = this.participant as? RemoteParticipant ?: return
             if (v) {
                 participant.listener?.onTrackMuted(this, participant)
                 participant.internalListener?.onTrackMuted(this, participant)
@@ -40,7 +42,7 @@ class RemoteTrackPublication(info: LivekitModels.TrackInfo,
      */
     fun setSubscribed(subscribed: Boolean) {
         unsubscribed = !subscribed
-         val participant = this.participant.get() as? RemoteParticipant ?: return
+        val participant = this.participant as? RemoteParticipant ?: return
 
         participant.rtcClient.sendUpdateSubscription(sid, !unsubscribed, videoQuality)
     }
@@ -68,7 +70,7 @@ class RemoteTrackPublication(info: LivekitModels.TrackInfo,
     }
 
     private fun sendUpdateTrackSettings() {
-        val participant = this.participant.get() as? RemoteParticipant ?: return
+        val participant = this.participant as? RemoteParticipant ?: return
 
         participant.rtcClient.sendUpdateTrackSettings(sid, disabled, videoQuality)
     }

@@ -1,5 +1,6 @@
 package io.livekit.android.room.participant
 
+import io.livekit.android.room.track.TrackPublication
 import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -23,6 +24,7 @@ class ParticipantTest {
         assertEquals(INFO.sid, participant.sid)
         assertEquals(INFO.identity, participant.identity)
         assertEquals(INFO.metadata, participant.metadata)
+        assertEquals(INFO, participant.participantInfo)
     }
 
     @Test
@@ -59,11 +61,29 @@ class ParticipantTest {
 
     }
 
+    @Test
+    fun addTrackPublication() {
+        val audioPublication = TrackPublication(TRACK_INFO, null, participant)
+        participant.addTrackPublication(audioPublication)
+
+        assertEquals(1, participant.tracks.values.size)
+        assertEquals(audioPublication, participant.tracks.values.first())
+        assertEquals(1, participant.audioTracks.values.size)
+        assertEquals(audioPublication, participant.audioTracks.values.first())
+    }
+
     companion object {
         val INFO = LivekitModels.ParticipantInfo.newBuilder()
             .setSid("sid")
             .setIdentity("identity")
             .setMetadata("metadata")
+            .build()
+
+        val TRACK_INFO = LivekitModels.TrackInfo.newBuilder()
+            .setSid("sid")
+            .setName("name")
+            .setType(LivekitModels.TrackType.AUDIO)
+            .setMuted(false)
             .build()
     }
 }

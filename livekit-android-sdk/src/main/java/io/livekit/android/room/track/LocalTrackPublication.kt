@@ -3,9 +3,11 @@ package io.livekit.android.room.track
 import io.livekit.android.room.participant.LocalParticipant
 import livekit.LivekitModels
 
-class LocalTrackPublication(info: LivekitModels.TrackInfo,
-                            track: Track? = null,
-                            participant: LocalParticipant? = null) : TrackPublication(info, track, participant) {
+class LocalTrackPublication(
+    info: LivekitModels.TrackInfo,
+    track: Track? = null,
+    participant: LocalParticipant
+) : TrackPublication(info, track, participant) {
 
     /**
      * Mute or unmute the current track. Muting the track would stop audio or video from being
@@ -22,7 +24,7 @@ class LocalTrackPublication(info: LivekitModels.TrackInfo,
         this.muted = muted
 
         // send updates to server
-        val participant = this.participant.get() as? LocalParticipant ?: return
+        val participant = this.participant as? LocalParticipant ?: return
 
         participant.engine.updateMuteStatus(sid, muted)
 

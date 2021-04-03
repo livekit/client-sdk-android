@@ -2,9 +2,12 @@ package io.livekit.android.room.track
 
 import io.livekit.android.room.participant.Participant
 import livekit.LivekitModels
-import java.lang.ref.WeakReference
 
-open class TrackPublication(info: LivekitModels.TrackInfo, track: Track?, participant: Participant?) {
+open class TrackPublication(
+    info: LivekitModels.TrackInfo,
+    track: Track?,
+    participant: Participant
+) {
     var track: Track? = track
         internal set
     var name: String
@@ -20,14 +23,14 @@ open class TrackPublication(info: LivekitModels.TrackInfo, track: Track?, partic
             return track != null
         }
 
-    var participant: WeakReference<Participant>;
+    var participant: Participant
 
     init {
         sid = info.sid
         name = info.name
         kind = info.type
         muted = info.muted
-        this.participant = WeakReference(participant)
+        this.participant = participant
     }
 
     fun updateFromInfo(info: LivekitModels.TrackInfo) {
