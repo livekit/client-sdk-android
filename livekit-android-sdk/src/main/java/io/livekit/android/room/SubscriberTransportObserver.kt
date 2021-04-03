@@ -49,6 +49,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
+        Timber.v { "onIceConnection new state: $p0" }
     }
 
     override fun onIceConnectionReceivingChange(p0: Boolean) {

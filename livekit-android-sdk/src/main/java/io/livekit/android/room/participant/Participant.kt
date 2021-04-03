@@ -21,6 +21,14 @@ open class Participant(var sid: String, identity: String? = null) {
             }
         }
     var metadata: String? = null
+        internal set(v) {
+            val prevMetadata = field
+            field = v
+            if (prevMetadata != v) {
+                listener?.onMetadataChanged(this, prevMetadata)
+                internalListener?.onMetadataChanged(this, prevMetadata)
+            }
+        }
 
     /**
      * Listener for when participant properties change
@@ -64,14 +72,7 @@ open class Participant(var sid: String, identity: String? = null) {
         sid = info.sid
         identity = info.identity
         participantInfo = info
-
-        val prevMetadata = metadata
         metadata = info.metadata
-
-        if (prevMetadata != metadata) {
-            listener?.onMetadataChanged(this, prevMetadata)
-            internalListener?.onMetadataChanged(this, prevMetadata)
-        }
     }
 
     override fun equals(other: Any?): Boolean {

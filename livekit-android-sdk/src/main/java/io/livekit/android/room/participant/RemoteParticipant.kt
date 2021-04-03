@@ -15,7 +15,8 @@ import org.webrtc.VideoTrack
 
 class RemoteParticipant(
     val rtcClient: RTCClient,
-    sid: String, name: String? = null,
+    sid: String,
+    name: String? = null,
 ) : Participant(sid, name) {
     /**
      * @suppress

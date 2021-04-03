@@ -4,7 +4,10 @@ import livekit.LivekitModels
 import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 
-open class Track(name: String, kind: LivekitModels.TrackType) {
+open class Track(
+    name: String,
+    kind: LivekitModels.TrackType
+) {
     var name = name
         internal set
     var kind = kind
