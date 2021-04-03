@@ -27,7 +27,7 @@ class RTCEngine
 @Inject
 constructor(
     val client: RTCClient,
-    pctFactory: PeerConnectionTransport.Factory,
+    private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : RTCClient.Listener {
 
@@ -49,26 +49,13 @@ constructor(
 
     private val publisherObserver = PublisherTransportObserver(this)
     private val subscriberObserver = SubscriberTransportObserver(this)
-    internal val publisher: PeerConnectionTransport
-    private val subscriber: PeerConnectionTransport
-
-    private var privateDataChannel: DataChannel
+    internal lateinit var publisher: PeerConnectionTransport
+    private lateinit var subscriber: PeerConnectionTransport
+    private lateinit var privateDataChannel: DataChannel
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
     init {
-        val rtcConfig = PeerConnection.RTCConfiguration(RTCClient.DEFAULT_ICE_SERVERS).apply {
-            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-        }
-
-        publisher = pctFactory.create(rtcConfig, publisherObserver)
-        subscriber = pctFactory.create(rtcConfig, subscriberObserver)
         client.listener = this
-
-        privateDataChannel = publisher.peerConnection.createDataChannel(
-            PRIVATE_DATA_CHANNEL_LABEL,
-            DataChannel.Init()
-        )
     }
 
     fun join(url: String, token: String) {
@@ -166,6 +153,35 @@ constructor(
     override fun onJoin(info: LivekitRtc.JoinResponse) {
         joinResponse = info
 
+        val iceServers = mutableListOf<PeerConnection.IceServer>()
+        for(serverInfo in info.iceServersList){
+            val username = serverInfo.username ?: ""
+            val credential = serverInfo.credential ?: ""
+            iceServers.add(
+                PeerConnection.IceServer
+                    .builder(serverInfo.urlsList)
+                    .setUsername(username)
+                    .setPassword(credential)
+                    .createIceServer()
+            )
+        }
+
+        if(iceServers.isEmpty()){
+            iceServers.addAll(RTCClient.DEFAULT_ICE_SERVERS)
+        }
+
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+        }
+
+        publisher = pctFactory.create(rtcConfig, publisherObserver)
+        subscriber = pctFactory.create(rtcConfig, subscriberObserver)
+
+        privateDataChannel = publisher.peerConnection.createDataChannel(
+            PRIVATE_DATA_CHANNEL_LABEL,
+            DataChannel.Init()
+        )
         coroutineScope.launch {
             val sdpOffer =
                 when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
