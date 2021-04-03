@@ -22,6 +22,7 @@ class CallActivity : AppCompatActivity() {
     }
     lateinit var binding: CallActivityBinding
     var tabLayoutMediator: TabLayoutMediator? = null
+    val focusChangeListener = AudioManager.OnAudioFocusChangeListener {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +71,7 @@ class CallActivity : AppCompatActivity() {
             mode = AudioManager.MODE_IN_COMMUNICATION
         }
         val result = audioManager.requestAudioFocus(
-            { },
+            focusChangeListener,
             AudioManager.STREAM_VOICE_CALL,
             AudioManager.AUDIOFOCUS_GAIN,
         )
@@ -84,8 +85,9 @@ class CallActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        binding.pipVideoView.release()
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        audioManager.abandonAudioFocus(null)
+        audioManager.abandonAudioFocus(focusChangeListener)
     }
 
     companion object {
