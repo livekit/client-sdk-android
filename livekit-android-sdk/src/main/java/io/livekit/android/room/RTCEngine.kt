@@ -170,6 +170,15 @@ constructor(
             iceServers.addAll(RTCClient.DEFAULT_ICE_SERVERS)
         }
 
+        info.iceServersList.forEach {
+            Timber.e{ "username = \"${it.username}\""}
+            Timber.e{ "credential = \"${it.credential}\""}
+            Timber.e{ "urls: "}
+            it.urlsList.forEach{
+                Timber.e{"   $it"}
+            }
+        }
+
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
@@ -259,7 +268,7 @@ constructor(
         Timber.v { "received ice candidate from peer: $candidate, $target" }
         when (target) {
             LivekitRtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
-            LivekitRtc.SignalTarget.SUBSCRIBER -> publisher.addIceCandidate(candidate)
+            LivekitRtc.SignalTarget.SUBSCRIBER -> subscriber.addIceCandidate(candidate)
             else -> Timber.i { "unknown ice candidate target?" }
         }
     }

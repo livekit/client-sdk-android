@@ -40,6 +40,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
+        Timber.v { "onConnectionChange new state: $newState" }
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
