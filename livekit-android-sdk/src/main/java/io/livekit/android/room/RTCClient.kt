@@ -3,7 +3,7 @@ package io.livekit.android.room
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.room.track.Track
+import io.livekit.android.util.safe
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -182,7 +182,7 @@ constructor(
 
     fun sendUpdateTrackSettings(sid: String, disabled: Boolean, videoQuality: LivekitRtc.VideoQuality) {
         val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
-            .setTrackSids(0, sid)
+            .addTrackSids(sid)
             .setDisabled(disabled)
             .setQuality(videoQuality)
 
@@ -195,7 +195,7 @@ constructor(
 
     fun sendUpdateSubscription(sid: String, subscribe: Boolean, videoQuality: LivekitRtc.VideoQuality) {
         val subscription = LivekitRtc.UpdateSubscription.newBuilder()
-            .setTrackSids(0, sid)
+            .addTrackSids(sid)
             .setSubscribe(subscribe)
             .setQuality(videoQuality)
 
@@ -267,11 +267,14 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.SPEAKER -> {
                 listener?.onActiveSpeakersChanged(response.speaker.speakersList)
             }
-            LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET -> TODO()
-            else -> {
-                Timber.v { "unhandled response type: ${response.messageCase.name}" }
+            LivekitRtc.SignalResponse.MessageCase.JOIN -> {
+                Timber.d { "received unexpected extra join message?" }
             }
-        }
+            LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
+            null -> {
+                Timber.v { "empty messageCase!" }
+            }
+        }.safe()
     }
 
     fun close() {
