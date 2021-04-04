@@ -33,16 +33,7 @@ constructor(
 
     var listener: Listener? = null
     var rtcConnected: Boolean = false
-    var joinResponse: LivekitRtc.JoinResponse? = null
     var iceConnected: Boolean = false
-        set(value) {
-            field = value
-            val savedJoinResponse = joinResponse
-            if (field && savedJoinResponse != null) {
-                listener?.onJoin(savedJoinResponse)
-                joinResponse = null
-            }
-        }
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
 
@@ -145,7 +136,6 @@ constructor(
     }
 
     override fun onJoin(info: LivekitRtc.JoinResponse) {
-        joinResponse = info
 
         val iceServers = mutableListOf<PeerConnection.IceServer>()
         for(serverInfo in info.iceServersList){
@@ -163,7 +153,6 @@ constructor(
         if(iceServers.isEmpty()){
             iceServers.addAll(RTCClient.DEFAULT_ICE_SERVERS)
         }
-
         info.iceServersList.forEach {
             Timber.e{ "username = \"${it.username}\""}
             Timber.e{ "credential = \"${it.credential}\""}
@@ -172,6 +161,7 @@ constructor(
                 Timber.e{"   $it"}
             }
         }
+        listener?.onJoin(info)
 
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN

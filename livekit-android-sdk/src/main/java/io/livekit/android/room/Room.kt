@@ -80,6 +80,7 @@ constructor(
         listener?.onParticipantDisconnected(this, removedParticipant)
     }
 
+    @Synchronized
     private fun getOrCreateRemoteParticipant(
         sid: String,
         info: LivekitModels.ParticipantInfo? = null
@@ -157,6 +158,8 @@ constructor(
 
         if (!response.hasParticipant()) {
             listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
+            connectContinuation?.resume(Unit)
+            connectContinuation = null
             return
         }
 
