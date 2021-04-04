@@ -152,7 +152,6 @@ constructor(
     override fun onJoin(response: LivekitRtc.JoinResponse) {
         Timber.v { "engine did join, version: ${response.serverVersion}" }
 
-        state = State.CONNECTED
         sid = Sid(response.room.sid)
         name = response.room.name
 
@@ -170,6 +169,7 @@ constructor(
             }
         }
 
+        state = State.CONNECTED
         connectContinuation?.resume(Unit)
         connectContinuation = null
     }

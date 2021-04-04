@@ -43,7 +43,6 @@ constructor(
                 joinResponse = null
             }
         }
-    val pendingCandidates = mutableListOf<IceCandidate>()
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
 
@@ -85,7 +84,6 @@ constructor(
     }
 
     fun negotiate() {
-
         if (!client.isConnected) {
             return
         }
@@ -114,10 +112,6 @@ constructor(
     private fun onRTCConnected() {
         Timber.v { "RTC Connected" }
         rtcConnected = true
-        pendingCandidates.forEach { candidate ->
-            client.sendCandidate(candidate, LivekitRtc.SignalTarget.PUBLISHER)
-        }
-        pendingCandidates.clear()
     }
 
     interface Listener {
@@ -204,6 +198,7 @@ constructor(
             when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
                 is Either.Right -> {
                     Timber.d { "error setting local description: ${outcome.value}" }
+                    return@launch
                 }
             }
 

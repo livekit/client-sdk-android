@@ -13,11 +13,7 @@ class PublisherTransportObserver(
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         val candidate = iceCandidate ?: return
-        if (engine.rtcConnected) {
-            engine.client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
-        } else {
-            engine.pendingCandidates.add(candidate)
-        }
+        engine.client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
     }
 
     override fun onRenegotiationNeeded() {
