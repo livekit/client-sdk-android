@@ -67,8 +67,7 @@ constructor(
 
     fun disconnect() {
         engine.close()
-        state = State.DISCONNECTED
-        listener?.onDisconnect(this, null)
+        handleDisconnect()
     }
 
     private fun handleParticipantDisconnect(sid: String, participant: RemoteParticipant) {
@@ -136,6 +135,11 @@ constructor(
         mutableActiveSpeakers.clear()
         mutableActiveSpeakers.addAll(speakers)
         listener?.onActiveSpeakersChanged(speakers, this)
+    }
+
+    private fun handleDisconnect() {
+        state = State.DISCONNECTED
+        listener?.onDisconnect(this, null)
     }
 
     /**
@@ -240,7 +244,7 @@ constructor(
      */
     override fun onDisconnect(reason: String) {
         Timber.v { "engine did disconnect: $reason" }
-        listener?.onDisconnect(this, null)
+        handleDisconnect()
     }
 
     /**
