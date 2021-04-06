@@ -25,6 +25,7 @@ class PublisherTransportObserver(
         Timber.v { "onIceConnection new state: $newState" }
         if (state == PeerConnection.IceConnectionState.CONNECTED && !engine.iceConnected) {
             engine.iceConnected = true
+            engine.listener?.onICEConnected()
         } else if (state == PeerConnection.IceConnectionState.FAILED) {
             // when we publish tracks, some WebRTC versions will send out disconnected events periodically
             engine.iceConnected = false

@@ -20,6 +20,11 @@ class LocalVideoTrack(
         capturer.startCapture(400, 400, 30)
     }
 
+    override fun stop() {
+        capturer.stopCapture()
+        super.stop()
+    }
+
     companion object {
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
@@ -44,7 +49,6 @@ class LocalVideoTrack(
                 rtcTrack = track,
             )
         }
-
 
         private fun createVideoCapturer(context: Context): VideoCapturer? {
             val videoCapturer: VideoCapturer? = if (Camera2Enumerator.isSupported(context)) {

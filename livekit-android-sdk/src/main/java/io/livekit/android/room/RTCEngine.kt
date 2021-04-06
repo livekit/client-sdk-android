@@ -107,6 +107,7 @@ constructor(
 
     interface Listener {
         fun onJoin(response: LivekitRtc.JoinResponse)
+        fun onICEConnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
 //        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
         fun onAddDataChannel(channel: DataChannel)
@@ -136,7 +137,6 @@ constructor(
     }
 
     override fun onJoin(info: LivekitRtc.JoinResponse) {
-
         val iceServers = mutableListOf<PeerConnection.IceServer>()
         for(serverInfo in info.iceServersList){
             val username = serverInfo.username ?: ""
@@ -161,7 +161,6 @@ constructor(
                 Timber.e{"   $it"}
             }
         }
-        listener?.onJoin(info)
 
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -194,6 +193,7 @@ constructor(
 
             client.sendOffer(sdpOffer)
         }
+        listener?.onJoin(info)
     }
 
     override fun onAnswer(sessionDescription: SessionDescription) {

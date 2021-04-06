@@ -66,7 +66,6 @@ constructor(
     }
 
     fun disconnect() {
-        engine.close()
         handleDisconnect()
     }
 
@@ -138,6 +137,10 @@ constructor(
     }
 
     private fun handleDisconnect() {
+        for (track in localParticipant?.tracks.values) {
+            track.track?.stop()
+        }
+        engine.close()
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
     }
@@ -175,7 +178,9 @@ constructor(
                 getOrCreateRemoteParticipant(it.sid, it)
             }
         }
+    }
 
+    override fun onICEConnected() {
         state = State.CONNECTED
         connectContinuation?.resume(Unit)
         connectContinuation = null

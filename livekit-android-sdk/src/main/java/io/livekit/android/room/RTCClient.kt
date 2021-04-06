@@ -221,8 +221,7 @@ constructor(
         }
 
         if (!sent) {
-            Timber.d { "error sending request: $request" }
-            throw IllegalStateException()
+            Timber.e { "error sending request: $request" }
         }
     }
 
