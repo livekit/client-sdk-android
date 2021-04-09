@@ -66,6 +66,7 @@ constructor(
     }
 
     fun disconnect() {
+        engine.client.sendLeave()
         handleDisconnect()
     }
 
@@ -137,8 +138,14 @@ constructor(
     }
 
     private fun handleDisconnect() {
-        for (track in localParticipant?.tracks.values) {
-            track.track?.stop()
+        for (pub in localParticipant.tracks.values) {
+            pub.track?.stop()
+        }
+        // stop remote tracks too
+        for (p in remoteParticipants.values) {
+            for (pub in p.tracks.values) {
+                pub.track?.stop()
+            }
         }
         engine.close()
         state = State.DISCONNECTED

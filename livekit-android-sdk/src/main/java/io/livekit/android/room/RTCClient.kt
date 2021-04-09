@@ -205,8 +205,15 @@ constructor(
 
         sendRequest(request)
     }
+    
+    fun sendLeave() {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
+            .build()
+        sendRequest(request)
+    }
 
-    fun sendRequest(request: LivekitRtc.SignalRequest) {
+    private fun sendRequest(request: LivekitRtc.SignalRequest) {
         Timber.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
             throw IllegalStateException("not connected!")
