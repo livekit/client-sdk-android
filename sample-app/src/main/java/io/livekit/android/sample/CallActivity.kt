@@ -87,7 +87,12 @@ class CallActivity : AppCompatActivity() {
 
         binding.pipVideoView.release()
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        audioManager.abandonAudioFocus(focusChangeListener)
+        with(audioManager) {
+            isSpeakerphoneOn = false
+            isMicrophoneMute = true
+            abandonAudioFocus(focusChangeListener)
+            mode = AudioManager.MODE_NORMAL
+        }
     }
 
     companion object {
