@@ -34,7 +34,6 @@ constructor(
     @Named(InjectionNames.SIGNAL_JSON_ENABLED)
     private val useJson: Boolean,
 ) : WebSocketListener() {
-
     var isConnected = false
         private set
     private var currentWs: WebSocket? = null
@@ -44,7 +43,7 @@ constructor(
         url: String,
         token: String,
     ) {
-        val wsUrlString = "$url/rtc?access_token=$token"
+        val wsUrlString = "$url/rtc?access_token=$token&protocol=$PROTOCOL_VERSION"
         Timber.i { "connecting to $wsUrlString" }
 
         val request = Request.Builder()
@@ -304,16 +303,18 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
+        const val PROTOCOL_VERSION = 1;
 
         private fun iceServer(url: String) =
             PeerConnection.IceServer.builder(url).createIceServer()
 
+        // more stun servers might slow it down, WebRTC recommends 3 max
         val DEFAULT_ICE_SERVERS = listOf(
             iceServer("stun:stun.l.google.com:19302"),
             iceServer("stun:stun1.l.google.com:19302"),
-            iceServer("stun:stun2.l.google.com:19302"),
-            iceServer("stun:stun3.l.google.com:19302"),
-            iceServer("stun:stun4.l.google.com:19302"),
+//            iceServer("stun:stun2.l.google.com:19302"),
+//            iceServer("stun:stun3.l.google.com:19302"),
+//            iceServer("stun:stun4.l.google.com:19302"),
         )
     }
 }

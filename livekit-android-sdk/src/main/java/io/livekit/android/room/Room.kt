@@ -202,10 +202,12 @@ constructor(
             return
         }
 
-        val participantSid = streams.first().id
-        val trackSid = track.id()
+        var (participantSid, trackSid) = unpackStreamId(streams.first().id)
+        if (trackSid == null) {
+            trackSid = track.id()
+        }
         val participant = getOrCreateRemoteParticipant(participantSid)
-        participant.addSubscribedMediaTrack(track, trackSid)
+        participant.addSubscribedMediaTrack(track, trackSid!!)
     }
 
     /**
@@ -446,4 +448,12 @@ sealed class RoomException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {
     class ConnectException(message: String? = null, cause: Throwable? = null) :
         RoomException(message, cause)
+}
+
+internal fun unpackStreamId(packed: String): Pair<String, String?> {
+    val parts = packed.split('|')
+    if (parts.size != 2) {
+        return Pair(packed, null)
+    }
+    return Pair(parts[0], parts[1])
 }
