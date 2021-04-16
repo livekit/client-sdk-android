@@ -5,6 +5,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
+import io.livekit.android.Version
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
@@ -165,7 +166,7 @@ constructor(
      * @suppress
      */
     override fun onJoin(response: LivekitRtc.JoinResponse) {
-        Timber.v { "engine did join, version: ${response.serverVersion}" }
+        Timber.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
         sid = Sid(response.room.sid)
         name = response.room.name
