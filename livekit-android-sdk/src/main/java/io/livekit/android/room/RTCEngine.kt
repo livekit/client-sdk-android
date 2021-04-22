@@ -289,8 +289,14 @@ constructor(
     }
 
     override fun onClose(reason: String, code: Int) {
+        // TODO: reconnect logic
         Timber.i { "received close event: $reason, code: $code" }
         listener?.onDisconnect(reason)
+    }
+
+    override fun onLeave() {
+        close()
+        listener?.onDisconnect("")
     }
 
     override fun onError(error: Exception) {

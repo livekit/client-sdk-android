@@ -275,6 +275,9 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.JOIN -> {
                 Timber.d { "received unexpected extra join message?" }
             }
+            LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
+                listener?.onLeave()
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 Timber.v { "empty messageCase!" }
@@ -296,6 +299,7 @@ constructor(
         fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersChanged(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
+        fun onLeave()
         fun onError(error: Exception)
     }
 
