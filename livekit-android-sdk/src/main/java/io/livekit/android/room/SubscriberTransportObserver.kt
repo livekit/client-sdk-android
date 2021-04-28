@@ -33,7 +33,6 @@ class SubscriberTransportObserver(
 
     override fun onDataChannel(channel: DataChannel) {
         Timber.v { "onDataChannel" }
-        engine.listener?.onAddDataChannel(channel)
     }
 
     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {

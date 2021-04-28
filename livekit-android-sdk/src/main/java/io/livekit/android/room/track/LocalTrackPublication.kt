@@ -5,7 +5,7 @@ import livekit.LivekitModels
 
 class LocalTrackPublication(
     info: LivekitModels.TrackInfo,
-    track: Track? = null,
+    track: Track,
     participant: LocalParticipant
 ) : TrackPublication(info, track, participant) {
 
@@ -18,13 +18,13 @@ class LocalTrackPublication(
             return
         }
 
-        val mediaTrack = track as? MediaTrack ?: return
+        val mediaTrack = track ?: return
 
         mediaTrack.rtcTrack.setEnabled(!muted)
         this.muted = muted
 
         // send updates to server
-        val participant = this.participant as? LocalParticipant ?: return
+        val participant = this.participant.get() as? LocalParticipant ?: return
 
         participant.engine.updateMuteStatus(sid, muted)
 

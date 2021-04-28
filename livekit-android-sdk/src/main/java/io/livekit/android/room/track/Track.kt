@@ -6,7 +6,8 @@ import org.webrtc.MediaStreamTrack
 
 open class Track(
     name: String,
-    kind: LivekitModels.TrackType
+    kind: Kind,
+    open val rtcTrack: MediaStreamTrack
 ) {
     var name = name
         internal set
@@ -15,8 +16,38 @@ open class Track(
     var sid: String? = null
         internal set
 
+    enum class Kind(val value: String) {
+        AUDIO("audio"),
+        VIDEO("video"),
+        // unknown
+        UNRECOGNIZED("unrecognized");
+
+        fun toProto(): LivekitModels.TrackType {
+            return when (this) {
+                AUDIO -> LivekitModels.TrackType.AUDIO
+                VIDEO -> LivekitModels.TrackType.VIDEO
+                UNRECOGNIZED -> LivekitModels.TrackType.UNRECOGNIZED
+            }
+        }
+
+        override fun toString(): String {
+            return value;
+        }
+
+        companion object {
+            fun fromProto(tt: LivekitModels.TrackType): Kind {
+                return when (tt) {
+                    LivekitModels.TrackType.AUDIO -> AUDIO
+                    LivekitModels.TrackType.VIDEO -> VIDEO
+                    else -> UNRECOGNIZED
+                }
+            }
+        }
+    }
+
     open fun stop() {
-        // subclasses override to provide stop behavior
+        rtcTrack.setEnabled(false)
+        rtcTrack.dispose()
     }
 }
 

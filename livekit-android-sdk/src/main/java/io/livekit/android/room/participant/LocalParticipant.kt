@@ -61,7 +61,7 @@ internal constructor(
 
         val cid = track.rtcTrack.id()
         val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = track.kind)
+            engine.addTrack(cid = cid, name = track.name, kind = track.kind.toProto())
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(this.sid)
@@ -117,15 +117,19 @@ internal constructor(
             return
         }
         track.stop()
-        if (track is MediaTrack) {
-            unpublishMediaTrack(track, sid)
+        val senders = engine.publisher.peerConnection.senders ?: return
+        for (sender in senders) {
+            val t = sender.track() ?: continue
+            if (t == track.rtcTrack) {
+                engine.publisher.peerConnection.removeTrack(sender)
+            }
         }
+
         val sid = publication.sid
         tracks.remove(sid)
         when (publication.kind) {
-            LivekitModels.TrackType.AUDIO -> audioTracks.remove(sid)
-            LivekitModels.TrackType.VIDEO -> videoTracks.remove(sid)
-            LivekitModels.TrackType.DATA -> dataTracks.remove(sid)
+            Track.Kind.AUDIO -> audioTracks.remove(sid)
+            Track.Kind.VIDEO -> videoTracks.remove(sid)
             else -> {}
         }
     }
@@ -175,19 +179,6 @@ internal constructor(
             val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
             if (ti.muted != publication.muted) {
                 publication.setMuted(ti.muted)
-            }
-        }
-    }
-
-    private fun <T> unpublishMediaTrack(
-        track: T,
-        sid: String
-    ) where T : MediaTrack {
-        val senders = engine.publisher.peerConnection.senders ?: return
-        for (sender in senders) {
-            val t = sender.track() ?: continue
-            if (t == track.rtcTrack) {
-                engine.publisher.peerConnection.removeTrack(sender)
             }
         }
     }

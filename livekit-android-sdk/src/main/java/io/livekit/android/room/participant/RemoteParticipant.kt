@@ -9,7 +9,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import org.webrtc.AudioTrack
-import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
 
@@ -108,55 +107,11 @@ class RemoteParticipant(
         listener?.onTrackSubscribed(track, publication, this)
     }
 
-    /**
-     * @suppress
-     */
-    fun addSubscribedDataTrack(dataChannel: DataChannel, sid: String, name: String) {
-        val track = DataTrack(name, dataChannel)
-        var publication = getTrackPublication(sid)
-
-        if (publication == null) {
-            val trackInfo = LivekitModels.TrackInfo.newBuilder()
-                .setSid(sid)
-                .setName(name)
-                .setType(LivekitModels.TrackType.DATA)
-                .build()
-            publication = RemoteTrackPublication(info = trackInfo, participant = this)
-            addTrackPublication(publication)
-            if (hasInfo) {
-                internalListener?.onTrackPublished(publication, this)
-                listener?.onTrackPublished(publication, this)
-            }
-        }
-        publication.track = track
-        track.sid = publication.sid
-
-        dataChannel.registerObserver(object : DataChannel.Observer {
-            override fun onBufferedAmountChange(previousAmount: Long) {}
-
-            override fun onStateChange() {
-                val newState = dataChannel.state()
-                if (newState == DataChannel.State.CLOSED) {
-                    publication.track = null
-                    internalListener?.onTrackUnsubscribed(track, publication, this@RemoteParticipant)
-                    listener?.onTrackUnsubscribed(track, publication, this@RemoteParticipant)
-                }
-            }
-
-            override fun onMessage(buffer: DataChannel.Buffer) {
-
-            }
-        })
-        internalListener?.onTrackSubscribed(track, publication, participant = this)
-        listener?.onTrackSubscribed(track, publication, this)
-    }
-
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
         val publication = tracks.remove(trackSid) as? RemoteTrackPublication ?: return
         when (publication.kind) {
-            LivekitModels.TrackType.AUDIO -> audioTracks.remove(trackSid)
-            LivekitModels.TrackType.VIDEO -> videoTracks.remove(trackSid)
-            LivekitModels.TrackType.DATA -> dataTracks.remove(trackSid)
+            Track.Kind.AUDIO -> audioTracks.remove(trackSid)
+            Track.Kind.VIDEO -> videoTracks.remove(trackSid)
             else -> throw TrackException.InvalidTrackTypeException()
         }
 

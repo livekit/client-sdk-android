@@ -4,6 +4,6 @@ import livekit.LivekitModels
 import org.webrtc.AudioTrack
 
 open class AudioTrack(name: String, override val rtcTrack: AudioTrack) :
-    MediaTrack(name, LivekitModels.TrackType.AUDIO, rtcTrack) {
+    Track(name, Kind.AUDIO, rtcTrack) {
 
 }

@@ -2,7 +2,6 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.room.track.*
 import livekit.LivekitModels
-import java.nio.ByteBuffer
 
 open class Participant(var sid: String, identity: String? = null) {
     var participantInfo: LivekitModels.ParticipantInfo? = null
@@ -48,8 +47,6 @@ open class Participant(var sid: String, identity: String? = null) {
         private set
     var videoTracks = mutableMapOf<String, TrackPublication>()
         private set
-    var dataTracks = mutableMapOf<String, TrackPublication>()
-        private set
 
     /**
      * @suppress
@@ -59,9 +56,9 @@ open class Participant(var sid: String, identity: String? = null) {
         track?.sid = publication.sid
         tracks[publication.sid] = publication
         when (publication.kind) {
-            LivekitModels.TrackType.AUDIO -> audioTracks[publication.sid] = publication
-            LivekitModels.TrackType.VIDEO -> videoTracks[publication.sid] = publication
-            LivekitModels.TrackType.DATA -> dataTracks[publication.sid] = publication
+            Track.Kind.AUDIO -> audioTracks[publication.sid] = publication
+            Track.Kind.VIDEO -> videoTracks[publication.sid] = publication
+            else -> {}
         }
     }
 

@@ -27,7 +27,7 @@ class RemoteTrackPublication(
                 return
             }
             field = v
-            val participant = this.participant as? RemoteParticipant ?: return
+            val participant = this.participant.get() as? RemoteParticipant ?: return
             if (v) {
                 participant.listener?.onTrackMuted(this, participant)
                 participant.internalListener?.onTrackMuted(this, participant)
@@ -42,7 +42,7 @@ class RemoteTrackPublication(
      */
     fun setSubscribed(subscribed: Boolean) {
         unsubscribed = !subscribed
-        val participant = this.participant as? RemoteParticipant ?: return
+        val participant = this.participant.get() as? RemoteParticipant ?: return
 
         participant.rtcClient.sendUpdateSubscription(sid, !unsubscribed, videoQuality)
     }
@@ -70,7 +70,7 @@ class RemoteTrackPublication(
     }
 
     private fun sendUpdateTrackSettings() {
-        val participant = this.participant as? RemoteParticipant ?: return
+        val participant = this.participant.get() as? RemoteParticipant ?: return
 
         participant.rtcClient.sendUpdateTrackSettings(sid, disabled, videoQuality)
     }

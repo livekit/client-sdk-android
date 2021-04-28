@@ -5,7 +5,7 @@ import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
 open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
-    MediaTrack(name, LivekitModels.TrackType.VIDEO, rtcTrack) {
+    Track(name, Kind.VIDEO, rtcTrack) {
     private val sinks: MutableList<VideoSink> = ArrayList();
 
     var enabled: Boolean

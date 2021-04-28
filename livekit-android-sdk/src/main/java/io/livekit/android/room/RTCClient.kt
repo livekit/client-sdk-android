@@ -43,7 +43,7 @@ constructor(
         url: String,
         token: String,
     ) {
-        val wsUrlString = "$url/rtc?access_token=$token&protocol=$PROTOCOL_VERSION"
+        val wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
         Timber.i { "connecting to $wsUrlString" }
 
         val request = Request.Builder()

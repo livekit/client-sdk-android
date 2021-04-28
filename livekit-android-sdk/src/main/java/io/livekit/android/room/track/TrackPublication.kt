@@ -2,6 +2,7 @@ package io.livekit.android.room.track
 
 import io.livekit.android.room.participant.Participant
 import livekit.LivekitModels
+import java.lang.ref.WeakReference
 
 open class TrackPublication(
     info: LivekitModels.TrackInfo,
@@ -14,7 +15,7 @@ open class TrackPublication(
         internal set
     var sid: String
         private set
-    var kind: LivekitModels.TrackType
+    var kind: Track.Kind
         private set
     open var muted: Boolean = false
         internal set
@@ -23,21 +24,20 @@ open class TrackPublication(
             return track != null
         }
 
-    var participant: Participant
+    var participant: WeakReference<Participant>
 
     init {
         sid = info.sid
         name = info.name
-        kind = info.type
+        kind = Track.Kind.fromProto(info.type)
+        this.participant = WeakReference(participant)
         muted = info.muted
-        this.participant = participant
     }
 
     fun updateFromInfo(info: LivekitModels.TrackInfo) {
         sid = info.sid
         name = info.name
-        kind = info.type
-
+        kind = Track.Kind.fromProto(info.type)
         muted = info.muted
     }
 }

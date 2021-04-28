@@ -111,7 +111,6 @@ constructor(
         fun onICEConnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
 //        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
-        fun onAddDataChannel(channel: DataChannel)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onDisconnect(reason: String)

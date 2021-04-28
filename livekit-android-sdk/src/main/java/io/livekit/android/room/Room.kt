@@ -11,11 +11,9 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
-import io.livekit.android.room.util.unpackedTrackLabel
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
-import java.nio.ByteBuffer
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -71,7 +69,7 @@ constructor(
         handleDisconnect()
     }
 
-    private fun handleParticipantDisconnect(sid: String, participant: RemoteParticipant) {
+    private fun handleParticipantDisconnect(sid: String) {
         val removedParticipant = mutableRemoteParticipants.remove(sid) ?: return
         removedParticipant.tracks.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid)
@@ -214,17 +212,6 @@ constructor(
     /**
      * @suppress
      */
-    override fun onAddDataChannel(channel: DataChannel) {
-        val unpackedTrackLabel = channel.unpackedTrackLabel()
-        val (participantSid, trackSid, name) = unpackedTrackLabel
-        val participant = getOrCreateRemoteParticipant(participantSid)
-        participant.addSubscribedDataTrack(channel, trackSid, name)
-    }
-
-
-    /**
-     * @suppress
-     */
     override fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>) {
         for (info in updates) {
             val participantSid = info.sid
@@ -238,7 +225,7 @@ constructor(
             val participant = getOrCreateRemoteParticipant(participantSid, info)
 
             if (info.state == LivekitModels.ParticipantInfo.State.DISCONNECTED) {
-                handleParticipantDisconnect(participantSid, participant)
+                handleParticipantDisconnect(participantSid)
             } else if (isNewParticipant) {
                 listener?.onParticipantConnected(this, participant)
             } else {
@@ -349,7 +336,7 @@ constructor(
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
-        viewRenderer.setEnableHardwareScaler(false /* enabled */);
+        viewRenderer.setEnableHardwareScaler(false /* enabled */)
     }
 }
 
