@@ -5,7 +5,6 @@ plugins {
     id 'kotlin-kapt'
     id 'kotlinx-serialization'
     id 'com.google.protobuf'
-    id 'com.bmuschko.nexus'
 }
 
 android {
@@ -116,3 +115,20 @@ dependencies {
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
+
+afterEvaluate {
+    publishing {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                // Applies the component for the release build variant.
+                from components.release
+
+                // You can then customize attributes of the publication as shown below.
+                groupId = GROUP
+                artifactId = POM_ARTIFACT_ID
+                version = VERSION_NAME
+            }
+        }
+    }
+}
