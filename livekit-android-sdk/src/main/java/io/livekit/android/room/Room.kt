@@ -257,6 +257,17 @@ constructor(
     /**
      * @suppress
      */
+    override fun onUserPacket(packet: LivekitRtc.UserPacket, kind: LivekitRtc.DataPacket.Kind) {
+        val participant = remoteParticipants[packet.participantSid] ?: return
+        val data = packet.payload.toByteArray()
+
+        listener?.onDataReceived(data, participant, this)
+        participant.listener?.onDataReceived(data, participant)
+    }
+
+    /**
+     * @suppress
+     */
     override fun onDisconnect(reason: String) {
         Timber.v { "engine did disconnect: $reason" }
         handleDisconnect()
@@ -329,17 +340,6 @@ constructor(
         participant: RemoteParticipant
     ) {
         listener?.onTrackUnsubscribed(track, publication, participant, this)
-    }
-
-    /**
-     * @suppress
-     */
-    override fun onDataReceived(
-        data: ByteBuffer,
-        dataTrack: DataTrack,
-        participant: RemoteParticipant
-    ) {
-        listener?.onDataReceived(data, dataTrack, participant, this)
     }
 
     /**
@@ -440,9 +440,9 @@ interface RoomListener {
     fun onTrackUnsubscribed(track: Track, publications: TrackPublication, participant: RemoteParticipant, room: Room) {}
 
     /**
-     * Message received over a [DataTrack]
+     * Received data published by another participant
      */
-    fun onDataReceived(data: ByteBuffer, dataTrack: DataTrack, participant: RemoteParticipant, room: Room) {}
+    fun onDataReceived(data: ByteArray, participant: RemoteParticipant, room: Room) {}
 }
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :

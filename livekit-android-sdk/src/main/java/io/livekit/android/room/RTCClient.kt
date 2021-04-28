@@ -231,7 +231,7 @@ constructor(
         }
     }
 
-    fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
+    private fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
         if (!isConnected) {
             // Only handle joins if not connected.
             if (response.hasJoin()) {
@@ -307,7 +307,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 1;
+        const val PROTOCOL_VERSION = 2;
 
         private fun iceServer(url: String) =
             PeerConnection.IceServer.builder(url).createIceServer()

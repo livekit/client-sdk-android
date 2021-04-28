@@ -29,7 +29,7 @@ constructor(
     val client: RTCClient,
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
-) : RTCClient.Listener {
+) : RTCClient.Listener, DataChannel.Observer {
 
     var listener: Listener? = null
     var rtcConnected: Boolean = false
@@ -41,7 +41,8 @@ constructor(
     private val subscriberObserver = SubscriberTransportObserver(this)
     internal lateinit var publisher: PeerConnectionTransport
     private lateinit var subscriber: PeerConnectionTransport
-    private lateinit var privateDataChannel: DataChannel
+    internal var reliableDataChannel: DataChannel? = null
+    internal var lossyDataChannel: DataChannel? = null
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
     init {
@@ -115,10 +116,13 @@ constructor(
         fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
+        fun onUserPacket(packet: LivekitRtc.UserPacket, kind: LivekitRtc.DataPacket.Kind)
     }
 
     companion object {
-        private const val PRIVATE_DATA_CHANNEL_LABEL = "_private"
+        private const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+        private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+        internal const val MAX_DATA_PACKET_SIZE = 15000
 
         private val OFFER_CONSTRAINTS = MediaConstraints().apply {
             with(mandatory) {
@@ -135,6 +139,8 @@ constructor(
             }
         }
     }
+
+    //---------------------------------- RTCClient.Listener --------------------------------------//
 
     override fun onJoin(info: LivekitRtc.JoinResponse) {
         val iceServers = mutableListOf<PeerConnection.IceServer>()
@@ -170,10 +176,21 @@ constructor(
         publisher = pctFactory.create(rtcConfig, publisherObserver)
         subscriber = pctFactory.create(rtcConfig, subscriberObserver)
 
-        privateDataChannel = publisher.peerConnection.createDataChannel(
-            PRIVATE_DATA_CHANNEL_LABEL,
-            DataChannel.Init()
+        val reliableInit = DataChannel.Init()
+        reliableInit.ordered = true
+        reliableDataChannel = publisher.peerConnection.createDataChannel(
+            RELIABLE_DATA_CHANNEL_LABEL,
+            reliableInit
         )
+        reliableDataChannel!!.registerObserver(this)
+        val lossyInit = DataChannel.Init()
+        lossyInit.ordered = true
+        lossyInit.maxRetransmits = 1
+        lossyDataChannel = publisher.peerConnection.createDataChannel(
+            LOSSY_DATA_CHANNEL_LABEL,
+            lossyInit
+        )
+
         coroutineScope.launch {
             val sdpOffer =
                 when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
@@ -301,5 +318,32 @@ constructor(
 
     override fun onError(error: Exception) {
         listener?.onFailToConnect(error)
+    }
+
+    //--------------------------------- DataChannel.Observer ------------------------------------//
+
+    override fun onBufferedAmountChange(previousAmount: Long) {
+    }
+
+    override fun onStateChange() {
+    }
+
+    override fun onMessage(buffer: DataChannel.Buffer?) {
+        if (buffer == null) {
+            return
+        }
+        val dp = LivekitRtc.DataPacket.parseFrom(buffer.data)
+        when (dp.valueCase) {
+            LivekitRtc.DataPacket.ValueCase.SPEAKER -> {
+                listener?.onUpdateSpeakers(dp.speaker.speakersList)
+            }
+            LivekitRtc.DataPacket.ValueCase.USER -> {
+                listener?.onUserPacket(dp.user, dp.kind)
+            }
+            LivekitRtc.DataPacket.ValueCase.VALUE_NOT_SET,
+            null -> {
+                Timber.v { "invalid value for data packet" }
+            }
+        }
     }
 }

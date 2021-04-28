@@ -161,12 +161,7 @@ interface ParticipantListener {
     }
 
     /**
-     * Data was received on a data track
+     * Received data published by another participant
      */
-    fun onDataReceived(
-        data: ByteBuffer,
-        dataTrack: DataTrack,
-        participant: RemoteParticipant
-    ) {
-    }
+    fun onDataReceived(data: ByteArray, participant: RemoteParticipant) {}
 }

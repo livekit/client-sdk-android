@@ -144,8 +144,7 @@ class RemoteParticipant(
             }
 
             override fun onMessage(buffer: DataChannel.Buffer) {
-                internalListener?.onDataReceived(buffer.data, track, this@RemoteParticipant)
-                listener?.onDataReceived(buffer.data, track, this@RemoteParticipant)
+
             }
         })
         internalListener?.onTrackSubscribed(track, publication, participant = this)

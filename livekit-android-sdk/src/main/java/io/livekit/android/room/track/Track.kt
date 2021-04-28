@@ -12,40 +12,12 @@ open class Track(
         internal set
     var kind = kind
         internal set
-    var state: State = State.NONE
     var sid: String? = null
         internal set
-
-    enum class State {
-        ENDED, LIVE, NONE;
-    }
 
     open fun stop() {
         // subclasses override to provide stop behavior
     }
-
-    companion object {
-        fun stateFromRTCMediaTrackState(trackState: MediaStreamTrack.State): State {
-            return when (trackState) {
-                MediaStreamTrack.State.ENDED -> State.ENDED
-                MediaStreamTrack.State.LIVE -> State.LIVE
-            }
-        }
-
-        fun stateFromRTCDataChannelState(dataChannelState: DataChannel.State): State {
-            return when (dataChannelState) {
-                DataChannel.State.CONNECTING,
-                DataChannel.State.OPEN -> {
-                    State.LIVE
-                }
-                DataChannel.State.CLOSING,
-                DataChannel.State.CLOSED -> {
-                    State.ENDED
-                }
-            }
-        }
-    }
-
 }
 
 sealed class TrackException(message: String? = null, cause: Throwable? = null) :
