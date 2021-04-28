@@ -1,7 +1,5 @@
 package io.livekit.android
 
-class Version {
-    companion object {
-        const val CLIENT_VERSION = "0.5.1"
-    }
+object Version {
+    const val CLIENT_VERSION = BuildConfig.VERSION_NAME
 }

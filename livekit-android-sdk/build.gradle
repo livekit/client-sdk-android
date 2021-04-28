@@ -1,23 +1,28 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
-apply plugin: 'kotlinx-serialization'
-apply plugin: 'com.google.protobuf'
-apply plugin: 'org.jetbrains.dokka'
+plugins {
+    id "org.jetbrains.dokka"
+    id 'com.android.library'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
+    id 'kotlinx-serialization'
+    id 'com.google.protobuf'
+    id 'com.bmuschko.nexus'
+}
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion "29.0.3"
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
 
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 29
+        targetSdkVersion 30
         versionCode 1
-        versionName "1.0"
+        versionName VERSION_NAME
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
+
+        buildConfigField "String", "VERSION_NAME", "\"$VERSION_NAME\""
     }
 
     buildTypes {
@@ -90,7 +95,7 @@ dokkaHtml {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0'
     api 'org.webrtc:google-webrtc:1.0.32006'
     api "com.squareup.okhttp3:okhttp:4.9.0"
@@ -109,3 +114,5 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 }
+
+apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
