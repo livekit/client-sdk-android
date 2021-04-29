@@ -8,6 +8,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -30,12 +31,36 @@ constructor(
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : RTCClient.Listener, DataChannel.Observer {
-
     var listener: Listener? = null
-    var rtcConnected: Boolean = false
-    var iceConnected: Boolean = false
+    internal var iceState: IceState = IceState.DISCONNECTED
+        set(value) {
+            val oldVal = field
+            field = value
+            if (value == oldVal) {
+                return
+            }
+            when (value) {
+                IceState.CONNECTED -> {
+                    if (oldVal == IceState.DISCONNECTED) {
+                        Timber.d { "publisher ICE connected" }
+                        listener?.onIceConnected()
+                    } else if (oldVal == IceState.RECONNECTING) {
+                        Timber.d { "publisher ICE reconnected" }
+                        listener?.onIceReconnected()
+                    }
+                }
+                IceState.DISCONNECTED -> {
+                    Timber.d { "publisher ICE disconnected" }
+                    listener?.onDisconnect("Peer connection disconnected")
+                }
+                else -> {}
+            }
+        }
+    private var wsRetries: Int = 0
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
+    private var sessionUrl: String? = null
+    private var sessionToken: String? = null
 
     private val publisherObserver = PublisherTransportObserver(this)
     private val subscriberObserver = SubscriberTransportObserver(this)
@@ -50,6 +75,8 @@ constructor(
     }
 
     fun join(url: String, token: String) {
+        sessionUrl = url
+        sessionToken = token
         client.join(url, token)
     }
 
@@ -75,13 +102,39 @@ constructor(
         client.close()
     }
 
-    fun negotiate() {
+    /**
+     * reconnect Signal and PeerConnections
+     */
+    internal fun reconnect() {
+        if (sessionUrl == null || sessionToken == null) {
+            return
+        }
+        if (iceState == IceState.DISCONNECTED || wsRetries >= MAX_SIGNAL_RETRIES) {
+            Timber.w { "could not connect to signal after max attempts, giving up" }
+            close()
+            listener?.onDisconnect("could not reconnect after limit")
+            return
+        }
+
+        var startDelay = wsRetries.toLong() * wsRetries * 500
+        if (startDelay > 5000) {
+            startDelay = 5000
+        }
+        coroutineScope.launch {
+            delay(startDelay)
+            if (iceState != IceState.DISCONNECTED && sessionUrl != null && sessionToken != null) {
+                client.join(sessionUrl!!, sessionToken!!, true)
+            }
+        }
+    }
+
+    internal fun negotiate() {
         if (!client.isConnected) {
             return
         }
         coroutineScope.launch {
             val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
+                when (val outcome = publisher.peerConnection.createOffer(getOfferConstraints())) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         Timber.d { "error creating offer: ${outcome.value}" }
@@ -101,16 +154,23 @@ constructor(
         }
     }
 
-    private fun onRTCConnected() {
-        Timber.v { "RTC Connected" }
-        rtcConnected = true
+    private fun getOfferConstraints(): MediaConstraints {
+        return MediaConstraints().apply {
+            with(mandatory) {
+                add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
+                add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
+                if (iceState == IceState.RECONNECTING) {
+                    add(MediaConstraints.KeyValuePair("IceRestart", "true"))
+                }
+            }
+        }
     }
 
     interface Listener {
         fun onJoin(response: LivekitRtc.JoinResponse)
-        fun onICEConnected()
+        fun onIceConnected()
+        fun onIceReconnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
-//        fun onPublishLocalTrack(cid: String, track: LivekitModels.TrackInfo)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
         fun onDisconnect(reason: String)
@@ -122,15 +182,7 @@ constructor(
         private const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
         private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
-
-        private val OFFER_CONSTRAINTS = MediaConstraints().apply {
-            with(mandatory) {
-                add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
-                add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
-            }
-        }
-
-        private val MEDIA_CONSTRAINTS = MediaConstraints()
+        private const val MAX_SIGNAL_RETRIES = 5
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
@@ -155,7 +207,7 @@ constructor(
             )
         }
 
-        if(iceServers.isEmpty()){
+        if (iceServers.isEmpty()) {
             iceServers.addAll(RTCClient.DEFAULT_ICE_SERVERS)
         }
         info.iceServersList.forEach {
@@ -192,7 +244,7 @@ constructor(
 
         coroutineScope.launch {
             val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(OFFER_CONSTRAINTS)) {
+                when (val outcome = publisher.peerConnection.createOffer(getOfferConstraints())) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         Timber.d { "error creating offer: ${outcome.value}" }
@@ -212,14 +264,25 @@ constructor(
         listener?.onJoin(info)
     }
 
+    override fun onReconnected() {
+        Timber.v { "reconnected, restarting ICE" }
+        wsRetries = 0
+
+        // trigger ICE restart
+        iceState = IceState.RECONNECTING
+        negotiate()
+    }
+
     override fun onAnswer(sessionDescription: SessionDescription) {
         Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
         coroutineScope.launch {
             Timber.i { sessionDescription.toString() }
             when (val outcome = publisher.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
-                    if (!rtcConnected) {
-                        onRTCConnected()
+                    // when reconnecting, ICE might not have disconnected and won't trigger
+                    // our connected callback, so we'll take a shortcut and set it to active
+                    if (iceState == IceState.RECONNECTING) {
+                        iceState = IceState.CONNECTED
                     }
                 }
                 is Either.Right -> {
@@ -243,7 +306,7 @@ constructor(
             }
 
             val answer = run {
-                when (val outcome = subscriber.peerConnection.createAnswer(OFFER_CONSTRAINTS)) {
+                when (val outcome = subscriber.peerConnection.createAnswer(MediaConstraints())) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         Timber.e { "error creating answer: ${outcome.value}" }
@@ -275,11 +338,10 @@ constructor(
     }
 
     override fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse) {
-        val signalCid = response.cid ?: run {
+        val cid = response.cid ?: run {
             Timber.e { "local track published with null cid?" }
             return
         }
-        val cid = signalCid
 
         val track = response.track
         if (track == null) {
@@ -293,7 +355,6 @@ constructor(
             return
         }
         cont.resume(response.track)
-//        listener?.onPublishLocalTrack(cid, track)
     }
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {
@@ -345,4 +406,10 @@ constructor(
             }
         }
     }
+}
+
+ internal enum class IceState {
+    DISCONNECTED,
+    RECONNECTING,
+    CONNECTED,
 }

@@ -1,5 +1,10 @@
 package io.livekit.android.room
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import com.github.ajalt.timberkt.Timber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -22,10 +27,11 @@ class Room
 @AssistedInject
 constructor(
     @Assisted private val connectOptions: ConnectOptions,
+    @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
     private val localParticipantFactory: LocalParticipant.Factory
-) : RTCEngine.Listener, ParticipantListener {
+) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
     init {
         engine.listener = this
     }
@@ -57,10 +63,16 @@ constructor(
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
 
+    private var hasLostConnectivity: Boolean = false
     private var connectContinuation: Continuation<Unit>? = null
     suspend fun connect(url: String, token: String) {
+        state = State.CONNECTING
         engine.join(url, token)
-
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(networkRequest, this)
         return suspendCoroutine { connectContinuation = it }
     }
 
@@ -136,7 +148,18 @@ constructor(
         listener?.onActiveSpeakersChanged(speakers, this)
     }
 
+    private fun reconnect() {
+        if (state == State.RECONNECTING) {
+            return
+        }
+        state = State.RECONNECTING
+        engine.reconnect()
+        listener?.onReconnecting(this)
+    }
+
     private fun handleDisconnect() {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        cm.unregisterNetworkCallback(this)
         for (pub in localParticipant.tracks.values) {
             pub.track?.stop()
         }
@@ -149,6 +172,7 @@ constructor(
         engine.close()
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
+        listener = null
     }
 
     /**
@@ -156,8 +180,32 @@ constructor(
      */
     @AssistedFactory
     interface Factory {
-        fun create(connectOptions: ConnectOptions): Room
+        fun create(connectOptions: ConnectOptions, context: Context): Room
     }
+
+    //------------------------------------- NetworkCallback -------------------------------------//
+
+    /**
+     * @suppress
+     */
+    override fun onLost(network: Network) {
+        // lost connection, flip to reconnecting
+        hasLostConnectivity = true
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onAvailable(network: Network) {
+        // only actually reconnect after connection is re-established
+        if (!hasLostConnectivity) {
+            return
+        }
+        Timber.i { "network connection available, reconnecting" }
+        reconnect()
+        hasLostConnectivity = false
+    }
+
 
     //----------------------------------- RTCEngine.Listener ------------------------------------//
     /**
@@ -186,10 +234,15 @@ constructor(
         }
     }
 
-    override fun onICEConnected() {
+    override fun onIceConnected() {
         state = State.CONNECTED
         connectContinuation?.resume(Unit)
         connectContinuation = null
+    }
+
+    override fun onIceReconnected() {
+        state = State.CONNECTED
+        listener?.onReconnected(this)
     }
 
     /**
@@ -345,6 +398,17 @@ constructor(
  *
  */
 interface RoomListener {
+    /**
+     * A network change has been detected and LiveKit attempts to reconnect to the room
+     * When reconnect attempts succeed, the room state will be kept, including tracks that are subscribed/published
+     */
+    fun onReconnecting(room: Room) {}
+
+    /**
+     * The reconnect attempt had been successful
+     */
+    fun onReconnected(room: Room) {}
+
     /**
      * Disconnected from room
      */

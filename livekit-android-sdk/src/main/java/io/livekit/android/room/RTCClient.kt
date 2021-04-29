@@ -22,6 +22,7 @@ import javax.inject.Inject
 import javax.inject.Named
 
 /**
+ * SignalClient to LiveKit WS servers
  * @suppress
  */
 class RTCClient
@@ -37,14 +38,23 @@ constructor(
     var isConnected = false
         private set
     private var currentWs: WebSocket? = null
+    private var isReconnecting: Boolean = false
     var listener: Listener? = null
 
     fun join(
         url: String,
         token: String,
+        reconnect: Boolean = false
     ) {
-        val wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
+        var wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
+        if (reconnect) {
+            wsUrlString += "&reconnect=1"
+        }
         Timber.i { "connecting to $wsUrlString" }
+
+        isReconnecting = reconnect
+        isConnected = false
+        currentWs?.cancel()
 
         val request = Request.Builder()
             .url(wsUrlString)
@@ -52,9 +62,15 @@ constructor(
         currentWs = websocketFactory.newWebSocket(request, this)
     }
 
+    //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
-        Timber.v { response.message }
         super.onOpen(webSocket, response)
+
+        if (isReconnecting) {
+            isReconnecting = false
+            isConnected = true
+            listener?.onReconnected()
+        }
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
@@ -91,6 +107,7 @@ constructor(
         super.onFailure(webSocket, t, response)
     }
 
+    //------------------------------- End WebSocket Listener ------------------------------------//
 
     fun fromProtoSessionDescription(sd: LivekitRtc.SessionDescription): SessionDescription {
         val rtcSdpType = when (sd.type) {
@@ -292,6 +309,7 @@ constructor(
 
     interface Listener {
         fun onJoin(info: LivekitRtc.JoinResponse)
+        fun onReconnected()
         fun onAnswer(sessionDescription: SessionDescription)
         fun onOffer(sessionDescription: SessionDescription)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)

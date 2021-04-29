@@ -19,13 +19,13 @@ class LiveKit {
             options: ConnectOptions,
             listener: RoomListener?
         ): Room {
-
+            val ctx = appContext.applicationContext
             val component = DaggerLiveKitComponent
                 .factory()
-                .create(appContext.applicationContext)
+                .create(ctx)
 
             val room = component.roomFactory()
-                .create(options)
+                .create(options, ctx)
             room.listener = listener
             room.connect(url, token)
 
