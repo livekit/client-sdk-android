@@ -40,11 +40,11 @@ def getSnapshotRepositoryUrl() {
 }
 
 def getRepositoryUsername() {
-    return hasProperty('nexusUsername') ? NEXUS_USERNAME : ""
+    return hasProperty('nexusUsername') ? nexusUsername : ""
 }
 
 def getRepositoryPassword() {
-    return hasProperty('nexusPassword') ? NEXUS_PASSWORD : ""
+    return hasProperty('nexusPassword') ? nexusPassword : ""
 }
 
 def configurePom(pom) {
