@@ -26,11 +26,13 @@ jobs:
         java-version: '12'
         distribution: 'adopt'
 
+    - name: PWD?
+      run: pwd
+      
+    - name: ls?
+      run: ls -al
     - name: Grant execute permission for gradlew
-      run: |
-        pwd
-        ls
-        chmod +x gradlew
+      run: chmod +x gradlew
     - name: Build with Gradle
       run: |
         pwd
