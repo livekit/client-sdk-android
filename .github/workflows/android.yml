@@ -40,7 +40,7 @@ jobs:
       id: version_name
 
     - name: Create gpg key and import into gradle properties
-      if: contains('SNAPSHOT',steps.version_name.outputs.version_name)
+      if: contains(steps.version_name.outputs.version_name,'SNAPSHOT')
       run: |
         echo $GPG_KEY_ARMOR | base64 --decode > ./release.asc
         gpg --quiet --output $GITHUB_WORKSPACE/release.gpg --dearmor ./release.asc
@@ -57,5 +57,5 @@ jobs:
         NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
 
     - name: Publish snapshot
-      if: contains('SNAPSHOT',steps.version_name.outputs.version_name)
+      if: contains(steps.version_name.outputs.version_name,'SNAPSHOT')
       run: ./gradlew publish
