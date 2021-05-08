@@ -241,6 +241,7 @@ constructor(
             LOSSY_DATA_CHANNEL_LABEL,
             lossyInit
         )
+        lossyDataChannel!!.registerObserver(this)
 
         coroutineScope.launch {
             val sdpOffer =
