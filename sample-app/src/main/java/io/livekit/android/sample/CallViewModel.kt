@@ -81,6 +81,7 @@ class CallViewModel(
     }
 
     override fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {
+        Timber.i { "active speakers changed ${speakers.count()}" }
     }
 
     override fun onMetadataChanged(participant: Participant, prevMetadata: String?, room: Room) {
