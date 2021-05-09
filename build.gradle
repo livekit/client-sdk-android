@@ -62,3 +62,16 @@ ext {
     annotations = [
     ]
 }
+afterEvaluate {
+    // These aren't supported for snapshots. From nexus staging plugin.
+    if (VERSION_NAME.contains("SNAPSHOT")) {
+        ["closeAndReleaseRepository",
+         "closeRepository",
+         "createRepository",
+         "getStagingProfile",
+         "releaseRepository"]
+                .forEach { taskName ->
+                    getTasksByName(taskName, false).forEach { task -> task.enabled = false }
+                }
+    }
+}
