@@ -21,5 +21,6 @@ signing.password=<signing key password>
 signing.secretKeyRingFile=<signing pgp key path>
 ````
 
-2. Update `VERSION_NAME` in `gradle.properties` to reflect the release version.
+2. Update `VERSION_NAME` in `gradle.properties` to reflect the release version. (Remove "-SNAPSHOT" when releasing.)
 3. Run `gradle publish closeAndReleaseRepository` to upload to maven.
+4. Update `VERSION_NAME` in `gradle.properties` to prepare for next release version.
