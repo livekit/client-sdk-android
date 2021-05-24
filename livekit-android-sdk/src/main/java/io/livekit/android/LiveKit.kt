@@ -16,7 +16,7 @@ class LiveKit {
             appContext: Context,
             url: String,
             token: String,
-            options: ConnectOptions,
+            options: ConnectOptions?,
             listener: RoomListener?
         ): Room {
             val ctx = appContext.applicationContext
@@ -25,9 +25,9 @@ class LiveKit {
                 .create(ctx)
 
             val room = component.roomFactory()
-                .create(options, ctx)
+                .create(ctx)
             room.listener = listener
-            room.connect(url, token)
+            room.connect(url, token, options)
 
             return room
         }

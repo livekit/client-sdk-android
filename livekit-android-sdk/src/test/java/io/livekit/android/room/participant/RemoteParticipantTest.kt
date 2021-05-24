@@ -1,6 +1,6 @@
 package io.livekit.android.room.participant
 
-import io.livekit.android.room.RTCClient
+import io.livekit.android.room.SignalClient
 import livekit.LivekitModels
 import org.junit.Assert.*
 import org.junit.Before
@@ -9,13 +9,13 @@ import org.mockito.Mockito
 
 class RemoteParticipantTest {
 
-    lateinit var rtcClient: RTCClient
+    lateinit var signalClient: SignalClient
     lateinit var participant: RemoteParticipant
 
     @Before
     fun setup() {
-        rtcClient = Mockito.mock(RTCClient::class.java)
-        participant = RemoteParticipant(rtcClient, "sid")
+        signalClient = Mockito.mock(SignalClient::class.java)
+        participant = RemoteParticipant(signalClient, "sid")
     }
 
     @Test
@@ -24,7 +24,7 @@ class RemoteParticipantTest {
             .addTracks(TRACK_INFO)
             .build()
 
-        participant = RemoteParticipant(rtcClient, info)
+        participant = RemoteParticipant(signalClient, info)
 
         assertEquals(1, participant.tracks.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))

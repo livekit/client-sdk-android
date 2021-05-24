@@ -1,6 +1,7 @@
 package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
+import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.*
@@ -27,10 +28,10 @@ import kotlin.coroutines.suspendCoroutine
 class RTCEngine
 @Inject
 constructor(
-    val client: RTCClient,
+    val client: SignalClient,
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
-) : RTCClient.Listener, DataChannel.Observer {
+) : SignalClient.Listener, DataChannel.Observer {
     var listener: Listener? = null
     internal var iceState: IceState = IceState.DISCONNECTED
         set(value) {
@@ -74,10 +75,10 @@ constructor(
         client.listener = this
     }
 
-    fun join(url: String, token: String) {
+    fun join(url: String, token: String, options: ConnectOptions?) {
         sessionUrl = url
         sessionToken = token
-        client.join(url, token)
+        client.join(url, token, options)
     }
 
     suspend fun addTrack(cid: String, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {
@@ -123,7 +124,9 @@ constructor(
         coroutineScope.launch {
             delay(startDelay)
             if (iceState != IceState.DISCONNECTED && sessionUrl != null && sessionToken != null) {
-                client.join(sessionUrl!!, sessionToken!!, true)
+                val opts = ConnectOptions()
+                opts.reconnect = true
+                client.join(sessionUrl!!, sessionToken!!, opts)
             }
         }
     }
@@ -208,7 +211,7 @@ constructor(
         }
 
         if (iceServers.isEmpty()) {
-            iceServers.addAll(RTCClient.DEFAULT_ICE_SERVERS)
+            iceServers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
         }
         info.iceServersList.forEach {
             Timber.e{ "username = \"${it.username}\""}

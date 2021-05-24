@@ -1,6 +1,8 @@
 package io.livekit.android
 
 
-data class ConnectOptions(
-    val placeholder: Unit = Unit
-)
+class ConnectOptions(
+    var autoSubscribe: Boolean = true
+) {
+    internal var reconnect: Boolean = false
+}

@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.util.safe
 import kotlinx.serialization.decodeFromString
@@ -25,7 +26,7 @@ import javax.inject.Named
  * SignalClient to LiveKit WS servers
  * @suppress
  */
-class RTCClient
+class SignalClient
 @Inject
 constructor(
     private val websocketFactory: WebSocket.Factory,
@@ -44,15 +45,25 @@ constructor(
     fun join(
         url: String,
         token: String,
-        reconnect: Boolean = false
+        options: ConnectOptions?,
     ) {
         var wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
-        if (reconnect) {
-            wsUrlString += "&reconnect=1"
+        isReconnecting = false
+        if (options != null) {
+            wsUrlString += "&auto_subscribe="
+            wsUrlString += if (options.autoSubscribe) {
+                "1"
+            } else {
+                "0"
+            }
+            if (options.reconnect) {
+                wsUrlString += "&reconnect=1"
+                isReconnecting = true
+            }
         }
+
         Timber.i { "connecting to $wsUrlString" }
 
-        isReconnecting = reconnect
         isConnected = false
         currentWs?.cancel()
 

@@ -26,7 +26,6 @@ import kotlin.coroutines.suspendCoroutine
 class Room
 @AssistedInject
 constructor(
-    @Assisted private val connectOptions: ConnectOptions,
     @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
@@ -65,9 +64,9 @@ constructor(
 
     private var hasLostConnectivity: Boolean = false
     private var connectContinuation: Continuation<Unit>? = null
-    suspend fun connect(url: String, token: String) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions?) {
         state = State.CONNECTING
-        engine.join(url, token)
+        engine.join(url, token, options)
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -180,7 +179,7 @@ constructor(
      */
     @AssistedFactory
     interface Factory {
-        fun create(connectOptions: ConnectOptions, context: Context): Room
+        fun create(context: Context): Room
     }
 
     //------------------------------------- NetworkCallback -------------------------------------//

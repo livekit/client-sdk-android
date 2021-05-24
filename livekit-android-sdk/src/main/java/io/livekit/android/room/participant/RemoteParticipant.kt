@@ -1,7 +1,7 @@
 package io.livekit.android.room.participant
 
 import com.github.ajalt.timberkt.Timber
-import io.livekit.android.room.RTCClient
+import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -13,14 +13,14 @@ import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
 
 class RemoteParticipant(
-    val rtcClient: RTCClient,
+    val signalClient: SignalClient,
     sid: String,
     identity: String? = null,
 ) : Participant(sid, identity) {
     /**
      * @suppress
      */
-    constructor(rtcClient: RTCClient, info: LivekitModels.ParticipantInfo) : this(rtcClient, info.sid, info.identity) {
+    constructor(signalClient: SignalClient, info: LivekitModels.ParticipantInfo) : this(signalClient, info.sid, info.identity) {
         updateFromInfo(info)
     }
 
