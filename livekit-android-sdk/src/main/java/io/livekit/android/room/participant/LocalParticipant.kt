@@ -44,7 +44,7 @@ internal constructor(
             MediaConstraints.KeyValuePair("googNoiseSuppression", options.noiseSuppression.toString()),
             MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
         )
-//        audioConstraints.optional.addAll(items)
+        audioConstraints.optional.addAll(items)
         return LocalAudioTrack.createTrack(peerConnectionFactory, audioConstraints, name)
     }
 
