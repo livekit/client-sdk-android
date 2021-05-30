@@ -225,6 +225,7 @@ constructor(
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            enableDtlsSrtp = true
         }
 
         publisher = pctFactory.create(rtcConfig, publisherObserver)

@@ -11,7 +11,6 @@ import java.util.*
  */
 class LocalAudioTrack(
     name: String,
-    audioOptions: AudioOptions? = null,
     mediaTrack: org.webrtc.AudioTrack
 ) : AudioTrack(name, mediaTrack) {
     var enabled: Boolean
@@ -20,16 +19,12 @@ class LocalAudioTrack(
             rtcTrack.setEnabled(value)
         }
 
-    var audioOptions = audioOptions
-        private set
-
     companion object {
         internal fun createTrack(
             factory: PeerConnectionFactory,
             audioConstraints: MediaConstraints = MediaConstraints(),
             name: String = ""
         ): LocalAudioTrack {
-
             val audioSource = factory.createAudioSource(audioConstraints)
             val rtcAudioTrack =
                 factory.createAudioTrack(UUID.randomUUID().toString(), audioSource)

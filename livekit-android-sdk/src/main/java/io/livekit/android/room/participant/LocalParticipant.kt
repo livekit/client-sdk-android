@@ -33,19 +33,30 @@ internal constructor(
         get() = tracks.values.toList()
 
     fun createAudioTrack(
-        audioConstraints: MediaConstraints = MediaConstraints(),
-        name: String = ""
-    ) = LocalAudioTrack.createTrack(peerConnectionFactory, audioConstraints, name)
+        name: String = "",
+        options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
+    ): LocalAudioTrack {
+        val audioConstraints = MediaConstraints()
+        val items = listOf(
+            MediaConstraints.KeyValuePair("googEchoCancellation", options.echoCancellation.toString()),
+            MediaConstraints.KeyValuePair("googAutoGainControl", options.autoGainControl.toString()),
+            MediaConstraints.KeyValuePair("googHighpassFilter", options.highPassFilter.toString()),
+            MediaConstraints.KeyValuePair("googNoiseSuppression", options.noiseSuppression.toString()),
+            MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
+        )
+//        audioConstraints.optional.addAll(items)
+        return LocalAudioTrack.createTrack(peerConnectionFactory, audioConstraints, name)
+    }
 
     fun createVideoTrack(
-        isScreencast: Boolean = false,
         name: String = "",
+        options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory,
             context,
-            isScreencast,
             name,
+            options,
             eglBase
         )
     }

@@ -14,10 +14,11 @@ class LocalVideoTrack(
     private val capturer: VideoCapturer,
     private val source: VideoSource,
     name: String,
+    private val options: LocalVideoTrackOptions,
     rtcTrack: org.webrtc.VideoTrack
 ) : VideoTrack(name, rtcTrack) {
     fun startCapture() {
-        capturer.startCapture(400, 400, 30)
+        capturer.startCapture(options.captureParams.width, options.captureParams.height, options.captureParams.maxFps)
     }
 
     override fun stop() {
@@ -29,12 +30,12 @@ class LocalVideoTrack(
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
-            isScreencast: Boolean,
             name: String,
+            options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
         ): LocalVideoTrack {
-            val source = peerConnectionFactory.createVideoSource(isScreencast)
-            val capturer = createVideoCapturer(context) ?: TODO()
+            val source = peerConnectionFactory.createVideoSource(options.isScreencast)
+            val capturer = createVideoCapturer(context, options.position) ?: TODO()
             capturer.initialize(
                 SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
                 context,
@@ -45,16 +46,17 @@ class LocalVideoTrack(
             return LocalVideoTrack(
                 capturer = capturer,
                 source = source,
+                options = options,
                 name = name,
                 rtcTrack = track,
             )
         }
 
-        private fun createVideoCapturer(context: Context): VideoCapturer? {
+        private fun createVideoCapturer(context: Context, position: CameraPosition): VideoCapturer? {
             val videoCapturer: VideoCapturer? = if (Camera2Enumerator.isSupported(context)) {
-                createCameraCapturer(Camera2Enumerator(context))
+                createCameraCapturer(Camera2Enumerator(context), position)
             } else {
-                createCameraCapturer(Camera1Enumerator(true))
+                createCameraCapturer(Camera1Enumerator(true), position)
             }
             if (videoCapturer == null) {
                 Timber.d { "Failed to open camera" }
@@ -63,24 +65,18 @@ class LocalVideoTrack(
             return videoCapturer
         }
 
-        private fun createCameraCapturer(enumerator: CameraEnumerator): VideoCapturer? {
+        private fun createCameraCapturer(enumerator: CameraEnumerator, position: CameraPosition): VideoCapturer? {
             val deviceNames = enumerator.deviceNames
 
-            // First, try to find front facing camera
             for (deviceName in deviceNames) {
-                if (enumerator.isFrontFacing(deviceName)) {
+                if (enumerator.isFrontFacing(deviceName) && position == CameraPosition.FRONT) {
                     Timber.v { "Creating front facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
                         return videoCapturer
                     }
-                }
-            }
-
-            // Front facing camera not found, try something else
-            for (deviceName in deviceNames) {
-                if (!enumerator.isFrontFacing(deviceName)) {
-                    Timber.v { "Creating other camera capturer." }
+                } else if (enumerator.isBackFacing(deviceName) && position == CameraPosition.BACK) {
+                    Timber.v { "Creating back facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
                         return videoCapturer
