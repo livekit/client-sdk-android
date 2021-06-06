@@ -1,0 +1,47 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+    # only publish on version tags
+    # tags:
+    #   - v*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client-sdk-android
+    steps:
+    - name: checkout client-sdk-android
+      uses: actions/checkout@v2.3.4
+      with:
+        path: ./client-sdk-android
+
+    - name: checkout protocol
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: livekit/protocol
+        path: ./protocol
+
+    - name: set up JDK 12
+      uses: actions/setup-java@v2
+      with:
+        java-version: '12'
+        distribution: 'adopt'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build docs
+      run: ./gradlew dokkaHtml
+
+    - name: Upload to S3
+      uses: ItsKarma/aws-cli@v1.70.0
+      with:
+        args: s3 cp livekit-android-sdk/build/dokka/html/ s3://livekit-docs/client-sdk-android/ --recursive
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_DEPLOY_AWS_ACCESS_KEY }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_DEPLOY_AWS_API_SECRET }}
+        AWS_DEFAULT_REGION: "us-east-1"
