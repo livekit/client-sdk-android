@@ -38,12 +38,10 @@ jobs:
     - name: Build docs
       run: ./gradlew dokkaHtml
 
-    - run: find . -name "html"
-
     - name: Upload to S3
       uses: ItsKarma/aws-cli@v1.70.0
       with:
-        args: s3 cp ./livekit-android-sdk/build/dokka/html/ s3://livekit-docs/client-sdk-android/ --recursive
+        args: s3 cp ./client-sdk-android/livekit-android-sdk/build/dokka/html/ s3://livekit-docs/client-sdk-android/ --recursive
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_DEPLOY_AWS_ACCESS_KEY }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_DEPLOY_AWS_API_SECRET }}
