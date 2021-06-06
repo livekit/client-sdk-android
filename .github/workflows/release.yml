@@ -3,10 +3,9 @@ name: Publish Docs
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
     # only publish on version tags
-    # tags:
-    #   - v*
+    tags:
+      - v*
 
 jobs:
   docs:
