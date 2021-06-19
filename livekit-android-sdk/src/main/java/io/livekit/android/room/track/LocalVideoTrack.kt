@@ -17,6 +17,12 @@ class LocalVideoTrack(
     private val options: LocalVideoTrackOptions,
     rtcTrack: org.webrtc.VideoTrack
 ) : VideoTrack(name, rtcTrack) {
+    val dimensions: Dimensions
+
+    init {
+        dimensions = Dimensions(options.captureParams.width, options.captureParams.height)
+    }
+
     fun startCapture() {
         capturer.startCapture(options.captureParams.width, options.captureParams.height, options.captureParams.maxFps)
     }

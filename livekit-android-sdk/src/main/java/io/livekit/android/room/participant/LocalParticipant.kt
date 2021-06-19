@@ -102,7 +102,7 @@ internal constructor(
 
         val cid = track.rtcTrack.id()
         val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.VIDEO)
+            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.VIDEO, dimensions = track.dimensions)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(this.sid)

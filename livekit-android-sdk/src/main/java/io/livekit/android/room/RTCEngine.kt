@@ -3,6 +3,7 @@ package io.livekit.android.room
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
@@ -81,14 +82,14 @@ constructor(
         client.join(url, token, options)
     }
 
-    suspend fun addTrack(cid: String, name: String, kind: LivekitModels.TrackType): LivekitModels.TrackInfo {
+    suspend fun addTrack(cid: String, name: String, kind: LivekitModels.TrackType, dimensions: Track.Dimensions? = null): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
 
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind)
+            client.sendAddTrack(cid, name, kind, dimensions)
         }
     }
 

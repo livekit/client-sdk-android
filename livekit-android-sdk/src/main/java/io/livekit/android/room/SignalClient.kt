@@ -4,6 +4,7 @@ import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.track.Track
 import io.livekit.android.util.safe
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -193,12 +194,15 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendAddTrack(cid: String, name: String, type: LivekitModels.TrackType) {
+    fun sendAddTrack(cid: String, name: String, type: LivekitModels.TrackType, dimensions: Track.Dimensions? = null) {
         val addTrackRequest = LivekitRtc.AddTrackRequest.newBuilder()
             .setCid(cid)
             .setName(name)
             .setType(type)
-            .build()
+        if (dimensions != null) {
+            addTrackRequest.width = dimensions.width
+            addTrackRequest.height = dimensions.height
+        }
 
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)

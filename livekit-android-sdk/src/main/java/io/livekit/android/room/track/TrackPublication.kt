@@ -23,6 +23,11 @@ open class TrackPublication(
         get() {
             return track != null
         }
+    var simulcasted: Boolean? = null
+        internal set
+    var dimensions: Track.Dimensions? = null
+        internal set
+
 
     var participant: WeakReference<Participant>
 
@@ -31,7 +36,7 @@ open class TrackPublication(
         name = info.name
         kind = Track.Kind.fromProto(info.type)
         this.participant = WeakReference(participant)
-        muted = info.muted
+        updateFromInfo(info)
     }
 
     fun updateFromInfo(info: LivekitModels.TrackInfo) {
@@ -39,5 +44,9 @@ open class TrackPublication(
         name = info.name
         kind = Track.Kind.fromProto(info.type)
         muted = info.muted
+        if (kind == Track.Kind.VIDEO) {
+            simulcasted = info.simulcast
+            dimensions = Track.Dimensions(info.width, info.height)
+        }
     }
 }
