@@ -114,14 +114,14 @@ constructor(
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        Timber.v(t) { "websocket failure: ${response}" }
+        Timber.v(t) { "websocket failure: $response" }
 
         super.onFailure(webSocket, t, response)
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
 
-    fun fromProtoSessionDescription(sd: LivekitRtc.SessionDescription): SessionDescription {
+    private fun fromProtoSessionDescription(sd: LivekitRtc.SessionDescription): SessionDescription {
         val rtcSdpType = when (sd.type) {
             SD_TYPE_ANSWER -> SessionDescription.Type.ANSWER
             SD_TYPE_OFFER -> SessionDescription.Type.OFFER
@@ -131,7 +131,7 @@ constructor(
         return SessionDescription(rtcSdpType, sd.sdp)
     }
 
-    fun toProtoSessionDescription(sdp: SessionDescription): LivekitRtc.SessionDescription {
+    private fun toProtoSessionDescription(sdp: SessionDescription): LivekitRtc.SessionDescription {
         val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
         sdBuilder.sdp = sdp.description
         sdBuilder.type = when (sdp.type) {
@@ -224,11 +224,10 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendUpdateSubscription(sid: String, subscribe: Boolean, videoQuality: LivekitRtc.VideoQuality) {
+    fun sendUpdateSubscription(sid: String, subscribe: Boolean) {
         val subscription = LivekitRtc.UpdateSubscription.newBuilder()
             .addTrackSids(sid)
             .setSubscribe(subscribe)
-            .setQuality(videoQuality)
 
          val request = LivekitRtc.SignalRequest.newBuilder()
             .setSubscription(subscription)
@@ -247,7 +246,8 @@ constructor(
     private fun sendRequest(request: LivekitRtc.SignalRequest) {
         Timber.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
-            throw IllegalStateException("not connected!")
+            Timber.w { "not connected, could not send request $request" }
+            return
         }
         val sent: Boolean
         if (useJson) {
@@ -340,7 +340,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 2;
+        const val PROTOCOL_VERSION = 2
 
         private fun iceServer(url: String) =
             PeerConnection.IceServer.builder(url).createIceServer()

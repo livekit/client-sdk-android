@@ -276,6 +276,8 @@ constructor(
 
         // trigger ICE restart
         iceState = IceState.RECONNECTING
+        publisher.prepareForIceRestart()
+        subscriber.prepareForIceRestart()
         negotiate()
     }
 

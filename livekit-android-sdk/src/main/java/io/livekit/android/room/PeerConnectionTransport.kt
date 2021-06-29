@@ -25,9 +25,10 @@ constructor(
         listener
     ) ?: throw IllegalStateException("peer connection creation failed?")
     val pendingCandidates = mutableListOf<IceCandidate>()
+    var iceRestart: Boolean = false
 
     fun addIceCandidate(candidate: IceCandidate) {
-        if (peerConnection.remoteDescription != null) {
+        if (peerConnection.remoteDescription != null && !iceRestart) {
             peerConnection.addIceCandidate(candidate)
         } else {
             pendingCandidates.add(candidate)
@@ -42,12 +43,17 @@ constructor(
                     peerConnection.addIceCandidate(pending)
                 }
                 pendingCandidates.clear()
+                iceRestart = false
                 super.onSetSuccess()
             }
         }
         
         peerConnection.setRemoteDescription(observer, sd)
         return observer.awaitSet()
+    }
+
+    fun prepareForIceRestart() {
+        iceRestart = true
     }
 
     fun close() {

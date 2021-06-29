@@ -44,7 +44,7 @@ class RemoteTrackPublication(
         unsubscribed = !subscribed
         val participant = this.participant.get() as? RemoteParticipant ?: return
 
-        participant.signalClient.sendUpdateSubscription(sid, !unsubscribed, videoQuality)
+        participant.signalClient.sendUpdateSubscription(sid, !unsubscribed)
     }
 
     /**
