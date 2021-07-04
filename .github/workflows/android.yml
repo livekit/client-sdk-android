@@ -10,9 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
-      run: 
+      run:
         working-directory: ./client-sdk-android
-    steps:    
+    steps:
     - name: checkout client-sdk-android
       uses: actions/checkout@v2.3.4
       with:
@@ -32,6 +32,7 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+
     - name: Build with Gradle
       run: ./gradlew livekit-android-sdk:assembleRelease
 
