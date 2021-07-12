@@ -72,6 +72,14 @@ class MainActivity : AppCompatActivity(), RoomListener {
 To develop the Android SDK itself, you'll need
 
 - Check out the [protocol](https://github.com/livekit/protocol) repo to exist at the same level as this repo.
+
+  Your directory structure should look like this:
+  ```
+  parent
+    - protocol
+    - client-sdk-android
+  ```
+
 - Install [Android Studio Arctic Fox Beta](https://developer.android.com/studio/preview)
 
 ### Optional (Dev convenience)
