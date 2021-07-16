@@ -11,10 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
+import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
@@ -124,7 +121,11 @@ constructor(
                 val validationUrl = "http" + it.
                     substring(2).
                     replace("/rtc", "/rtc/validate")
-                reason = URL(validationUrl).readText()
+                val request = Request.Builder().url(validationUrl).build()
+                val resp = OkHttpClient().newCall(request).execute()
+                if (!resp.isSuccessful) {
+                    reason = resp.body?.string()
+                }
             }
         } catch (e: Throwable) {
             Timber.e(e) { "failed to validate connection" }
