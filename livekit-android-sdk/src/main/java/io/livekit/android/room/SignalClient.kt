@@ -20,6 +20,7 @@ import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
 import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -42,12 +43,14 @@ constructor(
     private var currentWs: WebSocket? = null
     private var isReconnecting: Boolean = false
     var listener: Listener? = null
+    private var lastUrl: String? = null
 
     fun join(
         url: String,
         token: String,
         options: ConnectOptions?,
     ) {
+
         var wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
         isReconnecting = false
         if (options != null) {
@@ -67,6 +70,7 @@ constructor(
 
         isConnected = false
         currentWs?.cancel()
+        lastUrl = wsUrlString
 
         val request = Request.Builder()
             .url(wsUrlString)
@@ -105,18 +109,34 @@ constructor(
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         Timber.v { "websocket closed" }
-        super.onClosed(webSocket, code, reason)
+
+        listener?.onClose(reason, code)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         Timber.v { "websocket closing" }
-        super.onClosing(webSocket, code, reason)
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        Timber.v(t) { "websocket failure: $response" }
+        var reason: String? = null
+        try {
+            lastUrl?.let {
+                val validationUrl = "http" + it.
+                    substring(2).
+                    replace("/rtc", "/rtc/validate")
+                reason = URL(validationUrl).readText()
+            }
+        } catch (e: Throwable) {
+            Timber.e(e) { "failed to validate connection" }
+        }
 
-        super.onFailure(webSocket, t, response)
+        if (reason != null) {
+            Timber.e(t) { "websocket failure: $reason" }
+            listener?.onError(Exception(reason))
+        } else {
+            Timber.e(t) { "websocket failure: $response" }
+            listener?.onError(t as Exception)
+        }
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
