@@ -11,10 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
+import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
@@ -42,6 +39,7 @@ constructor(
     private var currentWs: WebSocket? = null
     private var isReconnecting: Boolean = false
     var listener: Listener? = null
+    private var lastUrl: String? = null
 
     fun join(
         url: String,
@@ -67,6 +65,7 @@ constructor(
 
         isConnected = false
         currentWs?.cancel()
+        lastUrl = wsUrlString
 
         val request = Request.Builder()
             .url(wsUrlString)
@@ -76,8 +75,6 @@ constructor(
 
     //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
-        super.onOpen(webSocket, response)
-
         if (isReconnecting) {
             isReconnecting = false
             isConnected = true
@@ -105,18 +102,38 @@ constructor(
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         Timber.v { "websocket closed" }
-        super.onClosed(webSocket, code, reason)
+
+        listener?.onClose(reason, code)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         Timber.v { "websocket closing" }
-        super.onClosing(webSocket, code, reason)
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        Timber.v(t) { "websocket failure: $response" }
+        var reason: String? = null
+        try {
+            lastUrl?.let {
+                val validationUrl = "http" + it.
+                    substring(2).
+                    replaceFirst("/rtc?", "/rtc/validate?")
+                val request = Request.Builder().url(validationUrl).build()
+                val resp = OkHttpClient().newCall(request).execute()
+                if (!resp.isSuccessful) {
+                    reason = resp.body?.string()
+                }
+            }
+        } catch (e: Throwable) {
+            Timber.e(e) { "failed to validate connection" }
+        }
 
-        super.onFailure(webSocket, t, response)
+        if (reason != null) {
+            Timber.e(t) { "websocket failure: $reason" }
+            listener?.onError(Exception(reason))
+        } else {
+            Timber.e(t) { "websocket failure: $response" }
+            listener?.onError(t as Exception)
+        }
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
