@@ -17,7 +17,6 @@ import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
 import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -117,7 +116,7 @@ constructor(
             lastUrl?.let {
                 val validationUrl = "http" + it.
                     substring(2).
-                    replace("/rtc", "/rtc/validate")
+                    replaceFirst("/rtc?", "/rtc/validate?")
                 val request = Request.Builder().url(validationUrl).build()
                 val resp = OkHttpClient().newCall(request).execute()
                 if (!resp.isSuccessful) {
