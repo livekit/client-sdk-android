@@ -47,7 +47,6 @@ constructor(
         token: String,
         options: ConnectOptions?,
     ) {
-
         var wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
         isReconnecting = false
         if (options != null) {
@@ -77,8 +76,6 @@ constructor(
 
     //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
-        super.onOpen(webSocket, response)
-
         if (isReconnecting) {
             isReconnecting = false
             isConnected = true
