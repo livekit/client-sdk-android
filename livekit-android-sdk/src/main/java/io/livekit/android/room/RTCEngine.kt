@@ -176,10 +176,10 @@ constructor(
         fun onIceReconnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
-        fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>)
+        fun onUpdateSpeakers(speakers: List<LivekitModels.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
-        fun onUserPacket(packet: LivekitRtc.UserPacket, kind: LivekitRtc.DataPacket.Kind)
+        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
     }
 
     companion object {
@@ -369,7 +369,7 @@ constructor(
         listener?.onUpdateParticipants(updates)
     }
 
-    override fun onActiveSpeakersChanged(speakers: List<LivekitRtc.SpeakerInfo>) {
+    override fun onActiveSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
         listener?.onUpdateSpeakers(speakers)
     }
 
@@ -400,15 +400,15 @@ constructor(
         if (buffer == null) {
             return
         }
-        val dp = LivekitRtc.DataPacket.parseFrom(buffer.data)
+        val dp = LivekitModels.DataPacket.parseFrom(buffer.data)
         when (dp.valueCase) {
-            LivekitRtc.DataPacket.ValueCase.SPEAKER -> {
+            LivekitModels.DataPacket.ValueCase.SPEAKER -> {
                 listener?.onUpdateSpeakers(dp.speaker.speakersList)
             }
-            LivekitRtc.DataPacket.ValueCase.USER -> {
+            LivekitModels.DataPacket.ValueCase.USER -> {
                 listener?.onUserPacket(dp.user, dp.kind)
             }
-            LivekitRtc.DataPacket.ValueCase.VALUE_NOT_SET,
+            LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null -> {
                 Timber.v { "invalid value for data packet" }
             }

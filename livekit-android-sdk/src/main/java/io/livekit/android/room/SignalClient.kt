@@ -347,7 +347,7 @@ constructor(
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
         fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
         fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
-        fun onActiveSpeakersChanged(speakers: List<LivekitRtc.SpeakerInfo>)
+        fun onActiveSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onLeave()
         fun onError(error: Exception)

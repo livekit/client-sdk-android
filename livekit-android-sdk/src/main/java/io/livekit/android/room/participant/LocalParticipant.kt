@@ -159,21 +159,21 @@ internal constructor(
         }
 
         val kind = when (reliability) {
-            DataPublishReliability.RELIABLE -> LivekitRtc.DataPacket.Kind.RELIABLE
-            DataPublishReliability.LOSSY -> LivekitRtc.DataPacket.Kind.LOSSY
+            DataPublishReliability.RELIABLE -> LivekitModels.DataPacket.Kind.RELIABLE
+            DataPublishReliability.LOSSY -> LivekitModels.DataPacket.Kind.LOSSY
         }
         val channel = when (reliability) {
             DataPublishReliability.RELIABLE -> engine.reliableDataChannel
             DataPublishReliability.LOSSY -> engine.lossyDataChannel
         } ?: throw TrackException.PublishException("data channel not established")
 
-        val packetBuilder = LivekitRtc.UserPacket.newBuilder().
+        val packetBuilder = LivekitModels.UserPacket.newBuilder().
                 setPayload(ByteString.copyFrom(data)).
                 setParticipantSid(sid)
         if (destination != null) {
             packetBuilder.addAllDestinationSids(destination)
         }
-        val dataPacket = LivekitRtc.DataPacket.newBuilder().
+        val dataPacket = LivekitModels.DataPacket.newBuilder().
             setUser(packetBuilder).
             setKind(kind).
             build()

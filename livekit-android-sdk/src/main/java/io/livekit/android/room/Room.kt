@@ -109,7 +109,7 @@ constructor(
         return participant
     }
 
-    private fun handleSpeakerUpdate(speakerInfos: List<LivekitRtc.SpeakerInfo>) {
+    private fun handleSpeakerUpdate(speakerInfos: List<LivekitModels.SpeakerInfo>) {
         val speakers = mutableListOf<Participant>()
         val seenSids = mutableSetOf<String>()
         val localParticipant = localParticipant
@@ -289,14 +289,14 @@ constructor(
     /**
      * @suppress
      */
-    override fun onUpdateSpeakers(speakers: List<LivekitRtc.SpeakerInfo>) {
+    override fun onUpdateSpeakers(speakers: List<LivekitModels.SpeakerInfo>) {
         handleSpeakerUpdate(speakers)
     }
 
     /**
      * @suppress
      */
-    override fun onUserPacket(packet: LivekitRtc.UserPacket, kind: LivekitRtc.DataPacket.Kind) {
+    override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind) {
         val participant = remoteParticipants[packet.participantSid] ?: return
         val data = packet.payload.toByteArray()
 
