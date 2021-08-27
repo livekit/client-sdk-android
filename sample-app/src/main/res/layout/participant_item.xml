@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <org.webrtc.SurfaceViewRenderer
+    <io.livekit.android.renderer.TextureViewRenderer
         android:id="@+id/renderer"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

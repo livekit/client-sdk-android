@@ -17,7 +17,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tabs" />
 
-    <org.webrtc.SurfaceViewRenderer
+    <io.livekit.android.renderer.TextureViewRenderer
         android:id="@+id/pip_video_view"
         android:layout_height="144dp"
         android:layout_width="144dp"

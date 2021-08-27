@@ -11,6 +11,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
+import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
@@ -390,6 +391,17 @@ constructor(
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false /* enabled */)
     }
+
+    /**
+     * @suppress
+     * // TODO(@dl): can this be moved out of Room/SDK?
+     */
+    fun initVideoRenderer(viewRenderer: TextureViewRenderer) {
+        viewRenderer.init(eglBase.eglBaseContext, null)
+        viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+        viewRenderer.setEnableHardwareScaler(false /* enabled */)
+    }
+
 }
 
 /**
