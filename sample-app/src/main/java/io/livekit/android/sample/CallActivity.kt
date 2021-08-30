@@ -64,11 +64,6 @@ class CallActivity : AppCompatActivity() {
 
             videoTrack?.let {
                 it.addRenderer(binding.pipVideoView)
-                binding.videoButton.setOnClickListener {
-                    room.localParticipant.unpublishTrack(videoTrack)
-                    Timber.e { "unpublishing video" }
-                    binding.videoButton.setOnClickListener(null)
-                }
             }
 
 
