@@ -127,15 +127,6 @@ internal constructor(
             Timber.d { "this track was never published." }
             return
         }
-        track.stop()
-        val senders = engine.publisher.peerConnection.senders ?: return
-        for (sender in senders) {
-            val t = sender.track() ?: continue
-            if (t == track.rtcTrack) {
-                engine.publisher.peerConnection.removeTrack(sender)
-            }
-        }
-
         val sid = publication.sid
         tracks.remove(sid)
         when (publication.kind) {
@@ -143,6 +134,14 @@ internal constructor(
             Track.Kind.VIDEO -> videoTracks.remove(sid)
             else -> {}
         }
+        val senders = engine.publisher.peerConnection.senders ?: return
+        for (sender in senders) {
+            val t = sender.track() ?: continue
+            if (t.id() == track.rtcTrack.id()) {
+                engine.publisher.peerConnection.removeTrack(sender)
+            }
+        }
+        track.stop()
     }
 
     /**

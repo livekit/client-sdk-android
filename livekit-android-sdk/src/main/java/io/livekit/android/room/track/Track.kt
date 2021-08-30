@@ -48,7 +48,6 @@ open class Track(
 
     open fun stop() {
         rtcTrack.setEnabled(false)
-        rtcTrack.dispose()
     }
 }
 
