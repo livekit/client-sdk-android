@@ -1,7 +1,6 @@
 package io.livekit.android.room.track
 
 import livekit.LivekitModels
-import org.webrtc.DataChannel
 import org.webrtc.MediaStreamTrack
 
 open class Track(
