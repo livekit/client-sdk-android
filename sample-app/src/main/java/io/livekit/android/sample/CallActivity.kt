@@ -3,7 +3,6 @@ package io.livekit.android.sample
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Parcelable
-import android.os.PersistableBundle
 import androidx.appcompat.app.AppCompatActivity
 import com.github.ajalt.timberkt.Timber
 import com.google.android.material.tabs.TabLayoutMediator
@@ -62,7 +61,17 @@ class CallActivity : AppCompatActivity() {
             val videoTrack = room.localParticipant.videoTracks.values
                 .firstOrNull()
                 ?.track as? LocalVideoTrack
-            videoTrack?.addRenderer(binding.pipVideoView)
+
+            videoTrack?.let {
+                it.addRenderer(binding.pipVideoView)
+                binding.videoButton.setOnClickListener {
+                    room.localParticipant.unpublishTrack(videoTrack)
+                    Timber.e { "unpublishing video" }
+                    binding.videoButton.setOnClickListener(null)
+                }
+            }
+
+
         }
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {

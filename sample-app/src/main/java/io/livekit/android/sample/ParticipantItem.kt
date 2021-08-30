@@ -37,6 +37,14 @@ class ParticipantItem(
                         setupVideoIfNeeded(track, viewBinding)
                     }
                 }
+
+                override fun onTrackUnpublished(
+                    publication: RemoteTrackPublication,
+                    participant: RemoteParticipant
+                ) {
+                    super.onTrackUnpublished(publication, participant)
+                    Timber.e { "Track unpublished" }
+                }
             }
             val existingTrack = getVideoTrack()
             if (existingTrack != null) {
