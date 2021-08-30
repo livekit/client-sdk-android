@@ -99,8 +99,8 @@ dependencies {
     implementation "com.google.protobuf:protobuf-java:${versions.protobuf}"
     implementation "com.google.protobuf:protobuf-java-util:${versions.protobuf}"
 
-    implementation 'com.google.dagger:dagger:2.33'
-    kapt 'com.google.dagger:dagger-compiler:2.33'
+    implementation 'com.google.dagger:dagger:2.38'
+    kapt 'com.google.dagger:dagger-compiler:2.38'
 
     implementation 'com.github.ajalt:timberkt:1.5.1'
     implementation 'com.vdurmont:semver4j:3.1.0'
