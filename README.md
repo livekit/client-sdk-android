@@ -80,7 +80,7 @@ To develop the Android SDK itself, you'll need
     - client-sdk-android
   ```
 
-- Install [Android Studio Arctic Fox Beta](https://developer.android.com/studio/preview)
+- Install [Android Studio Arctic Fox 2020.3.1+](https://developer.android.com/studio)
 
 ### Optional (Dev convenience)
 
