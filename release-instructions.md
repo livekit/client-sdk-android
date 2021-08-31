@@ -11,5 +11,6 @@ signing.secretKeyRingFile=<signing pgp key path>
 ````
 
 2. Update `VERSION_NAME` in `gradle.properties` to reflect the release version. (Remove "-SNAPSHOT" when releasing.)
-3. Run `gradle publish closeAndReleaseRepository` to upload to maven.
-4. Update `VERSION_NAME` in `gradle.properties` to prepare for next release version.
+3. Run `gradle publish` to upload to Sonatype.
+4. Run `gradle closeAndReleaseRepository` to release to Maven (do not combine with previous command as ordering isn't guaranteed.)
+5. Update `VERSION_NAME` in `gradle.properties` to prepare for next release version.
