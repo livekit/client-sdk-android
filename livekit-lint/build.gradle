@@ -1,0 +1,23 @@
+plugins {
+    id 'java-library'
+    id 'kotlin'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    // used for lint rules
+    compileOnly deps.lintApi
+    compileOnly deps.lintChecks
+    compileOnly deps.lintTests
+
+    // test lint
+    testImplementation deps.lintTests
+
+    // test runners
+    testImplementation deps.junitJupiterApi
+    testRuntimeOnly deps.junitJupiterEngine
+}
