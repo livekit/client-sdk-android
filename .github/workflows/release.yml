@@ -65,5 +65,8 @@ jobs:
         NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
         NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
 
-    - name: Publish release
-      run: ./gradlew publish closeAndReleaseRepository
+    - name: Publish to sonatype
+      run: ./gradlew publish
+      
+    - name: Close and release to maven
+      run: ./gradlew closeAndReleaseRepository
