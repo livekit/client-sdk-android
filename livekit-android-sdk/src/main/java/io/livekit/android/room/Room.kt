@@ -43,7 +43,8 @@ constructor(
         RECONNECTING;
     }
 
-    inline class Sid(val sid: String)
+    @JvmInline
+    value class Sid(val sid: String)
 
     var listener: RoomListener? = null
 
