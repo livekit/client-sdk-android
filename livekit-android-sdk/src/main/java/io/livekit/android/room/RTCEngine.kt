@@ -176,7 +176,8 @@ constructor(
         fun onIceReconnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
-        fun onUpdateSpeakers(speakers: List<LivekitModels.SpeakerInfo>)
+        fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
+        fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
@@ -195,7 +196,7 @@ constructor(
         }
     }
 
-    //---------------------------------- RTCClient.Listener --------------------------------------//
+    //---------------------------------- SignalClient.Listener --------------------------------------//
 
     override fun onJoin(info: LivekitRtc.JoinResponse) {
         val iceServers = mutableListOf<PeerConnection.IceServer>()
@@ -369,8 +370,8 @@ constructor(
         listener?.onUpdateParticipants(updates)
     }
 
-    override fun onActiveSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
-        listener?.onUpdateSpeakers(speakers)
+    override fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
+        listener?.onSpeakersChanged(speakers)
     }
 
     override fun onClose(reason: String, code: Int) {
@@ -403,7 +404,7 @@ constructor(
         val dp = LivekitModels.DataPacket.parseFrom(buffer.data)
         when (dp.valueCase) {
             LivekitModels.DataPacket.ValueCase.SPEAKER -> {
-                listener?.onUpdateSpeakers(dp.speaker.speakersList)
+                listener?.onActiveSpeakersUpdate(dp.speaker.speakersList)
             }
             LivekitModels.DataPacket.ValueCase.USER -> {
                 listener?.onUserPacket(dp.user, dp.kind)

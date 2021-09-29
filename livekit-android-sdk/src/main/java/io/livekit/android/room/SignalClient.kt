@@ -3,6 +3,7 @@ package io.livekit.android.room
 import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
 import io.livekit.android.ConnectOptions
+import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.safe
@@ -46,7 +47,11 @@ constructor(
         token: String,
         options: ConnectOptions?,
     ) {
-        var wsUrlString = "$url/rtc?protocol=$PROTOCOL_VERSION&access_token=$token"
+        var wsUrlString = "$url/rtc" +
+                "?protocol=$PROTOCOL_VERSION" +
+                "&access_token=$token" +
+                "&sdk=$SDK_TYPE" +
+                "&version=${Version.CLIENT_VERSION}"
         isReconnecting = false
         if (options != null) {
             wsUrlString += "&auto_subscribe="
@@ -318,14 +323,20 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
                 listener?.onLocalTrackPublished(response.trackPublished)
             }
-            LivekitRtc.SignalResponse.MessageCase.SPEAKER -> {
-                listener?.onActiveSpeakersChanged(response.speaker.speakersList)
+            LivekitRtc.SignalResponse.MessageCase.SPEAKERS_CHANGED -> {
+                listener?.onSpeakersChanged(response.speakersChanged.speakersList)
             }
             LivekitRtc.SignalResponse.MessageCase.JOIN -> {
                 Timber.d { "received unexpected extra join message?" }
             }
             LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
                 listener?.onLeave()
+            }
+            LivekitRtc.SignalResponse.MessageCase.MUTE -> {
+                //TODO
+            }
+            LivekitRtc.SignalResponse.MessageCase.ROOM_UPDATE -> {
+                //TODO
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
@@ -347,7 +358,7 @@ constructor(
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
         fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
         fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
-        fun onActiveSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
+        fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onLeave()
         fun onError(error: Exception)
@@ -358,6 +369,7 @@ constructor(
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
         const val PROTOCOL_VERSION = 2
+        const val SDK_TYPE = "android"
 
         private fun iceServer(url: String) =
             PeerConnection.IceServer.builder(url).createIceServer()

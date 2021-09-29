@@ -110,7 +110,7 @@ constructor(
         return participant
     }
 
-    private fun handleSpeakerUpdate(speakerInfos: List<LivekitModels.SpeakerInfo>) {
+    private fun handleActiveSpeakersUpdate(speakerInfos: List<LivekitModels.SpeakerInfo>) {
         val speakers = mutableListOf<Participant>()
         val seenSids = mutableSetOf<String>()
         val localParticipant = localParticipant
@@ -146,6 +146,37 @@ constructor(
         mutableActiveSpeakers.clear()
         mutableActiveSpeakers.addAll(speakers)
         listener?.onActiveSpeakersChanged(speakers, this)
+    }
+
+    private fun handleSpeakersChanged(speakerInfos: List<LivekitModels.SpeakerInfo>) {
+        val updatedSpeakers = mutableMapOf<String, Participant>()
+        activeSpeakers.forEach {
+            updatedSpeakers[it.sid] = it
+        }
+
+        speakerInfos.forEach { speaker ->
+            val participant = if(speaker.sid == localParticipant.sid) {
+                localParticipant
+            } else {
+                remoteParticipants[speaker.sid]
+            } ?: return@forEach
+
+            participant.audioLevel = speaker.level
+            participant.isSpeaking = speaker.active
+
+            if(speaker.active) {
+                updatedSpeakers[speaker.sid] = participant
+            } else {
+                updatedSpeakers.remove(speaker.sid)
+            }
+        }
+
+        val updatedSpeakersList = updatedSpeakers.values.toList()
+            .sortedBy { it.audioLevel }
+
+        mutableActiveSpeakers.clear()
+        mutableActiveSpeakers.addAll(updatedSpeakersList)
+        listener?.onActiveSpeakersChanged(updatedSpeakersList, this)
     }
 
     private fun reconnect() {
@@ -290,8 +321,15 @@ constructor(
     /**
      * @suppress
      */
-    override fun onUpdateSpeakers(speakers: List<LivekitModels.SpeakerInfo>) {
-        handleSpeakerUpdate(speakers)
+    override fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>) {
+        handleActiveSpeakersUpdate(speakers)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
+        handleSpeakersChanged(speakers)
     }
 
     /**
