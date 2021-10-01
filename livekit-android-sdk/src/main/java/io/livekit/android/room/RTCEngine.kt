@@ -124,10 +124,12 @@ constructor(
         }
         coroutineScope.launch {
             delay(startDelay)
-            if (iceState != IceState.DISCONNECTED && sessionUrl != null && sessionToken != null) {
+            val url = sessionUrl
+            val token = sessionToken
+            if (iceState != IceState.DISCONNECTED && url != null && token != null) {
                 val opts = ConnectOptions()
                 opts.reconnect = true
-                client.join(sessionUrl!!, sessionToken!!, opts)
+                client.join(url, token, opts)
             }
         }
     }
