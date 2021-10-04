@@ -6,7 +6,10 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
+import io.livekit.android.util.Either
 import io.livekit.android.util.safe
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,6 +23,8 @@ import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
 import javax.inject.Inject
 import javax.inject.Named
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * SignalClient to LiveKit WS servers
@@ -32,6 +37,7 @@ constructor(
     private val fromJsonProtobuf: JsonFormat.Parser,
     private val toJsonProtobuf: JsonFormat.Printer,
     private val json: Json,
+    private val okHttpClient: OkHttpClient,
     @Named(InjectionNames.SIGNAL_JSON_ENABLED)
     private val useJson: Boolean,
 ) : WebSocketListener() {
@@ -42,11 +48,31 @@ constructor(
     var listener: Listener? = null
     private var lastUrl: String? = null
 
-    fun join(
+    private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
+
+    suspend fun join(
         url: String,
         token: String,
         options: ConnectOptions?,
-    ) {
+    ) : LivekitRtc.JoinResponse {
+        val joinResponse = connect(url,token, options)
+        return (joinResponse as Either.Left).value
+    }
+
+    suspend fun reconnect(url: String, token: String){
+        connect(
+            url,
+            token,
+            ConnectOptions()
+                .apply { reconnect = true }
+        )
+    }
+
+    suspend fun connect(
+        url: String,
+        token: String,
+        options: ConnectOptions?
+    ) : Either<LivekitRtc.JoinResponse, Unit> {
         var wsUrlString = "$url/rtc" +
                 "?protocol=$PROTOCOL_VERSION" +
                 "&access_token=$token" +
@@ -70,12 +96,22 @@ constructor(
 
         isConnected = false
         currentWs?.cancel()
+        currentWs = null
+
+        joinContinuation?.cancel()
+        joinContinuation = null
+
         lastUrl = wsUrlString
 
         val request = Request.Builder()
             .url(wsUrlString)
             .build()
         currentWs = websocketFactory.newWebSocket(request, this)
+
+        return suspendCancellableCoroutine {
+            // Wait for join response through WebSocketListener
+            joinContinuation = it
+        }
     }
 
     //--------------------------------- WebSocket Listener --------------------------------------//
@@ -83,7 +119,7 @@ constructor(
         if (isReconnecting) {
             isReconnecting = false
             isConnected = true
-            listener?.onReconnected()
+            joinContinuation?.resumeWith(Result.success(Either.Right(Unit)))
         }
     }
 
@@ -123,7 +159,7 @@ constructor(
                     substring(2).
                     replaceFirst("/rtc?", "/rtc/validate?")
                 val request = Request.Builder().url(validationUrl).build()
-                val resp = OkHttpClient().newCall(request).execute()
+                val resp = okHttpClient.newCall(request).execute()
                 if (!resp.isSuccessful) {
                     reason = resp.body?.string()
                 }
@@ -290,7 +326,7 @@ constructor(
             // Only handle joins if not connected.
             if (response.hasJoin()) {
                 isConnected = true
-                listener?.onJoin(response.join)
+                joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else {
                 Timber.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
             }
@@ -351,8 +387,6 @@ constructor(
     }
 
     interface Listener {
-        fun onJoin(info: LivekitRtc.JoinResponse)
-        fun onReconnected()
         fun onAnswer(sessionDescription: SessionDescription)
         fun onOffer(sessionDescription: SessionDescription)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)

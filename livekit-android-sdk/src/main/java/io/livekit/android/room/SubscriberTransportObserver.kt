@@ -8,13 +8,15 @@ import org.webrtc.*
  * @suppress
  */
 class SubscriberTransportObserver(
-    private val engine: RTCEngine
+    private val engine: RTCEngine,
+    private val client: SignalClient,
 ) : PeerConnection.Observer {
 
+    var iceConnectionChangeListener: ((PeerConnection.IceConnectionState?) -> Unit)? = null
 
     override fun onIceCandidate(candidate: IceCandidate) {
         Timber.v { "onIceCandidate: $candidate" }
-        engine.client.sendCandidate(candidate, LivekitRtc.SignalTarget.SUBSCRIBER)
+        client.sendCandidate(candidate, LivekitRtc.SignalTarget.SUBSCRIBER)
     }
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
@@ -48,8 +50,9 @@ class SubscriberTransportObserver(
     override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
     }
 
-    override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-        Timber.v { "onIceConnection new state: $p0" }
+    override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
+        Timber.v { "onIceConnection new state: $newState" }
+        iceConnectionChangeListener?.invoke(newState)
     }
 
     override fun onIceConnectionReceivingChange(p0: Boolean) {

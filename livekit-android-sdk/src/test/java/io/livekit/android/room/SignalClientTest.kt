@@ -1,20 +1,26 @@
 package io.livekit.android.room
 
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.util.toOkioByteString
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.runBlockingTest
 import kotlinx.serialization.json.Json
 import livekit.LivekitRtc
 import okhttp3.*
-import okio.ByteString.Companion.toByteString
+import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
-import org.mockito.kotlin.verify
 
+@ExperimentalCoroutinesApi
 class SignalClientTest {
 
     lateinit var wsFactory: MockWebsocketFactory
     lateinit var client: SignalClient
     lateinit var listener: SignalClient.Listener
+    lateinit var okHttpClient: OkHttpClient
 
     class MockWebsocketFactory : WebSocket.Factory {
         lateinit var ws: WebSocket
@@ -29,35 +35,64 @@ class SignalClientTest {
     @Before
     fun setup() {
         wsFactory = MockWebsocketFactory()
+        okHttpClient = Mockito.mock(OkHttpClient::class.java)
         client = SignalClient(
             wsFactory,
             JsonFormat.parser(),
             JsonFormat.printer(),
             Json,
-            useJson = false
+            useJson = false,
+            okHttpClient = okHttpClient,
         )
         listener = Mockito.mock(SignalClient.Listener::class.java)
         client.listener = listener
     }
 
-    fun join() {
-        client.join("http://www.example.com", "", null)
+    private fun createOpenResponse(request: Request): Response {
+        return Response.Builder()
+            .request(request)
+            .code(200)
+            .protocol(Protocol.HTTP_2)
+            .message("")
+            .build()
     }
 
     @Test
     fun joinAndResponse() {
-        join()
+        val job = TestCoroutineScope().async {
+            client.join("http://www.example.com", "", null)
+        }
         client.onOpen(
             wsFactory.ws,
-            Response.Builder()
-                .request(wsFactory.request)
-                .code(200)
-                .protocol(Protocol.HTTP_2)
-                .message("")
-                .build()
+            createOpenResponse(wsFactory.request)
         )
+        client.onMessage(wsFactory.ws, JOIN.toOkioByteString())
 
-        val response = with(LivekitRtc.SignalResponse.newBuilder()) {
+        runBlockingTest {
+            val response = job.await()
+            Assert.assertEquals(response, JOIN.join)
+        }
+    }
+
+    @Test
+    fun reconnect() {
+        val job = TestCoroutineScope().async {
+            client.reconnect("http://www.example.com", "")
+        }
+        client.onOpen(
+            wsFactory.ws,
+            createOpenResponse(wsFactory.request)
+        )
+        runBlockingTest {
+            job.await()
+        }
+    }
+
+    // mock data
+    companion object {
+        private val EXAMPLE_URL = "http://www.example.com"
+
+        private val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
             join = with(joinBuilder) {
                 room = with(roomBuilder) {
                     name = "roomname"
@@ -68,11 +103,5 @@ class SignalClientTest {
             }
             build()
         }
-        val byteArray = response.toByteArray()
-        val byteString = byteArray.toByteString(0, byteArray.size)
-
-        client.onMessage(wsFactory.ws, byteString)
-
-        verify(listener).onJoin(response.join)
     }
 }

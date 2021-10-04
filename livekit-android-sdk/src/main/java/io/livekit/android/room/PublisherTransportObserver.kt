@@ -8,12 +8,18 @@ import org.webrtc.*
  * @suppress
  */
 class PublisherTransportObserver(
-    private val engine: RTCEngine
-) : PeerConnection.Observer {
+    private val engine: RTCEngine,
+    private val client: SignalClient,
+) : PeerConnection.Observer, PeerConnectionTransport.Listener {
+
+    var dataChannelListener: ((DataChannel?) -> Unit)? = null
+    var iceConnectionChangeListener: ((newState: PeerConnection.IceConnectionState?) -> Unit)? =
+        null
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         val candidate = iceCandidate ?: return
-        engine.client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
+        Timber.v { "onIceCandidate: $candidate" }
+        client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
     }
 
     override fun onRenegotiationNeeded() {
@@ -21,15 +27,12 @@ class PublisherTransportObserver(
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-        val state = newState ?: throw NullPointerException("unexpected null new state, what do?")
         Timber.v { "onIceConnection new state: $newState" }
-        if (state == PeerConnection.IceConnectionState.CONNECTED) {
-            engine.iceState = IceState.CONNECTED
-        } else if (state == PeerConnection.IceConnectionState.FAILED) {
-            // when we publish tracks, some WebRTC versions will send out disconnected events periodically
-            engine.iceState = IceState.DISCONNECTED
-            engine.listener?.onDisconnect("Peer connection disconnected")
-        }
+        iceConnectionChangeListener?.invoke(newState)
+    }
+
+    override fun onOffer(sd: SessionDescription) {
+        client.sendOffer(sd)
     }
 
     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
@@ -40,7 +43,6 @@ class PublisherTransportObserver(
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
     }
-
 
     override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
     }
@@ -60,7 +62,8 @@ class PublisherTransportObserver(
     override fun onRemoveStream(p0: MediaStream?) {
     }
 
-    override fun onDataChannel(p0: DataChannel?) {
+    override fun onDataChannel(dataChannel: DataChannel?) {
+        dataChannelListener?.invoke(dataChannel)
     }
 
     override fun onTrack(transceiver: RtpTransceiver?) {
@@ -68,4 +71,5 @@ class PublisherTransportObserver(
 
     override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
     }
+
 }

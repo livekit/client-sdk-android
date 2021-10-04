@@ -1,10 +1,13 @@
 package io.livekit.android.room
 
+import android.os.SystemClock
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
+import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
@@ -15,6 +18,9 @@ import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
+import java.net.ConnectException
+import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -33,7 +39,7 @@ constructor(
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : SignalClient.Listener, DataChannel.Observer {
-    var listener: Listener? = null
+    internal var listener: Listener? = null
     internal var iceState: IceState = IceState.DISCONNECTED
         set(value) {
             val oldVal = field
@@ -55,7 +61,8 @@ constructor(
                     Timber.d { "publisher ICE disconnected" }
                     listener?.onDisconnect("Peer connection disconnected")
                 }
-                else -> {}
+                else -> {
+                }
             }
         }
     private var wsRetries: Int = 0
@@ -64,25 +71,169 @@ constructor(
     private var sessionUrl: String? = null
     private var sessionToken: String? = null
 
-    private val publisherObserver = PublisherTransportObserver(this)
-    private val subscriberObserver = SubscriberTransportObserver(this)
+    private val publisherObserver = PublisherTransportObserver(this, client)
+    private val subscriberObserver = SubscriberTransportObserver(this, client)
     internal lateinit var publisher: PeerConnectionTransport
     private lateinit var subscriber: PeerConnectionTransport
-    internal var reliableDataChannel: DataChannel? = null
-    internal var lossyDataChannel: DataChannel? = null
+    private var reliableDataChannel: DataChannel? = null
+    private var reliableDataChannelSub: DataChannel? = null
+    private var lossyDataChannel: DataChannel? = null
+    private var lossyDataChannelSub: DataChannel? = null
+
+    private var isSubscriberPrimary = false
+    private var isClosed = true
+
+    private var hasPublished = false
 
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+
     init {
         client.listener = this
     }
 
-    fun join(url: String, token: String, options: ConnectOptions?) {
+    suspend fun join(url: String, token: String, options: ConnectOptions?): LivekitRtc.JoinResponse {
         sessionUrl = url
         sessionToken = token
-        client.join(url, token, options)
+        val joinResponse = client.join(url, token, options)
+        isClosed = false
+
+        isSubscriberPrimary = joinResponse.subscriberPrimary
+
+        if (!this::publisher.isInitialized) {
+            configure(joinResponse)
+        }
+        // create offer
+        if (!this.isSubscriberPrimary) {
+            negotiate()
+        }
+        return joinResponse
     }
 
-    suspend fun addTrack(cid: String, name: String, kind: LivekitModels.TrackType, dimensions: Track.Dimensions? = null): LivekitModels.TrackInfo {
+    private suspend fun configure(joinResponse: LivekitRtc.JoinResponse) {
+        if (this::publisher.isInitialized || this::subscriber.isInitialized) {
+            // already configured
+            return
+        }
+
+        // update ICE servers before creating PeerConnection
+        val iceServers = mutableListOf<PeerConnection.IceServer>()
+        for (serverInfo in joinResponse.iceServersList) {
+            val username = serverInfo.username ?: ""
+            val credential = serverInfo.credential ?: ""
+            iceServers.add(
+                PeerConnection.IceServer
+                    .builder(serverInfo.urlsList)
+                    .setUsername(username)
+                    .setPassword(credential)
+                    .createIceServer()
+            )
+        }
+
+        if (iceServers.isEmpty()) {
+            iceServers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
+        }
+        joinResponse.iceServersList.forEach {
+            Timber.v { "username = \"${it.username}\"" }
+            Timber.v { "credential = \"${it.credential}\"" }
+            Timber.v { "urls: " }
+            it.urlsList.forEach {
+                Timber.v { "   $it" }
+            }
+        }
+
+        // Setup peer connections
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            enableDtlsSrtp = true
+        }
+
+        publisher = pctFactory.create(
+            rtcConfig,
+            publisherObserver,
+            publisherObserver,
+        )
+        subscriber = pctFactory.create(
+            rtcConfig,
+            subscriberObserver,
+            null,
+        )
+
+        val iceConnectionStateListener: (PeerConnection.IceConnectionState?) -> Unit = { newState ->
+            val state =
+                newState ?: throw NullPointerException("unexpected null new state, what do?")
+            Timber.v { "onIceConnection new state: $newState" }
+            if (state == PeerConnection.IceConnectionState.CONNECTED) {
+                iceState = IceState.CONNECTED
+            } else if (state == PeerConnection.IceConnectionState.FAILED) {
+                // when we publish tracks, some WebRTC versions will send out disconnected events periodically
+                iceState = IceState.DISCONNECTED
+                listener?.onDisconnect("Peer connection disconnected")
+            }
+        }
+
+        if (joinResponse.subscriberPrimary) {
+            // in subscriber primary mode, server side opens sub data channels.
+            publisherObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel? ->
+                if (dataChannel == null) {
+                    return@onDataChannel
+                }
+                when (dataChannel.label()) {
+                    RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
+                    LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                    else -> return@onDataChannel
+                }
+                dataChannel.registerObserver(this)
+            }
+            publisherObserver.iceConnectionChangeListener = iceConnectionStateListener
+        } else {
+            subscriberObserver.iceConnectionChangeListener = iceConnectionStateListener
+        }
+
+        // data channels
+        val reliableInit = DataChannel.Init()
+        reliableInit.ordered = true
+        reliableDataChannel = publisher.peerConnection.createDataChannel(
+            RELIABLE_DATA_CHANNEL_LABEL,
+            reliableInit
+        )
+        reliableDataChannel!!.registerObserver(this)
+        val lossyInit = DataChannel.Init()
+        lossyInit.ordered = true
+        lossyInit.maxRetransmits = 0
+        lossyDataChannel = publisher.peerConnection.createDataChannel(
+            LOSSY_DATA_CHANNEL_LABEL,
+            lossyInit
+        )
+        lossyDataChannel!!.registerObserver(this)
+
+        coroutineScope.launch {
+            val sdpOffer =
+                when (val outcome = publisher.peerConnection.createOffer(getPublisherOfferConstraints())) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        Timber.d { "error creating offer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+
+            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
+                is Either.Right -> {
+                    Timber.d { "error setting local description: ${outcome.value}" }
+                    return@launch
+                }
+            }
+
+            client.sendOffer(sdpOffer)
+        }
+    }
+
+    suspend fun addTrack(
+        cid: String,
+        name: String,
+        kind: LivekitModels.TrackType,
+        dimensions: Track.Dimensions? = null
+    ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
@@ -108,7 +259,10 @@ constructor(
      * reconnect Signal and PeerConnections
      */
     internal fun reconnect() {
-        if (sessionUrl == null || sessionToken == null) {
+        val url = sessionUrl
+        val token = sessionToken
+        if (url == null || token == null) {
+            Timber.w { "couldn't reconnect, no url or no token" }
             return
         }
         if (iceState == IceState.DISCONNECTED || wsRetries >= MAX_SIGNAL_RETRIES) {
@@ -124,13 +278,34 @@ constructor(
         }
         coroutineScope.launch {
             delay(startDelay)
-            val url = sessionUrl
-            val token = sessionToken
-            if (iceState != IceState.DISCONNECTED && url != null && token != null) {
-                val opts = ConnectOptions()
-                opts.reconnect = true
-                client.join(url, token, opts)
+            if (iceState == IceState.DISCONNECTED) {
+                Timber.e { "Ice is disconnected" }
+                return@launch
             }
+
+            client.reconnect(url, token)
+
+            Timber.v { "reconnected, restarting ICE" }
+            wsRetries = 0
+
+            // trigger publisher reconnect
+            subscriber.restartingIce = true
+            // only restart publisher if it's needed
+            if (hasPublished) {
+                publisher.createAndSendOffer(
+                    getPublisherOfferConstraints().apply {
+                        with(mandatory){
+                            add(
+                                MediaConstraints.KeyValuePair(
+                                    MediaConstraintKeys.ICE_RESTART,
+                                    MediaConstraintKeys.TRUE
+                                )
+                            )
+                        }
+                    }
+                )
+            }
+
         }
     }
 
@@ -140,7 +315,7 @@ constructor(
         }
         coroutineScope.launch {
             val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(getOfferConstraints())) {
+                when (val outcome = publisher.peerConnection.createOffer(getPublisherOfferConstraints())) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         Timber.d { "error creating offer: ${outcome.value}" }
@@ -160,20 +335,75 @@ constructor(
         }
     }
 
-    private fun getOfferConstraints(): MediaConstraints {
+    internal suspend fun sendData(dataPacket: LivekitModels.DataPacket) {
+        ensurePublisherConnected()
+
+        val buf = DataChannel.Buffer(
+            ByteBuffer.wrap(dataPacket.toByteArray()),
+            true,
+        )
+
+        val channel = when (dataPacket.kind) {
+            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannel
+            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannel
+            else -> null
+        } ?: throw TrackException.PublishException("channel not established for ${dataPacket.kind.name}")
+
+        channel.send(buf)
+    }
+
+    private suspend fun ensurePublisherConnected(){
+        if (!isSubscriberPrimary) {
+            return
+        }
+
+        if (this.publisher.peerConnection.iceConnectionState() == PeerConnection.IceConnectionState.CONNECTED) {
+            return
+        }
+
+        // start negotiation
+        this.negotiate()
+
+        // wait until publisher ICE connected
+        val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
+        while (SystemClock.elapsedRealtime() < endTime) {
+            if (this.publisher.peerConnection.iceConnectionState() == PeerConnection.IceConnectionState.CONNECTED) {
+                return
+            }
+            delay(50)
+        }
+
+        throw ConnectException("could not establish publisher connection")
+    }
+
+    private fun getPublisherOfferConstraints(): MediaConstraints {
         return MediaConstraints().apply {
             with(mandatory) {
-                add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
-                add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
+                add(
+                    MediaConstraints.KeyValuePair(
+                        MediaConstraintKeys.OFFER_TO_RECV_AUDIO,
+                        MediaConstraintKeys.FALSE
+                    )
+                )
+                add(
+                    MediaConstraints.KeyValuePair(
+                        MediaConstraintKeys.OFFER_TO_RECV_VIDEO,
+                        MediaConstraintKeys.FALSE
+                    )
+                )
                 if (iceState == IceState.RECONNECTING) {
-                    add(MediaConstraints.KeyValuePair("IceRestart", "true"))
+                    add(
+                        MediaConstraints.KeyValuePair(
+                            MediaConstraintKeys.ICE_RESTART,
+                            MediaConstraintKeys.TRUE
+                        )
+                    )
                 }
             }
         }
     }
 
-    interface Listener {
-        fun onJoin(response: LivekitRtc.JoinResponse)
+    internal interface Listener {
         fun onIceConnected()
         fun onIceReconnected()
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
@@ -190,6 +420,7 @@ constructor(
         private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_SIGNAL_RETRIES = 5
+        private const val MAX_ICE_CONNECT_TIMEOUT_MS = 5000
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
@@ -199,90 +430,6 @@ constructor(
     }
 
     //---------------------------------- SignalClient.Listener --------------------------------------//
-
-    override fun onJoin(info: LivekitRtc.JoinResponse) {
-        val iceServers = mutableListOf<PeerConnection.IceServer>()
-        for(serverInfo in info.iceServersList){
-            val username = serverInfo.username ?: ""
-            val credential = serverInfo.credential ?: ""
-            iceServers.add(
-                PeerConnection.IceServer
-                    .builder(serverInfo.urlsList)
-                    .setUsername(username)
-                    .setPassword(credential)
-                    .createIceServer()
-            )
-        }
-
-        if (iceServers.isEmpty()) {
-            iceServers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
-        }
-        info.iceServersList.forEach {
-            Timber.e{ "username = \"${it.username}\""}
-            Timber.e{ "credential = \"${it.credential}\""}
-            Timber.e{ "urls: "}
-            it.urlsList.forEach{
-                Timber.e{"   $it"}
-            }
-        }
-
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
-            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-            enableDtlsSrtp = true
-        }
-
-        publisher = pctFactory.create(rtcConfig, publisherObserver)
-        subscriber = pctFactory.create(rtcConfig, subscriberObserver)
-
-        val reliableInit = DataChannel.Init()
-        reliableInit.ordered = true
-        reliableDataChannel = publisher.peerConnection.createDataChannel(
-            RELIABLE_DATA_CHANNEL_LABEL,
-            reliableInit
-        )
-        reliableDataChannel!!.registerObserver(this)
-        val lossyInit = DataChannel.Init()
-        lossyInit.ordered = true
-        lossyInit.maxRetransmits = 1
-        lossyDataChannel = publisher.peerConnection.createDataChannel(
-            LOSSY_DATA_CHANNEL_LABEL,
-            lossyInit
-        )
-        lossyDataChannel!!.registerObserver(this)
-
-        coroutineScope.launch {
-            val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(getOfferConstraints())) {
-                    is Either.Left -> outcome.value
-                    is Either.Right -> {
-                        Timber.d { "error creating offer: ${outcome.value}" }
-                        return@launch
-                    }
-                }
-
-            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
-                is Either.Right -> {
-                    Timber.d { "error setting local description: ${outcome.value}" }
-                    return@launch
-                }
-            }
-
-            client.sendOffer(sdpOffer)
-        }
-        listener?.onJoin(info)
-    }
-
-    override fun onReconnected() {
-        Timber.v { "reconnected, restarting ICE" }
-        wsRetries = 0
-
-        // trigger ICE restart
-        iceState = IceState.RECONNECTING
-        publisher.prepareForIceRestart()
-        subscriber.prepareForIceRestart()
-        negotiate()
-    }
 
     override fun onAnswer(sessionDescription: SessionDescription) {
         Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }

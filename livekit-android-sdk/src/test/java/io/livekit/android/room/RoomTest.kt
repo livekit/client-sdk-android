@@ -6,11 +6,9 @@ import io.livekit.android.room.mock.MockEglBase
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.test.runBlockingTest
 import livekit.LivekitModels
-import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -72,12 +70,8 @@ class RoomTest {
             )
         }
         room.onIceConnected()
-        runBlocking {
-            Assert.assertNotNull(
-                withTimeoutOrNull(1000) {
-                    job.join()
-                }
-            )
+        runBlockingTest {
+            job.join()
         }
     }
 }

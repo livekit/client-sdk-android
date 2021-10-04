@@ -65,16 +65,32 @@ constructor(
         get() = mutableActiveSpeakers
 
     private var hasLostConnectivity: Boolean = false
-    private var connectContinuation: Continuation<Unit>? = null
     suspend fun connect(url: String, token: String, options: ConnectOptions?) {
         state = State.CONNECTING
-        engine.join(url, token, options)
+        val response = engine.join(url, token, options)
+        Timber.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
+
+        sid = Sid(response.room.sid)
+        name = response.room.name
+
+        if (!response.hasParticipant()) {
+            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
+            return
+        }
+
+        val lp = localParticipantFactory.create(response.participant)
+        lp.listener = this
+        localParticipant = lp
+        if (response.otherParticipantsList.isNotEmpty()) {
+            response.otherParticipantsList.forEach {
+                getOrCreateRemoteParticipant(it.sid, it)
+            }
+        }
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         cm.registerNetworkCallback(networkRequest, this)
-        return suspendCoroutine { connectContinuation = it }
     }
 
     fun disconnect() {
@@ -240,36 +256,8 @@ constructor(
 
 
     //----------------------------------- RTCEngine.Listener ------------------------------------//
-    /**
-     * @suppress
-     */
-    override fun onJoin(response: LivekitRtc.JoinResponse) {
-        Timber.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
-
-        sid = Sid(response.room.sid)
-        name = response.room.name
-
-        if (!response.hasParticipant()) {
-            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
-            connectContinuation?.resume(Unit)
-            connectContinuation = null
-            return
-        }
-
-        val lp = localParticipantFactory.create(response.participant)
-        lp.listener = this
-        localParticipant = lp
-        if (response.otherParticipantsList.isNotEmpty()) {
-            response.otherParticipantsList.forEach {
-                getOrCreateRemoteParticipant(it.sid, it)
-            }
-        }
-    }
-
     override fun onIceConnected() {
         state = State.CONNECTED
-        connectContinuation?.resume(Unit)
-        connectContinuation = null
     }
 
     override fun onIceReconnected() {

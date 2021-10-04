@@ -152,7 +152,8 @@ internal constructor(
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
      * @param destination list of participant SIDs to deliver the payload, null to deliver to everyone
      */
-    fun publishData(data: ByteArray, reliability: DataPublishReliability, destination: List<String>?) {
+    @Suppress("unused")
+    suspend fun publishData(data: ByteArray, reliability: DataPublishReliability, destination: List<String>?) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
         }
@@ -161,11 +162,6 @@ internal constructor(
             DataPublishReliability.RELIABLE -> LivekitModels.DataPacket.Kind.RELIABLE
             DataPublishReliability.LOSSY -> LivekitModels.DataPacket.Kind.LOSSY
         }
-        val channel = when (reliability) {
-            DataPublishReliability.RELIABLE -> engine.reliableDataChannel
-            DataPublishReliability.LOSSY -> engine.lossyDataChannel
-        } ?: throw TrackException.PublishException("data channel not established")
-
         val packetBuilder = LivekitModels.UserPacket.newBuilder().
                 setPayload(ByteString.copyFrom(data)).
                 setParticipantSid(sid)
@@ -176,12 +172,8 @@ internal constructor(
             setUser(packetBuilder).
             setKind(kind).
             build()
-        val buf = DataChannel.Buffer(
-            ByteBuffer.wrap(dataPacket.toByteArray()),
-            true,
-        )
 
-        channel.send(buf)
+        engine.sendData(dataPacket)
     }
 
     override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
