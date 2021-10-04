@@ -108,8 +108,8 @@ class MainActivity : AppCompatActivity() {
         const val PREFERENCES_KEY_URL = "url"
         const val PREFERENCES_KEY_TOKEN = "token"
 
-        const val URL = "ws://192.168.11.5:7880"
+        const val URL = "wss://livekit.watercooler.fm"
         const val TOKEN =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MzI2MjcyNzEsImlzcyI6IkFQSVNRdmdrYWJZdXFUQSIsImp0aSI6InBob25lIiwibmJmIjoxNjMwMDM1MjcxLCJzdWIiOiJwaG9uZSIsInZpZGVvIjp7InJvb20iOiJteXJvb20iLCJyb29tSm9pbiI6dHJ1ZX19.2viZNxAXSwfpm9-sDbW5eWEibWqGv9yIg3KuSA2TmyA"
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE5ODQyMzE0OTgsImlzcyI6IkFQSU1teGlMOHJxdUt6dFpFb1pKVjlGYiIsImp0aSI6ImZvcnRoIiwibmJmIjoxNjI0MjMxNDk4LCJ2aWRlbyI6eyJyb29tIjoibXlyb29tIiwicm9vbUpvaW4iOnRydWV9fQ.PVx_lXAIGxcD2VRslosrbkigc777GXbu-DQME8hjJKI"
     }
 }
