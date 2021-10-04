@@ -206,26 +206,6 @@ constructor(
             lossyInit
         )
         lossyDataChannel!!.registerObserver(this)
-
-        coroutineScope.launch {
-            val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(getPublisherOfferConstraints())) {
-                    is Either.Left -> outcome.value
-                    is Either.Right -> {
-                        Timber.d { "error creating offer: ${outcome.value}" }
-                        return@launch
-                    }
-                }
-
-            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
-                is Either.Right -> {
-                    Timber.d { "error setting local description: ${outcome.value}" }
-                    return@launch
-                }
-            }
-
-            client.sendOffer(sdpOffer)
-        }
     }
 
     suspend fun addTrack(
