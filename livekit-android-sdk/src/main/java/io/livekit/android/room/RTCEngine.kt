@@ -34,7 +34,7 @@ import kotlin.coroutines.suspendCoroutine
 @Singleton
 class RTCEngine
 @Inject
-constructor(
+internal constructor(
     val client: SignalClient,
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
@@ -269,7 +269,7 @@ constructor(
             wsRetries = 0
 
             // trigger publisher reconnect
-            subscriber.restartingIce = true
+            subscriber.prepareForIceRestart()
             // only restart publisher if it's needed
             if (hasPublished) {
                 publisher.createAndSendOffer(
@@ -294,24 +294,7 @@ constructor(
             return
         }
         coroutineScope.launch {
-            val sdpOffer =
-                when (val outcome = publisher.peerConnection.createOffer(getPublisherOfferConstraints())) {
-                    is Either.Left -> outcome.value
-                    is Either.Right -> {
-                        Timber.d { "error creating offer: ${outcome.value}" }
-                        return@launch
-                    }
-                }
-
-            Timber.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
-            when (val outcome = publisher.peerConnection.setLocalDescription(sdpOffer)) {
-                is Either.Right -> {
-                    Timber.d { "error setting local description: ${outcome.value}" }
-                    return@launch
-                }
-            }
-
-            client.sendOffer(sdpOffer)
+            publisher.createAndSendOffer(getPublisherOfferConstraints())
         }
     }
 

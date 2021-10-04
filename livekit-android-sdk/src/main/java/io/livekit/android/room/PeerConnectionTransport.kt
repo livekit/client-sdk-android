@@ -17,7 +17,7 @@ import javax.inject.Named
 /**
  * @suppress
  */
-class PeerConnectionTransport
+internal class PeerConnectionTransport
 @AssistedInject
 constructor(
     @Assisted config: PeerConnection.RTCConfiguration,
@@ -28,14 +28,14 @@ constructor(
     connectionFactory: PeerConnectionFactory
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
-    val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
+    internal val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
         config,
         pcObserver
     ) ?: throw IllegalStateException("peer connection creation failed?")
-    val pendingCandidates = mutableListOf<IceCandidate>()
-    var restartingIce: Boolean = false
+    private val pendingCandidates = mutableListOf<IceCandidate>()
+    private var restartingIce: Boolean = false
 
-    var renegotiate = false
+    private var renegotiate = false
 
     interface Listener {
         fun onOffer(sd: SessionDescription)
@@ -97,11 +97,17 @@ constructor(
 
         // actually negotiate
         Timber.d { "starting to negotiate" }
-        val offer = peerConnection.createOffer(constraints)
-        if (offer is Either.Left) {
-            peerConnection.setLocalDescription(offer.value)
-            listener?.onOffer(offer.value)
+        val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
+            is Either.Left -> outcome.value
+            is Either.Right -> {
+                Timber.d { "error creating offer: ${outcome.value}" }
+                return
+            }
         }
+
+        Timber.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
+        peerConnection.setLocalDescription(sdpOffer)
+        listener?.onOffer(sdpOffer)
     }
 
 
