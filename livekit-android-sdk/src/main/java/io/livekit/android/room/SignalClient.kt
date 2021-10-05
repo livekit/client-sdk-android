@@ -369,7 +369,7 @@ constructor(
                 listener?.onLeave()
             }
             LivekitRtc.SignalResponse.MessageCase.MUTE -> {
-                //TODO
+                listener?.onRemoteMuteChanged(response.mute.sid, response.mute.muted)
             }
             LivekitRtc.SignalResponse.MessageCase.ROOM_UPDATE -> {
                 //TODO
@@ -394,6 +394,7 @@ constructor(
         fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
+        fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
         fun onLeave()
         fun onError(error: Exception)
     }

@@ -372,6 +372,7 @@ internal constructor(
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
+        fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
@@ -490,6 +491,10 @@ internal constructor(
         // TODO: reconnect logic
         Timber.i { "received close event: $reason, code: $code" }
         listener?.onDisconnect(reason)
+    }
+
+    override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
+        listener?.onRemoteMuteChanged(trackSid, muted)
     }
 
     override fun onLeave() {

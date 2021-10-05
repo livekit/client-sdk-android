@@ -188,6 +188,11 @@ internal constructor(
         }
     }
 
+    fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
+        val pub = tracks[trackSid]
+        pub?.muted = muted
+    }
+
     interface PublishListener {
         fun onPublishSuccess(publication: TrackPublication) {}
         fun onPublishFailure(exception: Exception) {}

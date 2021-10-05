@@ -314,6 +314,10 @@ constructor(
         handleActiveSpeakersUpdate(speakers)
     }
 
+    override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
+        localParticipant.onRemoteMuteChanged(trackSid, muted)
+    }
+
     /**
      * @suppress
      */
