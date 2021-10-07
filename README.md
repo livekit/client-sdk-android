@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity(), RoomListener {
 
 To develop the Android SDK itself, you'll need:
 
-- Ensure the protocol submodule repo is initialized and updated with `git submodule --init`
+- Ensure the protocol submodule repo is initialized and updated with `git submodule update --init`
 - Install [Android Studio Arctic Fox 2020.3.1+](https://developer.android.com/studio)
 
 ### Optional (Dev convenience)
