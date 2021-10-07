@@ -17,12 +17,7 @@ jobs:
       uses: actions/checkout@v2.3.4
       with:
         path: ./client-sdk-android
-
-    - name: checkout protocol
-      uses: actions/checkout@v2.3.4
-      with:
-        repository: livekit/protocol
-        path: ./protocol
+        submodules: recursive
 
     - name: set up JDK 12
       uses: actions/setup-java@v2
