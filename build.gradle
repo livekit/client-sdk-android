@@ -55,7 +55,7 @@ ext {
             protobuf          : "3.15.1",
     ]
     generated = [
-            protoSrc: "$projectDir/../protocol",
+            protoSrc: "$projectDir/protocol",
     ]
     deps = [
     ]
