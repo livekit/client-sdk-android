@@ -29,7 +29,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew livekit-android-sdk:assembleRelease
+      run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-sdk:testRelease
 
     - name: get version name
       run: echo "::set-output name=version_name::$(cat gradle.properties | grep VERSION_NAME | cut -d "=" -f2)"
