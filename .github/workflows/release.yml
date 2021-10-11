@@ -47,7 +47,7 @@ jobs:
         AWS_DEFAULT_REGION: "us-east-1"
 
     - name: Build with Gradle
-      run: ./gradlew livekit-android-sdk:assembleRelease
+      run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-sdk:testRelease
 
     - name: Create gpg key and import into gradle properties
       run: |
