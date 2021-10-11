@@ -1,12 +1,11 @@
 package io.livekit.android.room.track
 
-import livekit.LivekitModels
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
 open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {
-    private val sinks: MutableList<VideoSink> = ArrayList();
+    internal val sinks: MutableList<VideoSink> = ArrayList();
 
     var enabled: Boolean
         get() = rtcTrack.enabled()

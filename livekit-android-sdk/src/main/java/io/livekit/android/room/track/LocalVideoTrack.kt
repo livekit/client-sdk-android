@@ -11,25 +11,71 @@ import java.util.*
  * [startCapture] should be called before use.
  */
 class LocalVideoTrack(
-    private val capturer: VideoCapturer,
-    private val source: VideoSource,
+    private var capturer: VideoCapturer,
+    private var source: VideoSource,
     name: String,
-    private val options: LocalVideoTrackOptions,
-    rtcTrack: org.webrtc.VideoTrack
+    var options: LocalVideoTrackOptions,
+    rtcTrack: org.webrtc.VideoTrack,
+    private val peerConnectionFactory: PeerConnectionFactory,
+    private val context: Context,
+    private val eglBase: EglBase,
 ) : VideoTrack(name, rtcTrack) {
-    val dimensions: Dimensions
 
-    init {
-        dimensions = Dimensions(options.captureParams.width, options.captureParams.height)
-    }
+    override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
+        internal set
+
+    val dimensions: Dimensions =
+        Dimensions(options.captureParams.width, options.captureParams.height)
+
+    internal var transceiver: RtpTransceiver? = null
+    private val sender: RtpSender?
+        get() = transceiver?.sender
 
     fun startCapture() {
-        capturer.startCapture(options.captureParams.width, options.captureParams.height, options.captureParams.maxFps)
+        capturer.startCapture(
+            options.captureParams.width,
+            options.captureParams.height,
+            options.captureParams.maxFps
+        )
     }
 
     override fun stop() {
         capturer.stopCapture()
         super.stop()
+    }
+
+    fun restartTrack(options: LocalVideoTrackOptions = LocalVideoTrackOptions()) {
+        val newTrack = createTrack(
+            peerConnectionFactory,
+            context,
+            name,
+            options,
+            eglBase
+        )
+
+        val oldCapturer = capturer
+        val oldSource = source
+        val oldRtcTrack = rtcTrack
+
+        oldCapturer.stopCapture()
+        oldCapturer.dispose()
+        oldSource.dispose()
+
+        // sender owns rtcTrack, so it'll take care of disposing it.
+        oldRtcTrack.setEnabled(false)
+
+        // migrate video sinks to the new track
+        for (sink in sinks) {
+            oldRtcTrack.removeSink(sink)
+            newTrack.addRenderer(sink)
+        }
+
+        capturer = newTrack.capturer
+        source = newTrack.source
+        rtcTrack = newTrack.rtcTrack
+        this.options = options
+        startCapture()
+        sender?.setTrack(newTrack.rtcTrack, true)
     }
 
     companion object {
@@ -55,6 +101,9 @@ class LocalVideoTrack(
                 options = options,
                 name = name,
                 rtcTrack = track,
+                peerConnectionFactory = peerConnectionFactory,
+                context = context,
+                eglBase = rootEglBase,
             )
         }
 

@@ -12,8 +12,10 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
 import kotlinx.coroutines.launch
 
 class CallViewModel(
@@ -118,7 +120,19 @@ class CallViewModel(
     }
 
     fun flipVideo() {
-        // TODO
+        room.value?.localParticipant?.let { participant ->
+            val videoTrack = participant.videoTracks.values
+                .firstOrNull()
+                ?.track as? LocalVideoTrack
+                ?: return@let
+
+            val newOptions = when (videoTrack.options.position) {
+                CameraPosition.FRONT -> LocalVideoTrackOptions(position = CameraPosition.BACK)
+                CameraPosition.BACK -> LocalVideoTrackOptions(position = CameraPosition.FRONT)
+            }
+
+            videoTrack.restartTrack(newOptions)
+        }
     }
 }
 
