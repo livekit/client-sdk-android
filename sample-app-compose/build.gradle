@@ -32,6 +32,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = java_version
+        freeCompilerArgs += '-Xopt-in=kotlin.RequiresOptIn'
     }
     buildFeatures {
         compose true
@@ -58,6 +59,7 @@ dependencies {
     implementation "androidx.compose.material:material:$compose_version"
     implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
+    implementation "androidx.constraintlayout:constraintlayout-compose:1.0.0-rc01"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
     implementation "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"

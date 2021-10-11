@@ -39,6 +39,7 @@ fun ParticipantItem(
         factory = { context ->
             TextureViewRenderer(context).apply {
                 room.initVideoRenderer(this)
+
             }
         },
         modifier = Modifier.fillMaxSize(),
