@@ -2,6 +2,8 @@ package io.livekit.android.room.track
 
 import org.webrtc.MediaConstraints
 import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpSender
+import org.webrtc.RtpTransceiver
 import java.util.*
 
 /**
@@ -18,6 +20,10 @@ class LocalAudioTrack(
         set(value) {
             rtcTrack.setEnabled(value)
         }
+
+    internal var transceiver: RtpTransceiver? = null
+    private val sender: RtpSender?
+        get() = transceiver?.sender
 
     companion object {
         internal fun createTrack(

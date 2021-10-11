@@ -78,8 +78,8 @@ internal constructor(
             listOf(this.sid)
         )
         // TODO: sendEncodings to customize
-        val transceiver =
-            engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
+        val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
+        track.transceiver = transceiver
 
         if (transceiver == null) {
             publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
@@ -108,8 +108,8 @@ internal constructor(
             listOf(this.sid)
         )
         // TODO: video encodings & simulcast
-        val transceiver =
-            engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
+        val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
+        track.transceiver = transceiver
 
         if (transceiver == null) {
             publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
