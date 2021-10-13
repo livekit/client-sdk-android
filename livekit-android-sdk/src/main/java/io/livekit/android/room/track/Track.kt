@@ -44,7 +44,7 @@ open class Track(
         }
     }
 
-    class Dimensions(var width: Int, var height: Int)
+    data class Dimensions(var width: Int, var height: Int)
 
     open fun stop() {
         rtcTrack.setEnabled(false)
