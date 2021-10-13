@@ -1,7 +1,7 @@
 package io.livekit.android.room.track
 
 import android.content.Context
-import com.github.ajalt.timberkt.Timber
+import io.livekit.android.util.LKLog
 import org.webrtc.*
 import java.util.*
 
@@ -114,7 +114,7 @@ class LocalVideoTrack(
                 createCameraCapturer(Camera1Enumerator(true), position)
             }
             if (videoCapturer == null) {
-                Timber.d { "Failed to open camera" }
+                LKLog.d { "Failed to open camera" }
                 return null
             }
             return videoCapturer
@@ -125,13 +125,13 @@ class LocalVideoTrack(
 
             for (deviceName in deviceNames) {
                 if (enumerator.isFrontFacing(deviceName) && position == CameraPosition.FRONT) {
-                    Timber.v { "Creating front facing camera capturer." }
+                    LKLog.v { "Creating front facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
                         return videoCapturer
                     }
                 } else if (enumerator.isBackFacing(deviceName) && position == CameraPosition.BACK) {
-                    Timber.v { "Creating back facing camera capturer." }
+                    LKLog.v { "Creating back facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
                         return videoCapturer

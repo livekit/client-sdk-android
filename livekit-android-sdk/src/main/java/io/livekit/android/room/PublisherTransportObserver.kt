@@ -1,6 +1,6 @@
 package io.livekit.android.room
 
-import com.github.ajalt.timberkt.Timber
+import io.livekit.android.util.LKLog
 import livekit.LivekitRtc
 import org.webrtc.*
 
@@ -18,7 +18,7 @@ class PublisherTransportObserver(
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         val candidate = iceCandidate ?: return
-        Timber.v { "onIceCandidate: $candidate" }
+        LKLog.v { "onIceCandidate: $candidate" }
         client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
     }
 
@@ -27,7 +27,7 @@ class PublisherTransportObserver(
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-        Timber.v { "onIceConnection new state: $newState" }
+        LKLog.v { "onIceConnection new state: $newState" }
         iceConnectionChangeListener?.invoke(newState)
     }
 

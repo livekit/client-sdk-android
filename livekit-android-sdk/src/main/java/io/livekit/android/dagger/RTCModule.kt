@@ -1,9 +1,9 @@
 package io.livekit.android.dagger
 
 import android.content.Context
-import com.github.ajalt.timberkt.Timber
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.util.LKLog
 import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -21,46 +21,46 @@ class RTCModule {
             // Set audio record error callbacks.
             val audioRecordErrorCallback = object : JavaAudioDeviceModule.AudioRecordErrorCallback {
                 override fun onWebRtcAudioRecordInitError(errorMessage: String?) {
-                    Timber.e { "onWebRtcAudioRecordInitError: $errorMessage" }
+                    LKLog.e { "onWebRtcAudioRecordInitError: $errorMessage" }
                 }
 
                 override fun onWebRtcAudioRecordStartError(
                     errorCode: JavaAudioDeviceModule.AudioRecordStartErrorCode?,
                     errorMessage: String?
                 ) {
-                    Timber.e { "onWebRtcAudioRecordStartError: $errorCode. $errorMessage" }
+                    LKLog.e { "onWebRtcAudioRecordStartError: $errorCode. $errorMessage" }
                 }
 
                 override fun onWebRtcAudioRecordError(errorMessage: String?) {
-                    Timber.e { "onWebRtcAudioRecordError: $errorMessage" }
+                    LKLog.e { "onWebRtcAudioRecordError: $errorMessage" }
                 }
             }
 
             val audioTrackErrorCallback = object : JavaAudioDeviceModule.AudioTrackErrorCallback {
                 override fun onWebRtcAudioTrackInitError(errorMessage: String?) {
-                    Timber.e { "onWebRtcAudioTrackInitError: $errorMessage" }
+                    LKLog.e { "onWebRtcAudioTrackInitError: $errorMessage" }
                 }
 
                 override fun onWebRtcAudioTrackStartError(
                     errorCode: JavaAudioDeviceModule.AudioTrackStartErrorCode?,
                     errorMessage: String?
                 ) {
-                    Timber.e { "onWebRtcAudioTrackStartError: $errorCode. $errorMessage" }
+                    LKLog.e { "onWebRtcAudioTrackStartError: $errorCode. $errorMessage" }
                 }
 
                 override fun onWebRtcAudioTrackError(errorMessage: String?) {
-                    Timber.e { "onWebRtcAudioTrackError: $errorMessage" }
+                    LKLog.e { "onWebRtcAudioTrackError: $errorMessage" }
                 }
 
             }
             val audioRecordStateCallback: JavaAudioDeviceModule.AudioRecordStateCallback = object :
                 JavaAudioDeviceModule.AudioRecordStateCallback {
                 override fun onWebRtcAudioRecordStart() {
-                    Timber.i { "Audio recording starts" }
+                    LKLog.i { "Audio recording starts" }
                 }
 
                 override fun onWebRtcAudioRecordStop() {
-                    Timber.i { "Audio recording stops" }
+                    LKLog.i { "Audio recording stops" }
                 }
             }
 
@@ -68,11 +68,11 @@ class RTCModule {
             val audioTrackStateCallback: JavaAudioDeviceModule.AudioTrackStateCallback = object :
                 JavaAudioDeviceModule.AudioTrackStateCallback {
                 override fun onWebRtcAudioTrackStart() {
-                    Timber.i { "Audio playout starts" }
+                    LKLog.i { "Audio playout starts" }
                 }
 
                 override fun onWebRtcAudioTrackStop() {
-                    Timber.i { "Audio playout stops" }
+                    LKLog.i { "Audio playout stops" }
                 }
             }
 

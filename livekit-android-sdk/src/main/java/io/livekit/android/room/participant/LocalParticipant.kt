@@ -1,13 +1,13 @@
 package io.livekit.android.room.participant
 
 import android.content.Context
-import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
+import io.livekit.android.util.LKLog
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -124,7 +124,7 @@ internal constructor(
     fun unpublishTrack(track: Track) {
         val publication = localTrackPublications.firstOrNull { it.track == track }
         if (publication === null) {
-            Timber.d { "this track was never published." }
+            LKLog.d { "this track was never published." }
             return
         }
         val sid = publication.sid

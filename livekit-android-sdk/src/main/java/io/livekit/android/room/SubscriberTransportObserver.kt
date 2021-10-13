@@ -1,6 +1,6 @@
 package io.livekit.android.room
 
-import com.github.ajalt.timberkt.Timber
+import io.livekit.android.util.LKLog
 import livekit.LivekitRtc
 import org.webrtc.*
 
@@ -15,33 +15,33 @@ class SubscriberTransportObserver(
     var iceConnectionChangeListener: ((PeerConnection.IceConnectionState?) -> Unit)? = null
 
     override fun onIceCandidate(candidate: IceCandidate) {
-        Timber.v { "onIceCandidate: $candidate" }
+        LKLog.v { "onIceCandidate: $candidate" }
         client.sendCandidate(candidate, LivekitRtc.SignalTarget.SUBSCRIBER)
     }
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
         val track = receiver.track() ?: return
-        Timber.v { "onAddTrack: ${track.kind()}, ${track.id()}, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
+        LKLog.v { "onAddTrack: ${track.kind()}, ${track.id()}, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
         engine.listener?.onAddTrack(track, streams)
     }
 
     override fun onTrack(transceiver: RtpTransceiver) {
         when (transceiver.mediaType) {
-            MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO -> Timber.v { "peerconn started receiving audio" }
-            MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO -> Timber.v { "peerconn started receiving video" }
-            else -> Timber.d { "peerconn started receiving unknown media type: ${transceiver.mediaType}" }
+            MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO -> LKLog.v { "peerconn started receiving audio" }
+            MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO -> LKLog.v { "peerconn started receiving video" }
+            else -> LKLog.d { "peerconn started receiving unknown media type: ${transceiver.mediaType}" }
         }
     }
 
     override fun onDataChannel(channel: DataChannel) {
-        Timber.v { "onDataChannel" }
+        LKLog.v { "onDataChannel" }
     }
 
     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
-        Timber.v { "onConnectionChange new state: $newState" }
+        LKLog.v { "onConnectionChange new state: $newState" }
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
@@ -51,7 +51,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-        Timber.v { "onIceConnection new state: $newState" }
+        LKLog.v { "onIceConnection new state: $newState" }
         iceConnectionChangeListener?.invoke(newState)
     }
 

@@ -1,12 +1,12 @@
 package io.livekit.android.room
 
-import com.github.ajalt.timberkt.Timber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.util.*
 import io.livekit.android.util.Either
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.debounce
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -77,7 +77,7 @@ constructor(
         val iceRestart =
             constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
         if (iceRestart) {
-            Timber.d { "restarting ice" }
+            LKLog.d { "restarting ice" }
             restartingIce = true
         }
 
@@ -96,16 +96,16 @@ constructor(
         }
 
         // actually negotiate
-        Timber.d { "starting to negotiate" }
+        LKLog.d { "starting to negotiate" }
         val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
             is Either.Left -> outcome.value
             is Either.Right -> {
-                Timber.d { "error creating offer: ${outcome.value}" }
+                LKLog.d { "error creating offer: ${outcome.value}" }
                 return
             }
         }
 
-        Timber.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
+        LKLog.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
         peerConnection.setLocalDescription(sdpOffer)
         listener?.onOffer(sdpOffer)
     }

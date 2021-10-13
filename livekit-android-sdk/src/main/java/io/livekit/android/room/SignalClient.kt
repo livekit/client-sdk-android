@@ -1,12 +1,12 @@
 package io.livekit.android.room
 
-import com.github.ajalt.timberkt.Timber
 import com.google.protobuf.util.JsonFormat
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.Either
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.safe
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -92,7 +92,7 @@ constructor(
             }
         }
 
-        Timber.i { "connecting to $wsUrlString" }
+        LKLog.i { "connecting to $wsUrlString" }
 
         isConnected = false
         currentWs?.cancel()
@@ -124,7 +124,7 @@ constructor(
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
-        Timber.v { text }
+        LKLog.v { text }
         val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
         fromJsonProtobuf.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
@@ -142,13 +142,13 @@ constructor(
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-        Timber.v { "websocket closed" }
+        LKLog.v { "websocket closed" }
 
         listener?.onClose(reason, code)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-        Timber.v { "websocket closing" }
+        LKLog.v { "websocket closing" }
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -165,14 +165,14 @@ constructor(
                 }
             }
         } catch (e: Throwable) {
-            Timber.e(e) { "failed to validate connection" }
+            LKLog.e(e) { "failed to validate connection" }
         }
 
         if (reason != null) {
-            Timber.e(t) { "websocket failure: $reason" }
+            LKLog.e(t) { "websocket failure: $reason" }
             listener?.onError(Exception(reason))
         } else {
-            Timber.e(t) { "websocket failure: $response" }
+            LKLog.e(t) { "websocket failure: $response" }
             listener?.onError(t as Exception)
         }
     }
@@ -302,9 +302,9 @@ constructor(
     }
 
     private fun sendRequest(request: LivekitRtc.SignalRequest) {
-        Timber.v { "sending request: $request" }
+        LKLog.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
-            Timber.w { "not connected, could not send request $request" }
+            LKLog.w { "not connected, could not send request $request" }
             return
         }
         val sent: Boolean
@@ -317,7 +317,7 @@ constructor(
         }
 
         if (!sent) {
-            Timber.e { "error sending request: $request" }
+            LKLog.e { "error sending request: $request" }
         }
     }
 
@@ -328,12 +328,12 @@ constructor(
                 isConnected = true
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else {
-                Timber.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
+                LKLog.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
             }
             return
         }
 
-        Timber.v { "response: $response" }
+        LKLog.v { "response: $response" }
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
@@ -363,7 +363,7 @@ constructor(
                 listener?.onSpeakersChanged(response.speakersChanged.speakersList)
             }
             LivekitRtc.SignalResponse.MessageCase.JOIN -> {
-                Timber.d { "received unexpected extra join message?" }
+                LKLog.d { "received unexpected extra join message?" }
             }
             LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
                 listener?.onLeave()
@@ -376,7 +376,7 @@ constructor(
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
-                Timber.v { "empty messageCase!" }
+                LKLog.v { "empty messageCase!" }
             }
         }.safe()
     }

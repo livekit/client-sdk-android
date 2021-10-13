@@ -5,7 +5,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import com.github.ajalt.timberkt.Timber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -17,6 +16,7 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
+import io.livekit.android.util.LKLog
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -68,7 +68,7 @@ constructor(
     suspend fun connect(url: String, token: String, options: ConnectOptions?) {
         state = State.CONNECTING
         val response = engine.join(url, token, options)
-        Timber.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
+        LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
         sid = Sid(response.room.sid)
         name = response.room.name
@@ -249,7 +249,7 @@ constructor(
         if (!hasLostConnectivity) {
             return
         }
-        Timber.i { "network connection available, reconnecting" }
+        LKLog.i { "network connection available, reconnecting" }
         reconnect()
         hasLostConnectivity = false
     }
@@ -270,7 +270,7 @@ constructor(
      */
     override fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>) {
         if (streams.count() < 0) {
-            Timber.i { "add track with empty streams?" }
+            LKLog.i { "add track with empty streams?" }
             return
         }
 
@@ -340,7 +340,7 @@ constructor(
      * @suppress
      */
     override fun onDisconnect(reason: String) {
-        Timber.v { "engine did disconnect: $reason" }
+        LKLog.v { "engine did disconnect: $reason" }
         handleDisconnect()
     }
 

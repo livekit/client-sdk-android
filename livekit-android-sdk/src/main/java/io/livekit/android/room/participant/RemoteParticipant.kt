@@ -1,9 +1,9 @@
 package io.livekit.android.room.participant
 
-import com.github.ajalt.timberkt.Timber
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
+import io.livekit.android.util.LKLog
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -83,7 +83,7 @@ class RemoteParticipant(
             if (triesLeft == 0) {
                 val message = "Could not find published track with sid: $sid"
                 val exception = TrackException.InvalidTrackStateException(message)
-                Timber.e { "remote participant ${this.sid} --- $message" }
+                LKLog.e { "remote participant ${this.sid} --- $message" }
 
                 internalListener?.onTrackSubscriptionFailed(sid, exception, this)
                 listener?.onTrackSubscriptionFailed(sid, exception, this)

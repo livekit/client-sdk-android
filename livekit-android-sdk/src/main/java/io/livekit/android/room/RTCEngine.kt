@@ -1,7 +1,6 @@
 package io.livekit.android.room
 
 import android.os.SystemClock
-import com.github.ajalt.timberkt.Timber
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.DataPublishReliability
@@ -11,6 +10,7 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
+import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -50,15 +50,15 @@ internal constructor(
             when (value) {
                 IceState.CONNECTED -> {
                     if (oldVal == IceState.DISCONNECTED) {
-                        Timber.d { "publisher ICE connected" }
+                        LKLog.d { "publisher ICE connected" }
                         listener?.onIceConnected()
                     } else if (oldVal == IceState.RECONNECTING) {
-                        Timber.d { "publisher ICE reconnected" }
+                        LKLog.d { "publisher ICE reconnected" }
                         listener?.onIceReconnected()
                     }
                 }
                 IceState.DISCONNECTED -> {
-                    Timber.d { "publisher ICE disconnected" }
+                    LKLog.d { "publisher ICE disconnected" }
                     listener?.onDisconnect("Peer connection disconnected")
                 }
                 else -> {
@@ -133,11 +133,11 @@ internal constructor(
             iceServers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
         }
         joinResponse.iceServersList.forEach {
-            Timber.v { "username = \"${it.username}\"" }
-            Timber.v { "credential = \"${it.credential}\"" }
-            Timber.v { "urls: " }
+            LKLog.v { "username = \"${it.username}\"" }
+            LKLog.v { "credential = \"${it.credential}\"" }
+            LKLog.v { "urls: " }
             it.urlsList.forEach {
-                Timber.v { "   $it" }
+                LKLog.v { "   $it" }
             }
         }
 
@@ -162,7 +162,7 @@ internal constructor(
         val iceConnectionStateListener: (PeerConnection.IceConnectionState?) -> Unit = { newState ->
             val state =
                 newState ?: throw NullPointerException("unexpected null new state, what do?")
-            Timber.v { "onIceConnection new state: $newState" }
+            LKLog.v { "onIceConnection new state: $newState" }
             if (state == PeerConnection.IceConnectionState.CONNECTED) {
                 iceState = IceState.CONNECTED
             } else if (state == PeerConnection.IceConnectionState.FAILED) {
@@ -242,11 +242,11 @@ internal constructor(
         val url = sessionUrl
         val token = sessionToken
         if (url == null || token == null) {
-            Timber.w { "couldn't reconnect, no url or no token" }
+            LKLog.w { "couldn't reconnect, no url or no token" }
             return
         }
         if (iceState == IceState.DISCONNECTED || wsRetries >= MAX_SIGNAL_RETRIES) {
-            Timber.w { "could not connect to signal after max attempts, giving up" }
+            LKLog.w { "could not connect to signal after max attempts, giving up" }
             close()
             listener?.onDisconnect("could not reconnect after limit")
             return
@@ -259,13 +259,13 @@ internal constructor(
         coroutineScope.launch {
             delay(startDelay)
             if (iceState == IceState.DISCONNECTED) {
-                Timber.e { "Ice is disconnected" }
+                LKLog.e { "Ice is disconnected" }
                 return@launch
             }
 
             client.reconnect(url, token)
 
-            Timber.v { "reconnected, restarting ICE" }
+            LKLog.v { "reconnected, restarting ICE" }
             wsRetries = 0
 
             // trigger publisher reconnect
@@ -396,9 +396,9 @@ internal constructor(
     //---------------------------------- SignalClient.Listener --------------------------------------//
 
     override fun onAnswer(sessionDescription: SessionDescription) {
-        Timber.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
+        LKLog.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
         coroutineScope.launch {
-            Timber.i { sessionDescription.toString() }
+            LKLog.i { sessionDescription.toString() }
             when (val outcome = publisher.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
                     // when reconnecting, ICE might not have disconnected and won't trigger
@@ -408,20 +408,20 @@ internal constructor(
                     }
                 }
                 is Either.Right -> {
-                    Timber.e { "error setting remote description for answer: ${outcome.value} " }
+                    LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                 }
             }
         }
     }
 
     override fun onOffer(sessionDescription: SessionDescription) {
-        Timber.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
+        LKLog.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
         coroutineScope.launch {
             run<Unit> {
                 when (val outcome =
                     subscriber.setRemoteDescription(sessionDescription)) {
                     is Either.Right -> {
-                        Timber.e { "error setting remote description for answer: ${outcome.value} " }
+                        LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                         return@launch
                     }
                 }
@@ -431,7 +431,7 @@ internal constructor(
                 when (val outcome = subscriber.peerConnection.createAnswer(MediaConstraints())) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
-                        Timber.e { "error creating answer: ${outcome.value}" }
+                        LKLog.e { "error creating answer: ${outcome.value}" }
                         return@launch
                     }
                 }
@@ -440,7 +440,7 @@ internal constructor(
             run<Unit> {
                 when (val outcome = subscriber.peerConnection.setLocalDescription(answer)) {
                     is Either.Right -> {
-                        Timber.e { "error setting local description for answer: ${outcome.value}" }
+                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
                         return@launch
                     }
                 }
@@ -451,29 +451,29 @@ internal constructor(
     }
 
     override fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
-        Timber.v { "received ice candidate from peer: $candidate, $target" }
+        LKLog.v { "received ice candidate from peer: $candidate, $target" }
         when (target) {
             LivekitRtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
             LivekitRtc.SignalTarget.SUBSCRIBER -> subscriber.addIceCandidate(candidate)
-            else -> Timber.i { "unknown ice candidate target?" }
+            else -> LKLog.i { "unknown ice candidate target?" }
         }
     }
 
     override fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse) {
         val cid = response.cid ?: run {
-            Timber.e { "local track published with null cid?" }
+            LKLog.e { "local track published with null cid?" }
             return
         }
 
         val track = response.track
         if (track == null) {
-            Timber.d { "local track published with null track info?" }
+            LKLog.d { "local track published with null track info?" }
         }
 
-        Timber.v { "local track published $cid" }
+        LKLog.v { "local track published $cid" }
         val cont = pendingTrackResolvers.remove(cid)
         if (cont == null) {
-            Timber.d { "missing track resolver for: $cid" }
+            LKLog.d { "missing track resolver for: $cid" }
             return
         }
         cont.resume(response.track)
@@ -489,7 +489,7 @@ internal constructor(
 
     override fun onClose(reason: String, code: Int) {
         // TODO: reconnect logic
-        Timber.i { "received close event: $reason, code: $code" }
+        LKLog.i { "received close event: $reason, code: $code" }
         listener?.onDisconnect(reason)
     }
 
@@ -528,7 +528,7 @@ internal constructor(
             }
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null -> {
-                Timber.v { "invalid value for data packet" }
+                LKLog.v { "invalid value for data packet" }
             }
         }
     }
