@@ -1,5 +1,7 @@
 package io.livekit.android.room.track
 
+import org.webrtc.RtpParameters
+
 class LocalVideoTrackOptions(
     var isScreencast: Boolean = false,
     var position: CameraPosition = CameraPosition.FRONT,
@@ -15,7 +17,28 @@ data class VideoCaptureParameter(
 data class VideoEncoding(
     val maxBitrate: Int,
     val maxFps: Int,
-)
+) {
+    fun toRtpEncoding(
+        rid: String? = null,
+        scaleDownBy: Double = 1.0,
+    ): RtpParameters.Encoding {
+        return RtpParameters.Encoding(rid, true, scaleDownBy).apply {
+            numTemporalLayers = 1
+            maxBitrateBps = maxBitrate
+            maxFramerate = maxFps
+
+            // only set on the full track
+            if (scaleDownBy == 1.0) {
+                networkPriority = 3 // high, from priority.h in webrtc
+                bitratePriority = 4.0
+            } else {
+                networkPriority = 1 // low, from priority.h in webrtc
+                bitratePriority = 1.0
+            }
+
+        }
+    }
+}
 
 enum class VideoCodec(val codecName: String) {
     VP8("vp8"),

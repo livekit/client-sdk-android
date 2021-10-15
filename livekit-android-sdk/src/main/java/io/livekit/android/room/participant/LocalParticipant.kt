@@ -148,14 +148,7 @@ internal constructor(
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
         if (simulcast) {
-            encodings.add(RtpParameters.Encoding(
-                "f",
-                true,
-                1.0
-            ).apply {
-                maxBitrateBps = encoding.maxBitrate
-                maxFramerate = encoding.maxFps
-            })
+            encodings.add(encoding.toRtpEncoding("f"))
 
             val presets = presetsForResolution(width, height)
             val midPreset = presets[1]
@@ -164,41 +157,13 @@ internal constructor(
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
             if (width >= 960) {
-                encodings.add(RtpParameters.Encoding(
-                    "h",
-                    true,
-                    height / midPreset.capture.height.toDouble()
-                ).apply {
-                    maxBitrateBps = midPreset.encoding.maxBitrate
-                    maxFramerate = midPreset.encoding.maxFps
-                })
-                encodings.add(RtpParameters.Encoding(
-                    "q",
-                    true,
-                    height / lowPreset.capture.height.toDouble()
-                ).apply {
-                    maxBitrateBps = lowPreset.encoding.maxBitrate
-                    maxFramerate = lowPreset.encoding.maxFps
-                })
+                encodings.add(midPreset.encoding.toRtpEncoding("h", 2.0))
+                encodings.add(lowPreset.encoding.toRtpEncoding("q", 4.0))
             } else {
-                encodings.add(RtpParameters.Encoding(
-                    "h",
-                    true,
-                    height / lowPreset.capture.height.toDouble()
-                ).apply {
-                    maxBitrateBps = lowPreset.encoding.maxBitrate
-                    maxFramerate = lowPreset.encoding.maxFps
-                })
+                encodings.add(lowPreset.encoding.toRtpEncoding("h", 2.0))
             }
         } else {
-            encodings.add(RtpParameters.Encoding(
-                null,
-                true,
-                1.0
-            ).apply {
-                maxBitrateBps = encoding.maxBitrate
-                maxFramerate = encoding.maxFps
-            })
+            encodings.add(encoding.toRtpEncoding())
         }
         return encodings
     }
