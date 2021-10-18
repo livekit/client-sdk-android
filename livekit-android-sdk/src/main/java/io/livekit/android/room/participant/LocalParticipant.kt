@@ -1,7 +1,9 @@
 package io.livekit.android.room.participant
 
+import android.Manifest
 import android.content.Context
 import android.media.MediaCodecInfo
+import androidx.annotation.RequiresPermission
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -32,6 +34,11 @@ internal constructor(
     private val localTrackPublications
         get() = tracks.values.toList()
 
+    /**
+     * Creates an audio track, recording audio through the microphone with the given [options].
+     *
+     * @exception SecurityException will be thrown if [Manifest.permission.RECORD_AUDIO] permission is missing.
+     */
     fun createAudioTrack(
         name: String = "",
         options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
@@ -45,9 +52,14 @@ internal constructor(
             MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
         )
         audioConstraints.optional.addAll(items)
-        return LocalAudioTrack.createTrack(peerConnectionFactory, audioConstraints, name)
+        return LocalAudioTrack.createTrack(context, peerConnectionFactory, audioConstraints, name)
     }
 
+    /**
+     * Creates a video track, recording video through the camera with the given [options].
+     *
+     * @exception SecurityException will be thrown if [Manifest.permission.CAMERA] permission is missing.
+     */
     fun createVideoTrack(
         name: String = "",
         options: LocalVideoTrackOptions = LocalVideoTrackOptions(),

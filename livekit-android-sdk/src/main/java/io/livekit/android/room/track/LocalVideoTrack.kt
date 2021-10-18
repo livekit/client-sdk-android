@@ -1,6 +1,9 @@
 package io.livekit.android.room.track
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import io.livekit.android.util.LKLog
 import org.webrtc.*
 import java.util.*
@@ -83,6 +86,7 @@ class LocalVideoTrack(
     }
 
     companion object {
+
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
@@ -90,6 +94,13 @@ class LocalVideoTrack(
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
         ): LocalVideoTrack {
+
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                throw SecurityException("Camera permissions are required to create a camera video track.")
+            }
+
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             val capturer = createVideoCapturer(context, options.position) ?: TODO()
             capturer.initialize(
