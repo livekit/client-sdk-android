@@ -1,6 +1,7 @@
 package io.livekit.android.room.participant
 
 import android.content.Context
+import android.media.MediaCodecInfo
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -9,9 +10,8 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
-import livekit.LivekitRtc
 import org.webrtc.*
-import java.nio.ByteBuffer
+import kotlin.math.abs
 
 class LocalParticipant
 @AssistedInject
@@ -93,6 +93,7 @@ internal constructor(
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
+        options: VideoTrackPublishOptions = VideoTrackPublishOptions(),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -101,13 +102,18 @@ internal constructor(
         }
 
         val cid = track.rtcTrack.id()
-        val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = LivekitModels.TrackType.VIDEO, dimensions = track.dimensions)
+        val trackInfo = engine.addTrack(
+            cid = cid,
+            name = track.name,
+            kind = LivekitModels.TrackType.VIDEO,
+            dimensions = track.dimensions
+        )
+        val encodings = computeVideoEncodings(track.dimensions, options)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid)
+            listOf(this.sid),
+            encodings
         )
-        // TODO: video encodings & simulcast
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
         track.transceiver = transceiver
 
@@ -116,9 +122,67 @@ internal constructor(
             return
         }
 
+        // TODO: enable setting preferred codec
+
         val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
+    }
+
+    private fun computeVideoEncodings(
+        dimensions: Track.Dimensions,
+        options: VideoTrackPublishOptions
+    ): List<RtpParameters.Encoding> {
+        val (width, height) = dimensions
+        var encoding = options.videoEncoding
+        val simulcast = options.simulcast
+
+        if ((encoding == null && !simulcast) || width == 0 || height == 0) {
+            return emptyList()
+        }
+
+        if (encoding == null) {
+            encoding = determineAppropriateEncoding(width, height)
+            LKLog.d { "using video encoding: $encoding" }
+        }
+
+        val encodings = mutableListOf<RtpParameters.Encoding>()
+        if (simulcast) {
+            encodings.add(encoding.toRtpEncoding("f"))
+
+            val presets = presetsForResolution(width, height)
+            val midPreset = presets[1]
+            val lowPreset = presets[0]
+
+            // if resolution is high enough, we send both h and q res.
+            // otherwise only send h
+            if (width >= 960) {
+                encodings.add(midPreset.encoding.toRtpEncoding("h", 2.0))
+                encodings.add(lowPreset.encoding.toRtpEncoding("q", 4.0))
+            } else {
+                encodings.add(lowPreset.encoding.toRtpEncoding("h", 2.0))
+            }
+        } else {
+            encodings.add(encoding.toRtpEncoding())
+        }
+        return encodings
+    }
+
+    private fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
+        val presets = presetsForResolution(width, height)
+
+        return presets
+            .last { width >= it.capture.width && height >= it.capture.height }
+            .encoding
+    }
+
+    private fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
+        val aspectRatio = width.toFloat() / height
+        if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
+            return PRESETS_16_9
+        } else {
+            return PRESETS_4_3
+        }
     }
 
     fun unpublishTrack(track: Track) {
@@ -202,4 +266,38 @@ internal constructor(
     interface Factory {
         fun create(info: LivekitModels.ParticipantInfo): LocalParticipant
     }
+
+    companion object {
+        private val PRESETS_16_9 = listOf(
+            VideoPreset169.QVGA,
+            VideoPreset169.VGA,
+            VideoPreset169.QHD,
+            VideoPreset169.HD,
+            VideoPreset169.FHD
+        )
+
+        private val PRESETS_4_3 = listOf(
+            VideoPreset43.QVGA,
+            VideoPreset43.VGA,
+            VideoPreset43.QHD,
+            VideoPreset43.HD,
+            VideoPreset43.FHD
+        )
+    }
 }
+
+interface TrackPublishOptions {
+    val name: String?
+}
+
+data class VideoTrackPublishOptions(
+    override val name: String? = null,
+    val videoEncoding: VideoEncoding? = null,
+    //val videoCodec: VideoCodec? = null,
+    val simulcast: Boolean = false
+) : TrackPublishOptions
+
+data class AudioTrackPublishOptions(
+    override val name: String? = null,
+    val audioBitrate: Int? = null,
+) : TrackPublishOptions

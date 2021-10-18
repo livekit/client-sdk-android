@@ -99,7 +99,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation deps.kotlinx_coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0'
-    api 'org.webrtc:google-webrtc:1.0.32006'
+    api 'com.github.webrtc-sdk:android:92.4515.01'
     api "com.squareup.okhttp3:okhttp:4.9.0"
     implementation "com.google.protobuf:protobuf-java:${versions.protobuf}"
     implementation "com.google.protobuf:protobuf-java-util:${versions.protobuf}"

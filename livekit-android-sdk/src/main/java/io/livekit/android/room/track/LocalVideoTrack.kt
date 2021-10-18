@@ -24,8 +24,12 @@ class LocalVideoTrack(
     override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
         internal set
 
-    val dimensions: Dimensions =
-        Dimensions(options.captureParams.width, options.captureParams.height)
+    /**
+     * Note: these dimensions are only requested params, and may differ
+     * from the actual capture format used by the camera.
+     */
+    val dimensions: Dimensions
+        get() = Dimensions(options.captureParams.width, options.captureParams.height)
 
     internal var transceiver: RtpTransceiver? = null
     private val sender: RtpSender?

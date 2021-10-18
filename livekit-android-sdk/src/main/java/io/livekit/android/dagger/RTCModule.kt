@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.SimulcastVideoEncoderFactoryWrapper
 import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -103,10 +104,10 @@ class RTCModule {
         ): VideoEncoderFactory {
 
             return if (videoHwAccel) {
-                DefaultVideoEncoderFactory(
+                SimulcastVideoEncoderFactoryWrapper(
                     eglContext,
-                    true,
-                    true
+                    enableIntelVp8Encoder = true,
+                    enableH264HighProfile = true,
                 )
             } else {
                 SoftwareVideoEncoderFactory()
@@ -149,6 +150,6 @@ class RTCModule {
 
         @Provides
         @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
-        fun videoHwAccel() = false
+        fun videoHwAccel() = true
     }
 }
