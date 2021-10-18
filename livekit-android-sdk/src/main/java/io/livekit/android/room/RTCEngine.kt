@@ -272,7 +272,7 @@ internal constructor(
             subscriber.prepareForIceRestart()
             // only restart publisher if it's needed
             if (hasPublished) {
-                publisher.createAndSendOffer(
+                publisher.negotiate(
                     getPublisherOfferConstraints().apply {
                         with(mandatory){
                             add(
@@ -294,7 +294,7 @@ internal constructor(
             return
         }
         coroutineScope.launch {
-            publisher.createAndSendOffer(getPublisherOfferConstraints())
+            publisher.negotiate(getPublisherOfferConstraints())
         }
     }
 
