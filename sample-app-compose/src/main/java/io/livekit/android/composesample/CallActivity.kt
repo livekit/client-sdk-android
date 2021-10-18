@@ -41,11 +41,16 @@ class CallActivity : AppCompatActivity() {
     }
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener {}
 
+    private var previousSpeakerphoneOn = true
+    private var previousMicrophoneMute = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
+            previousSpeakerphoneOn = isSpeakerphoneOn
+            previousMicrophoneMute = isMicrophoneMute
             isSpeakerphoneOn = true
             isMicrophoneMute = false
             mode = AudioManager.MODE_IN_COMMUNICATION
@@ -228,8 +233,8 @@ class CallActivity : AppCompatActivity() {
 
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
-            isSpeakerphoneOn = false
-            isMicrophoneMute = true
+            isSpeakerphoneOn = previousSpeakerphoneOn
+            isMicrophoneMute = previousMicrophoneMute
             abandonAudioFocus(focusChangeListener)
             mode = AudioManager.MODE_NORMAL
         }
