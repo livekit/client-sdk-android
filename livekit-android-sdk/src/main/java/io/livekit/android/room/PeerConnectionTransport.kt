@@ -68,7 +68,14 @@ constructor(
         return result
     }
 
-    val negotiate = debounce<Unit, Unit>(100, coroutineScope) { createAndSendOffer() }
+    val negotiate = debounce<MediaConstraints?, Unit>(100, coroutineScope) {
+        if (it != null) {
+            createAndSendOffer(it)
+        } else {
+            createAndSendOffer()
+        }
+    }
+
     suspend fun createAndSendOffer(constraints: MediaConstraints = MediaConstraints()) {
         if (listener == null) {
             return
