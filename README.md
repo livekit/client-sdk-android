@@ -67,6 +67,11 @@ class MainActivity : AppCompatActivity(), RoomListener {
 }
 ```
 
+### Permissions
+
+LiveKit relies on the `RECORD_AUDIO` and `CAMERA` permissions to use the microphone and camera.
+These permission must be requested at runtime. Reference the [sample app](https://github.com/livekit/client-sdk-android/blob/4e76e36e0d9f895c718bd41809ab5ff6c57aabd4/sample-app-compose/src/main/java/io/livekit/android/composesample/MainActivity.kt#L134) for an example.
+
 ## Dev Environment
 
 To develop the Android SDK itself, you'll need:

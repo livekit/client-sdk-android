@@ -1,5 +1,9 @@
 package io.livekit.android.room.track
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import org.webrtc.MediaConstraints
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpSender
@@ -27,10 +31,17 @@ class LocalAudioTrack(
 
     companion object {
         internal fun createTrack(
+            context: Context,
             factory: PeerConnectionFactory,
             audioConstraints: MediaConstraints = MediaConstraints(),
             name: String = ""
         ): LocalAudioTrack {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                throw SecurityException("Record audio permissions are required to create an audio track.")
+            }
+
             val audioSource = factory.createAudioSource(audioConstraints)
             val rtcAudioTrack =
                 factory.createAudioTrack(UUID.randomUUID().toString(), audioSource)
