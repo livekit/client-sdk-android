@@ -19,8 +19,8 @@ open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     }
 
     fun removeRenderer(renderer: VideoSink) {
+        rtcTrack.removeSink(renderer)
         sinks.remove(renderer)
-        rtcTrack.addSink(renderer)
     }
 
     override fun stop() {
