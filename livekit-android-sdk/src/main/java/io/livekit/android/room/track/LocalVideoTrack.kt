@@ -30,6 +30,8 @@ class LocalVideoTrack(
     /**
      * Note: these dimensions are only requested params, and may differ
      * from the actual capture format used by the camera.
+     *
+     * TODO: capture actual dimensions used
      */
     val dimensions: Dimensions
         get() = Dimensions(options.captureParams.width, options.captureParams.height)
