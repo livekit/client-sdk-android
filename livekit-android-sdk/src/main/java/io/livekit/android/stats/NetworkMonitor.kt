@@ -2,7 +2,7 @@ package io.livekit.android.stats
 
 import android.content.Context
 import android.net.TrafficStats
-import com.github.ajalt.timberkt.Timber
+import io.livekit.android.util.LKLog
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
@@ -25,7 +25,7 @@ internal class NetworkMonitor(private val context: Context) {
                 prevTxBytes = totalTxBytes
                 emaTxBytes = emaTxBytes / 2 + intervalTxBytes / 2
 
-                Timber.v { "send rate: ${convertBytesToReadableString(emaTxBytes)}" }
+                LKLog.v { "send rate: ${convertBytesToReadableString(emaTxBytes)}" }
 
                 delay(1000)
             }
