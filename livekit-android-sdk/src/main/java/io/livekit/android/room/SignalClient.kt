@@ -252,16 +252,19 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendAddTrack(cid: String, name: String, type: LivekitModels.TrackType, dimensions: Track.Dimensions? = null) {
-        val addTrackRequest = LivekitRtc.AddTrackRequest.newBuilder()
+    /**
+     * @param builder an optional builder to include other parameters related to the track
+     */
+    fun sendAddTrack(
+        cid: String,
+        name: String,
+        type: LivekitModels.TrackType,
+        builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
+    ) {
+        val addTrackRequest = builder
             .setCid(cid)
             .setName(name)
             .setType(type)
-        if (dimensions != null) {
-            addTrackRequest.width = dimensions.width
-            addTrackRequest.height = dimensions.height
-        }
-
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()

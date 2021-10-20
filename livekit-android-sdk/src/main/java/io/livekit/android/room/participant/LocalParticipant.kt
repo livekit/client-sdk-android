@@ -2,8 +2,6 @@ package io.livekit.android.room.participant
 
 import android.Manifest
 import android.content.Context
-import android.media.MediaCodecInfo
-import androidx.annotation.RequiresPermission
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -12,6 +10,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.*
 import kotlin.math.abs
 
@@ -75,6 +74,7 @@ internal constructor(
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
+        options: AudioTrackPublishOptions = AudioTrackPublishOptions(),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -83,8 +83,15 @@ internal constructor(
         }
 
         val cid = track.rtcTrack.id()
-        val trackInfo =
-            engine.addTrack(cid = cid, name = track.name, kind = track.kind.toProto())
+        val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
+            disableDtx = !options.dtx
+        }
+        val trackInfo = engine.addTrack(
+            cid = cid,
+            name = track.name,
+            kind = track.kind.toProto(),
+            builder = builder
+        )
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(this.sid)
@@ -114,11 +121,15 @@ internal constructor(
         }
 
         val cid = track.rtcTrack.id()
+        val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
+            width = track.dimensions.width
+            height = track.dimensions.height
+        }
         val trackInfo = engine.addTrack(
             cid = cid,
             name = track.name,
             kind = LivekitModels.TrackType.VIDEO,
-            dimensions = track.dimensions
+            builder = builder
         )
         val encodings = computeVideoEncodings(track.dimensions, options)
         val transInit = RtpTransceiver.RtpTransceiverInit(
@@ -312,4 +323,5 @@ data class VideoTrackPublishOptions(
 data class AudioTrackPublishOptions(
     override val name: String? = null,
     val audioBitrate: Int? = null,
+    val dtx: Boolean = true
 ) : TrackPublishOptions

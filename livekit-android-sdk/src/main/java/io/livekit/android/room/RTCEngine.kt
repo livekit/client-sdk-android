@@ -208,11 +208,14 @@ internal constructor(
         lossyDataChannel!!.registerObserver(this)
     }
 
+    /**
+     * @param builder an optional builder to include other parameters related to the track
+     */
     suspend fun addTrack(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
-        dimensions: Track.Dimensions? = null
+        builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
@@ -220,7 +223,7 @@ internal constructor(
 
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, dimensions)
+            client.sendAddTrack(cid, name, kind, builder)
         }
     }
 
