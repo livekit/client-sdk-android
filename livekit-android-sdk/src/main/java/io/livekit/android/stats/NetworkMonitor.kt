@@ -1,15 +1,12 @@
-package io.livekit.android.composesample
+package io.livekit.android.stats
 
 import android.content.Context
 import android.net.TrafficStats
-import android.os.Build
-import androidx.annotation.RequiresApi
 import com.github.ajalt.timberkt.Timber
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-@RequiresApi(Build.VERSION_CODES.P)
-class NetworkMonitor(private val context: Context) {
+internal class NetworkMonitor(private val context: Context) {
 
     private lateinit var coroutineContext: CoroutineContext
     private lateinit var scope: CoroutineScope
@@ -43,13 +40,12 @@ class NetworkMonitor(private val context: Context) {
             level++
         }
 
-        // GBps should be way more than enough.
+        // MBps should be way more than enough.
         val suffix = when (level) {
             0 -> "Bps"
             1 -> "kBps"
             2 -> "MBps"
-            3 -> "GBps"
-            else -> throw IllegalStateException("unexpected level: $level")
+            else -> throw IllegalStateException("this shouldn't happen. level = $level")
         }
 
         return "$num $suffix"
