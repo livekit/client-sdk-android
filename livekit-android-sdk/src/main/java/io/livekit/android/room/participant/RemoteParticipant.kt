@@ -100,6 +100,7 @@ class RemoteParticipant(
         track.name = publication.name
         track.sid = publication.sid
         addTrackPublication(publication)
+        track.start()
 
         // TODO: how does mediatrack send ended event?
 
