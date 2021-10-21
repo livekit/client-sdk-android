@@ -75,21 +75,21 @@ internal constructor(
     }
 
     /**
-     * Creates a video track, recording video through the camera with the given [options].
+     * Creates a screencast video track.
      *
-     * @exception SecurityException will be thrown if [Manifest.permission.CAMERA] permission is missing.
+     * @param mediaProjectionPermissionResultData The resultData returned from launching
+     * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      */
     fun createScreencastTrack(
         name: String = "",
         mediaProjectionPermissionResultData: Intent,
-        options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
     ): LocalScreencastVideoTrack {
         return LocalScreencastVideoTrack.createTrack(
             mediaProjectionPermissionResultData,
             peerConnectionFactory,
             context,
             name,
-            options,
+            LocalVideoTrackOptions(isScreencast = true),
             eglBase,
             screencastVideoTrackFactory
         )
