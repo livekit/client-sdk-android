@@ -2,6 +2,7 @@ package io.livekit.android.room.participant
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -23,6 +24,7 @@ internal constructor(
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
     private val eglBase: EglBase,
+    private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
 ) :
     Participant(info.sid, info.identity) {
 
@@ -69,6 +71,27 @@ internal constructor(
             name,
             options,
             eglBase
+        )
+    }
+
+    /**
+     * Creates a video track, recording video through the camera with the given [options].
+     *
+     * @exception SecurityException will be thrown if [Manifest.permission.CAMERA] permission is missing.
+     */
+    fun createScreencastTrack(
+        name: String = "",
+        mediaProjectionPermissionResultData: Intent,
+        options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+    ): LocalScreencastVideoTrack {
+        return LocalScreencastVideoTrack.createTrack(
+            mediaProjectionPermissionResultData,
+            peerConnectionFactory,
+            context,
+            name,
+            options,
+            eglBase,
+            screencastVideoTrackFactory
         )
     }
 
