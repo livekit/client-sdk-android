@@ -108,6 +108,7 @@ internal constructor(
         val cid = track.rtcTrack.id()
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
             disableDtx = !options.dtx
+            source = LivekitModels.TrackSource.MICROPHONE
         }
         val trackInfo = engine.addTrack(
             cid = cid,
@@ -147,6 +148,11 @@ internal constructor(
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
             width = track.dimensions.width
             height = track.dimensions.height
+            source = if(track.options.isScreencast){
+                LivekitModels.TrackSource.SCREEN_SHARE
+            } else {
+                LivekitModels.TrackSource.CAMERA
+            }
         }
         val trackInfo = engine.addTrack(
             cid = cid,
