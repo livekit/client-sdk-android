@@ -41,7 +41,14 @@ constructor(
     }
 
     /**
-     * See [io.livekit.android.room.track.screencapture.ScreenCaptureService.start]
+     * A foreground service is generally required prior to [startCapture]. This method starts up
+     * a helper foreground service that only serves to display a notification while capturing. This
+     * foreground service will stop upon the end of screen capture.
+     *
+     * You may choose to use your own foreground service instead of this method, but it must be
+     * started prior to calling [startCapture].
+     *
+     * @see [io.livekit.android.room.track.screencapture.ScreenCaptureService.start]
      */
     suspend fun startForegroundService(notificationId: Int?, notification: Notification?) {
         serviceConnection.connect()

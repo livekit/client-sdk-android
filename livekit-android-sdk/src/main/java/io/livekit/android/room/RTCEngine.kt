@@ -109,7 +109,7 @@ internal constructor(
         return joinResponse
     }
 
-    private suspend fun configure(joinResponse: LivekitRtc.JoinResponse) {
+    private fun configure(joinResponse: LivekitRtc.JoinResponse) {
         if (this::publisher.isInitialized || this::subscriber.isInitialized) {
             // already configured
             return
