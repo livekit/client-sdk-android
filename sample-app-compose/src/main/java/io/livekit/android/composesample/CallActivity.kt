@@ -1,9 +1,12 @@
 package io.livekit.android.composesample
 
+import android.app.Activity
 import android.media.AudioManager
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -44,6 +47,19 @@ class CallActivity : AppCompatActivity() {
     private var previousSpeakerphoneOn = true
     private var previousMicrophoneMute = false
 
+    private val screenCaptureIntentLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val resultCode = result.resultCode
+            val data = result.data
+            if (resultCode != Activity.RESULT_OK || data == null) {
+                return@registerForActivityResult
+            }
+            viewModel.startScreenCapture(data)
+        }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -73,15 +89,23 @@ class CallActivity : AppCompatActivity() {
                 val micEnabled by viewModel.micEnabled.observeAsState(true)
                 val videoEnabled by viewModel.videoEnabled.observeAsState(true)
                 val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
+                val screencastEnabled by viewModel.screencastEnabled.observeAsState(false)
                 Content(
                     room,
                     participants,
                     micEnabled,
                     videoEnabled,
-                    flipButtonEnabled
+                    flipButtonEnabled,
+                    screencastEnabled,
                 )
             }
         }
+    }
+
+    private fun requestMediaProjection() {
+        val mediaProjectionManager =
+            getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
     }
 
     @Preview(showBackground = true, showSystemUi = true)
@@ -92,6 +116,7 @@ class CallActivity : AppCompatActivity() {
         micEnabled: Boolean = true,
         videoEnabled: Boolean = true,
         flipButtonEnabled: Boolean = true,
+        screencastEnabled: Boolean = false,
     ) {
         ConstraintLayout(
             modifier = Modifier
@@ -220,6 +245,24 @@ class CallActivity : AppCompatActivity() {
                 ) {
                     Icon(
                         painterResource(id = R.drawable.outline_flip_camera_android_24),
+                        contentDescription = "Flip Camera",
+                        tint = Color.White,
+                    )
+                }
+                FloatingActionButton(
+                    onClick = {
+                        if (!screencastEnabled) {
+                            requestMediaProjection()
+                        } else {
+                            viewModel.stopScreenCapture()
+                        }
+                    },
+                    backgroundColor = Color.DarkGray,
+                ) {
+                    val resource =
+                        if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
+                    Icon(
+                        painterResource(id = resource),
                         contentDescription = "Flip Camera",
                         tint = Color.White,
                     )

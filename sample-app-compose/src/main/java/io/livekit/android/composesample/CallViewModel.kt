@@ -1,6 +1,7 @@
 package io.livekit.android.composesample
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -10,12 +11,11 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
+import io.livekit.android.room.participant.AudioTrackPublishOptions
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.CameraPosition
-import io.livekit.android.room.track.LocalAudioTrack
-import io.livekit.android.room.track.LocalVideoTrack
-import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.participant.VideoTrackPublishOptions
+import io.livekit.android.room.track.*
 import kotlinx.coroutines.launch
 
 class CallViewModel(
@@ -30,6 +30,7 @@ class CallViewModel(
 
     private var localAudioTrack: LocalAudioTrack? = null
     private var localVideoTrack: LocalVideoTrack? = null
+    private var localScreencastTrack: LocalScreencastVideoTrack? = null
 
     private val mutableMicEnabled = MutableLiveData(true)
     val micEnabled = mutableMicEnabled.hide()
@@ -39,6 +40,9 @@ class CallViewModel(
 
     private val mutableFlipVideoButtonEnabled = MutableLiveData(true)
     val flipButtonVideoEnabled = mutableFlipVideoButtonEnabled.hide()
+
+    private val mutableScreencastEnabled = MutableLiveData(false)
+    val screencastEnabled = mutableScreencastEnabled.hide()
 
     init {
         viewModelScope.launch {
@@ -50,20 +54,52 @@ class CallViewModel(
                 this@CallViewModel
             )
 
+            // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
             val audioTrack = localParticipant.createAudioTrack()
-            localParticipant.publishAudioTrack(audioTrack)
+            localParticipant.publishAudioTrack(audioTrack, AudioTrackPublishOptions(dtx = true))
             this@CallViewModel.localAudioTrack = audioTrack
             mutableMicEnabled.postValue(audioTrack.enabled)
 
             val videoTrack = localParticipant.createVideoTrack()
-            localParticipant.publishVideoTrack(videoTrack)
+            localParticipant.publishVideoTrack(
+                videoTrack,
+                VideoTrackPublishOptions(simulcast = false)
+            )
             videoTrack.startCapture()
             this@CallViewModel.localVideoTrack = videoTrack
             mutableVideoEnabled.postValue(videoTrack.enabled)
 
             updateParticipants(room)
             mutableRoom.value = room
+        }
+    }
+
+    fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
+        val localParticipant = room.value?.localParticipant ?: return
+        viewModelScope.launch {
+            val screencastTrack =
+                localParticipant.createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+            localParticipant.publishVideoTrack(
+                screencastTrack
+            )
+
+            // Must start the foreground prior to startCapture.
+            screencastTrack.startForegroundService(null, null)
+            screencastTrack.startCapture()
+
+            this@CallViewModel.localScreencastTrack = screencastTrack
+            mutableScreencastEnabled.postValue(screencastTrack.enabled)
+        }
+    }
+
+    fun stopScreenCapture() {
+        viewModelScope.launch {
+            localScreencastTrack?.let { localScreencastVideoTrack ->
+                localScreencastVideoTrack.stop()
+                room.value?.localParticipant?.unpublishTrack(localScreencastVideoTrack)
+                mutableScreencastEnabled.postValue(localScreencastTrack?.enabled ?: false)
+            }
         }
     }
 
