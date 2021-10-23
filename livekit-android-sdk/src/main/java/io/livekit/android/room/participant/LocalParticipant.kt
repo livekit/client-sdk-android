@@ -2,6 +2,7 @@ package io.livekit.android.room.participant
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -23,6 +24,7 @@ internal constructor(
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
     private val eglBase: EglBase,
+    private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
 ) :
     Participant(info.sid, info.identity) {
 
@@ -72,6 +74,27 @@ internal constructor(
         )
     }
 
+    /**
+     * Creates a screencast video track.
+     *
+     * @param mediaProjectionPermissionResultData The resultData returned from launching
+     * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
+     */
+    fun createScreencastTrack(
+        name: String = "",
+        mediaProjectionPermissionResultData: Intent,
+    ): LocalScreencastVideoTrack {
+        return LocalScreencastVideoTrack.createTrack(
+            mediaProjectionPermissionResultData,
+            peerConnectionFactory,
+            context,
+            name,
+            LocalVideoTrackOptions(isScreencast = true),
+            eglBase,
+            screencastVideoTrackFactory
+        )
+    }
+
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
         options: AudioTrackPublishOptions = AudioTrackPublishOptions(),
@@ -85,6 +108,7 @@ internal constructor(
         val cid = track.rtcTrack.id()
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
             disableDtx = !options.dtx
+            source = LivekitModels.TrackSource.MICROPHONE
         }
         val trackInfo = engine.addTrack(
             cid = cid,
@@ -124,6 +148,11 @@ internal constructor(
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
             width = track.dimensions.width
             height = track.dimensions.height
+            source = if(track.options.isScreencast){
+                LivekitModels.TrackSource.SCREEN_SHARE
+            } else {
+                LivekitModels.TrackSource.CAMERA
+            }
         }
         val trackInfo = engine.addTrack(
             cid = cid,

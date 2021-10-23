@@ -8,6 +8,6 @@ class SampleApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        LiveKit.loggingLevel = LoggingLevel.OFF
+        LiveKit.loggingLevel = LoggingLevel.VERBOSE
     }
 }

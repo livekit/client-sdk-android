@@ -8,12 +8,13 @@ import io.livekit.android.util.LKLog
 import org.webrtc.*
 import java.util.*
 
+
 /**
  * A representation of a local video track (generally input coming from camera or screen).
  *
  * [startCapture] should be called before use.
  */
-class LocalVideoTrack(
+open class LocalVideoTrack(
     private var capturer: VideoCapturer,
     private var source: VideoSource,
     name: String,
@@ -40,7 +41,7 @@ class LocalVideoTrack(
     private val sender: RtpSender?
         get() = transceiver?.sender
 
-    fun startCapture() {
+    open fun startCapture() {
         capturer.startCapture(
             options.captureParams.width,
             options.captureParams.height,
@@ -157,5 +158,6 @@ class LocalVideoTrack(
             }
             return null
         }
+
     }
 }
