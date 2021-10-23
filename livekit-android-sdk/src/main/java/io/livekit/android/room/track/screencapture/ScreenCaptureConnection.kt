@@ -16,7 +16,8 @@ import kotlin.coroutines.resume
  * Handles connecting to a [ScreenCaptureService].
  */
 internal class ScreenCaptureConnection(private val context: Context) {
-    private var isBound = false
+    public var isBound = false
+        private set
     private var service: ScreenCaptureService? = null
     private val queuedConnects = mutableSetOf<Continuation<Unit>>()
     private val connection: ServiceConnection = object : ServiceConnection {
@@ -65,7 +66,9 @@ internal class ScreenCaptureConnection(private val context: Context) {
     }
 
     fun stop() {
-        context.unbindService(connection)
+        if (isBound) {
+            context.unbindService(connection)
+        }
         service = null
         isBound = false
     }
