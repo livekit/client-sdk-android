@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
+import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
@@ -31,19 +32,11 @@ class RoomTest {
     @Mock
     lateinit var rtcEngine: RTCEngine
 
-    @Mock
-    lateinit var peerConnectionFactory: PeerConnectionFactory
     var eglBase: EglBase = MockEglBase()
 
     val localParticantFactory = object : LocalParticipant.Factory {
         override fun create(info: LivekitModels.ParticipantInfo): LocalParticipant {
-            return LocalParticipant(
-                info,
-                rtcEngine,
-                peerConnectionFactory,
-                context,
-                eglBase,
-            )
+            return Mockito.mock(LocalParticipant::class.java)
         }
     }
 
