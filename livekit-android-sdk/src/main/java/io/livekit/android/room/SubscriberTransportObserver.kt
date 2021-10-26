@@ -25,9 +25,6 @@ class SubscriberTransportObserver(
         engine.listener?.onAddTrack(track, streams)
     }
 
-    override fun onRemoveTrack(p0: RtpReceiver?) {
-    }
-
     override fun onTrack(transceiver: RtpTransceiver) {
         when (transceiver.mediaType) {
             MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO -> LKLog.v { "peerconn started receiving audio" }
