@@ -72,7 +72,4 @@ class PublisherTransportObserver(
     override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
     }
 
-    override fun onRemoveTrack(p0: RtpReceiver?) {
-    }
-
 }
