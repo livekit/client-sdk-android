@@ -5,11 +5,14 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.track.Track
+import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.safe
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -40,6 +43,8 @@ constructor(
     private val okHttpClient: OkHttpClient,
     @Named(InjectionNames.SIGNAL_JSON_ENABLED)
     private val useJson: Boolean,
+    @Named(InjectionNames.DISPATCHER_IO)
+    ioDispatcher: CoroutineDispatcher,
 ) : WebSocketListener() {
     var isConnected = false
         private set
@@ -49,7 +54,9 @@ constructor(
     private var lastUrl: String? = null
 
     private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
+    private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
+    private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
     suspend fun join(
         url: String,
         token: String,
@@ -114,6 +121,15 @@ constructor(
         }
     }
 
+    @ExperimentalCoroutinesApi
+    fun onReady(){
+        coroutineScope.launch {
+            responseFlow.collect {
+                responseFlow.resetReplayCache()
+                handleSignalResponseImpl(it)
+            }
+        }
+    }
     //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
         if (isReconnecting) {
@@ -335,7 +351,11 @@ constructor(
             }
             return
         }
-
+        coroutineScope.launch {
+            responseFlow.tryEmit(response)
+        }
+    }
+    private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
         LKLog.v { "response: $response" }
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
@@ -386,6 +406,7 @@ constructor(
 
     fun close() {
         isConnected = false
+        coroutineScope.close()
         currentWs?.close(1000, "Normal Closure")
     }
 

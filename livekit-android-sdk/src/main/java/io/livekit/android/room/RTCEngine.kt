@@ -106,6 +106,7 @@ internal constructor(
         if (!this.isSubscriberPrimary) {
             negotiate()
         }
+        client.onReady()
         return joinResponse
     }
 

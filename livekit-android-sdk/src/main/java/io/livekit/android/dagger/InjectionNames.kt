@@ -2,9 +2,24 @@ package io.livekit.android.dagger
 
 object InjectionNames {
 
+    /**
+     * @see [kotlinx.coroutines.Dispatchers.Default]
+     */
     internal const val DISPATCHER_DEFAULT = "dispatcher_default"
+
+    /**
+     * @see [kotlinx.coroutines.Dispatchers.IO]
+     */
     internal const val DISPATCHER_IO = "dispatcher_io";
+
+    /**
+     * @see [kotlinx.coroutines.Dispatchers.Main]
+     */
     internal const val DISPATCHER_MAIN = "dispatcher_main"
+
+    /**
+     * @see [kotlinx.coroutines.Dispatchers.Unconfined]
+     */
     internal const val DISPATCHER_UNCONFINED = "dispatcher_unconfined"
 
     internal const val SIGNAL_JSON_ENABLED = "signal_json_enabled"
