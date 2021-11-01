@@ -3,7 +3,11 @@ package io.livekit.android.room.track
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraManager
 import androidx.core.content.ContextCompat
+import io.livekit.android.room.track.video.Camera1CapturerWithSize
+import io.livekit.android.room.track.video.Camera2CapturerWithSize
+import io.livekit.android.room.track.video.VideoCapturerWithSize
 import io.livekit.android.util.LKLog
 import org.webrtc.*
 import java.util.*
@@ -28,14 +32,17 @@ open class LocalVideoTrack(
     override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
         internal set
 
-    /**
-     * Note: these dimensions are only requested params, and may differ
-     * from the actual capture format used by the camera.
-     *
-     * TODO: capture actual dimensions used
-     */
     val dimensions: Dimensions
-        get() = Dimensions(options.captureParams.width, options.captureParams.height)
+        get() {
+            (capturer as? VideoCapturerWithSize)?.let { capturerWithSize ->
+                val size = capturerWithSize.findCaptureFormat(
+                    options.captureParams.width,
+                    options.captureParams.height
+                )
+                return Dimensions(size.width, size.height)
+            }
+            return Dimensions(options.captureParams.width, options.captureParams.height)
+        }
 
     internal var transceiver: RtpTransceiver? = null
     private val sender: RtpSender?
@@ -127,9 +134,9 @@ open class LocalVideoTrack(
 
         private fun createVideoCapturer(context: Context, position: CameraPosition): VideoCapturer? {
             val videoCapturer: VideoCapturer? = if (Camera2Enumerator.isSupported(context)) {
-                createCameraCapturer(Camera2Enumerator(context), position)
+                createCameraCapturer(context, Camera2Enumerator(context), position)
             } else {
-                createCameraCapturer(Camera1Enumerator(true), position)
+                createCameraCapturer(context, Camera1Enumerator(true), position)
             }
             if (videoCapturer == null) {
                 LKLog.d { "Failed to open camera" }
@@ -138,26 +145,47 @@ open class LocalVideoTrack(
             return videoCapturer
         }
 
-        private fun createCameraCapturer(enumerator: CameraEnumerator, position: CameraPosition): VideoCapturer? {
+        private fun createCameraCapturer(
+            context: Context,
+            enumerator: CameraEnumerator,
+            position: CameraPosition
+        ): VideoCapturer? {
             val deviceNames = enumerator.deviceNames
-
+            var targetDeviceName: String? = null
+            var targetVideoCapturer: VideoCapturer? = null
             for (deviceName in deviceNames) {
                 if (enumerator.isFrontFacing(deviceName) && position == CameraPosition.FRONT) {
                     LKLog.v { "Creating front facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
-                        return videoCapturer
+                        targetDeviceName = deviceName
+                        targetVideoCapturer = videoCapturer
+                        break
                     }
                 } else if (enumerator.isBackFacing(deviceName) && position == CameraPosition.BACK) {
                     LKLog.v { "Creating back facing camera capturer." }
                     val videoCapturer = enumerator.createCapturer(deviceName, null)
                     if (videoCapturer != null) {
-                        return videoCapturer
+                        targetDeviceName = deviceName
+                        targetVideoCapturer = videoCapturer
+                        break
                     }
                 }
             }
+
+            if (targetVideoCapturer is Camera1Capturer) {
+                return Camera1CapturerWithSize(targetVideoCapturer, targetDeviceName)
+            }
+
+            if (targetVideoCapturer is Camera2Capturer) {
+                return Camera2CapturerWithSize(
+                    targetVideoCapturer,
+                    context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
+                    targetDeviceName
+                )
+            }
+
             return null
         }
-
     }
 }
