@@ -14,6 +14,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class LocalParticipant
 @AssistedInject
@@ -206,13 +207,46 @@ internal constructor(
             val midPreset = presets[1]
             val lowPreset = presets[0]
 
+            fun calculateScale(parameter: VideoCaptureParameter): Double {
+                return height / parameter.height.toDouble()
+            }
+
+            fun checkEvenDimensions(parameter: VideoCaptureParameter): Boolean {
+                fun isEven(value: Double) = ((value.roundToInt()) % 2 == 0)
+                val scale = calculateScale(parameter)
+
+                return isEven(parameter.height * scale) && isEven(parameter.width * scale)
+            }
+
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
             if (width >= 960) {
-                encodings.add(midPreset.encoding.toRtpEncoding("h", 2.0))
-                encodings.add(lowPreset.encoding.toRtpEncoding("q", 4.0))
+                val hasEvenDimensions =
+                    checkEvenDimensions(midPreset.capture) && checkEvenDimensions(lowPreset.capture)
+                val midScale = if (hasEvenDimensions) calculateScale(midPreset.capture) else 2.0
+                val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 4.0
+
+                encodings.add(
+                    midPreset.encoding.toRtpEncoding(
+                        "h",
+                        midScale
+                    )
+                )
+                encodings.add(
+                    lowPreset.encoding.toRtpEncoding(
+                        "q",
+                        lowScale
+                    )
+                )
             } else {
-                encodings.add(lowPreset.encoding.toRtpEncoding("h", 2.0))
+                val hasEvenDimensions = checkEvenDimensions(lowPreset.capture)
+                val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 2.0
+                encodings.add(
+                    lowPreset.encoding.toRtpEncoding(
+                        "h",
+                        lowScale
+                    )
+                )
             }
         } else {
             encodings.add(encoding.toRtpEncoding())
