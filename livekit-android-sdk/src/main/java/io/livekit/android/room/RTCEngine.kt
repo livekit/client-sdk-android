@@ -377,6 +377,7 @@ internal constructor(
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
+        fun onRoomUpdate(update: LivekitModels.Room)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onDisconnect(reason: String)
         fun onFailToConnect(error: Exception)
@@ -499,6 +500,10 @@ internal constructor(
 
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         listener?.onRemoteMuteChanged(trackSid, muted)
+    }
+
+    override fun onRoomUpdate(update: LivekitModels.Room) {
+        listener?.onRoomUpdate(update)
     }
 
     override fun onLeave() {
