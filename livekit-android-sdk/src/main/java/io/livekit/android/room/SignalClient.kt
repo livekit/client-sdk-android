@@ -395,7 +395,10 @@ constructor(
                 listener?.onRemoteMuteChanged(response.mute.sid, response.mute.muted)
             }
             LivekitRtc.SignalResponse.MessageCase.ROOM_UPDATE -> {
-                //TODO
+                listener?.onRoomUpdate(response.roomUpdate.room)
+            }
+            LivekitRtc.SignalResponse.MessageCase.CONNECTION_QUALITY -> {
+                // TODO: listener?.onConnectionQuality(response.connectionQuality.updatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
@@ -419,6 +422,8 @@ constructor(
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
+        fun onRoomUpdate(update: LivekitModels.Room)
+        // TODO: fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onLeave()
         fun onError(error: Exception)
     }

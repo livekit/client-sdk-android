@@ -54,6 +54,9 @@ constructor(
         private set
     var state: State = State.DISCONNECTED
         private set
+    var metadata: String? = null
+        private set
+
     lateinit var localParticipant: LocalParticipant
         private set
     private val mutableRemoteParticipants = mutableMapOf<String, RemoteParticipant>()
@@ -316,6 +319,10 @@ constructor(
 
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         localParticipant.onRemoteMuteChanged(trackSid, muted)
+    }
+
+    override fun onRoomUpdate(update: LivekitModels.Room) {
+        metadata = update.metadata
     }
 
     /**
