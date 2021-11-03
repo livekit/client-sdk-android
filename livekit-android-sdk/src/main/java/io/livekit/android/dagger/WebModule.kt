@@ -7,17 +7,15 @@ import okhttp3.WebSocket
 import javax.inject.Singleton
 
 @Module
-class WebModule {
-    companion object {
-        @Provides
-        @Singleton
-        fun okHttpClient(): OkHttpClient {
-            return OkHttpClient()
-        }
+object WebModule {
+    @Provides
+    @Singleton
+    fun okHttpClient(): OkHttpClient {
+        return OkHttpClient()
+    }
 
-        @Provides
-        fun websocketFactory(okHttpClient: OkHttpClient): WebSocket.Factory {
-            return okHttpClient
-        }
+    @Provides
+    fun websocketFactory(okHttpClient: OkHttpClient): WebSocket.Factory {
+        return okHttpClient
     }
 }

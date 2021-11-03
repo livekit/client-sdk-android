@@ -1,4 +1,4 @@
-package io.livekit.android.room.mock
+package io.livekit.android.mock
 
 import android.graphics.SurfaceTexture
 import android.view.Surface

@@ -43,7 +43,7 @@ android {
         targetCompatibility java_version
     }
     kotlinOptions {
-        freeCompilerArgs = ["-Xinline-classes"]
+        freeCompilerArgs = ["-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn"]
         jvmTarget = java_version
     }
 }
@@ -117,6 +117,7 @@ dependencies {
     testImplementation "org.mockito.kotlin:mockito-kotlin:3.1.0"
     testImplementation 'androidx.test:core:1.4.0'
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.4.3"
+    kaptTest 'com.google.dagger:dagger-compiler:2.38'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }

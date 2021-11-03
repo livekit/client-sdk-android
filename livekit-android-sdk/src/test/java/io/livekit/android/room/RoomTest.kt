@@ -2,7 +2,7 @@ package io.livekit.android.room
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import io.livekit.android.room.mock.MockEglBase
+import io.livekit.android.mock.MockEglBase
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -18,7 +18,6 @@ import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
-import org.webrtc.PeerConnectionFactory
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
