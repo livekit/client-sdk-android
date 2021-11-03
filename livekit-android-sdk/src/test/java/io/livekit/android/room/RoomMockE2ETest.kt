@@ -2,54 +2,41 @@ package io.livekit.android.room
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import io.livekit.android.mock.MockEglBase
-import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.mock.MockWebsocketFactory
+import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
+import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
-import livekit.LivekitModels
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
-import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.EglBase
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
-class RoomTest {
+class RoomMockE2ETest {
 
     @get:Rule
     var mockitoRule = MockitoJUnit.rule()
 
     lateinit var context: Context
-
-    @Mock
-    lateinit var rtcEngine: RTCEngine
-
-    var eglBase: EglBase = MockEglBase()
-
-    val localParticantFactory = object : LocalParticipant.Factory {
-        override fun create(info: LivekitModels.ParticipantInfo): LocalParticipant {
-            return Mockito.mock(LocalParticipant::class.java)
-        }
-    }
-
     lateinit var room: Room
+    lateinit var wsFactory: MockWebsocketFactory
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        room = Room(
-            context,
-            rtcEngine,
-            eglBase,
-            localParticantFactory
-        )
+        val component = DaggerTestLiveKitComponent
+            .factory()
+            .create(context)
+
+        room = component.roomFactory()
+            .create(context)
+        wsFactory = component.websocketFactory()
     }
 
     @Test
@@ -61,7 +48,9 @@ class RoomTest {
                 options = null
             )
         }
-        room.onIceConnected()
+
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
+
         runBlockingTest {
             job.join()
         }

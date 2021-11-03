@@ -1,6 +1,7 @@
 package io.livekit.android.room
 
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.mock.MockWebsocketFactory
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -28,16 +29,6 @@ class SignalClientTest {
 
     lateinit var coroutineDispatcher: TestCoroutineDispatcher
     lateinit var coroutineScope: TestCoroutineScope
-
-    class MockWebsocketFactory : WebSocket.Factory {
-        lateinit var ws: WebSocket
-        lateinit var request: Request
-        override fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket {
-            ws = Mockito.mock(WebSocket::class.java)
-            this.request = request
-            return ws
-        }
-    }
 
     @Before
     fun setup() {
@@ -139,7 +130,7 @@ class SignalClientTest {
     companion object {
         private const val EXAMPLE_URL = "http://www.example.com"
 
-        private val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
+        val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
             join = with(joinBuilder) {
                 room = with(roomBuilder) {
                     name = "roomname"
@@ -150,7 +141,8 @@ class SignalClientTest {
             }
             build()
         }
-        private val OFFER = with(LivekitRtc.SignalResponse.newBuilder()) {
+
+        val OFFER = with(LivekitRtc.SignalResponse.newBuilder()) {
             offer = with(offerBuilder) {
                 sdp = ""
                 type = "offer"
