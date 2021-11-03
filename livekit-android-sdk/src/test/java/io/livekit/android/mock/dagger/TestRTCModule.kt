@@ -1,12 +1,11 @@
 package io.livekit.android.mock.dagger
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.mock.MockEglBase
-import org.webrtc.EglBase
-import org.webrtc.MockPeerConnectionFactory
-import org.webrtc.PeerConnectionFactory
+import org.webrtc.*
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -26,7 +25,16 @@ object TestRTCModule {
 
     @Provides
     @Singleton
-    fun peerConnectionFactory(): PeerConnectionFactory {
+    fun peerConnectionFactory(
+        appContext: Context
+    ): PeerConnectionFactory {
+        try {
+            ContextUtils.initialize(appContext)
+            NativeLibraryLoaderTestHelper.initialize()
+        } catch (e: Throwable) {
+            // do nothing. this is expected.
+        }
+
         return MockPeerConnectionFactory()
     }
 

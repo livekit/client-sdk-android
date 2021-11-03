@@ -150,5 +150,16 @@ class SignalClientTest {
             }
             build()
         }
+
+        val ROOM_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            roomUpdate = with(roomUpdateBuilder) {
+                room = with(roomBuilder) {
+                    metadata = "metadata"
+                    build()
+                }
+                build()
+            }
+            build()
+        }
     }
 }

@@ -5,10 +5,12 @@ import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.mock.MockWebsocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.util.toOkioByteString
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -54,5 +56,32 @@ class RoomMockE2ETest {
         runBlockingTest {
             job.join()
         }
+    }
+
+    @Test
+    fun roomUpdateTest() {
+        val handler = CoroutineExceptionHandler { _, exception ->
+            println("CoroutineExceptionHandler got $exception")
+            exception.printStackTrace()
+        }
+        val job = TestCoroutineScope().launch(handler) {
+            room.connect(
+                url = "http://www.example.com",
+                token = "",
+                options = null
+            )
+        }
+
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
+
+        runBlockingTest {
+            job.join()
+        }
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.ROOM_UPDATE.toOkioByteString())
+
+        Assert.assertEquals(
+            SignalClientTest.ROOM_UPDATE.roomUpdate.room.metadata,
+            room.metadata
+        )
     }
 }

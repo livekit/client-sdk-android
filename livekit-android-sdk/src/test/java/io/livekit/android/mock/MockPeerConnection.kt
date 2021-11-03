@@ -29,7 +29,7 @@ class MockPeerConnection(
     }
 
     override fun createDataChannel(label: String?, init: DataChannel.Init?): DataChannel {
-        TODO()
+        return MockDataChannel(label)
     }
 
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
