@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import kotlinx.serialization.json.Json
+import livekit.LivekitModels
 import livekit.LivekitRtc
 import okhttp3.*
 import org.junit.After
@@ -134,7 +135,12 @@ class SignalClientTest {
             join = with(joinBuilder) {
                 room = with(roomBuilder) {
                     name = "roomname"
-                    sid = "sid"
+                    sid = "room_sid"
+                    build()
+                }
+                participant = with(participantBuilder) {
+                    sid = "participant_sid"
+                    identity = "participant_identity"
                     build()
                 }
                 build()
@@ -157,6 +163,18 @@ class SignalClientTest {
                     metadata = "metadata"
                     build()
                 }
+                build()
+            }
+            build()
+        }
+
+        val CONNECTION_QUALITY = with(LivekitRtc.SignalResponse.newBuilder()) {
+            connectionQuality = with(connectionQualityBuilder) {
+                addUpdates(with(LivekitRtc.ConnectionQualityInfo.newBuilder()){
+                    participantSid = JOIN.join.participant.sid
+                    quality = LivekitModels.ConnectionQuality.EXCELLENT
+                    build()
+                })
                 build()
             }
             build()

@@ -1,6 +1,9 @@
 package io.livekit.android.room.participant
 
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackPublication
 import livekit.LivekitModels
 
 open class Participant(var sid: String, identity: String? = null) {
@@ -28,6 +31,8 @@ open class Participant(var sid: String, identity: String? = null) {
                 internalListener?.onMetadataChanged(this, prevMetadata)
             }
         }
+    var connectionQuality: ConnectionQuality = ConnectionQuality.UNKNOWN
+        internal set
 
     /**
      * Listener for when participant properties change
@@ -161,4 +166,22 @@ interface ParticipantListener {
      * Received data published by another participant
      */
     fun onDataReceived(data: ByteArray, participant: RemoteParticipant) {}
+}
+
+enum class ConnectionQuality {
+    EXCELLENT,
+    GOOD,
+    POOR,
+    UNKNOWN;
+
+    companion object {
+        fun fromProto(proto: LivekitModels.ConnectionQuality): ConnectionQuality {
+            return when (proto) {
+                LivekitModels.ConnectionQuality.EXCELLENT -> EXCELLENT
+                LivekitModels.ConnectionQuality.GOOD -> GOOD
+                LivekitModels.ConnectionQuality.POOR -> POOR
+                LivekitModels.ConnectionQuality.UNRECOGNIZED -> UNKNOWN
+            }
+        }
+    }
 }
