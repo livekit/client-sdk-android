@@ -11,6 +11,7 @@ import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.isConnected
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -324,7 +325,7 @@ internal constructor(
             return
         }
 
-        if (this.publisher.peerConnection.iceConnectionState() == PeerConnection.IceConnectionState.CONNECTED) {
+        if (this.publisher.peerConnection.isConnected()) {
             return
         }
 
@@ -334,7 +335,7 @@ internal constructor(
         // wait until publisher ICE connected
         val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
         while (SystemClock.elapsedRealtime() < endTime) {
-            if (this.publisher.peerConnection.iceConnectionState() == PeerConnection.IceConnectionState.CONNECTED) {
+            if (this.publisher.peerConnection.isConnected()) {
                 return
             }
             delay(50)
