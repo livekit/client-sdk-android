@@ -432,7 +432,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 4
+        const val PROTOCOL_VERSION = 5
         const val SDK_TYPE = "android"
 
         private fun iceServer(url: String) =
