@@ -11,10 +11,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.renderer.TextureViewRenderer
-import io.livekit.android.room.participant.LocalParticipant
-import io.livekit.android.room.participant.Participant
-import io.livekit.android.room.participant.ParticipantListener
-import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
@@ -323,6 +320,17 @@ constructor(
 
     override fun onRoomUpdate(update: LivekitModels.Room) {
         metadata = update.metadata
+    }
+
+    override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
+        updates.forEach { info ->
+            if (info.participantSid == this.localParticipant.sid) {
+                this.localParticipant.connectionQuality = ConnectionQuality.fromProto(info.quality)
+            } else {
+                val participant = remoteParticipants[info.participantSid] ?: return@forEach
+                participant.connectionQuality = ConnectionQuality.fromProto(info.quality)
+            }
+        }
     }
 
     /**

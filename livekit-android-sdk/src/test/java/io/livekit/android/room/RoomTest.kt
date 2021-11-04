@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.mock.MockEglBase
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +26,8 @@ class RoomTest {
 
     @get:Rule
     var mockitoRule = MockitoJUnit.rule()
+    @get:Rule
+    var coroutineRule = TestCoroutineRule()
 
     lateinit var context: Context
 
@@ -54,7 +57,7 @@ class RoomTest {
 
     @Test
     fun connectTest() {
-        val job = TestCoroutineScope().launch {
+        val job = coroutineRule.scope.launch {
             room.connect(
                 url = "http://www.example.com",
                 token = "",
