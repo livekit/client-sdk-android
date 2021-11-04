@@ -17,9 +17,6 @@ import io.livekit.android.util.LKLog
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class Room
 @AssistedInject
@@ -324,11 +321,14 @@ constructor(
 
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
         updates.forEach { info ->
+            val quality = ConnectionQuality.fromProto(info.quality)
             if (info.participantSid == this.localParticipant.sid) {
-                this.localParticipant.connectionQuality = ConnectionQuality.fromProto(info.quality)
+                this.localParticipant.connectionQuality = quality
+                listener?.onConnectionQualityChanged(localParticipant, quality)
             } else {
                 val participant = remoteParticipants[info.participantSid] ?: return@forEach
-                participant.connectionQuality = ConnectionQuality.fromProto(info.quality)
+                participant.connectionQuality = quality
+                listener?.onConnectionQualityChanged(participant, quality)
             }
         }
     }
@@ -551,6 +551,14 @@ interface RoomListener {
      * Received data published by another participant
      */
     fun onDataReceived(data: ByteArray, participant: RemoteParticipant, room: Room) {}
+
+    /**
+     * The connection quality for a participant has changed.
+     *
+     * @param participant Either a remote participant or [Room.localParticipant]
+     * @param quality the new connection quality
+     */
+    fun onConnectionQualityChanged(participant: Participant, quality: ConnectionQuality) {}
 }
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :

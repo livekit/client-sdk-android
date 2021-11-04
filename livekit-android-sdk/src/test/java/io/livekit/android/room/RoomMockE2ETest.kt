@@ -8,6 +8,7 @@ import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
@@ -16,6 +17,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.robolectric.RobolectricTestRunner
 
@@ -45,9 +47,8 @@ class RoomMockE2ETest {
         wsFactory = component.websocketFactory()
     }
 
-    @Test
-    fun connectTest() {
-        val job = TestCoroutineScope().launch {
+    fun connect() {
+        val job = coroutineRule.scope.launch {
             room.connect(
                 url = "http://www.example.com",
                 token = "",
@@ -63,20 +64,13 @@ class RoomMockE2ETest {
     }
 
     @Test
+    fun connectTest() {
+        connect()
+    }
+
+    @Test
     fun roomUpdateTest() {
-        val job = coroutineRule.scope.launch {
-            room.connect(
-                url = "http://www.example.com",
-                token = "",
-                options = null
-            )
-        }
-
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
-
-        runBlockingTest {
-            job.join()
-        }
+        connect()
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.ROOM_UPDATE.toOkioByteString())
 
         Assert.assertEquals(
@@ -87,19 +81,10 @@ class RoomMockE2ETest {
 
     @Test
     fun connectionQualityUpdateTest() {
-        val job = coroutineRule.scope.launch {
-            room.connect(
-                url = "http://www.example.com",
-                token = "",
-                options = null
-            )
-        }
+        val roomListener = Mockito.mock(RoomListener::class.java)
+        room.listener = roomListener
 
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
-
-        runBlockingTest {
-            job.join()
-        }
+        connect()
         wsFactory.listener.onMessage(
             wsFactory.ws,
             SignalClientTest.CONNECTION_QUALITY.toOkioByteString()
@@ -109,5 +94,7 @@ class RoomMockE2ETest {
             ConnectionQuality.EXCELLENT,
             room.localParticipant.connectionQuality
         )
+        Mockito.verify(roomListener)
+            .onConnectionQualityChanged(room.localParticipant, ConnectionQuality.EXCELLENT)
     }
 }
