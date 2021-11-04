@@ -7,7 +7,6 @@ import io.livekit.android.mock.MockEglBase
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import livekit.LivekitModels
 import org.junit.Before
@@ -17,6 +16,10 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
 
@@ -57,6 +60,10 @@ class RoomTest {
 
     @Test
     fun connectTest() {
+        rtcEngine.stub {
+            onBlocking { rtcEngine.join(any(), any(), anyOrNull()) }
+                .doReturn(SignalClientTest.JOIN.join)
+        }
         val job = coroutineRule.scope.launch {
             room.connect(
                 url = "http://www.example.com",
@@ -64,7 +71,6 @@ class RoomTest {
                 options = null
             )
         }
-        room.onIceConnected()
         runBlockingTest {
             job.join()
         }
