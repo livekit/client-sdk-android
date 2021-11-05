@@ -3,10 +3,7 @@ package io.livekit.android.room
 import android.os.SystemClock
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.room.track.DataPublishReliability
-import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
-import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
@@ -21,7 +18,6 @@ import livekit.LivekitRtc
 import org.webrtc.*
 import java.net.ConnectException
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -101,7 +97,7 @@ internal constructor(
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
         if (!this::publisher.isInitialized) {
-            configure(joinResponse)
+            configure(joinResponse, options)
         }
         // create offer
         if (!this.isSubscriberPrimary) {
@@ -111,44 +107,51 @@ internal constructor(
         return joinResponse
     }
 
-    private fun configure(joinResponse: LivekitRtc.JoinResponse) {
+    private fun configure(joinResponse: LivekitRtc.JoinResponse, connectOptions: ConnectOptions?) {
         if (this::publisher.isInitialized || this::subscriber.isInitialized) {
             // already configured
             return
         }
 
         // update ICE servers before creating PeerConnection
-        val iceServers = mutableListOf<PeerConnection.IceServer>()
-        for (serverInfo in joinResponse.iceServersList) {
-            val username = serverInfo.username ?: ""
-            val credential = serverInfo.credential ?: ""
-            iceServers.add(
-                PeerConnection.IceServer
-                    .builder(serverInfo.urlsList)
-                    .setUsername(username)
-                    .setPassword(credential)
-                    .createIceServer()
-            )
-        }
-
-        if (iceServers.isEmpty()) {
-            iceServers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
-        }
-        joinResponse.iceServersList.forEach {
-            LKLog.v { "username = \"${it.username}\"" }
-            LKLog.v { "credential = \"${it.credential}\"" }
-            LKLog.v { "urls: " }
-            it.urlsList.forEach {
-                LKLog.v { "   $it" }
+        val iceServers = if (connectOptions?.iceServers != null) {
+            connectOptions.iceServers
+        } else {
+            val servers = mutableListOf<PeerConnection.IceServer>()
+            for (serverInfo in joinResponse.iceServersList) {
+                val username = serverInfo.username ?: ""
+                val credential = serverInfo.credential ?: ""
+                servers.add(
+                    PeerConnection.IceServer
+                        .builder(serverInfo.urlsList)
+                        .setUsername(username)
+                        .setPassword(credential)
+                        .createIceServer()
+                )
             }
+
+            if (servers.isEmpty()) {
+                servers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
+            }
+            servers
         }
 
         // Setup peer connections
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
-            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-            enableDtlsSrtp = true
+        val rtcConfig = connectOptions?.rtcConfig?.apply {
+            val mergedServers = this.iceServers.toMutableList()
+            iceServers.forEach { server ->
+                if (!mergedServers.contains(server)) {
+                    mergedServers.add(server)
+                }
+            }
         }
+            ?: PeerConnection.RTCConfiguration(iceServers).apply {
+                sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                continualGatheringPolicy =
+                    PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                enableDtlsSrtp = true
+            }
+
 
         publisher = pctFactory.create(
             rtcConfig,

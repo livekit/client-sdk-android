@@ -26,8 +26,10 @@ internal constructor(
     private val context: Context,
     private val eglBase: EglBase,
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
-) :
-    Participant(info.sid, info.identity) {
+) : Participant(info.sid, info.identity) {
+
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults = AudioTrackPublishDefaults()
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
 
     init {
         updateFromInfo(info)
@@ -98,7 +100,7 @@ internal constructor(
 
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
-        options: AudioTrackPublishOptions = AudioTrackPublishOptions(),
+        options: AudioTrackPublishOptions = AudioTrackPublishOptions(null, audioTrackPublishDefaults),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -137,7 +139,7 @@ internal constructor(
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
-        options: VideoTrackPublishOptions = VideoTrackPublishOptions(),
+        options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -376,15 +378,53 @@ interface TrackPublishOptions {
     val name: String?
 }
 
+abstract class BaseVideoTrackPublishOptions {
+    abstract val videoEncoding: VideoEncoding?
+    abstract val simulcast: Boolean
+    //val videoCodec: VideoCodec? = null,
+}
+
+data class VideoTrackPublishDefaults(
+    override val videoEncoding: VideoEncoding? = null,
+    override val simulcast: Boolean = false
+) : BaseVideoTrackPublishOptions()
+
 data class VideoTrackPublishOptions(
     override val name: String? = null,
-    val videoEncoding: VideoEncoding? = null,
-    //val videoCodec: VideoCodec? = null,
-    val simulcast: Boolean = false
-) : TrackPublishOptions
+    override val videoEncoding: VideoEncoding? = null,
+    override val simulcast: Boolean = false
+) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
+    constructor(
+        name: String? = null,
+        base: BaseVideoTrackPublishOptions
+    ) : this(
+        name,
+        base.videoEncoding,
+        base.simulcast
+    )
+}
+
+abstract class BaseAudioTrackPublishOptions {
+    abstract val audioBitrate: Int?
+    abstract val dtx: Boolean
+}
+
+data class AudioTrackPublishDefaults(
+    override val audioBitrate: Int? = null,
+    override val dtx: Boolean = true
+) : BaseAudioTrackPublishOptions()
 
 data class AudioTrackPublishOptions(
     override val name: String? = null,
-    val audioBitrate: Int? = null,
-    val dtx: Boolean = true
-) : TrackPublishOptions
+    override val audioBitrate: Int? = null,
+    override val dtx: Boolean = true
+) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
+    constructor(
+        name: String? = null,
+        base: BaseAudioTrackPublishOptions
+    ) : this(
+        name,
+        base.audioBitrate,
+        base.dtx
+    )
+}

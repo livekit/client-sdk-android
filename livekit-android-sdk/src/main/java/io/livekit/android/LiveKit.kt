@@ -48,6 +48,21 @@ class LiveKit {
             room.listener = listener
             room.connect(url, token, options)
 
+            options?.audioTrackPublishDefaults?.let {
+                room.localParticipant.audioTrackPublishDefaults = it
+            }
+            options?.videoTrackPublishDefaults?.let {
+                room.localParticipant.videoTrackPublishDefaults = it
+            }
+
+            if (options?.audio == true) {
+                val audioTrack = room.localParticipant.createAudioTrack()
+                room.localParticipant.publishAudioTrack(audioTrack)
+            }
+            if (options?.video == true) {
+                val videoTrack = room.localParticipant.createVideoTrack()
+                room.localParticipant.publishVideoTrack(videoTrack)
+            }
             return room
         }
 
