@@ -48,6 +48,13 @@ class LiveKit {
             room.listener = listener
             room.connect(url, token, options)
 
+            options?.audioTrackCaptureDefaults?.let {
+                room.localParticipant.audioTrackCaptureDefaults = it
+            }
+            options?.videoTrackCaptureDefaults?.let {
+                room.localParticipant.videoTrackCaptureDefaults = it
+            }
+
             options?.audioTrackPublishDefaults?.let {
                 room.localParticipant.audioTrackPublishDefaults = it
             }

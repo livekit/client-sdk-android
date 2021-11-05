@@ -28,7 +28,9 @@ internal constructor(
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
 ) : Participant(info.sid, info.identity) {
 
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions = LocalAudioTrackOptions()
     var audioTrackPublishDefaults: AudioTrackPublishDefaults = AudioTrackPublishDefaults()
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions()
     var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
 
     init {
@@ -45,18 +47,9 @@ internal constructor(
      */
     fun createAudioTrack(
         name: String = "",
-        options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
+        options: LocalAudioTrackOptions = audioTrackCaptureDefaults,
     ): LocalAudioTrack {
-        val audioConstraints = MediaConstraints()
-        val items = listOf(
-            MediaConstraints.KeyValuePair("googEchoCancellation", options.echoCancellation.toString()),
-            MediaConstraints.KeyValuePair("googAutoGainControl", options.autoGainControl.toString()),
-            MediaConstraints.KeyValuePair("googHighpassFilter", options.highPassFilter.toString()),
-            MediaConstraints.KeyValuePair("googNoiseSuppression", options.noiseSuppression.toString()),
-            MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
-        )
-        audioConstraints.optional.addAll(items)
-        return LocalAudioTrack.createTrack(context, peerConnectionFactory, audioConstraints, name)
+        return LocalAudioTrack.createTrack(context, peerConnectionFactory, options, name)
     }
 
     /**
@@ -66,7 +59,7 @@ internal constructor(
      */
     fun createVideoTrack(
         name: String = "",
-        options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults,
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory,

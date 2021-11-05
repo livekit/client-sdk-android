@@ -2,6 +2,8 @@ package io.livekit.android
 
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.LocalVideoTrackOptions
 import org.webrtc.PeerConnection
 
 
@@ -18,6 +20,8 @@ data class ConnectOptions(
      */
     val video: Boolean = false,
 
+    val audioTrackCaptureDefaults: LocalAudioTrackOptions? = null,
+    val videoTrackCaptureDefaults: LocalVideoTrackOptions? = null,
     val audioTrackPublishDefaults: AudioTrackPublishDefaults? = null,
     val videoTrackPublishDefaults: VideoTrackPublishDefaults? = null,
 ) {

@@ -2,10 +2,10 @@ package io.livekit.android.room.track
 
 import org.webrtc.RtpParameters
 
-class LocalVideoTrackOptions(
-    var isScreencast: Boolean = false,
-    var position: CameraPosition = CameraPosition.FRONT,
-    var captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture
+data class LocalVideoTrackOptions(
+    val isScreencast: Boolean = false,
+    val position: CameraPosition = CameraPosition.FRONT,
+    val captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture
 )
 
 data class VideoCaptureParameter(
