@@ -8,7 +8,7 @@ class LocalTrackPublication(
     track: Track,
     participant: LocalParticipant
 ) : TrackPublication(info, track, participant) {
-    
+
     /**
      * Mute or unmute the current track. Muting the track would stop audio or video from being
      * transmitted to the server, and notify other participants in the room.

@@ -24,7 +24,8 @@ constructor(
     @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-    private val localParticipantFactory: LocalParticipant.Factory
+    private val localParticipantFactory: LocalParticipant.Factory,
+    private val defaultsManager: DefaultsManager,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
     init {
         engine.listener = this
@@ -51,10 +52,10 @@ constructor(
     var metadata: String? = null
         private set
 
-    var audioTrackCaptureDefaults: LocalAudioTrackOptions by localParticipant::audioTrackCaptureDefaults
-    var audioTrackPublishDefaults: AudioTrackPublishDefaults by localParticipant::audioTrackPublishDefaults
-    var videoTrackCaptureDefaults: LocalVideoTrackOptions by localParticipant::videoTrackCaptureDefaults
-    var videoTrackPublishDefaults: VideoTrackPublishDefaults by localParticipant::videoTrackPublishDefaults
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
     lateinit var localParticipant: LocalParticipant
         private set

@@ -7,6 +7,7 @@ import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
@@ -29,12 +30,14 @@ internal constructor(
     private val context: Context,
     private val eglBase: EglBase,
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
+    private val videoTrackFactory: LocalVideoTrack.Factory,
+    private val defaultsManager: DefaultsManager
 ) : Participant(info.sid, info.identity) {
 
-    var audioTrackCaptureDefaults: LocalAudioTrackOptions = LocalAudioTrackOptions()
-    var audioTrackPublishDefaults: AudioTrackPublishDefaults = AudioTrackPublishDefaults()
-    var videoTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions()
-    var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
     init {
         updateFromInfo(info)
@@ -62,14 +65,15 @@ internal constructor(
      */
     fun createVideoTrack(
         name: String = "",
-        options: LocalVideoTrackOptions = videoTrackCaptureDefaults,
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory,
             context,
             name,
             options,
-            eglBase
+            eglBase,
+            videoTrackFactory,
         )
     }
 

@@ -4,7 +4,12 @@ import org.webrtc.RtpParameters
 
 data class LocalVideoTrackOptions(
     val isScreencast: Boolean = false,
-    val position: CameraPosition = CameraPosition.FRONT,
+    /**
+     * Preferred deviceId to capture from. If not set or found,
+     * will prefer a camera according to [position]
+     */
+    val deviceId: String? = null,
+    val position: CameraPosition? = CameraPosition.FRONT,
     val captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture
 )
 
