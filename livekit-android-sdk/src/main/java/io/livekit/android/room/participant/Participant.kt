@@ -123,6 +123,17 @@ interface ParticipantListener {
     fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {}
 
 
+    // local participants
+    /**
+     * When a new track is published by the local participant.
+     */
+    fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {}
+
+    /**
+     * A [LocalParticipant] has unpublished a track
+     */
+    fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {}
+
     // remote participants
     /**
      * When a new track is published to room after the local participant has joined.

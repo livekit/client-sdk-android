@@ -34,7 +34,9 @@ internal constructor(
     }
 
     private val localTrackPublications
-        get() = tracks.values.toList()
+        get() = tracks.values
+            .mapNotNull { it as? LocalTrackPublication }
+            .toList()
 
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
@@ -133,6 +135,7 @@ internal constructor(
         val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
+        internalListener?.onTrackPublished(publication, this)
     }
 
     suspend fun publishVideoTrack(
@@ -180,6 +183,7 @@ internal constructor(
         val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
+        internalListener?.onTrackPublished(publication, this)
     }
 
     private fun computeVideoEncodings(
@@ -282,7 +286,8 @@ internal constructor(
         when (publication.kind) {
             Track.Kind.AUDIO -> audioTracks.remove(sid)
             Track.Kind.VIDEO -> videoTracks.remove(sid)
-            else -> {}
+            else -> {
+            }
         }
         val senders = engine.publisher.peerConnection.senders ?: return
         for (sender in senders) {
@@ -292,6 +297,7 @@ internal constructor(
             }
         }
         track.stop()
+        internalListener?.onTrackUnpublished(publication, this)
     }
 
     /**

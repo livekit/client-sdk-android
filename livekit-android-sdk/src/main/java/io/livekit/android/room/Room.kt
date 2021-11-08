@@ -76,7 +76,7 @@ constructor(
         }
 
         val lp = localParticipantFactory.create(response.participant)
-        lp.listener = this
+        lp.internalListener = this
         localParticipant = lp
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
@@ -366,7 +366,7 @@ constructor(
         listener?.onFailedToConnect(this, error)
     }
 
-    //------------------------------- RemoteParticipant.Listener --------------------------------//
+    //------------------------------- ParticipantListener --------------------------------//
     /**
      * This is called for both Local and Remote participants
      * @suppress
@@ -396,6 +396,20 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
+        listener?.onTrackUnpublished(publication,  participant, this)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
+        listener?.onTrackPublished(publication,  participant, this)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication,  participant, this)
     }
 
@@ -529,6 +543,16 @@ interface RoomListener {
      * A [RemoteParticipant] has unpublished a track
      */
     fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+
+    /**
+     * When a new track is published to room after the local participant has joined.
+     */
+    fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant, room: Room) {}
+
+    /**
+     * [LocalParticipant] has unpublished a track
+     */
+    fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant, room: Room) {}
 
     /**
      * The [LocalParticipant] has subscribed to a new track. This event will always fire as
