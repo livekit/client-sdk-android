@@ -54,7 +54,8 @@ class RoomTest {
             context,
             rtcEngine,
             eglBase,
-            localParticantFactory
+            localParticantFactory,
+            DefaultsManager()
         )
     }
 
