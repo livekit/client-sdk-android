@@ -12,7 +12,10 @@ import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.*
+import org.webrtc.EglBase
+import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpParameters
+import org.webrtc.RtpTransceiver
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -91,9 +94,62 @@ internal constructor(
         )
     }
 
+    override fun getTrackPublication(source: Track.Source): LocalTrackPublication? {
+        return super.getTrackPublication(source) as? LocalTrackPublication
+    }
+
+    override fun getTrackPublicationByName(name: String): LocalTrackPublication? {
+        return super.getTrackPublicationByName(name) as? LocalTrackPublication
+    }
+
+    private suspend fun setTrackEnabled(
+        source: Track.Source,
+        enabled: Boolean,
+        mediaProjectionPermissionResultData: Intent? = null
+
+    ) {
+        val pub = getTrackPublication(source)
+        if (enabled) {
+            if (pub != null) {
+                pub.muted = false
+            } else {
+                when (source) {
+                    Track.Source.CAMERA -> {
+                        val track = createVideoTrack()
+                        publishVideoTrack(track)
+                    }
+                    Track.Source.MICROPHONE -> {
+                        val track = createAudioTrack()
+                        publishAudioTrack(track)
+                    }
+                    Track.Source.SCREEN_SHARE -> {
+                        if (mediaProjectionPermissionResultData == null) {
+                            throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
+                        }
+                        val track =
+                            createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+                        publishVideoTrack(track)
+                    }
+                }
+            }
+        } else {
+            pub?.track?.let { track ->
+                // screenshare cannot be muted, unpublish instead
+                if (pub.source == Track.Source.SCREEN_SHARE) {
+                    unpublishTrack(track)
+                } else {
+                    pub.muted = true
+                }
+            }
+        }
+    }
+
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
-        options: AudioTrackPublishOptions = AudioTrackPublishOptions(null, audioTrackPublishDefaults),
+        options: AudioTrackPublishOptions = AudioTrackPublishOptions(
+            null,
+            audioTrackPublishDefaults
+        ),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -328,7 +384,7 @@ internal constructor(
         for (ti in info.tracksList) {
             val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
             if (ti.muted != publication.muted) {
-                publication.setMuted(ti.muted)
+                publication.muted = ti.muted
             }
         }
     }

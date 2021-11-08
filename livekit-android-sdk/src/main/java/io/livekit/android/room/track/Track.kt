@@ -44,6 +44,34 @@ open class Track(
         }
     }
 
+    enum class Source {
+        CAMERA,
+        MICROPHONE,
+        SCREEN_SHARE,
+        UNKNOWN;
+
+
+        fun toProto(): LivekitModels.TrackSource {
+            return when (this) {
+                CAMERA -> LivekitModels.TrackSource.CAMERA
+                MICROPHONE -> LivekitModels.TrackSource.MICROPHONE
+                SCREEN_SHARE -> LivekitModels.TrackSource.SCREEN_SHARE
+                UNKNOWN -> LivekitModels.TrackSource.UNKNOWN
+            }
+        }
+
+        companion object {
+            fun fromProto(source: LivekitModels.TrackSource): Source {
+                return when (source) {
+                    LivekitModels.TrackSource.CAMERA -> CAMERA
+                    LivekitModels.TrackSource.MICROPHONE -> MICROPHONE
+                    LivekitModels.TrackSource.SCREEN_SHARE -> SCREEN_SHARE
+                    else -> UNKNOWN
+                }
+            }
+        }
+    }
+
     data class Dimensions(var width: Int, var height: Int)
 
     open fun start() {

@@ -51,6 +51,11 @@ constructor(
     var metadata: String? = null
         private set
 
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions by localParticipant::audioTrackCaptureDefaults
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults by localParticipant::audioTrackPublishDefaults
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions by localParticipant::videoTrackCaptureDefaults
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults by localParticipant::videoTrackPublishDefaults
+
     lateinit var localParticipant: LocalParticipant
         private set
     private val mutableRemoteParticipants = mutableMapOf<String, RemoteParticipant>()
@@ -559,6 +564,16 @@ interface RoomListener {
      * @param quality the new connection quality
      */
     fun onConnectionQualityChanged(participant: Participant, quality: ConnectionQuality) {}
+
+    companion object {
+        fun getDefaultDevice(kind: DeviceManager.Kind): String? {
+            return DeviceManager.getDefaultDevice(kind)
+        }
+
+        fun setDefaultDevice(kind: DeviceManager.Kind, deviceId: String?) {
+            DeviceManager.setDefaultDevice(kind, deviceId)
+        }
+    }
 }
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :

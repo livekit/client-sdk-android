@@ -63,8 +63,50 @@ open class Participant(var sid: String, identity: String? = null) {
         when (publication.kind) {
             Track.Kind.AUDIO -> audioTracks[publication.sid] = publication
             Track.Kind.VIDEO -> videoTracks[publication.sid] = publication
-            else -> {}
+            else -> {
+            }
         }
+    }
+
+    /**
+     * Retrieves the first track that matches the source, or null
+     */
+    open fun getTrackPublication(source: Track.Source): TrackPublication? {
+        if (source == Track.Source.UNKNOWN) {
+            return null
+        }
+
+        for ((_, pub) in tracks) {
+            if (pub.source == source) {
+                return pub
+            }
+
+            // Alternative heuristics for finding track if source is unknown
+            if (pub.source == Track.Source.UNKNOWN) {
+                if (source == Track.Source.MICROPHONE && pub.kind == Track.Kind.AUDIO) {
+                    return pub
+                }
+                if (source == Track.Source.CAMERA && pub.kind == Track.Kind.VIDEO && pub.name != "screen") {
+                    return pub
+                }
+                if (source == Track.Source.SCREEN_SHARE && pub.kind == Track.Kind.VIDEO && pub.name == "screen") {
+                    return pub
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Retrieves the first track that matches [name], or null
+     */
+    open fun getTrackPublicationByName(name: String): TrackPublication? {
+        for ((_, pub) in tracks) {
+            if (pub.name == name) {
+                return pub
+            }
+        }
+        return null
     }
 
     /**

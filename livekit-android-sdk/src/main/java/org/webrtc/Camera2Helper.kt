@@ -4,6 +4,9 @@ import android.hardware.camera2.CameraManager
 
 /**
  * A helper to access package-protected methods used in [Camera2Session]
+ *
+ * Note: cameraId as used in the Camera2XXX classes refers to the id returned
+ * by [CameraManager.getCameraIdList].
  * @suppress
  */
 internal class Camera2Helper {
