@@ -7,6 +7,7 @@ import android.media.projection.MediaProjection
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
 import org.webrtc.*
 import java.util.*
@@ -23,6 +24,8 @@ constructor(
     peerConnectionFactory: PeerConnectionFactory,
     context: Context,
     eglBase: EglBase,
+    defaultsManager: DefaultsManager,
+    videoTrackFactory: LocalVideoTrack.Factory,
 ) : LocalVideoTrack(
     capturer,
     source,
@@ -31,7 +34,9 @@ constructor(
     rtcTrack,
     peerConnectionFactory,
     context,
-    eglBase
+    eglBase,
+    defaultsManager,
+    videoTrackFactory
 ) {
 
     private val serviceConnection = ScreenCaptureConnection(context)

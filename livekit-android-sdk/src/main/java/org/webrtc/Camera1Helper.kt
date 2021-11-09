@@ -2,6 +2,8 @@ package org.webrtc
 
 /**
  * A helper to access package-protected methods used in [Camera2Session]
+ *
+ * Note: cameraId as used in the Camera1XXX classes refers to the index within the list of cameras.
  * @suppress
  */
 internal class Camera1Helper {

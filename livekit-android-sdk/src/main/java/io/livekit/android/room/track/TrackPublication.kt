@@ -27,7 +27,8 @@ open class TrackPublication(
         internal set
     var dimensions: Track.Dimensions? = null
         internal set
-
+    var source: Track.Source = Track.Source.UNKNOWN
+        internal set
 
     var participant: WeakReference<Participant>
 
@@ -44,6 +45,7 @@ open class TrackPublication(
         name = info.name
         kind = Track.Kind.fromProto(info.type)
         muted = info.muted
+        source = Track.Source.fromProto(info.source)
         if (kind == Track.Kind.VIDEO) {
             simulcasted = info.simulcast
             dimensions = Track.Dimensions(info.width, info.height)

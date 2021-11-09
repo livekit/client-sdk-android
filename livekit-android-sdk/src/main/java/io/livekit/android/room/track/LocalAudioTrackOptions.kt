@@ -1,9 +1,9 @@
 package io.livekit.android.room.track
 
-class LocalAudioTrackOptions(
-    var noiseSuppression: Boolean = true,
-    var echoCancellation: Boolean = true,
-    var autoGainControl: Boolean = true,
-    var highPassFilter: Boolean = true,
-    var typingNoiseDetection: Boolean = true,
+data class LocalAudioTrackOptions(
+    val noiseSuppression: Boolean = true,
+    val echoCancellation: Boolean = true,
+    val autoGainControl: Boolean = true,
+    val highPassFilter: Boolean = true,
+    val typingNoiseDetection: Boolean = true,
 )

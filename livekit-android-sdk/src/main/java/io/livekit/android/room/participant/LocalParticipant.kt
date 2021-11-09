@@ -7,12 +7,16 @@ import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.*
+import org.webrtc.EglBase
+import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpParameters
+import org.webrtc.RtpTransceiver
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -26,8 +30,14 @@ internal constructor(
     private val context: Context,
     private val eglBase: EglBase,
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
-) :
-    Participant(info.sid, info.identity) {
+    private val videoTrackFactory: LocalVideoTrack.Factory,
+    private val defaultsManager: DefaultsManager
+) : Participant(info.sid, info.identity) {
+
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
     init {
         updateFromInfo(info)
@@ -45,18 +55,9 @@ internal constructor(
      */
     fun createAudioTrack(
         name: String = "",
-        options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
+        options: LocalAudioTrackOptions = audioTrackCaptureDefaults,
     ): LocalAudioTrack {
-        val audioConstraints = MediaConstraints()
-        val items = listOf(
-            MediaConstraints.KeyValuePair("googEchoCancellation", options.echoCancellation.toString()),
-            MediaConstraints.KeyValuePair("googAutoGainControl", options.autoGainControl.toString()),
-            MediaConstraints.KeyValuePair("googHighpassFilter", options.highPassFilter.toString()),
-            MediaConstraints.KeyValuePair("googNoiseSuppression", options.noiseSuppression.toString()),
-            MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
-        )
-        audioConstraints.optional.addAll(items)
-        return LocalAudioTrack.createTrack(context, peerConnectionFactory, audioConstraints, name)
+        return LocalAudioTrack.createTrack(context, peerConnectionFactory, options, name)
     }
 
     /**
@@ -66,14 +67,15 @@ internal constructor(
      */
     fun createVideoTrack(
         name: String = "",
-        options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory,
             context,
             name,
             options,
-            eglBase
+            eglBase,
+            videoTrackFactory,
         )
     }
 
@@ -98,9 +100,62 @@ internal constructor(
         )
     }
 
+    override fun getTrackPublication(source: Track.Source): LocalTrackPublication? {
+        return super.getTrackPublication(source) as? LocalTrackPublication
+    }
+
+    override fun getTrackPublicationByName(name: String): LocalTrackPublication? {
+        return super.getTrackPublicationByName(name) as? LocalTrackPublication
+    }
+
+    private suspend fun setTrackEnabled(
+        source: Track.Source,
+        enabled: Boolean,
+        mediaProjectionPermissionResultData: Intent? = null
+
+    ) {
+        val pub = getTrackPublication(source)
+        if (enabled) {
+            if (pub != null) {
+                pub.muted = false
+            } else {
+                when (source) {
+                    Track.Source.CAMERA -> {
+                        val track = createVideoTrack()
+                        publishVideoTrack(track)
+                    }
+                    Track.Source.MICROPHONE -> {
+                        val track = createAudioTrack()
+                        publishAudioTrack(track)
+                    }
+                    Track.Source.SCREEN_SHARE -> {
+                        if (mediaProjectionPermissionResultData == null) {
+                            throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
+                        }
+                        val track =
+                            createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+                        publishVideoTrack(track)
+                    }
+                }
+            }
+        } else {
+            pub?.track?.let { track ->
+                // screenshare cannot be muted, unpublish instead
+                if (pub.source == Track.Source.SCREEN_SHARE) {
+                    unpublishTrack(track)
+                } else {
+                    pub.muted = true
+                }
+            }
+        }
+    }
+
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
-        options: AudioTrackPublishOptions = AudioTrackPublishOptions(),
+        options: AudioTrackPublishOptions = AudioTrackPublishOptions(
+            null,
+            audioTrackPublishDefaults
+        ),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -140,7 +195,7 @@ internal constructor(
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
-        options: VideoTrackPublishOptions = VideoTrackPublishOptions(),
+        options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -339,7 +394,7 @@ internal constructor(
         for (ti in info.tracksList) {
             val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
             if (ti.muted != publication.muted) {
-                publication.setMuted(ti.muted)
+                publication.muted = ti.muted
             }
         }
     }
@@ -382,15 +437,53 @@ interface TrackPublishOptions {
     val name: String?
 }
 
+abstract class BaseVideoTrackPublishOptions {
+    abstract val videoEncoding: VideoEncoding?
+    abstract val simulcast: Boolean
+    //val videoCodec: VideoCodec? = null,
+}
+
+data class VideoTrackPublishDefaults(
+    override val videoEncoding: VideoEncoding? = null,
+    override val simulcast: Boolean = false
+) : BaseVideoTrackPublishOptions()
+
 data class VideoTrackPublishOptions(
     override val name: String? = null,
-    val videoEncoding: VideoEncoding? = null,
-    //val videoCodec: VideoCodec? = null,
-    val simulcast: Boolean = false
-) : TrackPublishOptions
+    override val videoEncoding: VideoEncoding? = null,
+    override val simulcast: Boolean = false
+) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
+    constructor(
+        name: String? = null,
+        base: BaseVideoTrackPublishOptions
+    ) : this(
+        name,
+        base.videoEncoding,
+        base.simulcast
+    )
+}
+
+abstract class BaseAudioTrackPublishOptions {
+    abstract val audioBitrate: Int?
+    abstract val dtx: Boolean
+}
+
+data class AudioTrackPublishDefaults(
+    override val audioBitrate: Int? = null,
+    override val dtx: Boolean = true
+) : BaseAudioTrackPublishOptions()
 
 data class AudioTrackPublishOptions(
     override val name: String? = null,
-    val audioBitrate: Int? = null,
-    val dtx: Boolean = true
-) : TrackPublishOptions
+    override val audioBitrate: Int? = null,
+    override val dtx: Boolean = true
+) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
+    constructor(
+        name: String? = null,
+        base: BaseAudioTrackPublishOptions
+    ) : this(
+        name,
+        base.audioBitrate,
+        base.dtx
+    )
+}

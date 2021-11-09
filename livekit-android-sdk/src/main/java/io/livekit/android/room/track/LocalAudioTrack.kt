@@ -33,7 +33,7 @@ class LocalAudioTrack(
         internal fun createTrack(
             context: Context,
             factory: PeerConnectionFactory,
-            audioConstraints: MediaConstraints = MediaConstraints(),
+            options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
             name: String = ""
         ): LocalAudioTrack {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
@@ -41,6 +41,16 @@ class LocalAudioTrack(
             ) {
                 throw SecurityException("Record audio permissions are required to create an audio track.")
             }
+
+            val audioConstraints = MediaConstraints()
+            val items = listOf(
+                MediaConstraints.KeyValuePair("googEchoCancellation", options.echoCancellation.toString()),
+                MediaConstraints.KeyValuePair("googAutoGainControl", options.autoGainControl.toString()),
+                MediaConstraints.KeyValuePair("googHighpassFilter", options.highPassFilter.toString()),
+                MediaConstraints.KeyValuePair("googNoiseSuppression", options.noiseSuppression.toString()),
+                MediaConstraints.KeyValuePair("googTypingNoiseDetection", options.typingNoiseDetection.toString()),
+            )
+            audioConstraints.optional.addAll(items)
 
             val audioSource = factory.createAudioSource(audioConstraints)
             val rtcAudioTrack =

@@ -24,7 +24,8 @@ constructor(
     @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-    private val localParticipantFactory: LocalParticipant.Factory
+    private val localParticipantFactory: LocalParticipant.Factory,
+    private val defaultsManager: DefaultsManager,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
     init {
         engine.listener = this
@@ -50,6 +51,11 @@ constructor(
         private set
     var metadata: String? = null
         private set
+
+    var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
+    var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
+    var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
+    var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
     lateinit var localParticipant: LocalParticipant
         private set
@@ -583,6 +589,16 @@ interface RoomListener {
      * @param quality the new connection quality
      */
     fun onConnectionQualityChanged(participant: Participant, quality: ConnectionQuality) {}
+
+    companion object {
+        fun getDefaultDevice(kind: DeviceManager.Kind): String? {
+            return DeviceManager.getDefaultDevice(kind)
+        }
+
+        fun setDefaultDevice(kind: DeviceManager.Kind, deviceId: String?) {
+            DeviceManager.setDefaultDevice(kind, deviceId)
+        }
+    }
 }
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :
