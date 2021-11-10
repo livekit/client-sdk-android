@@ -11,10 +11,8 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
-import io.livekit.android.room.participant.AudioTrackPublishOptions
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.participant.VideoTrackPublishOptions
 import io.livekit.android.room.track.*
 import kotlinx.coroutines.launch
 
@@ -28,15 +26,13 @@ class CallViewModel(
     private val mutableRemoteParticipants = MutableLiveData<List<RemoteParticipant>>()
     val remoteParticipants: LiveData<List<RemoteParticipant>> = mutableRemoteParticipants
 
-    private var localAudioTrack: LocalAudioTrack? = null
-    private var localVideoTrack: LocalVideoTrack? = null
     private var localScreencastTrack: LocalScreencastVideoTrack? = null
 
     private val mutableMicEnabled = MutableLiveData(true)
     val micEnabled = mutableMicEnabled.hide()
 
-    private val mutableVideoEnabled = MutableLiveData(true)
-    val videoEnabled = mutableVideoEnabled.hide()
+    private val mutableCameraEnabled = MutableLiveData(true)
+    val cameraEnabled = mutableCameraEnabled.hide()
 
     private val mutableFlipVideoButtonEnabled = MutableLiveData(true)
     val flipButtonVideoEnabled = mutableFlipVideoButtonEnabled.hide()
@@ -56,19 +52,11 @@ class CallViewModel(
 
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
-            val audioTrack = localParticipant.createAudioTrack()
-            localParticipant.publishAudioTrack(audioTrack, AudioTrackPublishOptions(dtx = true))
-            this@CallViewModel.localAudioTrack = audioTrack
-            mutableMicEnabled.postValue(audioTrack.enabled)
+            localParticipant.setMicrophoneEnabled(true)
+            mutableMicEnabled.postValue(localParticipant.isMicrophoneEnabled())
 
-            val videoTrack = localParticipant.createVideoTrack()
-            localParticipant.publishVideoTrack(
-                videoTrack,
-                VideoTrackPublishOptions(simulcast = false)
-            )
-            videoTrack.startCapture()
-            this@CallViewModel.localVideoTrack = videoTrack
-            mutableVideoEnabled.postValue(videoTrack.enabled)
+            localParticipant.setCameraEnabled(true)
+            mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
 
             updateParticipants(room)
             mutableRoom.value = room
@@ -146,25 +134,31 @@ class CallViewModel(
     }
 
     fun setMicEnabled(enabled: Boolean) {
-        localAudioTrack?.enabled = enabled
-        mutableMicEnabled.postValue(enabled)
+        viewModelScope.launch {
+            val localParticipant = room.value?.localParticipant ?: return@launch
+            localParticipant.setMicrophoneEnabled(enabled)
+            mutableMicEnabled.postValue(enabled)
+        }
     }
 
-    fun setVideoEnabled(enabled: Boolean) {
-        localVideoTrack?.enabled = enabled
-        mutableVideoEnabled.postValue(enabled)
+    fun setCameraEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val localParticipant = room.value?.localParticipant ?: return@launch
+            localParticipant.setMicrophoneEnabled(enabled)
+            mutableCameraEnabled.postValue(enabled)
+        }
     }
 
     fun flipVideo() {
         room.value?.localParticipant?.let { participant ->
-            val videoTrack = participant.videoTracks.values
-                .firstOrNull()
+            val videoTrack = participant.getTrackPublication(Track.Source.CAMERA)
                 ?.track as? LocalVideoTrack
                 ?: return@let
 
             val newOptions = when (videoTrack.options.position) {
                 CameraPosition.FRONT -> LocalVideoTrackOptions(position = CameraPosition.BACK)
                 CameraPosition.BACK -> LocalVideoTrackOptions(position = CameraPosition.FRONT)
+                else -> LocalVideoTrackOptions()
             }
 
             videoTrack.restartTrack(newOptions)

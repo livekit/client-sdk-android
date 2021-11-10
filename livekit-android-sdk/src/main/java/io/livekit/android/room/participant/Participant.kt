@@ -109,6 +109,25 @@ open class Participant(var sid: String, identity: String? = null) {
         return null
     }
 
+    fun isCameraEnabled(): Boolean {
+        val pub = getTrackPublication(Track.Source.CAMERA)
+        return isTrackPublicationEnabled(pub)
+    }
+
+    fun isMicrophoneEnabled(): Boolean {
+        val pub = getTrackPublication(Track.Source.MICROPHONE)
+        return isTrackPublicationEnabled(pub)
+    }
+
+    fun isScreenShareEnabled(): Boolean {
+        val pub = getTrackPublication(Track.Source.SCREEN_SHARE)
+        return isTrackPublicationEnabled(pub)
+    }
+
+    private fun isTrackPublicationEnabled(pub: TrackPublication?): Boolean {
+        return !(pub?.muted ?: true)
+    }
+
     /**
      * @suppress
      */

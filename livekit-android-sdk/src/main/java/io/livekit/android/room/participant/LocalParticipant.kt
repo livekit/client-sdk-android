@@ -108,6 +108,18 @@ internal constructor(
         return super.getTrackPublicationByName(name) as? LocalTrackPublication
     }
 
+    suspend fun setCameraEnabled(enabled: Boolean){
+        setTrackEnabled(Track.Source.CAMERA, enabled)
+    }
+
+    suspend fun setMicrophoneEnabled(enabled: Boolean){
+        setTrackEnabled(Track.Source.MICROPHONE, enabled)
+    }
+
+    suspend fun setScreenShareEnabled(enabled: Boolean) {
+        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled)
+    }
+
     private suspend fun setTrackEnabled(
         source: Track.Source,
         enabled: Boolean,
@@ -122,6 +134,7 @@ internal constructor(
                 when (source) {
                     Track.Source.CAMERA -> {
                         val track = createVideoTrack()
+                        track.startCapture()
                         publishVideoTrack(track)
                     }
                     Track.Source.MICROPHONE -> {

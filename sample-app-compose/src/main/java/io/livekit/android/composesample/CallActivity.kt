@@ -87,7 +87,7 @@ class CallActivity : AppCompatActivity() {
                 val room by viewModel.room.observeAsState()
                 val participants by viewModel.remoteParticipants.observeAsState(emptyList())
                 val micEnabled by viewModel.micEnabled.observeAsState(true)
-                val videoEnabled by viewModel.videoEnabled.observeAsState(true)
+                val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
                 val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
                 val screencastEnabled by viewModel.screencastEnabled.observeAsState(false)
                 Content(
@@ -228,7 +228,7 @@ class CallActivity : AppCompatActivity() {
                     )
                 }
                 FloatingActionButton(
-                    onClick = { viewModel.setVideoEnabled(!videoEnabled) },
+                    onClick = { viewModel.setCameraEnabled(!videoEnabled) },
                     backgroundColor = Color.DarkGray,
                 ) {
                     val resource =
