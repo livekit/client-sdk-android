@@ -38,13 +38,10 @@ class MainActivity : AppCompatActivity(), RoomListener {
                 this
             )
             val localParticipant = room.localParticipant
-            val audioTrack = localParticipant.createAudioTrack()
-            localParticipant.publishAudioTrack(audioTrack)
-            val videoTrack = localParticipant.createVideoTrack()
-            localParticipant.publishVideoTrack(videoTrack)
-            videoTrack.startCapture()
+            localParticipant.setMicrophoneEnabled(true)
+            localParticipant.setCameraEnabled(true)
 
-            attachVideo(videoTrack, localParticipant)
+            attachVideo(videoTrack)
         }
     }
 
@@ -55,11 +52,11 @@ class MainActivity : AppCompatActivity(), RoomListener {
         room: Room
     ) {
         if (track is VideoTrack) {
-            attachVideo(track, participant)
+            attachVideo(track)
         }
     }
 
-    private fun attachVideo(videoTrack: VideoTrack, participant: Participant) {
+    private fun attachVideo(videoTrack: VideoTrack) {
         // viewBinding.renderer is a `org.webrtc.SurfaceViewRenderer` in your
         // layout
         videoTrack.addRenderer(viewBinding.renderer)
