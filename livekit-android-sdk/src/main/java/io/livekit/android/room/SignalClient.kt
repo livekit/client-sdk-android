@@ -26,6 +26,7 @@ import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
 import javax.inject.Inject
 import javax.inject.Named
+import javax.inject.Singleton
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.suspendCoroutine
 
@@ -33,6 +34,7 @@ import kotlin.coroutines.suspendCoroutine
  * SignalClient to LiveKit WS servers
  * @suppress
  */
+@Singleton
 class SignalClient
 @Inject
 constructor(
@@ -288,11 +290,26 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendUpdateTrackSettings(sid: String, disabled: Boolean, videoQuality: LivekitRtc.VideoQuality) {
+    fun sendUpdateTrackSettings(
+        sid: String,
+        disabled: Boolean,
+        videoDimensions: Track.Dimensions?,
+        videoQuality: LivekitRtc.VideoQuality?,
+    ) {
         val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
             .addTrackSids(sid)
             .setDisabled(disabled)
-            .setQuality(videoQuality)
+            .apply {
+                if(videoDimensions != null) {
+                    width = videoDimensions.width
+                    height = videoDimensions.height
+                } else if(videoQuality != null) {
+                    quality = videoQuality
+                } else {
+                    // default to HIGH
+                    quality = LivekitRtc.VideoQuality.HIGH
+                }
+            }
 
          val request = LivekitRtc.SignalRequest.newBuilder()
             .setTrackSetting(trackSettings)

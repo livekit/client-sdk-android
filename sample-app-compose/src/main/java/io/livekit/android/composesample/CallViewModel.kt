@@ -46,7 +46,9 @@ class CallViewModel(
                 application,
                 url,
                 token,
-                ConnectOptions(),
+                ConnectOptions(
+                    autoManageVideo = true,
+                ),
                 this@CallViewModel
             )
 

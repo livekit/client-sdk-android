@@ -61,6 +61,7 @@ class LiveKit {
             options?.videoTrackPublishDefaults?.let {
                 room.localParticipant.videoTrackPublishDefaults = it
             }
+            room.autoManageVideo = options?.autoManageVideo ?: false
 
             if (options?.audio == true) {
                 val audioTrack = room.localParticipant.createAudioTrack()
