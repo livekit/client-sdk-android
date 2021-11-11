@@ -1,13 +1,18 @@
 package io.livekit.android.room.participant
 
+import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.room.SignalClient
 import livekit.LivekitModels
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
 
 class RemoteParticipantTest {
+
+    @get:Rule
+    var coroutineRule = TestCoroutineRule()
 
     lateinit var signalClient: SignalClient
     lateinit var participant: RemoteParticipant
@@ -15,7 +20,11 @@ class RemoteParticipantTest {
     @Before
     fun setup() {
         signalClient = Mockito.mock(SignalClient::class.java)
-        participant = RemoteParticipant(signalClient, "sid")
+        participant = RemoteParticipant(
+            "sid",
+            signalClient = signalClient,
+            ioDispatcher = coroutineRule.dispatcher
+        )
     }
 
     @Test
@@ -24,7 +33,7 @@ class RemoteParticipantTest {
             .addTracks(TRACK_INFO)
             .build()
 
-        participant = RemoteParticipant(signalClient, info)
+        participant = RemoteParticipant(info, signalClient, ioDispatcher = coroutineRule.dispatcher)
 
         assertEquals(1, participant.tracks.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))

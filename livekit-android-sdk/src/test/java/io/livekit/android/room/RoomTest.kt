@@ -55,7 +55,8 @@ class RoomTest {
             rtcEngine,
             eglBase,
             localParticantFactory,
-            DefaultsManager()
+            DefaultsManager(),
+            coroutineRule.dispatcher
         )
     }
 
