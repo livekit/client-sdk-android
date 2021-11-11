@@ -10,13 +10,16 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
+import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.CoroutineDispatcher
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
+import javax.inject.Named
 
 class Room
 @AssistedInject
@@ -26,6 +29,8 @@ constructor(
     private val eglBase: EglBase,
     private val localParticipantFactory: LocalParticipant.Factory,
     private val defaultsManager: DefaultsManager,
+    @Named(InjectionNames.DISPATCHER_IO)
+    private val ioDispatcher: CoroutineDispatcher,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
     init {
         engine.listener = this
@@ -52,6 +57,7 @@ constructor(
     var metadata: String? = null
         private set
 
+    var autoManageVideo: Boolean = false
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
@@ -121,9 +127,9 @@ constructor(
         }
 
         participant = if (info != null) {
-            RemoteParticipant(engine.client, info)
+            RemoteParticipant(info, engine.client, ioDispatcher)
         } else {
-            RemoteParticipant(engine.client, sid, null)
+            RemoteParticipant(sid, null, engine.client, ioDispatcher)
         }
         participant.internalListener = this
         mutableRemoteParticipants[sid] = participant
@@ -282,7 +288,7 @@ constructor(
             trackSid = track.id()
         }
         val participant = getOrCreateRemoteParticipant(participantSid)
-        participant.addSubscribedMediaTrack(track, trackSid!!)
+        participant.addSubscribedMediaTrack(track, trackSid!!, autoManageVideo)
     }
 
     /**

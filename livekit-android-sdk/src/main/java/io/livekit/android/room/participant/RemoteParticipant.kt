@@ -4,6 +4,7 @@ import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -13,14 +14,24 @@ import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
 
 class RemoteParticipant(
-    val signalClient: SignalClient,
     sid: String,
     identity: String? = null,
+    val signalClient: SignalClient,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : Participant(sid, identity) {
     /**
      * @suppress
      */
-    constructor(signalClient: SignalClient, info: LivekitModels.ParticipantInfo) : this(signalClient, info.sid, info.identity) {
+    constructor(
+        info: LivekitModels.ParticipantInfo,
+        signalClient: SignalClient,
+        ioDispatcher: CoroutineDispatcher
+    ) : this(
+        info.sid,
+        info.identity,
+        signalClient,
+        ioDispatcher,
+    ) {
         updateFromInfo(info)
     }
 
@@ -43,7 +54,11 @@ class RemoteParticipant(
             var publication = getTrackPublication(trackSid)
 
             if (publication == null) {
-                publication = RemoteTrackPublication(trackInfo, participant = this)
+                publication = RemoteTrackPublication(
+                    trackInfo,
+                    participant = this,
+                    ioDispatcher = ioDispatcher
+                )
 
                 newTrackPublications[trackSid] = publication
                 addTrackPublication(publication)
@@ -71,11 +86,21 @@ class RemoteParticipant(
     /**
      * @suppress
      */
-    fun addSubscribedMediaTrack(mediaTrack: MediaStreamTrack, sid: String, triesLeft: Int = 20) {
+    fun addSubscribedMediaTrack(
+        mediaTrack: MediaStreamTrack,
+        sid: String,
+        autoManageVideo: Boolean = false,
+        triesLeft: Int = 20
+    ) {
         val publication = getTrackPublication(sid)
         val track: Track = when (val kind = mediaTrack.kind()) {
             KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
-            KIND_VIDEO -> VideoTrack(rtcTrack = mediaTrack as VideoTrack, name = "")
+            KIND_VIDEO -> RemoteVideoTrack(
+                rtcTrack = mediaTrack as VideoTrack,
+                name = "",
+                autoManageVideo = autoManageVideo,
+                dispatcher = ioDispatcher
+            )
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
 
@@ -90,7 +115,7 @@ class RemoteParticipant(
             } else {
                 coroutineScope.launch {
                     delay(150)
-                    addSubscribedMediaTrack(mediaTrack, sid, triesLeft - 1)
+                    addSubscribedMediaTrack(mediaTrack, sid, autoManageVideo, triesLeft - 1)
                 }
             }
             return

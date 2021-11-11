@@ -5,7 +5,7 @@ import org.webrtc.VideoTrack
 
 open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {
-    internal val sinks: MutableList<VideoSink> = ArrayList();
+    protected val sinks: MutableList<VideoSink> = ArrayList();
 
     var enabled: Boolean
         get() = rtcTrack.enabled()
@@ -13,12 +13,12 @@ open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
             rtcTrack.setEnabled(value)
         }
 
-    fun addRenderer(renderer: VideoSink) {
+    open fun addRenderer(renderer: VideoSink) {
         sinks.add(renderer)
         rtcTrack.addSink(renderer)
     }
 
-    fun removeRenderer(renderer: VideoSink) {
+    open fun removeRenderer(renderer: VideoSink) {
         rtcTrack.removeSink(renderer)
         sinks.remove(renderer)
     }

@@ -8,7 +8,18 @@ import org.webrtc.PeerConnection
 
 
 data class ConnectOptions(
+    /** Auto subscribe to room tracks upon connect, defaults to true */
     val autoSubscribe: Boolean = true,
+    /**
+     * Automatically manage quality of subscribed video tracks, subscribe to the
+     * an appropriate resolution based on the size of the video elements that tracks
+     * are attached to.
+     *
+     * Also observes the visibility of attached tracks and pauses receiving data
+     * if they are not visible.
+     */
+    val autoManageVideo: Boolean = false,
+
     val iceServers: List<PeerConnection.IceServer>? = null,
     val rtcConfig: PeerConnection.RTCConfiguration? = null,
     /**

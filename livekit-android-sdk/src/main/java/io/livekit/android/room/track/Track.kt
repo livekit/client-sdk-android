@@ -1,5 +1,8 @@
 package io.livekit.android.room.track
 
+import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.EventListenable
+import io.livekit.android.events.TrackEvent
 import livekit.LivekitModels
 import org.webrtc.MediaStreamTrack
 
@@ -8,6 +11,9 @@ open class Track(
     kind: Kind,
     open val rtcTrack: MediaStreamTrack
 ) {
+    protected val eventBus = BroadcastEventBus<TrackEvent>()
+    val events = eventBus.readOnly()
+
     var name = name
         internal set
     var kind = kind
@@ -72,7 +78,7 @@ open class Track(
         }
     }
 
-    data class Dimensions(var width: Int, var height: Int)
+    data class Dimensions(val width: Int, val height: Int)
 
     open fun start() {
         rtcTrack.setEnabled(true)
@@ -82,6 +88,7 @@ open class Track(
         rtcTrack.setEnabled(false)
     }
 }
+
 
 sealed class TrackException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {

@@ -16,3 +16,7 @@ fun <T, R> debounce(
         }
     }
 }
+
+fun <R> ((Unit) -> R).invoke() {
+    this.invoke(Unit)
+}

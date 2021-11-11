@@ -9,7 +9,7 @@ open class TrackPublication(
     track: Track?,
     participant: Participant
 ) {
-    var track: Track? = track
+    open var track: Track? = track
         internal set
     var name: String
         internal set
