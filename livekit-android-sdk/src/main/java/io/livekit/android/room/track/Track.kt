@@ -1,7 +1,6 @@
 package io.livekit.android.room.track
 
 import io.livekit.android.events.BroadcastEventBus
-import io.livekit.android.events.EventListenable
 import io.livekit.android.events.TrackEvent
 import livekit.LivekitModels
 import org.webrtc.MediaStreamTrack
