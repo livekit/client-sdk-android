@@ -35,13 +35,19 @@ sealed class RoomEvent : Event() {
     /**
      * When a [RemoteParticipant] leaves after the local participant has joined.
      */
-    class ParticipantDisconnected(val room: Room, val participant: RemoteParticipant): RoomEvent()
+    class ParticipantDisconnected(val room: Room, val participant: RemoteParticipant) : RoomEvent()
 
     /**
      * Active speakers changed. List of speakers are ordered by their audio level. loudest
      * speakers first. This will include the [LocalParticipant] too.
      */
-    class ActiveSpeakersChanged(val room: Room, val speakers: List<Participant>,): RoomEvent()
+    class ActiveSpeakersChanged(val room: Room, val speakers: List<Participant>) : RoomEvent()
+
+    class RoomMetadataChanged(
+        val room: Room,
+        val newMetadata: String?,
+        val prevMetadata: String?
+    ) : RoomEvent()
 
     // Participant callbacks
     /**
@@ -49,7 +55,11 @@ sealed class RoomEvent : Event() {
      * When RoomService.UpdateParticipantMetadata is called to change a participant's state,
      * this event will be fired for all clients in the room.
      */
-    class MetadataChanged(val room: Room, val participant: Participant, val prevMetadata: String?): RoomEvent()
+    class ParticipantMetadataChanged(
+        val room: Room,
+        val participant: Participant,
+        val prevMetadata: String?
+    ) : RoomEvent()
 
     /**
      * The participant was muted.

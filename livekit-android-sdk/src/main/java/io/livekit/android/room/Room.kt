@@ -349,7 +349,10 @@ constructor(
     }
 
     override fun onRoomUpdate(update: LivekitModels.Room) {
+        val oldMetadata = metadata
         metadata = update.metadata
+
+        eventBus.postEvent(RoomEvent.RoomMetadataChanged(this, metadata, oldMetadata), coroutineScope)
     }
 
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
@@ -403,7 +406,7 @@ constructor(
      */
     override fun onMetadataChanged(participant: Participant, prevMetadata: String?) {
         listener?.onMetadataChanged(participant, prevMetadata, this)
-        eventBus.postEvent(RoomEvent.MetadataChanged(this, participant, prevMetadata), coroutineScope)
+        eventBus.postEvent(RoomEvent.ParticipantMetadataChanged(this, participant, prevMetadata), coroutineScope)
     }
 
     /** @suppress */

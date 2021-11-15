@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import com.google.protobuf.util.JsonFormat
 import io.livekit.android.mock.MockWebsocketFactory
+import io.livekit.android.mock.TestData
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -11,7 +12,10 @@ import kotlinx.coroutines.test.runBlockingTest
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import okhttp3.*
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -138,11 +142,7 @@ class SignalClientTest {
                     sid = "room_sid"
                     build()
                 }
-                participant = with(participantBuilder) {
-                    sid = "participant_sid"
-                    identity = "participant_identity"
-                    build()
-                }
+                participant = TestData.LOCAL_PARTICIPANT
                 build()
             }
             build()
@@ -168,13 +168,69 @@ class SignalClientTest {
             build()
         }
 
+        val TRACK_PUBLISHED = with(LivekitRtc.SignalResponse.newBuilder()) {
+            trackPublished = with(trackPublishedBuilder) {
+                track = TestData.REMOTE_AUDIO_TRACK
+                build()
+            }
+            build()
+        }
+
+        val PARTICIPANT_JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
+            update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
+                addParticipants(TestData.REMOTE_PARTICIPANT)
+                build()
+            }
+            build()
+        }
+
+        val PARTICIPANT_DISCONNECT = with(LivekitRtc.SignalResponse.newBuilder()) {
+            update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
+                val disconnectedParticipant = TestData.REMOTE_PARTICIPANT.toBuilder()
+                    .setState(LivekitModels.ParticipantInfo.State.DISCONNECTED)
+                    .build()
+
+                addParticipants(disconnectedParticipant)
+                build()
+            }
+            build()
+        }
+
+        val ACTIVE_SPEAKER_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            speakersChanged = with(LivekitRtc.SpeakersChanged.newBuilder()) {
+                addSpeakers(TestData.REMOTE_SPEAKER_INFO)
+                build()
+            }
+            build()
+        }
+
+        val PARTICIPANT_METADATA_CHANGED = with(LivekitRtc.SignalResponse.newBuilder()) {
+            update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
+                val participantMetadataChanged = TestData.REMOTE_PARTICIPANT.toBuilder()
+                    .setMetadata("changed_metadata")
+                    .build()
+
+                addParticipants(participantMetadataChanged)
+                build()
+            }
+            build()
+        }
+
+
         val CONNECTION_QUALITY = with(LivekitRtc.SignalResponse.newBuilder()) {
             connectionQuality = with(connectionQualityBuilder) {
-                addUpdates(with(LivekitRtc.ConnectionQualityInfo.newBuilder()){
+                addUpdates(with(LivekitRtc.ConnectionQualityInfo.newBuilder()) {
                     participantSid = JOIN.join.participant.sid
                     quality = LivekitModels.ConnectionQuality.EXCELLENT
                     build()
                 })
+                build()
+            }
+            build()
+        }
+
+        val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            leave = with(leaveBuilder) {
                 build()
             }
             build()

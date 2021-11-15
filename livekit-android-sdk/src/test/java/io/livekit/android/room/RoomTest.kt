@@ -1,14 +1,22 @@
 package io.livekit.android.room
 
 import android.content.Context
+import android.net.Network
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.coroutines.collectEvents
+import io.livekit.android.events.Event
+import io.livekit.android.events.EventCollector
+import io.livekit.android.events.EventListenable
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockEglBase
+import io.livekit.android.mock.TestData
 import io.livekit.android.room.participant.LocalParticipant
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runBlockingTest
 import livekit.LivekitModels
+import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -56,15 +64,19 @@ class RoomTest {
             eglBase,
             localParticantFactory,
             DefaultsManager(),
-            coroutineRule.dispatcher
+            coroutineRule.dispatcher,
+            coroutineRule.dispatcher,
         )
     }
 
-    @Test
-    fun connectTest() {
+    fun connect() {
         rtcEngine.stub {
             onBlocking { rtcEngine.join(any(), any(), anyOrNull()) }
                 .doReturn(SignalClientTest.JOIN.join)
+        }
+        rtcEngine.stub {
+            onBlocking { rtcEngine.client }
+                .doReturn(Mockito.mock(SignalClient::class.java))
         }
         val job = coroutineRule.scope.launch {
             room.connect(
@@ -76,5 +88,37 @@ class RoomTest {
         runBlockingTest {
             job.join()
         }
+    }
+
+    @Test
+    fun connectTest() {
+        connect()
+    }
+
+    @Test
+    fun onConnectionAvailableWillReconnect() {
+        connect()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val network = Mockito.mock(Network::class.java)
+        room.onLost(network)
+        room.onAvailable(network)
+
+        val events = eventCollector.stopCollectingEvents()
+
+        Assert.assertEquals(1, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
+    }
+
+    @Test
+    fun onDisconnect() {
+        connect()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onDisconnect("")
+        val events = eventCollector.stopCollectingEvents()
+
+        Assert.assertEquals(1, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
     }
 }
