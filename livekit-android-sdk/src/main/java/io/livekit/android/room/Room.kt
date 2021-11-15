@@ -11,11 +11,13 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -29,9 +31,16 @@ constructor(
     private val eglBase: EglBase,
     private val localParticipantFactory: LocalParticipant.Factory,
     private val defaultsManager: DefaultsManager,
+    @Named(InjectionNames.DISPATCHER_DEFAULT)
+    private val defaultDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
+
+    private lateinit var coroutineScope: CoroutineScope
+    private val eventBus = BroadcastEventBus<RoomEvent>()
+    val events = eventBus.readOnly()
+
     init {
         engine.listener = this
     }
@@ -46,6 +55,7 @@ constructor(
     @JvmInline
     value class Sid(val sid: String)
 
+    @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
     var sid: Sid? = null
@@ -75,6 +85,10 @@ constructor(
 
     private var hasLostConnectivity: Boolean = false
     suspend fun connect(url: String, token: String, options: ConnectOptions?) {
+        if(this::coroutineScope.isInitialized) {
+            coroutineScope.cancel()
+        }
+        coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
         val response = engine.join(url, token, options)
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
@@ -114,8 +128,16 @@ constructor(
         }
 
         listener?.onParticipantDisconnected(this, removedParticipant)
+        eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
     }
 
+    fun getParticipant(sid: String): Participant? {
+        if(sid == localParticipant.sid){
+            return localParticipant
+        } else {
+            return remoteParticipants[sid]
+        }
+    }
     @Synchronized
     private fun getOrCreateRemoteParticipant(
         sid: String,
@@ -144,18 +166,10 @@ constructor(
             val speakerSid = speakerInfo.sid!!
             seenSids.add(speakerSid)
 
-            if (speakerSid == localParticipant.sid) {
-                localParticipant.audioLevel = speakerInfo.level
-                localParticipant.isSpeaking = true
-                speakers.add(localParticipant)
-            } else {
-                val participant = remoteParticipants[speakerSid]
-                if (participant != null) {
-                    participant.audioLevel = speakerInfo.level
-                    participant.isSpeaking = true
-                    speakers.add(participant)
-                }
-            }
+            val participant = getParticipant(speakerSid) ?: return@forEach
+            participant.audioLevel = speakerInfo.level
+            participant.isSpeaking = true
+            speakers.add(participant)
         }
 
         if (!seenSids.contains(localParticipant.sid)) {
@@ -172,6 +186,7 @@ constructor(
         mutableActiveSpeakers.clear()
         mutableActiveSpeakers.addAll(speakers)
         listener?.onActiveSpeakersChanged(speakers, this)
+        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, speakers), coroutineScope)
     }
 
     private fun handleSpeakersChanged(speakerInfos: List<LivekitModels.SpeakerInfo>) {
@@ -181,11 +196,7 @@ constructor(
         }
 
         speakerInfos.forEach { speaker ->
-            val participant = if(speaker.sid == localParticipant.sid) {
-                localParticipant
-            } else {
-                remoteParticipants[speaker.sid]
-            } ?: return@forEach
+            val participant = getParticipant(speaker.sid) ?: return@forEach
 
             participant.audioLevel = speaker.level
             participant.isSpeaking = speaker.active
@@ -203,6 +214,7 @@ constructor(
         mutableActiveSpeakers.clear()
         mutableActiveSpeakers.addAll(updatedSpeakersList)
         listener?.onActiveSpeakersChanged(updatedSpeakersList, this)
+        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, updatedSpeakersList), coroutineScope)
     }
 
     private fun reconnect() {
@@ -212,6 +224,7 @@ constructor(
         state = State.RECONNECTING
         engine.reconnect()
         listener?.onReconnecting(this)
+        eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
     private fun handleDisconnect() {
@@ -230,6 +243,12 @@ constructor(
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
         listener = null
+
+        // Ensure all observers see the disconnected before closing scope.
+        runBlocking {
+            eventBus.postEvent(RoomEvent.Disconnected(this@Room, null), coroutineScope).join()
+        }
+        coroutineScope.cancel()
     }
 
     /**
@@ -272,6 +291,7 @@ constructor(
     override fun onIceReconnected() {
         state = State.CONNECTED
         listener?.onReconnected(this)
+        eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
     }
 
     /**
@@ -310,6 +330,7 @@ constructor(
                 handleParticipantDisconnect(participantSid)
             } else if (isNewParticipant) {
                 listener?.onParticipantConnected(this, participant)
+                eventBus.postEvent(RoomEvent.ParticipantConnected(this, participant), coroutineScope)
             } else {
                 participant.updateFromInfo(info)
             }
@@ -334,14 +355,10 @@ constructor(
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
         updates.forEach { info ->
             val quality = ConnectionQuality.fromProto(info.quality)
-            if (info.participantSid == this.localParticipant.sid) {
-                this.localParticipant.connectionQuality = quality
-                listener?.onConnectionQualityChanged(localParticipant, quality)
-            } else {
-                val participant = remoteParticipants[info.participantSid] ?: return@forEach
-                participant.connectionQuality = quality
-                listener?.onConnectionQualityChanged(participant, quality)
-            }
+            val participant = getParticipant(info.participantSid) ?: return
+            participant.connectionQuality = quality
+            listener?.onConnectionQualityChanged(participant, quality)
+            eventBus.postEvent(RoomEvent.ConnectionQualityChanged(this, participant, quality), coroutineScope)
         }
     }
 
@@ -360,6 +377,7 @@ constructor(
         val data = packet.payload.toByteArray()
 
         listener?.onDataReceived(data, participant, this)
+        eventBus.postEvent(RoomEvent.DataReceived(this, data, participant), coroutineScope)
         participant.listener?.onDataReceived(data, participant)
     }
 
@@ -385,16 +403,19 @@ constructor(
      */
     override fun onMetadataChanged(participant: Participant, prevMetadata: String?) {
         listener?.onMetadataChanged(participant, prevMetadata, this)
+        eventBus.postEvent(RoomEvent.MetadataChanged(this, participant, prevMetadata), coroutineScope)
     }
 
     /** @suppress */
     override fun onTrackMuted(publication: TrackPublication, participant: Participant) {
         listener?.onTrackMuted(publication, participant, this)
+        eventBus.postEvent(RoomEvent.TrackMuted(this, publication, participant), coroutineScope)
     }
 
     /** @suppress */
     override fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {
         listener?.onTrackUnmuted(publication, participant, this)
+        eventBus.postEvent(RoomEvent.TrackUnmuted(this, publication, participant), coroutineScope)
     }
 
     /**
@@ -402,6 +423,7 @@ constructor(
      */
     override fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackPublished(publication,  participant, this)
+        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
 
     /**
@@ -409,6 +431,7 @@ constructor(
      */
     override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackUnpublished(publication,  participant, this)
+        eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
     /**
@@ -416,6 +439,7 @@ constructor(
      */
     override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackPublished(publication,  participant, this)
+        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
 
     /**
@@ -423,6 +447,7 @@ constructor(
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication,  participant, this)
+        eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
     /**
@@ -430,6 +455,7 @@ constructor(
      */
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
+        eventBus.postEvent(RoomEvent.TrackSubscribed(this, track, publication, participant), coroutineScope)
     }
 
     /**
@@ -441,6 +467,7 @@ constructor(
         participant: RemoteParticipant
     ) {
         listener?.onTrackSubscriptionFailed(sid, exception, participant, this)
+        eventBus.postEvent(RoomEvent.TrackSubscriptionFailed(this, sid, exception, participant), coroutineScope)
     }
 
     /**
@@ -452,6 +479,7 @@ constructor(
         participant: RemoteParticipant
     ) {
         listener?.onTrackUnsubscribed(track, publication, participant, this)
+        eventBus.postEvent(RoomEvent.TrackUnsubscribed(this, track, publication, participant), coroutineScope)
     }
 
     /**
@@ -480,6 +508,7 @@ constructor(
  * Room Listener, this class provides callbacks that clients should override.
  *
  */
+@Deprecated("Use Room.events instead")
 interface RoomListener {
     /**
      * A network change has been detected and LiveKit attempts to reconnect to the room
