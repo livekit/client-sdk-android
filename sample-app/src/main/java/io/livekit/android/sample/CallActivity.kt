@@ -10,8 +10,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.github.ajalt.timberkt.Timber
 import com.snakydesign.livedataextensions.combineLatest
+import com.snakydesign.livedataextensions.scan
+import com.snakydesign.livedataextensions.take
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.CallActivityBinding
 import kotlinx.parcelize.Parcelize
 
@@ -68,15 +71,26 @@ class CallActivity : AppCompatActivity() {
             }
 
         // speaker view setup
-        viewModel.room.observe(this) { room ->
+        viewModel.room.take(1).observe(this) { room ->
             room.initVideoRenderer(binding.speakerView)
-            val videoTrack = room.localParticipant.videoTracks.values
-                .firstOrNull()
-                ?.track as? LocalVideoTrack
+            viewModel.activeSpeaker
+                .scan(Pair<Participant?, Participant?>(null, null)) { pair, participant ->
+                    // old participant is first
+                    // latest active participant is second
+                    Pair(pair.second, participant)
+                }.observe(this) { (oldSpeaker, newSpeaker) ->
+                    // Remove any renderering from the old speaker
+                    oldSpeaker?.videoTracks
+                        ?.values
+                        ?.forEach { trackPublication ->
+                            (trackPublication.track as? VideoTrack)?.removeRenderer(binding.speakerView)
+                        }
 
-            videoTrack?.let {
-                it.addRenderer(binding.speakerView)
-            }
+                    val videoTrack = newSpeaker?.videoTracks?.values
+                        ?.firstOrNull()
+                        ?.track as? VideoTrack
+                    videoTrack?.addRenderer(binding.speakerView)
+                }
         }
 
         // Controls setup

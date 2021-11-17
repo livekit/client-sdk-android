@@ -12,6 +12,7 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
@@ -81,13 +82,18 @@ class CallViewModel(
     }
 
     private fun updateParticipants(room: Room) {
-        mutableParticipants.postValue(
-            listOf(room.localParticipant) +
-                    room.remoteParticipants
-                        .keys
-                        .sortedBy { it }
-                        .mapNotNull { room.remoteParticipants[it] }
-        )
+
+        val participantList = listOf(room.localParticipant) +
+                room.remoteParticipants
+                    .keys
+                    .sortedBy { it }
+                    .mapNotNull { room.remoteParticipants[it] }
+        mutableParticipants.postValue(participantList)
+
+        if (!participantList.contains(mutableActiveSpeaker.value) || mutableActiveSpeaker.value == null) {
+            // active speaker has left, choose someone else at random.
+            mutableActiveSpeaker.postValue(participantList.last())
+        }
     }
 
     fun handleActiveSpeakersChanged(speakers: List<Participant>) {
@@ -95,7 +101,9 @@ class CallViewModel(
         if (speakers.isEmpty() || speakers.contains(mutableActiveSpeaker.value)) {
             return
         }
-        val newSpeaker = speakers.firstOrNull() ?: return
+        val newSpeaker = speakers
+            .filter { it is RemoteParticipant } // Try not to display local participant as speaker.
+            .firstOrNull() ?: return
         mutableActiveSpeaker.postValue(newSpeaker)
     }
 
