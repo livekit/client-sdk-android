@@ -108,16 +108,24 @@ internal constructor(
         return super.getTrackPublicationByName(name) as? LocalTrackPublication
     }
 
-    suspend fun setCameraEnabled(enabled: Boolean){
+    suspend fun setCameraEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.CAMERA, enabled)
     }
 
-    suspend fun setMicrophoneEnabled(enabled: Boolean){
+    suspend fun setMicrophoneEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.MICROPHONE, enabled)
     }
 
-    suspend fun setScreenShareEnabled(enabled: Boolean) {
-        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled)
+    /**
+     * @param mediaProjectionPermissionResultData The resultData returned from launching
+     * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
+     * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
+     */
+    suspend fun setScreenShareEnabled(
+        enabled: Boolean,
+        mediaProjectionPermissionResultData: Intent? = null
+    ) {
+        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, mediaProjectionPermissionResultData)
     }
 
     private suspend fun setTrackEnabled(

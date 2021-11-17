@@ -1,11 +1,14 @@
 package io.livekit.android.sample
 
+import android.app.Activity
 import android.media.AudioManager
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.github.ajalt.timberkt.Timber
-import com.google.android.material.tabs.TabLayoutMediator
 import com.snakydesign.livedataextensions.combineLatest
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.room.track.LocalVideoTrack
@@ -20,12 +23,23 @@ class CallActivity : AppCompatActivity() {
         CallViewModel(args.url, args.token, application)
     }
     lateinit var binding: CallActivityBinding
-    var tabLayoutMediator: TabLayoutMediator? = null
     val focusChangeListener = AudioManager.OnAudioFocusChangeListener {}
 
     private var previousSpeakerphoneOn = true
     private var previousMicrophoneMute = false
-    
+
+    private val screenCaptureIntentLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val resultCode = result.resultCode
+            val data = result.data
+            if (resultCode != Activity.RESULT_OK || data == null) {
+                return@registerForActivityResult
+            }
+            viewModel.setScreenshare(true, data)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -33,44 +47,71 @@ class CallActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
-        // Viewpager setup
+        // Audience row setup
+        binding.audienceRow.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         val adapter = GroupieAdapter()
 
-        binding.viewPager.apply {
+        binding.audienceRow.apply {
             this.adapter = adapter
         }
 
         combineLatest(
             viewModel.room,
-            viewModel.remoteParticipants
+            viewModel.participants
         ) { room, participants -> room to participants }
             .observe(this) {
-                tabLayoutMediator?.detach()
-                tabLayoutMediator = null
 
                 val (room, participants) = it
                 val items = participants.map { participant -> ParticipantItem(room, participant) }
                 adapter.update(items)
-
-                tabLayoutMediator =
-                    TabLayoutMediator(binding.tabs, binding.viewPager) { tab, position ->
-                        tab.text = participants[position].identity
-                    }
-                tabLayoutMediator?.attach()
             }
 
+        // speaker view setup
         viewModel.room.observe(this) { room ->
-            room.initVideoRenderer(binding.pipVideoView)
+            room.initVideoRenderer(binding.speakerView)
             val videoTrack = room.localParticipant.videoTracks.values
                 .firstOrNull()
                 ?.track as? LocalVideoTrack
 
             videoTrack?.let {
-                it.addRenderer(binding.pipVideoView)
+                it.addRenderer(binding.speakerView)
             }
-
-
         }
+
+        // Controls setup
+        viewModel.videoEnabled.observe(this) { enabled ->
+            binding.camera.setOnClickListener { viewModel.setCameraEnabled(!enabled) }
+            binding.camera.setImageResource(
+                if (enabled) R.drawable.outline_videocam_24
+                else R.drawable.outline_videocam_off_24
+            )
+            binding.flipCamera.isEnabled = enabled
+        }
+        viewModel.micEnabled.observe(this) { enabled ->
+            binding.mic.setOnClickListener { viewModel.setMicEnabled(!enabled) }
+            binding.mic.setImageResource(
+                if (enabled) R.drawable.outline_mic_24
+                else R.drawable.outline_mic_off_24
+            )
+        }
+
+        binding.flipCamera.setOnClickListener { viewModel.flipCamera() }
+        viewModel.screenshareEnabled.observe(this) { enabled ->
+            binding.screenShare.setOnClickListener {
+                if (enabled) {
+                    viewModel.setScreenshare(!enabled)
+                } else {
+                    requestMediaProjection()
+                }
+            }
+            binding.screenShare.setImageResource(
+                if (enabled) R.drawable.baseline_cast_connected_24
+                else R.drawable.baseline_cast_24
+            )
+        }
+
+        // Grab audio focus for video call
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
             previousSpeakerphoneOn = isSpeakerphoneOn
@@ -91,10 +132,19 @@ class CallActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestMediaProjection() {
+        val mediaProjectionManager =
+            getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 
-        binding.pipVideoView.release()
+        // Release video views
+        binding.speakerView.release()
+
+        // Undo audio mode changes
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
             isSpeakerphoneOn = previousSpeakerphoneOn

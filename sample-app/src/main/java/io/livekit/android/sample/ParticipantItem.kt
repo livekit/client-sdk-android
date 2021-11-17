@@ -5,6 +5,7 @@ import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
@@ -12,7 +13,7 @@ import io.livekit.android.sample.databinding.ParticipantItemBinding
 
 class ParticipantItem(
     val room: Room,
-    val remoteParticipant: RemoteParticipant
+    val participant: Participant
 ) :
     BindableItem<ParticipantItemBinding>() {
 
@@ -27,13 +28,14 @@ class ParticipantItem(
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
         viewBinding.run {
 
-            remoteParticipant.listener = object : ParticipantListener {
+            participant.listener = object : ParticipantListener {
                 override fun onTrackSubscribed(
                     track: Track,
                     publication: RemoteTrackPublication,
                     participant: RemoteParticipant
                 ) {
-                    if (track is VideoTrack) {
+                    if (track !is VideoTrack) return
+                    if (publication.source == Track.Source.CAMERA) {
                         setupVideoIfNeeded(track, viewBinding)
                     }
                 }
@@ -54,9 +56,7 @@ class ParticipantItem(
     }
 
     private fun getVideoTrack(): VideoTrack? {
-        return remoteParticipant
-            .videoTracks.values
-            .firstOrNull()?.track as? VideoTrack
+        return participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
     }
 
     internal fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {
