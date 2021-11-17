@@ -5,12 +5,12 @@ plugins {
 }
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion androidSdk.compileVersion
 
     defaultConfig {
         applicationId "io.livekit.android.composesample"
-        minSdkVersion 21
-        targetSdkVersion 30
+        minSdkVersion androidSdk.minVersion
+        targetSdkVersion androidSdk.targetVersion
         versionCode 1
         versionName "1.0"
 

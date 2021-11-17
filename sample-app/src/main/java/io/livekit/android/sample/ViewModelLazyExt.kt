@@ -19,7 +19,7 @@ fun <VM> createViewModelFactoryFactory(
     create: CreateViewModel<VM>
 ): ViewModelProvider.Factory {
     return object : ViewModelProvider.Factory {
-        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
             return create() as? T
                 ?: throw IllegalArgumentException("Unknown viewmodel class!")
