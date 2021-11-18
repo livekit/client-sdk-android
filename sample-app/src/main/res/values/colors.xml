@@ -3,4 +3,6 @@
     <color name="colorPrimary">#007DFF</color>
     <color name="colorPrimaryDark">#0058b3</color>
     <color name="colorAccent">#66b1ff</color>
+    <color name="no_video_participant">#5A8BFF</color>
+    <color name="no_video_background">#00153C</color>
 </resources>

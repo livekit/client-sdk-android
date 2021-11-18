@@ -4,14 +4,63 @@
     android:layout_height="match_parent"
     android:keepScreenOn="true">
 
-    <io.livekit.android.renderer.TextureViewRenderer
+    <FrameLayout
         android:id="@+id/speaker_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:background="@color/no_video_background"
         app:layout_constraintBottom_toTopOf="@id/audience_row"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center"
+            android:src="@drawable/outline_videocam_off_24"
+            app:tint="@color/no_video_participant" />
+
+        <io.livekit.android.renderer.TextureViewRenderer
+            android:id="@+id/speaker_video_view"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toTopOf="@id/audience_row"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/identity_bar"
+        android:layout_width="0dp"
+        android:layout_height="30dp"
+        android:background="#80000000"
+        app:layout_constraintBottom_toBottomOf="@id/speaker_view"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageView
+        android:id="@+id/mute_indicator"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="@dimen/identity_bar_padding"
+        android:src="@drawable/outline_mic_off_24"
+        app:layout_constraintBottom_toBottomOf="@id/identity_bar"
+        app:layout_constraintEnd_toEndOf="@id/identity_bar"
+        app:layout_constraintTop_toTopOf="@id/identity_bar"
+        app:tint="#BB0000" />
+
+    <TextView
+        android:id="@+id/identity_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/identity_bar_padding"
+        android:ellipsize="end"
+        app:layout_constraintBottom_toBottomOf="@id/identity_bar"
+        app:layout_constraintEnd_toStartOf="@id/mute_indicator"
+        app:layout_constraintStart_toStartOf="@id/identity_bar"
+        app:layout_constraintTop_toTopOf="@id/identity_bar" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/audience_row"

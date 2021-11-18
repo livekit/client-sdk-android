@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -72,7 +73,7 @@ class CallActivity : AppCompatActivity() {
 
         // speaker view setup
         viewModel.room.take(1).observe(this) { room ->
-            room.initVideoRenderer(binding.speakerView)
+            room.initVideoRenderer(binding.speakerVideoView)
             viewModel.activeSpeaker
                 .scan(Pair<Participant?, Participant?>(null, null)) { pair, participant ->
                     // old participant is first
@@ -83,13 +84,19 @@ class CallActivity : AppCompatActivity() {
                     oldSpeaker?.videoTracks
                         ?.values
                         ?.forEach { trackPublication ->
-                            (trackPublication.track as? VideoTrack)?.removeRenderer(binding.speakerView)
+                            (trackPublication.track as? VideoTrack)?.removeRenderer(binding.speakerVideoView)
                         }
 
+                    binding.identityText.text = newSpeaker?.identity
                     val videoTrack = newSpeaker?.videoTracks?.values
                         ?.firstOrNull()
                         ?.track as? VideoTrack
-                    videoTrack?.addRenderer(binding.speakerView)
+                    if (videoTrack != null) {
+                        videoTrack.addRenderer(binding.speakerVideoView)
+                        binding.speakerVideoView.visibility = View.VISIBLE
+                    } else {
+                        binding.speakerVideoView.visibility = View.INVISIBLE
+                    }
                 }
         }
 
@@ -156,7 +163,7 @@ class CallActivity : AppCompatActivity() {
         super.onDestroy()
 
         // Release video views
-        binding.speakerView.release()
+        binding.speakerVideoView.release()
 
         // Undo audio mode changes
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager

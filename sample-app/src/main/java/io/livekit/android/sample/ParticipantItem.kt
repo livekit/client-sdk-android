@@ -14,10 +14,9 @@ import io.livekit.android.sample.databinding.ParticipantItemBinding
 class ParticipantItem(
     val room: Room,
     val participant: Participant
-) :
-    BindableItem<ParticipantItemBinding>() {
+) : BindableItem<ParticipantItemBinding>() {
 
-    private var videoBound = false
+    private var boundVideoTrack: VideoTrack? = null
 
     override fun initializeViewBinding(view: View): ParticipantItemBinding {
         val binding = ParticipantItemBinding.bind(view)
@@ -26,32 +25,30 @@ class ParticipantItem(
     }
 
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
-        viewBinding.run {
-
-            participant.listener = object : ParticipantListener {
-                override fun onTrackSubscribed(
-                    track: Track,
-                    publication: RemoteTrackPublication,
-                    participant: RemoteParticipant
-                ) {
-                    if (track !is VideoTrack) return
-                    if (publication.source == Track.Source.CAMERA) {
-                        setupVideoIfNeeded(track, viewBinding)
-                    }
-                }
-
-                override fun onTrackUnpublished(
-                    publication: RemoteTrackPublication,
-                    participant: RemoteParticipant
-                ) {
-                    super.onTrackUnpublished(publication, participant)
-                    Timber.e { "Track unpublished" }
+        viewBinding.identityText.text = participant.identity
+        participant.listener = object : ParticipantListener {
+            override fun onTrackSubscribed(
+                track: Track,
+                publication: RemoteTrackPublication,
+                participant: RemoteParticipant
+            ) {
+                if (track !is VideoTrack) return
+                if (publication.source == Track.Source.CAMERA) {
+                    setupVideoIfNeeded(track, viewBinding)
                 }
             }
-            val existingTrack = getVideoTrack()
-            if (existingTrack != null) {
-                setupVideoIfNeeded(existingTrack, viewBinding)
+
+            override fun onTrackUnpublished(
+                publication: RemoteTrackPublication,
+                participant: RemoteParticipant
+            ) {
+                super.onTrackUnpublished(publication, participant)
+                Timber.e { "Track unpublished" }
             }
+        }
+        val existingTrack = getVideoTrack()
+        if (existingTrack != null) {
+            setupVideoIfNeeded(existingTrack, viewBinding)
         }
     }
 
@@ -60,18 +57,19 @@ class ParticipantItem(
     }
 
     internal fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {
-        if (videoBound) {
+        if (boundVideoTrack != null) {
             return
         }
 
-        videoBound = true
+        boundVideoTrack = videoTrack
         Timber.v { "adding renderer to $videoTrack" }
         videoTrack.addRenderer(viewBinding.renderer)
     }
 
     override fun unbind(viewHolder: GroupieViewHolder<ParticipantItemBinding>) {
         super.unbind(viewHolder)
-        videoBound = false
+        boundVideoTrack?.removeRenderer(viewHolder.binding.renderer)
+        boundVideoTrack = null
     }
 
     override fun getLayout(): Int = R.layout.participant_item
