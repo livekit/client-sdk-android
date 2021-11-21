@@ -68,6 +68,7 @@ dependencies {
     implementation 'com.google.accompanist:accompanist-pager:0.19.0'
     implementation 'com.google.accompanist:accompanist-pager-indicators:0.19.0'
     implementation deps.timber
+    implementation project(":sample-app-common")
     implementation project(":livekit-android-sdk")
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
