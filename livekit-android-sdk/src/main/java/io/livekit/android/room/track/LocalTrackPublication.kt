@@ -31,11 +31,9 @@ class LocalTrackPublication(
             participant.engine.updateMuteStatus(sid, muted)
 
             if (muted) {
-                participant.listener?.onTrackMuted(this, participant)
-                participant.internalListener?.onTrackMuted(this, participant)
+                participant.onTrackMuted(this)
             } else {
-                participant.listener?.onTrackUnmuted(this, participant)
-                participant.internalListener?.onTrackUnmuted(this, participant)
+                participant.onTrackUnmuted(this)
             }
         }
 }

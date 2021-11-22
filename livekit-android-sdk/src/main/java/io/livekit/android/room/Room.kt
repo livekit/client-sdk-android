@@ -149,9 +149,9 @@ constructor(
         }
 
         participant = if (info != null) {
-            RemoteParticipant(info, engine.client, ioDispatcher)
+            RemoteParticipant(info, engine.client, ioDispatcher, defaultDispatcher)
         } else {
-            RemoteParticipant(sid, null, engine.client, ioDispatcher)
+            RemoteParticipant(sid, null, engine.client, ioDispatcher, defaultDispatcher)
         }
         participant.internalListener = this
         mutableRemoteParticipants[sid] = participant
@@ -381,7 +381,7 @@ constructor(
 
         listener?.onDataReceived(data, participant, this)
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant), coroutineScope)
-        participant.listener?.onDataReceived(data, participant)
+        participant.onDataReceived(data)
     }
 
     /**

@@ -77,11 +77,9 @@ class RemoteTrackPublication(
             field = v
             val participant = this.participant.get() as? RemoteParticipant ?: return
             if (v) {
-                participant.listener?.onTrackMuted(this, participant)
-                participant.internalListener?.onTrackMuted(this, participant)
+                participant.onTrackMuted(this)
             } else {
-                participant.listener?.onTrackUnmuted(this, participant)
-                participant.internalListener?.onTrackUnmuted(this, participant)
+                participant.onTrackUnmuted(this)
             }
         }
 

@@ -7,16 +7,20 @@ import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.CoroutineDispatcher
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpParameters
 import org.webrtc.RtpTransceiver
+import javax.inject.Named
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -31,8 +35,10 @@ internal constructor(
     private val eglBase: EglBase,
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
     private val videoTrackFactory: LocalVideoTrack.Factory,
-    private val defaultsManager: DefaultsManager
-) : Participant(info.sid, info.identity) {
+    private val defaultsManager: DefaultsManager,
+    @Named(InjectionNames.DISPATCHER_DEFAULT)
+    coroutineDispatcher: CoroutineDispatcher,
+) : Participant(info.sid, info.identity, coroutineDispatcher) {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
@@ -212,6 +218,7 @@ internal constructor(
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
         internalListener?.onTrackPublished(publication, this)
+        eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
     }
 
     suspend fun publishVideoTrack(
@@ -260,6 +267,7 @@ internal constructor(
         addTrackPublication(publication)
         publishListener?.onPublishSuccess(publication)
         internalListener?.onTrackPublished(publication, this)
+        eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
     }
 
     private fun computeVideoEncodings(
@@ -374,6 +382,7 @@ internal constructor(
         }
         track.stop()
         internalListener?.onTrackUnpublished(publication, this)
+        eventBus.postEvent(ParticipantEvent.LocalTrackUnpublished(this, publication), scope)
     }
 
     /**
@@ -420,10 +429,14 @@ internal constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = tracks[trackSid]
         pub?.muted = muted
     }
+
 
     interface PublishListener {
         fun onPublishSuccess(publication: TrackPublication) {}

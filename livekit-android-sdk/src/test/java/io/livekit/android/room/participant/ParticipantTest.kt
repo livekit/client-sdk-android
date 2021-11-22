@@ -1,19 +1,26 @@
 package io.livekit.android.room.participant
 
+import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.events.EventCollector
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.track.TrackPublication
 import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 class ParticipantTest {
+
+    @get:Rule
+    var coroutineRule = TestCoroutineRule()
 
     lateinit var participant: Participant
 
     @Before
     fun setup() {
-        participant = Participant("", null)
+        participant = Participant("", null, coroutineRule.dispatcher)
     }
 
     @Test
@@ -58,7 +65,41 @@ class ParticipantTest {
 
         checkValues(publicListener)
         checkValues(internalListener)
+    }
 
+    @Test
+    fun setMetadataChangedEvent() {
+        val eventCollector = EventCollector(participant.events, coroutineRule.scope)
+        val prevMetadata = participant.metadata
+        val metadata = "metadata"
+        participant.metadata = metadata
+
+        val events = eventCollector.stopCollectingEvents()
+
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is ParticipantEvent.MetadataChanged)
+
+        val event = events[0] as ParticipantEvent.MetadataChanged
+
+        assertEquals(prevMetadata, event.prevMetadata)
+        assertEquals(participant, event.participant)
+    }
+
+    @Test
+    fun setIsSpeakingChangedEvent() {
+        val eventCollector = EventCollector(participant.events, coroutineRule.scope)
+        val newIsSpeaking = !participant.isSpeaking
+        participant.isSpeaking = newIsSpeaking
+
+        val events = eventCollector.stopCollectingEvents()
+
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is ParticipantEvent.SpeakingChanged)
+
+        val event = events[0] as ParticipantEvent.SpeakingChanged
+
+        assertEquals(participant, event.participant)
+        assertEquals(newIsSpeaking, event.isSpeaking)
     }
 
     @Test

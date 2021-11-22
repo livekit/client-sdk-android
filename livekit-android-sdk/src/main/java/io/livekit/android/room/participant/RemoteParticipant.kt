@@ -1,5 +1,6 @@
 package io.livekit.android.room.participant
 
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
@@ -18,19 +19,22 @@ class RemoteParticipant(
     identity: String? = null,
     val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
-) : Participant(sid, identity) {
+    defaultdispatcher: CoroutineDispatcher,
+) : Participant(sid, identity, defaultdispatcher) {
     /**
      * @suppress
      */
     constructor(
         info: LivekitModels.ParticipantInfo,
         signalClient: SignalClient,
-        ioDispatcher: CoroutineDispatcher
+        ioDispatcher: CoroutineDispatcher,
+        defaultdispatcher: CoroutineDispatcher,
     ) : this(
         info.sid,
         info.identity,
         signalClient,
         ioDispatcher,
+        defaultdispatcher
     ) {
         updateFromInfo(info)
     }
@@ -73,6 +77,7 @@ class RemoteParticipant(
             for (publication in newTrackPublications.values) {
                 internalListener?.onTrackPublished(publication, this)
                 listener?.onTrackPublished(publication, this)
+                eventBus.postEvent(ParticipantEvent.TrackPublished(this, publication), scope)
             }
         }
 
@@ -112,6 +117,7 @@ class RemoteParticipant(
 
                 internalListener?.onTrackSubscriptionFailed(sid, exception, this)
                 listener?.onTrackSubscriptionFailed(sid, exception, this)
+                eventBus.postEvent(ParticipantEvent.TrackSubscriptionFailed(this, sid, exception), scope)
             } else {
                 coroutineScope.launch {
                     delay(150)
@@ -131,6 +137,7 @@ class RemoteParticipant(
 
         internalListener?.onTrackSubscribed(track, publication, this)
         listener?.onTrackSubscribed(track, publication, this)
+        eventBus.postEvent(ParticipantEvent.TrackSubscribed(this, track, publication), scope)
     }
 
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
@@ -146,11 +153,19 @@ class RemoteParticipant(
             track.stop()
             internalListener?.onTrackUnsubscribed(track, publication, this)
             listener?.onTrackUnsubscribed(track, publication, this)
+            eventBus.postEvent(ParticipantEvent.TrackUnsubscribed(this, track, publication), scope)
         }
         if (sendUnpublish) {
             internalListener?.onTrackUnpublished(publication, this)
             listener?.onTrackUnpublished(publication, this)
+            eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
         }
+    }
+
+    // Internal methods just for posting events.
+    internal fun onDataReceived(data: ByteArray) {
+        listener?.onDataReceived(data, this)
+        eventBus.postEvent(ParticipantEvent.DataReceived(this, data), scope)
     }
 
     companion object {

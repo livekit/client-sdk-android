@@ -1,12 +1,29 @@
 package io.livekit.android.room.participant
 
+import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import livekit.LivekitModels
+import javax.inject.Named
 
-open class Participant(var sid: String, identity: String? = null) {
+open class Participant(
+    var sid: String,
+    identity: String? = null,
+    @Named(InjectionNames.DISPATCHER_DEFAULT)
+    coroutineDispatcher: CoroutineDispatcher,
+) {
+    protected val scope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+
+    protected val eventBus = BroadcastEventBus<ParticipantEvent>()
+    val events = eventBus.readOnly()
+
     var participantInfo: LivekitModels.ParticipantInfo? = null
         private set
     var identity: String? = identity
@@ -15,11 +32,12 @@ open class Participant(var sid: String, identity: String? = null) {
         internal set
     var isSpeaking: Boolean = false
         internal set(v) {
-            val changed = v == field
+            val changed = v != field
             field = v
             if (changed) {
                 listener?.onSpeakingChanged(this)
                 internalListener?.onSpeakingChanged(this)
+                eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, v), scope)
             }
         }
     var metadata: String? = null
@@ -29,6 +47,7 @@ open class Participant(var sid: String, identity: String? = null) {
             if (prevMetadata != v) {
                 listener?.onMetadataChanged(this, prevMetadata)
                 internalListener?.onMetadataChanged(this, prevMetadata)
+                eventBus.postEvent(ParticipantEvent.MetadataChanged(this, prevMetadata), scope)
             }
         }
     var connectionQuality: ConnectionQuality = ConnectionQuality.UNKNOWN
@@ -37,11 +56,13 @@ open class Participant(var sid: String, identity: String? = null) {
     /**
      * Listener for when participant properties change
      */
+    @Deprecated("Use events instead")
     var listener: ParticipantListener? = null
 
     /**
      * @suppress
      */
+    @Deprecated("Use events instead")
     internal var internalListener: ParticipantListener? = null
 
     val hasInfo
@@ -152,9 +173,24 @@ open class Participant(var sid: String, identity: String? = null) {
     override fun hashCode(): Int {
         return sid.hashCode()
     }
+
+
+    // Internal methods just for posting events.
+    internal fun onTrackMuted(trackPublication: TrackPublication) {
+        listener?.onTrackMuted(trackPublication, this)
+        internalListener?.onTrackMuted(trackPublication, this)
+        eventBus.postEvent(ParticipantEvent.TrackMuted(this, trackPublication), scope)
+    }
+
+    internal fun onTrackUnmuted(trackPublication: TrackPublication) {
+        listener?.onTrackUnmuted(trackPublication, this)
+        internalListener?.onTrackUnmuted(trackPublication, this)
+        eventBus.postEvent(ParticipantEvent.TrackUnmuted(this, trackPublication), scope)
+    }
+
 }
 
-
+@Deprecated("Use Participant.events instead.")
 interface ParticipantListener {
     // all participants
     /**

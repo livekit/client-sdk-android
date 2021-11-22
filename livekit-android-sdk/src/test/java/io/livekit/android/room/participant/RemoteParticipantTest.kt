@@ -23,7 +23,8 @@ class RemoteParticipantTest {
         participant = RemoteParticipant(
             "sid",
             signalClient = signalClient,
-            ioDispatcher = coroutineRule.dispatcher
+            ioDispatcher = coroutineRule.dispatcher,
+            defaultdispatcher = coroutineRule.dispatcher,
         )
     }
 
@@ -33,7 +34,12 @@ class RemoteParticipantTest {
             .addTracks(TRACK_INFO)
             .build()
 
-        participant = RemoteParticipant(info, signalClient, ioDispatcher = coroutineRule.dispatcher)
+        participant = RemoteParticipant(
+            info,
+            signalClient,
+            ioDispatcher = coroutineRule.dispatcher,
+            defaultdispatcher = coroutineRule.dispatcher,
+        )
 
         assertEquals(1, participant.tracks.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))

@@ -9,45 +9,45 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 
-sealed class RoomEvent : Event() {
+sealed class RoomEvent(val room: Room) : Event() {
     /**
      * A network change has been detected and LiveKit attempts to reconnect to the room
      * When reconnect attempts succeed, the room state will be kept, including tracks that are subscribed/published
      */
-    class Reconnecting(val room: Room): RoomEvent()
+    class Reconnecting(room: Room) : RoomEvent(room)
 
     /**
      * The reconnect attempt had been successful
      */
-    class Reconnected(val room: Room): RoomEvent()
+    class Reconnected(room: Room) : RoomEvent(room)
 
     /**
      * Disconnected from room
      */
-    class Disconnected(val room: Room, val error: Exception?): RoomEvent()
+    class Disconnected(room: Room, val error: Exception?) : RoomEvent(room)
 
     /**
      * When a [RemoteParticipant] joins after the local participant. It will not emit events
      * for participants that are already in the room
      */
-    class ParticipantConnected(val room: Room, val participant: RemoteParticipant): RoomEvent()
+    class ParticipantConnected(room: Room, val participant: RemoteParticipant) : RoomEvent(room)
 
     /**
      * When a [RemoteParticipant] leaves after the local participant has joined.
      */
-    class ParticipantDisconnected(val room: Room, val participant: RemoteParticipant) : RoomEvent()
+    class ParticipantDisconnected(room: Room, val participant: RemoteParticipant) : RoomEvent(room)
 
     /**
      * Active speakers changed. List of speakers are ordered by their audio level. loudest
      * speakers first. This will include the [LocalParticipant] too.
      */
-    class ActiveSpeakersChanged(val room: Room, val speakers: List<Participant>) : RoomEvent()
+    class ActiveSpeakersChanged(room: Room, val speakers: List<Participant>) : RoomEvent(room)
 
     class RoomMetadataChanged(
-        val room: Room,
+        room: Room,
         val newMetadata: String?,
         val prevMetadata: String?
-    ) : RoomEvent()
+    ) : RoomEvent(room)
 
     // Participant callbacks
     /**
@@ -56,10 +56,10 @@ sealed class RoomEvent : Event() {
      * this event will be fired for all clients in the room.
      */
     class ParticipantMetadataChanged(
-        val room: Room,
+        room: Room,
         val participant: Participant,
         val prevMetadata: String?
-    ) : RoomEvent()
+    ) : RoomEvent(room)
 
     /**
      * The participant was muted.
@@ -67,7 +67,7 @@ sealed class RoomEvent : Event() {
      * For the local participant, the callback will be called if setMute was called on the
      * [LocalTrackPublication], or if the server has requested the participant to be muted
      */
-    class TrackMuted(val room: Room, val publication: TrackPublication, val participant: Participant): RoomEvent()
+    class TrackMuted(room: Room, val publication: TrackPublication, val participant: Participant) : RoomEvent(room)
 
     /**
      * The participant was unmuted.
@@ -75,40 +75,56 @@ sealed class RoomEvent : Event() {
      * For the local participant, the callback will be called if setMute was called on the
      * [LocalTrackPublication], or if the server has requested the participant to be muted
      */
-    class TrackUnmuted(val room: Room, val publication: TrackPublication, val participant: Participant): RoomEvent()
+    class TrackUnmuted(room: Room, val publication: TrackPublication, val participant: Participant) : RoomEvent(room)
 
     /**
      * When a new track is published to room after the local participant has joined. It will
      * not fire for tracks that are already published
      */
-    class TrackPublished(val room: Room, val publication: TrackPublication, val participant: Participant): RoomEvent()
+    class TrackPublished(room: Room, val publication: TrackPublication, val participant: Participant) : RoomEvent(room)
 
     /**
      * A [Participant] has unpublished a track
      */
-    class TrackUnpublished(val room: Room, val publication: TrackPublication, val participant: Participant): RoomEvent()
+    class TrackUnpublished(room: Room, val publication: TrackPublication, val participant: Participant) :
+        RoomEvent(room)
 
     /**
      * The [LocalParticipant] has subscribed to a new track. This event will always fire as
      * long as new tracks are ready for use.
      */
-    class TrackSubscribed(val room: Room, val track: Track, val publication: TrackPublication, val participant: RemoteParticipant): RoomEvent()
+    class TrackSubscribed(
+        room: Room,
+        val track: Track,
+        val publication: TrackPublication,
+        val participant: RemoteParticipant
+    ) : RoomEvent(room)
 
     /**
      * Could not subscribe to a track
      */
-    class TrackSubscriptionFailed(val room: Room, val sid: String, val exception: Exception, val participant: RemoteParticipant): RoomEvent()
+    class TrackSubscriptionFailed(
+        room: Room,
+        val sid: String,
+        val exception: Exception,
+        val participant: RemoteParticipant
+    ) : RoomEvent(room)
 
     /**
      * A subscribed track is no longer available. Clients should listen to this event and ensure
      * the track removes all renderers
      */
-    class TrackUnsubscribed(val room: Room, val track: Track, val publications: TrackPublication, val participant: RemoteParticipant): RoomEvent()
+    class TrackUnsubscribed(
+        room: Room,
+        val track: Track,
+        val publications: TrackPublication,
+        val participant: RemoteParticipant
+    ) : RoomEvent(room)
 
     /**
      * Received data published by another participant
      */
-    class DataReceived(val room: Room, val data: ByteArray, val participant: RemoteParticipant): RoomEvent()
+    class DataReceived(room: Room, val data: ByteArray, val participant: RemoteParticipant) : RoomEvent(room)
 
     /**
      * The connection quality for a participant has changed.
@@ -116,6 +132,7 @@ sealed class RoomEvent : Event() {
      * @param participant Either a remote participant or [Room.localParticipant]
      * @param quality the new connection quality
      */
-    class ConnectionQualityChanged(val room: Room, val participant: Participant, val quality: ConnectionQuality): RoomEvent()
+    class ConnectionQualityChanged(room: Room, val participant: Participant, val quality: ConnectionQuality) :
+        RoomEvent(room)
 
 }
