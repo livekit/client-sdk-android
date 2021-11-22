@@ -17,6 +17,8 @@ import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flow
+import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -58,13 +60,12 @@ constructor(
     @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
-    var sid: Sid? = null
+    var sid: Sid? by flowDelegate(null)
+    var name: String? by flowDelegate(null)
         private set
-    var name: String? = null
+    var state: State by flowDelegate(State.DISCONNECTED)
         private set
-    var state: State = State.DISCONNECTED
-        private set
-    var metadata: String? = null
+    var metadata: String? by flowDelegate(null)
         private set
 
     var autoManageVideo: Boolean = false
@@ -75,21 +76,26 @@ constructor(
 
     lateinit var localParticipant: LocalParticipant
         private set
-    private val mutableRemoteParticipants = mutableMapOf<String, RemoteParticipant>()
+    private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
     val remoteParticipants: Map<String, RemoteParticipant>
         get() = mutableRemoteParticipants
 
-    private val mutableActiveSpeakers = mutableListOf<Participant>()
+    private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
 
     private var hasLostConnectivity: Boolean = false
     suspend fun connect(url: String, token: String, options: ConnectOptions?) {
-        if(this::coroutineScope.isInitialized) {
+        if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
+        ::state.flow
         val response = engine.join(url, token, options)
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
@@ -122,11 +128,13 @@ constructor(
     }
 
     private fun handleParticipantDisconnect(sid: String) {
-        val removedParticipant = mutableRemoteParticipants.remove(sid) ?: return
+        val newParticipants = mutableRemoteParticipants.toMutableMap()
+        val removedParticipant = newParticipants.remove(sid) ?: return
         removedParticipant.tracks.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid)
         }
 
+        mutableRemoteParticipants = newParticipants
         listener?.onParticipantDisconnected(this, removedParticipant)
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
     }
@@ -154,7 +162,11 @@ constructor(
             RemoteParticipant(sid, null, engine.client, ioDispatcher, defaultDispatcher)
         }
         participant.internalListener = this
-        mutableRemoteParticipants[sid] = participant
+
+        val newRemoteParticipants = mutableRemoteParticipants.toMutableMap()
+        newRemoteParticipants[sid] = participant
+        mutableRemoteParticipants = newRemoteParticipants
+
         return participant
     }
 
@@ -183,10 +195,9 @@ constructor(
                 it.isSpeaking = false
             }
 
-        mutableActiveSpeakers.clear()
-        mutableActiveSpeakers.addAll(speakers)
-        listener?.onActiveSpeakersChanged(speakers, this)
-        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, speakers), coroutineScope)
+        mutableActiveSpeakers = speakers.toList()
+        listener?.onActiveSpeakersChanged(mutableActiveSpeakers, this)
+        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, mutableActiveSpeakers), coroutineScope)
     }
 
     private fun handleSpeakersChanged(speakerInfos: List<LivekitModels.SpeakerInfo>) {
@@ -211,10 +222,9 @@ constructor(
         val updatedSpeakersList = updatedSpeakers.values.toList()
             .sortedBy { it.audioLevel }
 
-        mutableActiveSpeakers.clear()
-        mutableActiveSpeakers.addAll(updatedSpeakersList)
-        listener?.onActiveSpeakersChanged(updatedSpeakersList, this)
-        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, updatedSpeakersList), coroutineScope)
+        mutableActiveSpeakers = updatedSpeakersList.toList()
+        listener?.onActiveSpeakersChanged(mutableActiveSpeakers, this)
+        eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, mutableActiveSpeakers), coroutineScope)
     }
 
     private fun reconnect() {

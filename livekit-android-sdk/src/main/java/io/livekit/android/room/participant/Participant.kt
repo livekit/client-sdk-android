@@ -7,6 +7,7 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -26,31 +27,27 @@ open class Participant(
 
     var participantInfo: LivekitModels.ParticipantInfo? = null
         private set
-    var identity: String? = identity
+    var identity: String? by flowDelegate(identity)
         internal set
-    var audioLevel: Float = 0f
+    var audioLevel: Float by flowDelegate(0f)
         internal set
-    var isSpeaking: Boolean = false
-        internal set(v) {
-            val changed = v != field
-            field = v
-            if (changed) {
-                listener?.onSpeakingChanged(this)
-                internalListener?.onSpeakingChanged(this)
-                eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, v), scope)
-            }
+    var isSpeaking: Boolean by flowDelegate(false) { newValue, oldValue ->
+        if (newValue != oldValue) {
+            listener?.onSpeakingChanged(this)
+            internalListener?.onSpeakingChanged(this)
+            eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, newValue), scope)
         }
-    var metadata: String? = null
-        internal set(v) {
-            val prevMetadata = field
-            field = v
-            if (prevMetadata != v) {
-                listener?.onMetadataChanged(this, prevMetadata)
-                internalListener?.onMetadataChanged(this, prevMetadata)
-                eventBus.postEvent(ParticipantEvent.MetadataChanged(this, prevMetadata), scope)
-            }
+    }
+        internal set
+    var metadata: String? by flowDelegate(null) { newMetadata, oldMetadata ->
+        if (newMetadata != oldMetadata) {
+            listener?.onMetadataChanged(this, oldMetadata)
+            internalListener?.onMetadataChanged(this, oldMetadata)
+            eventBus.postEvent(ParticipantEvent.MetadataChanged(this, oldMetadata), scope)
         }
-    var connectionQuality: ConnectionQuality = ConnectionQuality.UNKNOWN
+    }
+        internal set
+    var connectionQuality by flowDelegate(ConnectionQuality.UNKNOWN)
         internal set
 
     /**

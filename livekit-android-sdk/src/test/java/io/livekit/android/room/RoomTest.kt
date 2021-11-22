@@ -4,16 +4,11 @@ import android.content.Context
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
-import io.livekit.android.coroutines.collectEvents
-import io.livekit.android.events.Event
 import io.livekit.android.events.EventCollector
-import io.livekit.android.events.EventListenable
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockEglBase
-import io.livekit.android.mock.TestData
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runBlockingTest
 import livekit.LivekitModels
 import org.junit.Assert
@@ -104,7 +99,7 @@ class RoomTest {
         room.onLost(network)
         room.onAvailable(network)
 
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
@@ -116,7 +111,7 @@ class RoomTest {
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         room.onDisconnect("")
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
