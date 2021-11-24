@@ -366,13 +366,8 @@ internal constructor(
             return
         }
         val sid = publication.sid
-        tracks.remove(sid)
-        when (publication.kind) {
-            Track.Kind.AUDIO -> audioTracks.remove(sid)
-            Track.Kind.VIDEO -> videoTracks.remove(sid)
-            else -> {
-            }
-        }
+        tracks = tracks.toMutableMap().apply { remove(sid) }
+
         val senders = engine.publisher.peerConnection.senders ?: return
         for (sender in senders) {
             val t = sender.track() ?: continue

@@ -82,9 +82,28 @@ internal constructor(
     }
 }
 
+class StateFlowDelegate<T>
+internal constructor(
+    private val flow: StateFlow<T>
+) : StateFlow<T> by flow {
+
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        if (DelegateAccess.delegateRequested.get() == true) {
+            DelegateAccess.delegate.set(this)
+        }
+        return flow.value
+    }
+}
+
 internal fun <T> flowDelegate(
     initialValue: T,
     onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
 ): MutableStateFlowDelegate<T> {
     return MutableStateFlowDelegate(MutableStateFlow(initialValue), onSetValue)
+}
+
+internal fun <T> flowDelegate(
+    stateFlow: StateFlow<T>
+): StateFlowDelegate<T> {
+    return StateFlowDelegate(stateFlow)
 }
