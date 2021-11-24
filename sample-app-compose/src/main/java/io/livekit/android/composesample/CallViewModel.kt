@@ -78,7 +78,7 @@ class CallViewModel(
 
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
-            //localParticipant.setMicrophoneEnabled(true)
+            localParticipant.setMicrophoneEnabled(true)
             mutableMicEnabled.postValue(localParticipant.isMicrophoneEnabled())
 
             localParticipant.setCameraEnabled(true)
