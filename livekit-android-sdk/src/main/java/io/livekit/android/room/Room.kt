@@ -60,11 +60,23 @@ constructor(
     @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var sid: Sid? by flowDelegate(null)
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var name: String? by flowDelegate(null)
         private set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var state: State by flowDelegate(State.DISCONNECTED)
         private set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var metadata: String? by flowDelegate(null)
         private set
 
@@ -77,11 +89,13 @@ constructor(
     lateinit var localParticipant: LocalParticipant
         private set
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     val remoteParticipants: Map<String, RemoteParticipant>
         get() = mutableRemoteParticipants
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
-
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */

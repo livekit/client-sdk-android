@@ -29,12 +29,26 @@ open class Participant(
     protected val eventBus = BroadcastEventBus<ParticipantEvent>()
     val events = eventBus.readOnly()
 
-    var participantInfo: LivekitModels.ParticipantInfo? = null
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var participantInfo: LivekitModels.ParticipantInfo? by flowDelegate(null)
         private set
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var identity: String? by flowDelegate(identity)
         internal set
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var audioLevel: Float by flowDelegate(0f)
         internal set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var isSpeaking: Boolean by flowDelegate(false) { newValue, oldValue ->
         if (newValue != oldValue) {
             listener?.onSpeakingChanged(this)
@@ -43,6 +57,9 @@ open class Participant(
         }
     }
         internal set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var metadata: String? by flowDelegate(null) { newMetadata, oldMetadata ->
         if (newMetadata != oldMetadata) {
             listener?.onMetadataChanged(this, oldMetadata)
@@ -51,6 +68,10 @@ open class Participant(
         }
     }
         internal set
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var connectionQuality by flowDelegate(ConnectionQuality.UNKNOWN)
         internal set
 
@@ -69,13 +90,22 @@ open class Participant(
     val hasInfo
         get() = participantInfo != null
 
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     var tracks by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     val audioTracks by flowDelegate(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
             .stateIn(scope, SharingStarted.Eagerly, emptyMap())
     )
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
     val videoTracks by flowDelegate(
         stateFlow = ::tracks.flow
             .map {
