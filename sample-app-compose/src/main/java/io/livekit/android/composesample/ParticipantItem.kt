@@ -1,80 +1,116 @@
 package io.livekit.android.composesample
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
+import androidx.compose.material.Icon
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.viewinterop.AndroidView
-import com.github.ajalt.timberkt.Timber
-import io.livekit.android.renderer.TextureViewRenderer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
+import io.livekit.android.composesample.ui.theme.BlueMain
+import io.livekit.android.composesample.ui.theme.NoVideoBackground
 import io.livekit.android.room.Room
-import io.livekit.android.room.participant.ParticipantListener
-import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.RemoteTrackPublication
-import io.livekit.android.room.track.RemoteVideoTrack
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.video.ComposeVisibility
+import io.livekit.android.room.track.VideoTrack
+import io.livekit.android.util.flow
 
 @Composable
 fun ParticipantItem(
     room: Room,
-    participant: RemoteParticipant,
+    participant: Participant,
+    modifier: Modifier = Modifier,
+    isSpeaking: Boolean,
 ) {
-    val videoSinkVisibility = remember(room, participant) { ComposeVisibility() }
-    var videoBound by remember(room, participant) { mutableStateOf(false) }
-    fun getVideoTrack(): RemoteVideoTrack? {
-        return participant
-            .videoTracks.values
-            .firstOrNull()?.track as? RemoteVideoTrack
-    }
 
-    fun setupVideoIfNeeded(videoTrack: RemoteVideoTrack, view: TextureViewRenderer) {
-        if (videoBound) {
-            return
-        }
-
-        videoBound = true
-        Timber.v { "adding renderer to $videoTrack" }
-        videoTrack.addRenderer(view, videoSinkVisibility)
-    }
-    DisposableEffect(room, participant) {
-        onDispose {
-            videoSinkVisibility.onDispose()
-        }
-    }
-    AndroidView(
-        factory = { context ->
-            TextureViewRenderer(context).apply {
-                room.initVideoRenderer(this)
-            }
-        },
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned { videoSinkVisibility.onGloballyPositioned(it) },
-        update = { view ->
-            participant.listener = object : ParticipantListener {
-                override fun onTrackSubscribed(
-                    track: Track,
-                    publication: RemoteTrackPublication,
-                    participant: RemoteParticipant
-                ) {
-                    if (track is RemoteVideoTrack) {
-                        setupVideoIfNeeded(track, view)
-                    }
-                }
-
-                override fun onTrackUnpublished(
-                    publication: RemoteTrackPublication,
-                    participant: RemoteParticipant
-                ) {
-                    super.onTrackUnpublished(publication, participant)
-                    Timber.e { "Track unpublished" }
+    val identity by participant::identity.flow.collectAsState()
+    val videoTracks by participant::videoTracks.flow.collectAsState()
+    val audioTracks by participant::audioTracks.flow.collectAsState()
+    val identityBarPadding = 4.dp
+    ConstraintLayout(
+        modifier = modifier.background(NoVideoBackground)
+            .run {
+                if (isSpeaking) {
+                    border(2.dp, BlueMain)
+                } else {
+                    this
                 }
             }
-            val existingTrack = getVideoTrack()
-            if (existingTrack != null) {
-                setupVideoIfNeeded(existingTrack, view)
-            }
+    ) {
+        val (videoCamOff, identityBar, identityText, muteIndicator) = createRefs()
+        val videoTrack = participant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? VideoTrack
+            ?: participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
+            ?: videoTracks.values.firstOrNull()?.track as? VideoTrack
+
+
+        if (videoTrack != null) {
+            VideoItemTrackSelector(
+                room = room,
+                participant = participant,
+                videoTracks = videoTracks,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                painter = painterResource(id = R.drawable.outline_videocam_off_24),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.constrainAs(videoCamOff) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                    width = Dimension.wrapContent
+                    height = Dimension.wrapContent
+                }
+            )
         }
-    )
+
+        Surface(
+            color = Color(0x80000000),
+            modifier = Modifier.constrainAs(identityBar) {
+                bottom.linkTo(parent.bottom)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.fillToConstraints
+                height = Dimension.value(30.dp)
+            }
+        ) {}
+
+        Text(
+            text = identity ?: "",
+            color = Color.White,
+            modifier = Modifier.constrainAs(identityText) {
+                top.linkTo(identityBar.top)
+                bottom.linkTo(identityBar.bottom)
+                start.linkTo(identityBar.start, margin = identityBarPadding)
+                end.linkTo(muteIndicator.end, margin = 10.dp)
+                width = Dimension.fillToConstraints
+                height = Dimension.wrapContent
+            },
+        )
+
+        val isMuted = audioTracks.isEmpty()
+
+        if (isMuted) {
+            Icon(
+                painter = painterResource(id = R.drawable.outline_mic_off_24),
+                contentDescription = "",
+                tint = Color.Red,
+                modifier = Modifier.constrainAs(muteIndicator) {
+                    top.linkTo(identityBar.top)
+                    bottom.linkTo(identityBar.bottom)
+                    end.linkTo(identityBar.end, margin = identityBarPadding)
+                }
+            )
+        }
+    }
 }
