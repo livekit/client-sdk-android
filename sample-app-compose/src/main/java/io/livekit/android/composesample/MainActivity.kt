@@ -4,15 +4,18 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Space
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -88,11 +91,20 @@ class MainActivity : ComponentActivity() {
             var url by remember { mutableStateOf(defaultUrl) }
             var token by remember { mutableStateOf(defaultToken) }
             // A surface container using the 'background' color from the theme
-            Surface(color = MaterialTheme.colors.background) {
+            Surface(
+                color = MaterialTheme.colors.background,
+                modifier = Modifier.fillMaxSize()
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(10.dp)
                 ) {
+                    Spacer(modifier = Modifier.height(50.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.banner_dark),
+                        contentDescription = "",
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },

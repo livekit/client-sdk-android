@@ -2,10 +2,7 @@ package io.livekit.android.composesample
 
 import android.app.Application
 import android.content.Intent
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
@@ -14,17 +11,44 @@ import io.livekit.android.room.RoomListener
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
+import io.livekit.android.util.flow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
     val url: String,
     val token: String,
     application: Application
 ) : AndroidViewModel(application), RoomListener {
-    private val mutableRoom = MutableLiveData<Room>()
-    val room: LiveData<Room> = mutableRoom
-    private val mutableRemoteParticipants = MutableLiveData<List<RemoteParticipant>>()
-    val remoteParticipants: LiveData<List<RemoteParticipant>> = mutableRemoteParticipants
+    private val mutableRoom = MutableStateFlow<Room?>(null)
+    val room: MutableStateFlow<Room?> = mutableRoom
+    val participants = mutableRoom.flatMapLatest { room ->
+        if (room != null) {
+            room::remoteParticipants.flow
+                .map { remoteParticipants ->
+                    listOf<Participant>(room.localParticipant) +
+                            remoteParticipants
+                                .keys
+                                .sortedBy { it }
+                                .mapNotNull { remoteParticipants[it] }
+                }
+        } else {
+            emptyFlow()
+        }
+    }
+
+    private val mutablePrimarySpeaker = MutableStateFlow<Participant?>(null)
+    val primarySpeaker: StateFlow<Participant?> = mutablePrimarySpeaker
+
+    val activeSpeakers = mutableRoom.flatMapLatest { room ->
+        if (room != null) {
+            room::activeSpeakers.flow
+        } else {
+            emptyFlow()
+        }
+    }
 
     private var localScreencastTrack: LocalScreencastVideoTrack? = null
 
@@ -59,9 +83,9 @@ class CallViewModel(
 
             localParticipant.setCameraEnabled(true)
             mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
-
-            updateParticipants(room)
             mutableRoom.value = room
+
+            mutablePrimarySpeaker.value = room.remoteParticipants.values.firstOrNull() ?: localParticipant
         }
     }
 
@@ -93,15 +117,6 @@ class CallViewModel(
         }
     }
 
-    private fun updateParticipants(room: Room) {
-        mutableRemoteParticipants.postValue(
-            room.remoteParticipants
-                .keys
-                .sortedBy { it }
-                .mapNotNull { room.remoteParticipants[it] }
-        )
-    }
-
     override fun onCleared() {
         super.onCleared()
         mutableRoom.value?.disconnect()
@@ -110,29 +125,15 @@ class CallViewModel(
     override fun onDisconnect(room: Room, error: Exception?) {
     }
 
-    override fun onParticipantConnected(
-        room: Room,
-        participant: RemoteParticipant
-    ) {
-        updateParticipants(room)
-    }
-
-    override fun onParticipantDisconnected(
-        room: Room,
-        participant: RemoteParticipant
-    ) {
-        updateParticipants(room)
-    }
-
-    override fun onFailedToConnect(room: Room, error: Exception) {
-    }
-
     override fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {
-        Timber.i { "active speakers changed ${speakers.count()}" }
-    }
-
-    override fun onMetadataChanged(participant: Participant, prevMetadata: String?, room: Room) {
-        Timber.i { "Participant metadata changed: ${participant.identity}" }
+        // If old active speaker is still active, don't change.
+        if (speakers.isEmpty() || speakers.contains(mutablePrimarySpeaker.value)) {
+            return
+        }
+        val newSpeaker = speakers
+            .filter { it is RemoteParticipant } // Try not to display local participant as speaker.
+            .firstOrNull() ?: return
+        mutablePrimarySpeaker.value = newSpeaker
     }
 
     fun setMicEnabled(enabled: Boolean) {

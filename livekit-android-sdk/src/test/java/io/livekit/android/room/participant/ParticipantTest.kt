@@ -74,7 +74,7 @@ class ParticipantTest {
         val metadata = "metadata"
         participant.metadata = metadata
 
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         assertEquals(1, events.size)
         assertEquals(true, events[0] is ParticipantEvent.MetadataChanged)
@@ -91,7 +91,7 @@ class ParticipantTest {
         val newIsSpeaking = !participant.isSpeaking
         participant.isSpeaking = newIsSpeaking
 
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         assertEquals(1, events.size)
         assertEquals(true, events[0] is ParticipantEvent.SpeakingChanged)

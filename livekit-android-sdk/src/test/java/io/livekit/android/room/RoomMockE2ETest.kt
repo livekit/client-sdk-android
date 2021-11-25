@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
+import io.livekit.android.events.FlowCollector
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockWebsocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.room.participant.ConnectionQuality
+import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -72,7 +74,7 @@ class RoomMockE2ETest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.ROOM_UPDATE.toOkioByteString())
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(
             SignalClientTest.ROOM_UPDATE.roomUpdate.room.metadata,
@@ -90,7 +92,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.CONNECTION_QUALITY.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(ConnectionQuality.EXCELLENT, room.localParticipant.connectionQuality)
         Assert.assertEquals(1, events.size)
@@ -106,7 +108,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.ParticipantConnected)
@@ -125,7 +127,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.PARTICIPANT_DISCONNECT.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.ParticipantDisconnected)
@@ -140,7 +142,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.ACTIVE_SPEAKER_UPDATE.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.ActiveSpeakersChanged)
@@ -160,7 +162,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.PARTICIPANT_METADATA_CHANGED.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.ParticipantMetadataChanged)
@@ -174,7 +176,7 @@ class RoomMockE2ETest {
             wsFactory.ws,
             SignalClientTest.LEAVE.toOkioByteString()
         )
-        val events = eventCollector.stopCollectingEvents()
+        val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)

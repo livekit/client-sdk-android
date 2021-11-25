@@ -1,6 +1,5 @@
 package io.livekit.android.composesample.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
@@ -8,17 +7,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorPalette = darkColors(
-    primary = Purple200,
-    primaryVariant = Purple700,
-    secondary = Teal200,
-    background = Color.Black
+    primary = BlueMain,
+    primaryVariant = BlueDark,
+    secondary = BlueMain,
+    background = Color.Black,
+    surface = Color.Transparent,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onBackground = Color.White,
+    onSurface = Color.White,
 )
 
 private val LightColorPalette = lightColors(
-    primary = Purple500,
-    primaryVariant = Purple700,
-    secondary = Teal200
-
+    primary = BlueMain,
+    primaryVariant = BlueDark,
+    secondary = BlueMain,
     /* Other default colors to override
     background = Color.White,
     surface = Color.White,
@@ -31,7 +34,7 @@ private val LightColorPalette = lightColors(
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable() () -> Unit
 ) {
     val colors = if (darkTheme) {

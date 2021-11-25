@@ -141,12 +141,8 @@ class RemoteParticipant(
     }
 
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
-        val publication = tracks.remove(trackSid) as? RemoteTrackPublication ?: return
-        when (publication.kind) {
-            Track.Kind.AUDIO -> audioTracks.remove(trackSid)
-            Track.Kind.VIDEO -> videoTracks.remove(trackSid)
-            else -> throw TrackException.InvalidTrackTypeException()
-        }
+        val publication = tracks[trackSid] as? RemoteTrackPublication ?: return
+        tracks = tracks.toMutableMap().apply { remove(trackSid) }
 
         val track = publication.track
         if (track != null) {

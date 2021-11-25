@@ -10,8 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.*
-import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -20,18 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import com.github.ajalt.timberkt.Timber
 import com.google.accompanist.pager.ExperimentalPagerApi
-import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
 import io.livekit.android.composesample.ui.theme.AppTheme
-import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
-import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.participant.Participant
+import kotlinx.coroutines.Dispatchers
 import kotlinx.parcelize.Parcelize
 
 @OptIn(ExperimentalPagerApi::class)
@@ -60,6 +56,7 @@ class CallActivity : AppCompatActivity() {
         }
 
 
+    @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -83,22 +80,24 @@ class CallActivity : AppCompatActivity() {
         }
 
         setContent {
-            AppTheme(darkTheme = true) {
-                val room by viewModel.room.observeAsState()
-                val participants by viewModel.remoteParticipants.observeAsState(emptyList())
-                val micEnabled by viewModel.micEnabled.observeAsState(true)
-                val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
-                val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
-                val screencastEnabled by viewModel.screencastEnabled.observeAsState(false)
-                Content(
-                    room,
-                    participants,
-                    micEnabled,
-                    videoEnabled,
-                    flipButtonEnabled,
-                    screencastEnabled,
-                )
-            }
+            val room by viewModel.room.collectAsState()
+            val participants by viewModel.participants.collectAsState(initial = emptyList())
+            val primarySpeaker by viewModel.primarySpeaker.collectAsState()
+            val activeSpeakers by viewModel.activeSpeakers.collectAsState(initial = emptyList())
+            val micEnabled by viewModel.micEnabled.observeAsState(true)
+            val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
+            val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
+            val screencastEnabled by viewModel.screencastEnabled.observeAsState(false)
+            Content(
+                room,
+                participants,
+                primarySpeaker,
+                activeSpeakers,
+                micEnabled,
+                videoEnabled,
+                flipButtonEnabled,
+                screencastEnabled,
+            )
         }
     }
 
@@ -108,164 +107,133 @@ class CallActivity : AppCompatActivity() {
         screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
     }
 
+    val previewParticipant = Participant("asdf", "asdf", Dispatchers.Main)
+
+    @ExperimentalMaterialApi
     @Preview(showBackground = true, showSystemUi = true)
     @Composable
     fun Content(
         room: Room? = null,
-        participants: List<RemoteParticipant> = emptyList(),
+        participants: List<Participant> = listOf(previewParticipant),
+        primarySpeaker: Participant? = previewParticipant,
+        activeSpeakers: List<Participant> = listOf(previewParticipant),
         micEnabled: Boolean = true,
         videoEnabled: Boolean = true,
         flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
     ) {
-        ConstraintLayout(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colors.background)
-        ) {
-            val (tabRow, pager, buttonBar, cameraView) = createRefs()
+        AppTheme(darkTheme = true) {
+            ConstraintLayout(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colors.background)
+            ) {
+                val (speakerView, audienceRow, buttonBar) = createRefs()
 
-            if (participants.isNotEmpty()) {
-                val pagerState = rememberPagerState()
-                ScrollableTabRow(
-                    // Our selected tab is our current page
-                    selectedTabIndex = pagerState.currentPage,
-                    // Override the indicator, using the provided pagerTabIndicatorOffset modifier
-                    indicator = { tabPositions ->
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier
-                                .height(1.dp)
-                                .tabIndicatorOffset(tabPositions[pagerState.currentPage]),
-                            height = 1.dp,
-                            color = Color.Gray
-                        )
-                    },
-                    modifier = Modifier
-                        .background(Color.DarkGray)
-                        .constrainAs(tabRow) {
-                            top.linkTo(parent.top)
-                            width = Dimension.fillToConstraints
-                        }
-                ) {
-                    // Add tabs for all of our pages
-                    participants.forEachIndexed { index, participant ->
-                        Tab(
-                            text = { Text(participant.identity ?: "Unnamed $index") },
-                            selected = pagerState.currentPage == index,
-                            onClick = { /* TODO*/ },
+                Surface(modifier = Modifier.constrainAs(speakerView) {
+                    top.linkTo(parent.top)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                    bottom.linkTo(audienceRow.top)
+                    width = Dimension.fillToConstraints
+                    height = Dimension.fillToConstraints
+                }) {
+                    if (room != null && primarySpeaker != null) {
+                        ParticipantItem(
+                            room = room,
+                            participant = primarySpeaker,
+                            isSpeaking = activeSpeakers.contains(primarySpeaker)
                         )
                     }
                 }
-                HorizontalPager(
-                    count = participants.size,
-                    state = pagerState,
+                LazyRow(
                     modifier = Modifier
-                        .constrainAs(pager) {
-                            top.linkTo(tabRow.bottom)
+                        .constrainAs(audienceRow) {
+                            top.linkTo(speakerView.bottom)
                             bottom.linkTo(buttonBar.top)
                             start.linkTo(parent.start)
                             end.linkTo(parent.end)
                             width = Dimension.fillToConstraints
-                            height = Dimension.fillToConstraints
+                            height = Dimension.value(120.dp)
                         }
-                ) { index ->
+                ) {
                     if (room != null) {
-                        ParticipantItem(room = room, participant = participants[index])
+                        items(
+                            count = participants.size,
+                            key = { index -> participants[index].sid }
+                        ) { index ->
+                            ParticipantItem(
+                                room = room,
+                                participant = participants[index],
+                                isSpeaking = activeSpeakers.contains(participants[index]),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .aspectRatio(1.0f, true)
+                            )
+                        }
                     }
                 }
-            }
 
-            if (room != null) {
-                var videoNeedsSetup by remember { mutableStateOf(true) }
-                AndroidView(
-                    factory = { context ->
-                        TextureViewRenderer(context).apply {
-                            room.initVideoRenderer(this)
-                        }
-                    },
+                Row(
                     modifier = Modifier
-                        .width(200.dp)
-                        .height(200.dp)
-                        .padding(bottom = 10.dp, end = 10.dp)
-                        .background(Color.Black)
-                        .constrainAs(cameraView) {
-                            bottom.linkTo(buttonBar.top)
-                            end.linkTo(parent.end)
+                        .padding(top = 10.dp, bottom = 20.dp)
+                        .fillMaxWidth()
+                        .constrainAs(buttonBar) {
+                            bottom.linkTo(parent.bottom)
+                            width = Dimension.fillToConstraints
+                            height = Dimension.wrapContent
                         },
-                    update = { view ->
-                        val videoTrack = room.localParticipant.videoTracks.values
-                            .firstOrNull()
-                            ?.track as? LocalVideoTrack
-
-                        if (videoNeedsSetup) {
-                            videoTrack?.addRenderer(view)
-                            videoNeedsSetup = false
-                        }
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Surface(
+                        onClick = { viewModel.setMicEnabled(!micEnabled) },
+                    ) {
+                        val resource =
+                            if (micEnabled) R.drawable.outline_mic_24 else R.drawable.outline_mic_off_24
+                        Icon(
+                            painterResource(id = resource),
+                            contentDescription = "Mic",
+                            tint = Color.White,
+                        )
                     }
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 20.dp)
-                    .fillMaxWidth()
-                    .constrainAs(buttonBar) {
-                        bottom.linkTo(parent.bottom)
-                        width = Dimension.fillToConstraints
-                    },
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                FloatingActionButton(
-                    onClick = { viewModel.setMicEnabled(!micEnabled) },
-                    backgroundColor = Color.DarkGray,
-                ) {
-                    val resource =
-                        if (micEnabled) R.drawable.outline_mic_24 else R.drawable.outline_mic_off_24
-                    Icon(
-                        painterResource(id = resource),
-                        contentDescription = "Mic",
-                        tint = Color.White,
-                    )
-                }
-                FloatingActionButton(
-                    onClick = { viewModel.setCameraEnabled(!videoEnabled) },
-                    backgroundColor = Color.DarkGray,
-                ) {
-                    val resource =
-                        if (videoEnabled) R.drawable.outline_videocam_24 else R.drawable.outline_videocam_off_24
-                    Icon(
-                        painterResource(id = resource),
-                        contentDescription = "Video",
-                        tint = Color.White,
-                    )
-                }
-                FloatingActionButton(
-                    onClick = { viewModel.flipVideo() },
-                    backgroundColor = Color.DarkGray,
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.outline_flip_camera_android_24),
-                        contentDescription = "Flip Camera",
-                        tint = Color.White,
-                    )
-                }
-                FloatingActionButton(
-                    onClick = {
-                        if (!screencastEnabled) {
-                            requestMediaProjection()
-                        } else {
-                            viewModel.stopScreenCapture()
-                        }
-                    },
-                    backgroundColor = Color.DarkGray,
-                ) {
-                    val resource =
-                        if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
-                    Icon(
-                        painterResource(id = resource),
-                        contentDescription = "Flip Camera",
-                        tint = Color.White,
-                    )
+                    Surface(
+                        onClick = { viewModel.setCameraEnabled(!videoEnabled) },
+                    ) {
+                        val resource =
+                            if (videoEnabled) R.drawable.outline_videocam_24 else R.drawable.outline_videocam_off_24
+                        Icon(
+                            painterResource(id = resource),
+                            contentDescription = "Video",
+                            tint = Color.White,
+                        )
+                    }
+                    Surface(
+                        onClick = { viewModel.flipVideo() },
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.outline_flip_camera_android_24),
+                            contentDescription = "Flip Camera",
+                            tint = Color.White,
+                        )
+                    }
+                    Surface(
+                        onClick = {
+                            if (!screencastEnabled) {
+                                requestMediaProjection()
+                            } else {
+                                viewModel.stopScreenCapture()
+                            }
+                        },
+                    ) {
+                        val resource =
+                            if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
+                        Icon(
+                            painterResource(id = resource),
+                            contentDescription = "Flip Camera",
+                            tint = Color.White,
+                        )
+                    }
                 }
             }
         }

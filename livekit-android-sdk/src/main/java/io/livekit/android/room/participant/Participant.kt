@@ -7,9 +7,14 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.util.flow
+import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import livekit.LivekitModels
 import javax.inject.Named
 
@@ -24,33 +29,50 @@ open class Participant(
     protected val eventBus = BroadcastEventBus<ParticipantEvent>()
     val events = eventBus.readOnly()
 
-    var participantInfo: LivekitModels.ParticipantInfo? = null
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var participantInfo: LivekitModels.ParticipantInfo? by flowDelegate(null)
         private set
-    var identity: String? = identity
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var identity: String? by flowDelegate(identity)
         internal set
-    var audioLevel: Float = 0f
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var audioLevel: Float by flowDelegate(0f)
         internal set
-    var isSpeaking: Boolean = false
-        internal set(v) {
-            val changed = v != field
-            field = v
-            if (changed) {
-                listener?.onSpeakingChanged(this)
-                internalListener?.onSpeakingChanged(this)
-                eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, v), scope)
-            }
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var isSpeaking: Boolean by flowDelegate(false) { newValue, oldValue ->
+        if (newValue != oldValue) {
+            listener?.onSpeakingChanged(this)
+            internalListener?.onSpeakingChanged(this)
+            eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, newValue), scope)
         }
-    var metadata: String? = null
-        internal set(v) {
-            val prevMetadata = field
-            field = v
-            if (prevMetadata != v) {
-                listener?.onMetadataChanged(this, prevMetadata)
-                internalListener?.onMetadataChanged(this, prevMetadata)
-                eventBus.postEvent(ParticipantEvent.MetadataChanged(this, prevMetadata), scope)
-            }
+    }
+        internal set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var metadata: String? by flowDelegate(null) { newMetadata, oldMetadata ->
+        if (newMetadata != oldMetadata) {
+            listener?.onMetadataChanged(this, oldMetadata)
+            internalListener?.onMetadataChanged(this, oldMetadata)
+            eventBus.postEvent(ParticipantEvent.MetadataChanged(this, oldMetadata), scope)
         }
-    var connectionQuality: ConnectionQuality = ConnectionQuality.UNKNOWN
+    }
+        internal set
+
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var connectionQuality by flowDelegate(ConnectionQuality.UNKNOWN)
         internal set
 
     /**
@@ -68,11 +90,29 @@ open class Participant(
     val hasInfo
         get() = participantInfo != null
 
-    var tracks = mutableMapOf<String, TrackPublication>()
-    var audioTracks = mutableMapOf<String, TrackPublication>()
-        private set
-    var videoTracks = mutableMapOf<String, TrackPublication>()
-        private set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    var tracks by flowDelegate(emptyMap<String, TrackPublication>())
+        protected set
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    val audioTracks by flowDelegate(
+        stateFlow = ::tracks.flow
+            .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
+            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+    )
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    val videoTracks by flowDelegate(
+        stateFlow = ::tracks.flow
+            .map {
+                it.filterValues { publication -> publication.kind == Track.Kind.VIDEO }
+            }
+            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+    )
 
     /**
      * @suppress
@@ -80,12 +120,8 @@ open class Participant(
     fun addTrackPublication(publication: TrackPublication) {
         val track = publication.track
         track?.sid = publication.sid
-        tracks[publication.sid] = publication
-        when (publication.kind) {
-            Track.Kind.AUDIO -> audioTracks[publication.sid] = publication
-            Track.Kind.VIDEO -> videoTracks[publication.sid] = publication
-            else -> {
-            }
+        tracks = tracks.toMutableMap().apply {
+            this[publication.sid] = publication
         }
     }
 
