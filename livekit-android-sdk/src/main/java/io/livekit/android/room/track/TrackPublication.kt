@@ -1,6 +1,7 @@
 package io.livekit.android.room.track
 
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.util.flowDelegate
 import livekit.LivekitModels
 import java.lang.ref.WeakReference
 
@@ -9,7 +10,7 @@ open class TrackPublication(
     track: Track?,
     participant: Participant
 ) {
-    open var track: Track? = track
+    open var track: Track? by flowDelegate(track)
         internal set
     var name: String
         internal set

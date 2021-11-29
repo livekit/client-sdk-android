@@ -27,6 +27,7 @@ import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.sample.CallViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.parcelize.Parcelize
 
@@ -87,7 +88,7 @@ class CallActivity : AppCompatActivity() {
             val micEnabled by viewModel.micEnabled.observeAsState(true)
             val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
             val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
-            val screencastEnabled by viewModel.screencastEnabled.observeAsState(false)
+            val screencastEnabled by viewModel.screenshareEnabled.observeAsState(false)
             Content(
                 room,
                 participants,
@@ -209,7 +210,7 @@ class CallActivity : AppCompatActivity() {
                         )
                     }
                     Surface(
-                        onClick = { viewModel.flipVideo() },
+                        onClick = { viewModel.flipCamera() },
                     ) {
                         Icon(
                             painterResource(id = R.drawable.outline_flip_camera_android_24),

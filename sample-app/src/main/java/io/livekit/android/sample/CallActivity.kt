@@ -8,15 +8,15 @@ import android.os.Parcelable
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.github.ajalt.timberkt.Timber
-import com.snakydesign.livedataextensions.combineLatest
-import com.snakydesign.livedataextensions.scan
-import com.snakydesign.livedataextensions.take
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.util.flow
+import kotlinx.coroutines.flow.*
 import kotlinx.parcelize.Parcelize
 
 class CallActivity : AppCompatActivity() {
@@ -41,7 +41,7 @@ class CallActivity : AppCompatActivity() {
             if (resultCode != Activity.RESULT_OK || data == null) {
                 return@registerForActivityResult
             }
-            viewModel.setScreenshare(true, data)
+            viewModel.startScreenCapture(data)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,48 +60,67 @@ class CallActivity : AppCompatActivity() {
             this.adapter = adapter
         }
 
-        combineLatest(
-            viewModel.room,
-            viewModel.participants
-        ) { room, participants -> room to participants }
-            .observe(this) {
-
-                val (room, participants) = it
-                val items = participants.map { participant -> ParticipantItem(room, participant) }
-                adapter.update(items)
-            }
+        lifecycleScope.launchWhenCreated {
+            viewModel.room
+                .combine(viewModel.participants) { room, participants -> room to participants }
+                .collect { (room, participants) ->
+                    if (room != null) {
+                        val items = participants.map { participant -> ParticipantItem(room, participant) }
+                        adapter.update(items)
+                    }
+                }
+        }
 
         // speaker view setup
-        viewModel.room.take(1).observe(this) { room ->
-            room.initVideoRenderer(binding.speakerVideoView)
-            viewModel.activeSpeaker
-                .scan(Pair<Participant?, Participant?>(null, null)) { pair, participant ->
-                    // old participant is first
-                    // latest active participant is second
-                    Pair(pair.second, participant)
-                }.observe(this) { (oldSpeaker, newSpeaker) ->
-                    // Remove any renderering from the old speaker
-                    oldSpeaker?.videoTracks
-                        ?.values
-                        ?.forEach { trackPublication ->
-                            (trackPublication.track as? VideoTrack)?.removeRenderer(binding.speakerVideoView)
-                        }
+        lifecycleScope.launchWhenCreated {
+            viewModel.room.filterNotNull().take(1)
+                .transform { room ->
+                    // Initialize video renderer
+                    room.initVideoRenderer(binding.speakerVideoView)
 
-                    binding.identityText.text = newSpeaker?.identity
-                    val videoTrack = newSpeaker?.videoTracks?.values
-                        ?.firstOrNull()
-                        ?.track as? VideoTrack
-                    if (videoTrack != null) {
+                    // Observe primary speaker changes
+                    emitAll(viewModel.primarySpeaker)
+                }.flatMapLatest { primarySpeaker ->
+                    // Update new primary speaker identity
+                    binding.identityText.text = primarySpeaker?.identity
+
+                    // observe videoTracks changes.
+                    if (primarySpeaker != null) {
+                        primarySpeaker::videoTracks.flow
+                            .map { primarySpeaker to it }
+                    } else {
+                        emptyFlow()
+                    }
+                }.flatMapLatest { (participant, videoTracks) ->
+
+                    for (videoTrack in videoTracks.values) {
+                        Timber.e { "videoTrack is ${videoTrack.track}" }
+                    }
+                    // Prioritize any screenshare streams.
+                    val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
+                        ?: participant.getTrackPublication(Track.Source.CAMERA)
+                        ?: videoTracks.values.firstOrNull()
+                        ?: return@flatMapLatest emptyFlow()
+
+                    trackPublication::track.flow
+                }.collect { videoTrack ->
+                    // Cleanup old video track
+                    val oldVideoTrack = binding.speakerVideoView.tag as? VideoTrack
+                    oldVideoTrack?.removeRenderer(binding.speakerVideoView)
+
+                    // Bind new video track to video view.
+                    if (videoTrack is VideoTrack) {
                         videoTrack.addRenderer(binding.speakerVideoView)
                         binding.speakerVideoView.visibility = View.VISIBLE
                     } else {
                         binding.speakerVideoView.visibility = View.INVISIBLE
                     }
+                    binding.speakerVideoView.tag = videoTrack
                 }
         }
 
         // Controls setup
-        viewModel.videoEnabled.observe(this) { enabled ->
+        viewModel.cameraEnabled.observe(this) { enabled ->
             binding.camera.setOnClickListener { viewModel.setCameraEnabled(!enabled) }
             binding.camera.setImageResource(
                 if (enabled) R.drawable.outline_videocam_24
@@ -121,7 +140,7 @@ class CallActivity : AppCompatActivity() {
         viewModel.screenshareEnabled.observe(this) { enabled ->
             binding.screenShare.setOnClickListener {
                 if (enabled) {
-                    viewModel.setScreenshare(!enabled)
+                    viewModel.stopScreenCapture()
                 } else {
                     requestMediaProjection()
                 }

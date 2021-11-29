@@ -1,4 +1,4 @@
-package io.livekit.android.composesample
+package io.livekit.android.sample
 
 import android.app.Application
 import android.content.Intent
@@ -62,7 +62,7 @@ class CallViewModel(
     val flipButtonVideoEnabled = mutableFlipVideoButtonEnabled.hide()
 
     private val mutableScreencastEnabled = MutableLiveData(false)
-    val screencastEnabled = mutableScreencastEnabled.hide()
+    val screenshareEnabled = mutableScreencastEnabled.hide()
 
     init {
         viewModelScope.launch {
@@ -152,7 +152,7 @@ class CallViewModel(
         }
     }
 
-    fun flipVideo() {
+    fun flipCamera() {
         room.value?.localParticipant?.let { participant ->
             val videoTrack = participant.getTrackPublication(Track.Source.CAMERA)
                 ?.track as? LocalVideoTrack
