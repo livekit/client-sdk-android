@@ -147,7 +147,7 @@ class CallViewModel(
     fun setCameraEnabled(enabled: Boolean) {
         viewModelScope.launch {
             val localParticipant = room.value?.localParticipant ?: return@launch
-            localParticipant.setMicrophoneEnabled(enabled)
+            localParticipant.setCameraEnabled(enabled)
             mutableCameraEnabled.postValue(enabled)
         }
     }

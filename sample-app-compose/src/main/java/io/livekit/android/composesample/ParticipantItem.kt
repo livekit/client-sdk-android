@@ -51,7 +51,7 @@ fun ParticipantItem(
             ?: videoTracks.values.firstOrNull()?.track as? VideoTrack
 
 
-        if (videoTrack != null) {
+        if (videoTrack != null && videoTrack.enabled) {
             VideoItemTrackSelector(
                 room = room,
                 participant = participant,
