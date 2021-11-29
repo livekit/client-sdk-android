@@ -417,6 +417,9 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.CONNECTION_QUALITY -> {
                 listener?.onConnectionQuality(response.connectionQuality.updatesList)
             }
+            LivekitRtc.SignalResponse.MessageCase.STREAMED_TRACKS_UPDATE -> {
+                // TODO
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
