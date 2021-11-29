@@ -151,6 +151,8 @@ class CallActivity : AppCompatActivity() {
             )
         }
 
+        binding.exit.setOnClickListener { finish() }
+
         // Grab audio focus for video call
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {

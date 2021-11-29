@@ -103,5 +103,13 @@
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
             android:src="@drawable/baseline_cast_24" />
+
+        <ImageView
+            android:id="@+id/exit"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/ic_baseline_cancel_24" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

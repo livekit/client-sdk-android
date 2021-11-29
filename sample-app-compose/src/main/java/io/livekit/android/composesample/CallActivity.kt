@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.*
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -98,6 +99,7 @@ class CallActivity : AppCompatActivity() {
                 videoEnabled,
                 flipButtonEnabled,
                 screencastEnabled,
+                onExitClick = { finish() }
             )
         }
     }
@@ -122,6 +124,7 @@ class CallActivity : AppCompatActivity() {
         videoEnabled: Boolean = true,
         flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
+        onExitClick: () -> Unit = {},
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -187,8 +190,13 @@ class CallActivity : AppCompatActivity() {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.Bottom,
                 ) {
+                    val controlSize = 40.dp
+                    val controlPadding = 4.dp
                     Surface(
                         onClick = { viewModel.setMicEnabled(!micEnabled) },
+                        indication = rememberRipple(false),
+                        modifier = Modifier.size(controlSize)
+                            .padding(controlPadding)
                     ) {
                         val resource =
                             if (micEnabled) R.drawable.outline_mic_24 else R.drawable.outline_mic_off_24
@@ -200,6 +208,9 @@ class CallActivity : AppCompatActivity() {
                     }
                     Surface(
                         onClick = { viewModel.setCameraEnabled(!videoEnabled) },
+                        indication = rememberRipple(false),
+                        modifier = Modifier.size(controlSize)
+                            .padding(controlPadding)
                     ) {
                         val resource =
                             if (videoEnabled) R.drawable.outline_videocam_24 else R.drawable.outline_videocam_off_24
@@ -211,6 +222,9 @@ class CallActivity : AppCompatActivity() {
                     }
                     Surface(
                         onClick = { viewModel.flipCamera() },
+                        indication = rememberRipple(false),
+                        modifier = Modifier.size(controlSize)
+                            .padding(controlPadding)
                     ) {
                         Icon(
                             painterResource(id = R.drawable.outline_flip_camera_android_24),
@@ -226,11 +240,26 @@ class CallActivity : AppCompatActivity() {
                                 viewModel.stopScreenCapture()
                             }
                         },
+                        indication = rememberRipple(false),
+                        modifier = Modifier.size(controlSize)
+                            .padding(controlPadding)
                     ) {
                         val resource =
                             if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
                         Icon(
                             painterResource(id = resource),
+                            contentDescription = "Flip Camera",
+                            tint = Color.White,
+                        )
+                    }
+                    Surface(
+                        onClick = { onExitClick() },
+                        indication = rememberRipple(false),
+                        modifier = Modifier.size(controlSize)
+                            .padding(controlPadding)
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.ic_baseline_cancel_24),
                             contentDescription = "Flip Camera",
                             tint = Color.White,
                         )
