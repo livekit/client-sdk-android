@@ -62,6 +62,7 @@ class CallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Obtain audio focus.
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
             previousSpeakerphoneOn = isSpeakerphoneOn
@@ -81,6 +82,7 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request failed" }
         }
 
+        // Setup compose view.
         setContent {
             val room by viewModel.room.collectAsState()
             val participants by viewModel.participants.collectAsState(initial = emptyList())
@@ -134,6 +136,7 @@ class CallActivity : AppCompatActivity() {
             ) {
                 val (speakerView, audienceRow, buttonBar) = createRefs()
 
+                // Primary speaker view
                 Surface(modifier = Modifier.constrainAs(speakerView) {
                     top.linkTo(parent.top)
                     start.linkTo(parent.start)
@@ -150,6 +153,8 @@ class CallActivity : AppCompatActivity() {
                         )
                     }
                 }
+
+                // Audience row to display all participants.
                 LazyRow(
                     modifier = Modifier
                         .constrainAs(audienceRow) {
@@ -178,6 +183,7 @@ class CallActivity : AppCompatActivity() {
                     }
                 }
 
+                // Control bar for any switches such as mic/camera enable/disable.
                 Row(
                     modifier = Modifier
                         .padding(top = 10.dp, bottom = 20.dp)
@@ -272,6 +278,7 @@ class CallActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        // release audio focus and revert audio settings.
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         with(audioManager) {
             isSpeakerphoneOn = previousSpeakerphoneOn

@@ -14,6 +14,10 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.room.track.video.ComposeVisibility
 
+/**
+ * Widget for displaying a VideoTrack. Handles the Compose <-> AndroidView interop needed to use
+ * [TextureViewRenderer].
+ */
 @Composable
 fun VideoItem(
     room: Room,
@@ -23,6 +27,7 @@ fun VideoItem(
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var view: TextureViewRenderer? by remember { mutableStateOf(null) }
+
     fun cleanupVideoTrack() {
         view?.let { boundVideoTrack?.removeRenderer(it) }
         boundVideoTrack = null
@@ -42,12 +47,14 @@ fun VideoItem(
             videoTrack.addRenderer(view)
         }
     }
+
     DisposableEffect(room, videoTrack) {
         onDispose {
             videoSinkVisibility.onDispose()
             cleanupVideoTrack()
         }
     }
+
     AndroidView(
         factory = { context ->
             TextureViewRenderer(context).apply {
@@ -65,6 +72,9 @@ fun VideoItem(
     )
 }
 
+/**
+ * This widget primarily serves as a way to observe changes in [videoTracks].
+ */
 @Composable
 fun VideoItemTrackSelector(
     room: Room,

@@ -23,6 +23,9 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.util.flow
 
+/**
+ * Widget for displaying a participant.
+ */
 @Composable
 fun ParticipantItem(
     room: Room,
