@@ -17,11 +17,24 @@ dependencies {
 }
 ```
 
+You'll also need jitpack as one of your repositories.
+
+```groovy
+subprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
 ## Sample App
 
 There are two sample apps with similar functionality:
 
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample) 
+* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample)
 * [Standard app](https://github.com/livekit/client-sdk-android/tree/master/sample-app)
 
 ## Usage
