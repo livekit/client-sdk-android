@@ -474,13 +474,13 @@ abstract class BaseVideoTrackPublishOptions {
 
 data class VideoTrackPublishDefaults(
     override val videoEncoding: VideoEncoding? = null,
-    override val simulcast: Boolean = false
+    override val simulcast: Boolean = true
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
     override val name: String? = null,
     override val videoEncoding: VideoEncoding? = null,
-    override val simulcast: Boolean = false
+    override val simulcast: Boolean = true
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
