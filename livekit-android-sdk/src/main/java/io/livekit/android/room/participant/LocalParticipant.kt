@@ -345,9 +345,11 @@ internal constructor(
     private fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
         val presets = presetsForResolution(width, height)
 
-        return presets
-            .last { width >= it.capture.width && height >= it.capture.height }
-            .encoding
+        val preset = presets
+            .lastOrNull { width >= it.capture.width && height >= it.capture.height }
+            ?: presets.first()
+
+        return preset.encoding
     }
 
     private fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
@@ -444,6 +446,7 @@ internal constructor(
     }
 
     companion object {
+        // Note: maintain order from smallest to biggest.
         private val PRESETS_16_9 = listOf(
             VideoPreset169.QVGA,
             VideoPreset169.VGA,
@@ -452,6 +455,7 @@ internal constructor(
             VideoPreset169.FHD
         )
 
+        // Note: maintain order from smallest to biggest.
         private val PRESETS_4_3 = listOf(
             VideoPreset43.QVGA,
             VideoPreset43.VGA,
