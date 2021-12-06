@@ -7,3 +7,4 @@ pluginManagement {
 include ':sample-app', ':sample-app-compose', ':livekit-android-sdk'
 rootProject.name='livekit-android'
 include ':sample-app-common'
+include ':livekit-lint'
