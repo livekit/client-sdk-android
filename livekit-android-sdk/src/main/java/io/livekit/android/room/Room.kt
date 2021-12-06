@@ -127,7 +127,7 @@ constructor(
         get() = mutableActiveSpeakers
 
     private var hasLostConnectivity: Boolean = false
-    suspend fun connect(url: String, token: String, options: ConnectOptions) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }

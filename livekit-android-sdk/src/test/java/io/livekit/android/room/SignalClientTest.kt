@@ -71,7 +71,7 @@ class SignalClientTest {
     @Test
     fun joinAndResponse() {
         val job = coroutineScope.async {
-            client.join(EXAMPLE_URL, "", null)
+            client.join(EXAMPLE_URL, "")
         }
 
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
@@ -102,7 +102,7 @@ class SignalClientTest {
         client.listener = listener
 
         val job = coroutineScope.async {
-            client.join(EXAMPLE_URL, "", null)
+            client.join(EXAMPLE_URL, "")
         }
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         client.onMessage(wsFactory.ws, JOIN.toOkioByteString())
@@ -119,7 +119,7 @@ class SignalClientTest {
         client.listener = listener
 
         val job = coroutineScope.async {
-            client.join(EXAMPLE_URL, "", null)
+            client.join(EXAMPLE_URL, "")
         }
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         client.onMessage(wsFactory.ws, JOIN.toOkioByteString())

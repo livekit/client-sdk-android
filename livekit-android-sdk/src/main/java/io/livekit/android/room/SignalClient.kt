@@ -62,7 +62,7 @@ constructor(
     suspend fun join(
         url: String,
         token: String,
-        options: ConnectOptions,
+        options: ConnectOptions = ConnectOptions(),
     ) : LivekitRtc.JoinResponse {
         val joinResponse = connect(url,token, options)
         return (joinResponse as Either.Left).value
