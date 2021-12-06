@@ -4,7 +4,7 @@ package io.livekit.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
-import com.android.tools.lint.checks.infrastructure.TestLintTask
+import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.Test
 
@@ -131,25 +131,85 @@ class MediaTrackEqualsDetectorTest {
             .run()
             .expectClean()
     }
+
+    @Test
+    fun kotlinMediaTrackEqualityOperator() {
+        lint()
+            .allowMissingSdk()
+            .files(
+                mediaStreamTrack(),
+                kotlin(
+                    """
+          package foo
+          import org.webrtc.MediaStreamTrack
+          
+          class Example {
+            fun foo() : Boolean {
+              val a = MediaStreamTrack()
+              val b = MediaStreamTrack()
+              return a === b;
+            }
+          }"""
+                ).indented()
+            )
+            .issues(MediaTrackEqualsDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+    @Test
+    fun kotlinMediaTrackIdentityEqualityOperator() {
+        lint()
+            .allowMissingSdk()
+            .files(
+                mediaStreamTrack(),
+                kotlin(
+                    """
+          package foo
+          import org.webrtc.MediaStreamTrack
+          
+          class Example {
+            fun foo() : Boolean {
+              val a = MediaStreamTrack()
+              val b = MediaStreamTrack()
+              return a == b
+            }
+          }"""
+                ).indented()
+            )
+            .issues(MediaTrackEqualsDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
+
+
+    @Test
+    fun kotlinProperMediaTrackEquality() {
+        lint()
+            .allowMissingSdk()
+            .files(
+                mediaStreamTrack(),
+                kotlin(
+                    """
+          package foo
+          import org.webrtc.MediaStreamTrack
+          
+          class Example {
+            fun foo() : Boolean {
+              val a = MediaStreamTrack()
+              val b = MediaStreamTrack()
+              return a.id() == b.id()
+            }
+          }"""
+                ).indented()
+            )
+            .issues(MediaTrackEqualsDetector.ISSUE)
+            .run()
+            .expectClean()
+    }
 }
 
-fun TestLintTask.mediaStreamTrack(): TestLintTask {
-    return this.files(
-        java(
-            """
-        package org.webrtc;
-        
-        class MediaStreamTrack {
-            int getId(){
-                return 0;
-            }        
-        }
-    """
-        ).indented()
-    )
-}
-
-fun Any.mediaStreamTrack(): TestFile {
+fun mediaStreamTrack(): TestFile {
     return java(
         """
         package org.webrtc;

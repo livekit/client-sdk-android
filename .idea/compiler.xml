@@ -4,6 +4,8 @@
     <bytecodeTargetLevel target="1.8">
       <module name="livekit-android.livekit-android-sdk" target="11" />
       <module name="livekit-android.sample-app" target="11" />
+      <module name="livekit-android.sample-app-common" target="11" />
+      <module name="livekit-android.sample-app-compose" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>

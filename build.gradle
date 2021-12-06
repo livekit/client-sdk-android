@@ -53,6 +53,7 @@ ext {
     versions = [
             androidx_core     : "1.6.0",
             androidx_lifecycle: "2.4.0",
+            autoService       : '1.0.1',
             dagger            : "2.27",
             groupie           : "2.9.0",
             junit             : "4.13.2",
@@ -64,9 +65,12 @@ ext {
             protoSrc: "$projectDir/protocol",
     ]
     deps = [
+            auto              : [
+                    'service'           : "com.google.auto.service:auto-service:${versions.autoService}",
+                    'serviceAnnotations': "com.google.auto.service:auto-service-annotations:${versions.autoService}",
+            ],
             kotlinx_coroutines: "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2",
             timber            : "com.github.ajalt:timberkt:1.5.1",
-
             // lint
             lint              : "com.android.tools.lint:lint:${versions.lint}",
             lintApi           : "com.android.tools.lint:lint-api:${versions.lint}",
