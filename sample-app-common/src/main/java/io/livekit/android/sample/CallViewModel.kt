@@ -6,6 +6,7 @@ import androidx.lifecycle.*
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
+import io.livekit.android.RoomOptions
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.room.participant.Participant
@@ -70,10 +71,8 @@ class CallViewModel(
                 application,
                 url,
                 token,
-                ConnectOptions(
-                    autoManageVideo = true,
-                ),
-                this@CallViewModel
+                roomOptions = RoomOptions(autoManageVideo = true),
+                listener = this@CallViewModel
             )
 
             // Create and publish audio/video tracks

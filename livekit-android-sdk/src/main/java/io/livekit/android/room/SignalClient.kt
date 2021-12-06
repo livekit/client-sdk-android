@@ -62,7 +62,7 @@ constructor(
     suspend fun join(
         url: String,
         token: String,
-        options: ConnectOptions?,
+        options: ConnectOptions,
     ) : LivekitRtc.JoinResponse {
         val joinResponse = connect(url,token, options)
         return (joinResponse as Either.Left).value
@@ -80,7 +80,7 @@ constructor(
     suspend fun connect(
         url: String,
         token: String,
-        options: ConnectOptions?
+        options: ConnectOptions
     ) : Either<LivekitRtc.JoinResponse, Unit> {
         var wsUrlString = "$url/rtc" +
                 "?protocol=$PROTOCOL_VERSION" +
@@ -88,17 +88,15 @@ constructor(
                 "&sdk=$SDK_TYPE" +
                 "&version=${Version.CLIENT_VERSION}"
         isReconnecting = false
-        if (options != null) {
-            wsUrlString += "&auto_subscribe="
-            wsUrlString += if (options.autoSubscribe) {
-                "1"
-            } else {
-                "0"
-            }
-            if (options.reconnect) {
-                wsUrlString += "&reconnect=1"
-                isReconnecting = true
-            }
+        wsUrlString += "&auto_subscribe="
+        wsUrlString += if (options.autoSubscribe) {
+            "1"
+        } else {
+            "0"
+        }
+        if (options.reconnect) {
+            wsUrlString += "&reconnect=1"
+            isReconnecting = true
         }
 
         LKLog.i { "connecting to $wsUrlString" }

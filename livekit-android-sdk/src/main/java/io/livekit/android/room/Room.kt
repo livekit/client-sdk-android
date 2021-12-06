@@ -80,10 +80,34 @@ constructor(
     var metadata: String? by flowDelegate(null)
         private set
 
+    /**
+     * Automatically manage quality of subscribed video tracks, subscribe to the
+     * an appropriate resolution based on the size of the video elements that tracks
+     * are attached to.
+     *
+     * Also observes the visibility of attached tracks and pauses receiving data
+     * if they are not visible.
+     */
     var autoManageVideo: Boolean = false
+
+    /**
+     * Default options to use when creating an audio track.
+     */
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
+
+    /**
+     * Default options to use when publishing an audio track.
+     */
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
+
+    /**
+     * Default options to use when creating a video track.
+     */
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
+
+    /**
+     * Default options to use when publishing a video track.
+     */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
     lateinit var localParticipant: LocalParticipant
@@ -103,13 +127,12 @@ constructor(
         get() = mutableActiveSpeakers
 
     private var hasLostConnectivity: Boolean = false
-    suspend fun connect(url: String, token: String, options: ConnectOptions?) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
-        ::state.flow
         val response = engine.join(url, token, options)
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
@@ -134,6 +157,15 @@ constructor(
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         cm.registerNetworkCallback(networkRequest, this)
+
+        if (options.audio) {
+            val audioTrack = localParticipant.createAudioTrack()
+            localParticipant.publishAudioTrack(audioTrack)
+        }
+        if (options.video) {
+            val videoTrack = localParticipant.createVideoTrack()
+            localParticipant.publishVideoTrack(videoTrack)
+        }
     }
 
     fun disconnect() {
