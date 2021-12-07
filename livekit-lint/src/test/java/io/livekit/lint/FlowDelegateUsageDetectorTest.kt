@@ -2,135 +2,114 @@
 
 package io.livekit.lint
 
-import com.android.tools.lint.checks.infrastructure.LintDetectorTest.bytes
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.lint.checks.infrastructure.TestFiles.java
-import com.android.tools.lint.checks.infrastructure.TestLintTask
+import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.junit.Test
 
 class FlowDelegateUsageDetectorTest {
     @Test
-    fun objectEquals() {
+    fun normalFlowAccess() {
         lint()
             .allowMissingSdk()
             .files(
-                java(
+                flowAccess(),
+                kotlin(
                     """
-          package foo;
-
-          class Example {
-            public boolean foo() {
-              Object a = new Object();
-              Object b = new Object();
-              return a.equals(b);
-            }
-          }"""
+                    package foo
+                    import io.livekit.android.util.FlowObservable
+                    import io.livekit.android.util.flow
+                    import io.livekit.android.util.flowDelegate
+                    class Example {
+                        @field:FlowObservable
+                        val value: Int by flowDelegate(0)
+                        fun foo() {
+                            ::value.flow
+                            return
+                        }
+                    }"""
                 ).indented()
             )
-            .issues(MediaTrackEqualsDetector.ISSUE)
+            .issues(FlowDelegateUsageDetector.ISSUE)
             .run()
             .expectClean()
     }
 
     @Test
-    fun objectEqualityOperator() {
+    fun nonAnnotatedFlowAccess() {
         lint()
             .allowMissingSdk()
             .files(
-                java(
+                flowAccess(),
+                kotlin(
                     """
-          package foo;
-          
-          class Example {
-            public boolean foo() {
-              Object a = new Object();
-              Object b = new Object();
-              return a == b;
-            }
-          }"""
+                    package foo
+                    import io.livekit.android.util.FlowObservable
+                    import io.livekit.android.util.flow
+                    import io.livekit.android.util.flowDelegate
+                    class Example {
+                        val value: Int by flowDelegate(0)
+                        fun foo() {
+                            this::value.flow
+                            return
+                        }
+                    }"""
                 ).indented()
             )
-            .issues(MediaTrackEqualsDetector.ISSUE)
-            .run()
-            .expectClean()
-    }
-
-    @Test
-    fun mediaTrackEquals() {
-        lint()
-            .allowMissingSdk()
-            .files(
-                mediaStreamTrack(),
-                java(
-                    """
-          package foo;
-          import org.webrtc.MediaStreamTrack;
-          
-          class Example {
-            public boolean foo() {
-              MediaStreamTrack a = new MediaStreamTrack();
-              MediaStreamTrack b = new MediaStreamTrack();
-              return a.equals(b);
-            }
-          }"""
-                ).indented()
-            )
-            .issues(MediaTrackEqualsDetector.ISSUE)
+            .issues(FlowDelegateUsageDetector.ISSUE)
             .run()
             .expectErrorCount(1)
     }
+}
 
-    @Test
-    fun mediaTrackEqualityOperator() {
-        lint()
-            .allowMissingSdk()
-            .files(
-                mediaStreamTrack(),
-                java(
-                    """
-          package foo;
-          import org.webrtc.MediaStreamTrack;
-          
-          class Example {
-            public boolean foo() {
-              ABC a = new ABC();
-              MediaStreamTrack b = new MediaStreamTrack();
-              a.equals(b);
-              return a == b;
+fun flowAccess(): TestFile {
+    return kotlin(
+        """
+        package io.livekit.android.util
+        
+        import kotlin.reflect.KProperty
+        import kotlin.reflect.KProperty0
+        
+        internal val <T> KProperty0<T>.delegate: Any?
+            get() { getDelegate() }
+        
+        @Suppress("UNCHECKED_CAST")
+        val <T> KProperty0<T>.flow: StateFlow<T>
+            get() = delegate as StateFlow<T>
+        
+        @Target(AnnotationTarget.PROPERTY)
+        @Retention(AnnotationRetention.SOURCE)
+        @MustBeDocumented
+        annotation class FlowObservable
+        
+        class MutableStateFlowDelegate<T>
+        internal constructor(
+            private val flow: MutableStateFlow<T>,
+            private val onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
+        ) : MutableStateFlow<T> by flow {
+        
+            operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+                return flow.value
             }
-            public boolean equals(Object o){
-            return false;
+        
+            operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+                val oldValue = flow.value
+                flow.value = value
+                onSetValue?.invoke(value, oldValue)
             }
-          }"""
-                ).indented()
-            )
-            .issues(MediaTrackEqualsDetector.ISSUE)
-            .run()
-            .expectErrorCount(1)
-    }
+        }
+        
+        public fun <T> flowDelegate(
+            initialValue: T,
+            onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
+        ): MutableStateFlowDelegate<T> {
+            return MutableStateFlowDelegate(MutableStateFlow(initialValue), onSetValue)
+        }
 
-    @Test
-    fun properMediaTrackEquality() {
-        lint()
-            .allowMissingSdk()
-            .files(
-                mediaStreamTrack(),
-                java(
-                    """
-          package foo;
-
-          class Example {
-            public boolean foo() {
-              MediaStreamTrack a = new MediaStreamTrack();
-              MediaStreamTrack b = new MediaStreamTrack();
-              return a.getId() == b.getId();
-            }
-          }"""
-                ).indented()
-            )
-            .issues(MediaTrackEqualsDetector.ISSUE)
-            .run()
-            .expectClean()
-    }
+        interface StateFlow<out T> {
+            val value: T
+        }
+        class MutableStateFlow<T>(override var value: T) : StateFlow<T>
+    """
+    ).indented()
 }
