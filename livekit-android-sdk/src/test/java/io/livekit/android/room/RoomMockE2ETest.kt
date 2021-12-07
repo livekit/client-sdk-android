@@ -4,12 +4,10 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
-import io.livekit.android.events.FlowCollector
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockWebsocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.room.participant.ConnectionQuality
-import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -53,7 +51,6 @@ class RoomMockE2ETest {
             room.connect(
                 url = "http://www.example.com",
                 token = "",
-                options = null
             )
         }
 

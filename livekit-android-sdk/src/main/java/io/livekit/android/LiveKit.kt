@@ -26,6 +26,35 @@ class LiveKit {
                 }
             }
 
+        fun create(
+            appContext: Context,
+            options: RoomOptions = RoomOptions(),
+        ): Room {
+            val ctx = appContext.applicationContext
+            val component = DaggerLiveKitComponent
+                .factory()
+                .create(ctx)
+
+            val room = component.roomFactory().create(ctx)
+
+            options.audioTrackCaptureDefaults?.let {
+                room.audioTrackCaptureDefaults = it
+            }
+            options.videoTrackCaptureDefaults?.let {
+                room.videoTrackCaptureDefaults = it
+            }
+
+            options.audioTrackPublishDefaults?.let {
+                room.audioTrackPublishDefaults = it
+            }
+            options.videoTrackPublishDefaults?.let {
+                room.videoTrackPublishDefaults = it
+            }
+            room.autoManageVideo = options.autoManageVideo
+
+            return room
+        }
+
         /**
          * Connect to a LiveKit room
          * @param url URL to LiveKit server (i.e. ws://mylivekitdeploy.io)
@@ -35,42 +64,14 @@ class LiveKit {
             appContext: Context,
             url: String,
             token: String,
-            options: ConnectOptions?,
+            options: ConnectOptions = ConnectOptions(),
+            roomOptions: RoomOptions = RoomOptions(),
             listener: RoomListener?
         ): Room {
-            val ctx = appContext.applicationContext
-            val component = DaggerLiveKitComponent
-                .factory()
-                .create(ctx)
+            val room = create(appContext)
 
-            val room = component.roomFactory()
-                .create(ctx)
             room.listener = listener
             room.connect(url, token, options)
-
-            options?.audioTrackCaptureDefaults?.let {
-                room.localParticipant.audioTrackCaptureDefaults = it
-            }
-            options?.videoTrackCaptureDefaults?.let {
-                room.localParticipant.videoTrackCaptureDefaults = it
-            }
-
-            options?.audioTrackPublishDefaults?.let {
-                room.localParticipant.audioTrackPublishDefaults = it
-            }
-            options?.videoTrackPublishDefaults?.let {
-                room.localParticipant.videoTrackPublishDefaults = it
-            }
-            room.autoManageVideo = options?.autoManageVideo ?: false
-
-            if (options?.audio == true) {
-                val audioTrack = room.localParticipant.createAudioTrack()
-                room.localParticipant.publishAudioTrack(audioTrack)
-            }
-            if (options?.video == true) {
-                val videoTrack = room.localParticipant.createVideoTrack()
-                room.localParticipant.publishVideoTrack(videoTrack)
-            }
             return room
         }
 

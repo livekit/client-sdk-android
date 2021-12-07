@@ -88,7 +88,7 @@ internal constructor(
         client.listener = this
     }
 
-    suspend fun join(url: String, token: String, options: ConnectOptions?): LivekitRtc.JoinResponse {
+    suspend fun join(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
         sessionUrl = url
         sessionToken = token
         val joinResponse = client.join(url, token, options)

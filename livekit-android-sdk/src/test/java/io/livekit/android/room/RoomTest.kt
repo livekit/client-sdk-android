@@ -77,7 +77,6 @@ class RoomTest {
             room.connect(
                 url = "http://www.example.com",
                 token = "",
-                options = null
             )
         }
         runBlockingTest {
