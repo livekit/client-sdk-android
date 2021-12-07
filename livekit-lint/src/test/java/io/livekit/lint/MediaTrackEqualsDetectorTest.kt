@@ -147,7 +147,7 @@ class MediaTrackEqualsDetectorTest {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
               val b = MediaStreamTrack()
-              return a === b;
+              return a == b;
             }
           }"""
                 ).indented()
@@ -172,7 +172,7 @@ class MediaTrackEqualsDetectorTest {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
               val b = MediaStreamTrack()
-              return a == b
+              return a === b
             }
           }"""
                 ).indented()
@@ -182,6 +182,30 @@ class MediaTrackEqualsDetectorTest {
             .expectErrorCount(1)
     }
 
+    @Test
+    fun kotlinMediaTrackEquals() {
+        lint()
+            .allowMissingSdk()
+            .files(
+                mediaStreamTrack(),
+                kotlin(
+                    """
+          package foo
+          import org.webrtc.MediaStreamTrack
+          
+          class Example {
+            fun foo() : Boolean {
+              val a = MediaStreamTrack()
+              val b = MediaStreamTrack()
+              return a.equals(b)
+            }
+          }"""
+                ).indented()
+            )
+            .issues(MediaTrackEqualsDetector.ISSUE)
+            .run()
+            .expectErrorCount(1)
+    }
 
     @Test
     fun kotlinProperMediaTrackEquality() {
