@@ -68,7 +68,7 @@ class LiveKit {
             roomOptions: RoomOptions = RoomOptions(),
             listener: RoomListener?
         ): Room {
-            val room = create(appContext)
+            val room = create(appContext, roomOptions)
 
             room.listener = listener
             room.connect(url, token, options)

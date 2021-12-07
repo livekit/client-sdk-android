@@ -93,6 +93,7 @@ class MainActivity : AppCompatActivity(), RoomListener {
                 url,
                 token,
                 ConnectOptions(),
+                RoomOptions(),
                 this
             )
             val localParticipant = room.localParticipant
