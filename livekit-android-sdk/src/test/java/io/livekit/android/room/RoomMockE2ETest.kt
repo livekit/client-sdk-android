@@ -193,7 +193,7 @@ class RoomMockE2ETest {
         Assert.assertEquals(true, events[0] is RoomEvent.TrackStreamStateChanged)
 
         val event = events[0] as RoomEvent.TrackStreamStateChanged
-        Assert.assertEquals(Track.StreamState.PAUSED, event.streamState)
+        Assert.assertEquals(Track.StreamState.ACTIVE, event.streamState)
     }
 
     @Test

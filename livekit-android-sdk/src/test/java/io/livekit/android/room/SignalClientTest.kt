@@ -234,7 +234,7 @@ class SignalClientTest {
                 addStreamStates(with(LivekitRtc.StreamStateInfo.newBuilder()) {
                     participantSid = TestData.REMOTE_PARTICIPANT.sid
                     trackSid = TestData.REMOTE_AUDIO_TRACK.sid
-                    state = LivekitRtc.StreamState.PAUSED
+                    state = LivekitRtc.StreamState.ACTIVE
                     build()
                 })
                 build()
