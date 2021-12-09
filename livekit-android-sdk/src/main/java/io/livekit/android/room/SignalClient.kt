@@ -416,7 +416,7 @@ constructor(
                 listener?.onConnectionQuality(response.connectionQuality.updatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.STREAM_STATE_UPDATE -> {
-                // TODO
+                listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
@@ -444,6 +444,7 @@ constructor(
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onLeave()
         fun onError(error: Exception)
+        fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
     }
 
     companion object {

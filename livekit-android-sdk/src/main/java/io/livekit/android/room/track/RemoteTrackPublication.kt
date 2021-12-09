@@ -35,6 +35,7 @@ class RemoteTrackPublication(
                         when (it) {
                             is TrackEvent.VisibilityChanged -> handleVisibilityChanged(it)
                             is TrackEvent.VideoDimensionsChanged -> handleVideoDimensionsChanged(it)
+                            is TrackEvent.StreamStateChanged -> handleStreamStateChanged(it)
                         }
                     }
                 }
@@ -49,6 +50,10 @@ class RemoteTrackPublication(
     private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
         videoDimensions = trackEvent.newDimensions
         sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
+        participant.get()?.onTrackStreamStateChanged(trackEvent)
     }
 
     private var trackJob: Job? = null

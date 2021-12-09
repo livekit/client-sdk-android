@@ -2,7 +2,9 @@ package io.livekit.android.room.track
 
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.util.flowDelegate
 import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.MediaStreamTrack
 
 open class Track(
@@ -12,17 +14,24 @@ open class Track(
 ) {
     protected val eventBus = BroadcastEventBus<TrackEvent>()
     val events = eventBus.readOnly()
-
     var name = name
         internal set
+
     var kind = kind
         internal set
     var sid: String? = null
+        internal set
+    var streamState: StreamState by flowDelegate(StreamState.ACTIVE) { newValue, oldValue ->
+        if (newValue != oldValue) {
+            eventBus.tryPostEvent(TrackEvent.StreamStateChanged(this, newValue))
+        }
+    }
         internal set
 
     enum class Kind(val value: String) {
         AUDIO("audio"),
         VIDEO("video"),
+
         // unknown
         UNRECOGNIZED("unrecognized");
 
@@ -72,6 +81,30 @@ open class Track(
                     LivekitModels.TrackSource.MICROPHONE -> MICROPHONE
                     LivekitModels.TrackSource.SCREEN_SHARE -> SCREEN_SHARE
                     else -> UNKNOWN
+                }
+            }
+        }
+    }
+
+    enum class StreamState {
+        ACTIVE,
+        PAUSED,
+        UNKNOWN;
+
+        fun toProto(): LivekitRtc.StreamState {
+            return when (this) {
+                ACTIVE -> LivekitRtc.StreamState.ACTIVE
+                PAUSED -> LivekitRtc.StreamState.PAUSED
+                UNKNOWN -> LivekitRtc.StreamState.UNRECOGNIZED
+            }
+        }
+
+        companion object {
+            fun fromProto(state: LivekitRtc.StreamState): StreamState {
+                return when (state) {
+                    LivekitRtc.StreamState.ACTIVE -> ACTIVE
+                    LivekitRtc.StreamState.PAUSED -> PAUSED
+                    LivekitRtc.StreamState.UNRECOGNIZED -> UNKNOWN
                 }
             }
         }
