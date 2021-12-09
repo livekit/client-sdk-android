@@ -19,11 +19,14 @@
 package io.livekit.lint
 
 import com.android.tools.lint.detector.api.*
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import org.jetbrains.uast.UCallableReferenceExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.kotlin.KotlinUQualifiedReferenceExpression
+import org.jetbrains.uast.tryResolve
 
 /** Checks related to DiffUtil computation. */
 class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
@@ -32,20 +35,33 @@ class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
 
         // Check if we're actually trying to access the flow delegate
         val referencedMethod = referenced as? PsiMethod ?: return
-        if (referenced.name != "getFlow" || referencedMethod.containingClass?.qualifiedName != "io.livekit.android.util.FlowObservableKt") {
+        if (referenced.name != GET_FLOW || referencedMethod.containingClass?.qualifiedName != FLOW_DELEGATE) {
             return
         }
 
-        // This should get the property we're trying to receive the flow from.
+        // This should get the getter we're trying to receive the flow from.
+        val parent = reference.uastParent as? KotlinUQualifiedReferenceExpression
+        val rec = parent?.receiver
+        val resolve = rec?.tryResolve()
+        println("parent: $parent, rec: $rec, resolve: $resolve")
         val receiver = ((reference.uastParent as? KotlinUQualifiedReferenceExpression)
             ?.receiver as? UCallableReferenceExpression)
-            ?: return
+            ?.resolve()
 
-        // This should get the original class associated with the property.
-        val className = receiver.qualifierType?.canonicalText
-        val psiClass = if (className != null) context.evaluator.findClass(className) else null
-        val psiField = psiClass?.findFieldByName("${receiver.callableName}\$delegate", true)
-        val isAnnotated = psiField?.hasAnnotation("io.livekit.android.util.FlowObservable") ?: false
+        val isAnnotated = when (receiver) {
+            is PsiMethod -> {
+                println("${receiver.name},  ${receiver.annotations.fold("") { total, next -> "$total, ${next.text}" }}")
+                receiver.hasAnnotation(FLOW_OBSERVABLE_ANNOTATION)
+            }
+            is PsiField -> {
+                val receiverClass = (receiver.type as? PsiClassType)?.resolve()
+                println("${receiverClass},  ${receiverClass?.annotations?.fold("") { total, next -> "$total, ${next.text}" }}")
+                receiverClass?.hasAnnotation(FLOW_OBSERVABLE_ANNOTATION) ?: false
+            }
+            else -> {
+                false
+            }
+        }
 
         if (!isAnnotated) {
             val message = DEFAULT_MSG
@@ -60,8 +76,16 @@ class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
 
     companion object {
 
+        // The name of the method for the flow accessor
+        private const val GET_FLOW = "getFlow"
+
+        // The containing file and implicitly generated class
+        private const val FLOW_DELEGATE = "io.livekit.android.util.FlowDelegateKt"
+
+        private const val FLOW_OBSERVABLE_ANNOTATION = "io.livekit.android.util.FlowObservable"
+
         private const val DEFAULT_MSG =
-            "Incorrect flow property usage: Only properties marked with the @FlowObservable annotation can be observed using `io.livekit.android.util.flow`."
+            "Incorrect flow property usage: Only properties marked with the @FlowObservable annotation can be observed using `io.livekit.android.util.flow`. Improper usage will result in a NullPointerException."
 
         private val IMPLEMENTATION =
             Implementation(FlowDelegateUsageDetector::class.java, Scope.JAVA_FILE_SCOPE)

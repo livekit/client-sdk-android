@@ -16,6 +16,7 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
@@ -60,23 +61,18 @@ constructor(
     @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+    @get:FlowObservable
     var sid: Sid? by flowDelegate(null)
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+
+    @get:FlowObservable
     var name: String? by flowDelegate(null)
         private set
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+
+    @get:FlowObservable
     var state: State by flowDelegate(State.DISCONNECTED)
         private set
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+
+    @get:FlowObservable
     var metadata: String? by flowDelegate(null)
         private set
 
@@ -88,17 +84,16 @@ constructor(
 
     lateinit var localParticipant: LocalParticipant
         private set
+
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+
+    @get:FlowObservable
     val remoteParticipants: Map<String, RemoteParticipant>
         get() = mutableRemoteParticipants
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
-    /**
-     * Changes can be observed by using [io.livekit.android.util.flow]
-     */
+
+    @get:FlowObservable
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
 
@@ -109,7 +104,6 @@ constructor(
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
-        ::state.flow
         val response = engine.join(url, token, options)
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
