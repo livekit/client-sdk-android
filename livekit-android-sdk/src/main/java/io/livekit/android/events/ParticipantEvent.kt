@@ -98,4 +98,13 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
      * Received data published by another participant
      */
     class DataReceived(override val participant: RemoteParticipant, val data: ByteArray) : ParticipantEvent(participant)
+
+    /**
+     * A track's stream state has changed.
+     */
+    class TrackStreamStateChanged(
+        override val participant: Participant,
+        val trackPublication: TrackPublication,
+        val streamState: Track.StreamState
+    ) : ParticipantEvent(participant)
 }

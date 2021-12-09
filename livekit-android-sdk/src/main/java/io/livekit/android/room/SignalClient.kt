@@ -292,7 +292,7 @@ constructor(
         sid: String,
         disabled: Boolean,
         videoDimensions: Track.Dimensions?,
-        videoQuality: LivekitRtc.VideoQuality?,
+        videoQuality: LivekitModels.VideoQuality?,
     ) {
         val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
             .addTrackSids(sid)
@@ -305,7 +305,7 @@ constructor(
                     quality = videoQuality
                 } else {
                     // default to HIGH
-                    quality = LivekitRtc.VideoQuality.HIGH
+                    quality = LivekitModels.VideoQuality.HIGH
                 }
             }
 
@@ -415,8 +415,8 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.CONNECTION_QUALITY -> {
                 listener?.onConnectionQuality(response.connectionQuality.updatesList)
             }
-            LivekitRtc.SignalResponse.MessageCase.STREAMED_TRACKS_UPDATE -> {
-                // TODO
+            LivekitRtc.SignalResponse.MessageCase.STREAM_STATE_UPDATE -> {
+                listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
@@ -444,6 +444,7 @@ constructor(
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onLeave()
         fun onError(error: Exception)
+        fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
     }
 
     companion object {

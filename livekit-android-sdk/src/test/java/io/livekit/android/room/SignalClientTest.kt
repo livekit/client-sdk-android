@@ -229,6 +229,18 @@ class SignalClientTest {
             build()
         }
 
+        val STREAM_STATE_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            streamStateUpdate = with(LivekitRtc.StreamStateUpdate.newBuilder()) {
+                addStreamStates(with(LivekitRtc.StreamStateInfo.newBuilder()) {
+                    participantSid = TestData.REMOTE_PARTICIPANT.sid
+                    trackSid = TestData.REMOTE_AUDIO_TRACK.sid
+                    state = LivekitRtc.StreamState.ACTIVE
+                    build()
+                })
+                build()
+            }
+            build()
+        }
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
             leave = with(leaveBuilder) {
                 build()

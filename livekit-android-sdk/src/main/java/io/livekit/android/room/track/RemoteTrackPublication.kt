@@ -8,7 +8,6 @@ import io.livekit.android.util.debounce
 import io.livekit.android.util.invoke
 import kotlinx.coroutines.*
 import livekit.LivekitModels
-import livekit.LivekitRtc
 import javax.inject.Named
 
 class RemoteTrackPublication(
@@ -36,6 +35,7 @@ class RemoteTrackPublication(
                         when (it) {
                             is TrackEvent.VisibilityChanged -> handleVisibilityChanged(it)
                             is TrackEvent.VideoDimensionsChanged -> handleVideoDimensionsChanged(it)
+                            is TrackEvent.StreamStateChanged -> handleStreamStateChanged(it)
                         }
                     }
                 }
@@ -52,11 +52,15 @@ class RemoteTrackPublication(
         sendUpdateTrackSettings.invoke()
     }
 
+    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
+        participant.get()?.onTrackStreamStateChanged(trackEvent)
+    }
+
     private var trackJob: Job? = null
 
     private var unsubscribed: Boolean = false
     private var disabled: Boolean = false
-    private var videoQuality: LivekitRtc.VideoQuality? = LivekitRtc.VideoQuality.HIGH
+    private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
 
     val isAutoManaged: Boolean
@@ -113,7 +117,7 @@ class RemoteTrackPublication(
      * this indicates the highest quality the client can accept. if network bandwidth does not
      * allow, server will automatically reduce quality to optimize for uninterrupted video
      */
-    fun setVideoQuality(quality: LivekitRtc.VideoQuality) {
+    fun setVideoQuality(quality: LivekitModels.VideoQuality) {
         if (isAutoManaged
             || !subscribed
             || quality == videoQuality

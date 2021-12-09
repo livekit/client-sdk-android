@@ -12,7 +12,9 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.collect
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
@@ -203,6 +205,14 @@ constructor(
             RemoteParticipant(sid, null, engine.client, ioDispatcher, defaultDispatcher)
         }
         participant.internalListener = this
+
+        coroutineScope.launch {
+            participant.events.collect {
+                when(it){
+                    is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(RoomEvent.TrackStreamStateChanged(this@Room, it.trackPublication, it.streamState))
+                }
+            }
+        }
 
         val newRemoteParticipants = mutableRemoteParticipants.toMutableMap()
         newRemoteParticipants[sid] = participant
@@ -433,6 +443,15 @@ constructor(
         listener?.onDataReceived(data, participant, this)
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant), coroutineScope)
         participant.onDataReceived(data)
+    }
+
+    override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
+        for(streamState in streamStates){
+            val participant = getParticipant(streamState.participantSid) ?: continue
+            val track = participant.tracks[streamState.trackSid] ?: continue
+
+            track.track?.streamState = Track.StreamState.fromProto(streamState.state)
+        }
     }
 
     /**

@@ -83,11 +83,11 @@ class RemoteVideoTrack(
         val eventsToPost = mutableListOf<TrackEvent>()
         if (isVisible != lastVisibility) {
             lastVisibility = isVisible
-            eventsToPost.add(TrackEvent.VisibilityChanged(isVisible))
+            eventsToPost.add(TrackEvent.VisibilityChanged(this, isVisible))
         }
         if (newDimensions != lastDimensions) {
             lastDimensions = newDimensions
-            eventsToPost.add(TrackEvent.VideoDimensionsChanged(newDimensions))
+            eventsToPost.add(TrackEvent.VideoDimensionsChanged(this, newDimensions))
         }
 
         if (eventsToPost.any()) {

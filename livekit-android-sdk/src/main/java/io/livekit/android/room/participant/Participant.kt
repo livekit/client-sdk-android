@@ -3,6 +3,7 @@ package io.livekit.android.room.participant
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
@@ -232,6 +233,11 @@ open class Participant(
         listener?.onTrackUnmuted(trackPublication, this)
         internalListener?.onTrackUnmuted(trackPublication, this)
         eventBus.postEvent(ParticipantEvent.TrackUnmuted(this, trackPublication), scope)
+    }
+
+    internal fun onTrackStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
+        val trackPublication = tracks[trackEvent.track.sid] ?: return
+        eventBus.postEvent(ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState), scope)
     }
 
 }

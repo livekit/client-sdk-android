@@ -122,6 +122,15 @@ sealed class RoomEvent(val room: Room) : Event() {
     ) : RoomEvent(room)
 
     /**
+     * A track's stream state has changed.
+     */
+    class TrackStreamStateChanged(
+        room: Room,
+        val trackPublication: TrackPublication,
+        val streamState: Track.StreamState
+    ) : RoomEvent(room)
+
+    /**
      * Received data published by another participant
      */
     class DataReceived(room: Room, val data: ByteArray, val participant: RemoteParticipant) : RoomEvent(room)
