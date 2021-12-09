@@ -7,6 +7,7 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
@@ -32,23 +33,27 @@ open class Participant(
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var participantInfo: LivekitModels.ParticipantInfo? by flowDelegate(null)
         private set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var identity: String? by flowDelegate(identity)
         internal set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var audioLevel: Float by flowDelegate(0f)
         internal set
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var isSpeaking: Boolean by flowDelegate(false) { newValue, oldValue ->
         if (newValue != oldValue) {
             listener?.onSpeakingChanged(this)
@@ -60,6 +65,7 @@ open class Participant(
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var metadata: String? by flowDelegate(null) { newMetadata, oldMetadata ->
         if (newMetadata != oldMetadata) {
             listener?.onMetadataChanged(this, oldMetadata)
@@ -72,6 +78,7 @@ open class Participant(
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var connectionQuality by flowDelegate(ConnectionQuality.UNKNOWN)
         internal set
 
@@ -93,11 +100,13 @@ open class Participant(
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     var tracks by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     val audioTracks by flowDelegate(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
@@ -106,6 +115,7 @@ open class Participant(
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
+    @get:FlowObservable
     val videoTracks by flowDelegate(
         stateFlow = ::tracks.flow
             .map {

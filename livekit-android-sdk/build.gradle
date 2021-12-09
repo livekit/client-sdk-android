@@ -118,6 +118,9 @@ dependencies {
     implementation deps.timber
     implementation 'com.vdurmont:semver4j:3.1.0'
 
+    lintChecks project(':livekit-lint')
+    lintPublish project(':livekit-lint')
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.6'
     testImplementation 'org.mockito:mockito-core:4.0.0'

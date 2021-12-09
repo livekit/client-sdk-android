@@ -62,7 +62,16 @@ internal val <T> KProperty0<T>.delegate: Any?
 val <T> KProperty0<T>.flow: StateFlow<T>
     get() = delegate as StateFlow<T>
 
-class MutableStateFlowDelegate<T>
+/**
+ * Indicates that the target property changes can be observed with [flow].
+ */
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY_GETTER)
+@Retention(AnnotationRetention.BINARY)
+@MustBeDocumented
+annotation class FlowObservable
+
+@FlowObservable
+internal class MutableStateFlowDelegate<T>
 internal constructor(
     private val flow: MutableStateFlow<T>,
     private val onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
@@ -82,7 +91,8 @@ internal constructor(
     }
 }
 
-class StateFlowDelegate<T>
+@FlowObservable
+internal class StateFlowDelegate<T>
 internal constructor(
     private val flow: StateFlow<T>
 ) : StateFlow<T> by flow {

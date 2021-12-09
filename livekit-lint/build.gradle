@@ -1,0 +1,36 @@
+plugins {
+    id 'java-library'
+    id 'kotlin'
+    id 'kotlin-kapt'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    // used for lint rules
+    compileOnly deps.lintApi
+    compileOnly deps.lintChecks
+    compileOnly deps.lintTests
+
+    // Handle creating manifests for lint checker
+    compileOnly deps.auto.serviceAnnotations
+    kapt deps.auto.service
+
+    // test lint
+    testImplementation deps.lint
+    testImplementation deps.lintTests
+
+    compileOnly "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    // test runners
+    testImplementation deps.junit
+    testImplementation deps.junitJupiterApi
+    testRuntimeOnly deps.junitJupiterEngine
+}
+test {
+    environment "LINT_TEST_KOTLINC", ""
+}
