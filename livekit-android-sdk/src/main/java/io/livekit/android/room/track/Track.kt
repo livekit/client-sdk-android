@@ -21,7 +21,7 @@ open class Track(
         internal set
     var sid: String? = null
         internal set
-    var streamState: StreamState by flowDelegate(StreamState.ACTIVE) { newValue, oldValue ->
+    var streamState: StreamState by flowDelegate(StreamState.PAUSED) { newValue, oldValue ->
         if (newValue != oldValue) {
             eventBus.tryPostEvent(TrackEvent.StreamStateChanged(this, newValue))
         }
