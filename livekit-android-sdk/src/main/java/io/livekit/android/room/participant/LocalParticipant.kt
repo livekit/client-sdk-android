@@ -23,6 +23,7 @@ import org.webrtc.RtpTransceiver
 import javax.inject.Named
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class LocalParticipant
@@ -188,7 +189,7 @@ internal constructor(
     ) {
         publishTrackImpl(
             track,
-            onRequestCustomize = {
+            requestConfig = {
                 disableDtx = !options.dtx
                 source = LivekitModels.TrackSource.MICROPHONE
             },
@@ -207,7 +208,7 @@ internal constructor(
 
         publishTrackImpl(
             track,
-            onRequestCustomize = {
+            requestConfig = {
                 width = track.dimensions.width
                 height = track.dimensions.height
                 source = if (track.options.isScreencast) {
@@ -225,7 +226,7 @@ internal constructor(
 
     private suspend fun publishTrackImpl(
         track: Track,
-        onRequestCustomize: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
+        requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null
     ) {
@@ -236,7 +237,7 @@ internal constructor(
 
         val cid = track.rtcTrack.id()
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
-            this.onRequestCustomize()
+            this.requestConfig()
         }
         val trackInfo = engine.addTrack(
             cid = cid,
@@ -298,7 +299,8 @@ internal constructor(
             val lowPreset = presets[0]
 
             fun calculateScale(parameter: VideoCaptureParameter): Double {
-                return height / parameter.height.toDouble()
+                val longestSize = max(width, height)
+                return longestSize / parameter.width.toDouble()
             }
 
             fun checkEvenDimensions(parameter: VideoCaptureParameter): Boolean {
@@ -343,19 +345,23 @@ internal constructor(
     private fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
         val presets = presetsForResolution(width, height)
 
+        // presets assume width is longest size
+        val longestSize = max(width, height)
         val preset = presets
-            .lastOrNull { width >= it.capture.width && height >= it.capture.height }
-            ?: presets.first()
+            .firstOrNull { it.capture.width >= longestSize}
+            ?: presets.last()
 
         return preset.encoding
     }
 
     private fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
-        val aspectRatio = width.toFloat() / height
-        if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
-            return PRESETS_16_9
+        val longestSize = max(width, height)
+        val shortestSize = min(width, height)
+        val aspectRatio = longestSize.toFloat() / shortestSize
+        return if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
+            PRESETS_16_9
         } else {
-            return PRESETS_4_3
+            PRESETS_4_3
         }
     }
 
