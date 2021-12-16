@@ -288,8 +288,17 @@ constructor(
     }
 
     private fun handleDisconnect() {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        cm.unregisterNetworkCallback(this)
+        if(state == State.DISCONNECTED) {
+            return
+        }
+
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.unregisterNetworkCallback(this)
+        } catch (e : IllegalArgumentException) {
+            // do nothing, may happen on older versions if attempting to unregister twice.
+        }
+
         for (pub in localParticipant.tracks.values) {
             pub.track?.stop()
         }
