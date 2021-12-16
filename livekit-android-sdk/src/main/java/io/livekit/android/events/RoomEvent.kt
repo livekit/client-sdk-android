@@ -144,4 +144,6 @@ sealed class RoomEvent(val room: Room) : Event() {
     class ConnectionQualityChanged(room: Room, val participant: Participant, val quality: ConnectionQuality) :
         RoomEvent(room)
 
+    class FailedToConnect(room: Room, val error: Throwable) : RoomEvent(room)
+
 }

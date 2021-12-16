@@ -6,6 +6,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -69,6 +70,15 @@ class CallActivity : AppCompatActivity() {
                         adapter.update(items)
                     }
                 }
+        }
+
+        lifecycleScope.launchWhenStarted {
+            viewModel.error.collect {
+                if(it != null){
+                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
+                    viewModel.dismissError()
+                }
+            }
         }
 
         // speaker view setup

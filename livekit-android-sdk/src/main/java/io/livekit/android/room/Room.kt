@@ -20,7 +20,6 @@ import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
-import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -465,8 +464,10 @@ constructor(
     /**
      * @suppress
      */
-    override fun onFailToConnect(error: Exception) {
+    override fun onFailToConnect(error: Throwable) {
         listener?.onFailedToConnect(this, error)
+        // scope will likely be closed already here, so force it out of scope.
+        eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
     }
 
     //------------------------------- ParticipantListener --------------------------------//
@@ -613,7 +614,7 @@ interface RoomListener {
     /**
      * Could not connect to the room
      */
-    fun onFailedToConnect(room: Room, error: Exception) {}
+    fun onFailedToConnect(room: Room, error: Throwable) {}
 //        fun onReconnecting(room: Room, error: Exception) {}
 //        fun onReconnect(room: Room) {}
 

@@ -69,6 +69,29 @@ class RoomMockE2ETest {
     }
 
     @Test
+    fun connectFailureProperlyContinues(){
+
+        var didThrowException = false
+        val job = coroutineRule.scope.launch {
+            try {
+                room.connect(
+                    url = "http://www.example.com",
+                    token = "",
+                )
+            } catch (e: Throwable) {
+                didThrowException = true
+            }
+        }
+
+        wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
+
+        runBlockingTest {
+            job.join()
+        }
+
+        Assert.assertTrue(didThrowException)
+    }
+    @Test
     fun roomUpdateTest() {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)

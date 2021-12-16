@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.lifecycle.lifecycleScope
 import com.github.ajalt.timberkt.Timber
 import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
@@ -30,6 +32,8 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.sample.CallViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
 @OptIn(ExperimentalPagerApi::class)
@@ -82,6 +86,15 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request failed" }
         }
 
+        lifecycleScope.launchWhenStarted {
+            viewModel.error.collect {
+                if(it != null){
+                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
+                    viewModel.dismissError()
+                }
+            }
+        }
+
         // Setup compose view.
         setContent {
             val room by viewModel.room.collectAsState()
@@ -127,6 +140,8 @@ class CallActivity : AppCompatActivity() {
         flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
         onExitClick: () -> Unit = {},
+        error: Throwable? = null,
+        onSnackbarDismiss: () -> Unit = {}
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -270,6 +285,32 @@ class CallActivity : AppCompatActivity() {
                             tint = Color.White,
                         )
                     }
+                }
+
+                // Snack bar for errors
+                val scaffoldState = rememberScaffoldState()
+                val scope = rememberCoroutineScope()
+                if(error != null) {
+                    Scaffold(
+                        scaffoldState = scaffoldState,
+                        floatingActionButton = {
+                            ExtendedFloatingActionButton(
+                                text = { Text("Show snackbar") },
+                                onClick = {
+                                    // show snackbar as a suspend function
+                                    scope.launch {
+                                        scaffoldState.snackbarHostState.showSnackbar(error?.toString() ?: "")
+                                    }
+                                }
+                            )
+                        },
+                        content = { innerPadding ->
+                            Text(
+                                text = "Body content",
+                                modifier = Modifier.padding(innerPadding).fillMaxSize().wrapContentSize()
+                            )
+                        }
+                    )
                 }
             }
         }

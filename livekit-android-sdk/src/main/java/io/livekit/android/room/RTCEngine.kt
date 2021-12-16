@@ -385,7 +385,7 @@ internal constructor(
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onDisconnect(reason: String)
-        fun onFailToConnect(error: Exception)
+        fun onFailToConnect(error: Throwable)
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
     }
@@ -521,7 +521,7 @@ internal constructor(
         listener?.onDisconnect("")
     }
 
-    override fun onError(error: Exception) {
+    override fun onError(error: Throwable) {
         listener?.onFailToConnect(error)
     }
 

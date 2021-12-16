@@ -12,7 +12,6 @@ import io.livekit.android.util.safe
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -27,8 +26,6 @@ import org.webrtc.SessionDescription
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * SignalClient to LiveKit WS servers
@@ -186,10 +183,13 @@ constructor(
 
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
-            listener?.onError(Exception(reason))
+            val error = Exception(reason)
+            listener?.onError(error)
+            joinContinuation?.cancel(error)
         } else {
             LKLog.e(t) { "websocket failure: $response" }
-            listener?.onError(t as Exception)
+            listener?.onError(t)
+            joinContinuation?.cancel(t)
         }
     }
 
@@ -443,7 +443,7 @@ constructor(
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onLeave()
-        fun onError(error: Exception)
+        fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
     }
 

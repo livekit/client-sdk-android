@@ -4,9 +4,10 @@ import android.app.Application
 import android.content.Intent
 import androidx.lifecycle.*
 import com.github.ajalt.timberkt.Timber
-import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.room.participant.Participant
@@ -40,6 +41,9 @@ class CallViewModel(
         }
     }
 
+    private val mutableError = MutableStateFlow<Throwable?>(null)
+    val error = mutableError.hide()
+
     private val mutablePrimarySpeaker = MutableStateFlow<Participant?>(null)
     val primarySpeaker: StateFlow<Participant?> = mutablePrimarySpeaker
 
@@ -67,24 +71,36 @@ class CallViewModel(
 
     init {
         viewModelScope.launch {
-            val room = LiveKit.connect(
-                application,
-                url,
-                token,
-                roomOptions = RoomOptions(autoManageVideo = true),
-                listener = this@CallViewModel
-            )
+            try {
+                val room = LiveKit.connect(
+                    application,
+                    url,
+                    token,
+                    roomOptions = RoomOptions(autoManageVideo = true),
+                    listener = this@CallViewModel
+                )
 
-            // Create and publish audio/video tracks
-            val localParticipant = room.localParticipant
-            localParticipant.setMicrophoneEnabled(true)
-            mutableMicEnabled.postValue(localParticipant.isMicrophoneEnabled())
+                // Create and publish audio/video tracks
+                val localParticipant = room.localParticipant
+                localParticipant.setMicrophoneEnabled(true)
+                mutableMicEnabled.postValue(localParticipant.isMicrophoneEnabled())
 
-            localParticipant.setCameraEnabled(true)
-            mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
-            mutableRoom.value = room
+                localParticipant.setCameraEnabled(true)
+                mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
+                mutableRoom.value = room
 
-            mutablePrimarySpeaker.value = room.remoteParticipants.values.firstOrNull() ?: localParticipant
+                mutablePrimarySpeaker.value = room.remoteParticipants.values.firstOrNull() ?: localParticipant
+
+                viewModelScope.launch {
+                    room.events.collect {
+                        when (it) {
+                            is RoomEvent.FailedToConnect -> mutableError.value = it.error
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                mutableError.value = e
+            }
         }
     }
 
@@ -166,6 +182,12 @@ class CallViewModel(
             videoTrack.restartTrack(newOptions)
         }
     }
+
+    fun dismissError() {
+        mutableError.value = null
+    }
 }
 
 private fun <T> LiveData<T>.hide(): LiveData<T> = this
+
+private fun <T> MutableStateFlow<T>.hide(): StateFlow<T> = this
