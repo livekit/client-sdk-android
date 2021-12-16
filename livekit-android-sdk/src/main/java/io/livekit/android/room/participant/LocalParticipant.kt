@@ -22,6 +22,8 @@ import org.webrtc.RtpParameters
 import org.webrtc.RtpTransceiver
 import javax.inject.Named
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class LocalParticipant
@@ -185,45 +187,47 @@ internal constructor(
         ),
         publishListener: PublishListener? = null
     ) {
-        if (localTrackPublications.any { it.track == track }) {
-            publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
-            return
-        }
-
-        val cid = track.rtcTrack.id()
-        val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
-            disableDtx = !options.dtx
-            source = LivekitModels.TrackSource.MICROPHONE
-        }
-        val trackInfo = engine.addTrack(
-            cid = cid,
-            name = track.name,
-            kind = track.kind.toProto(),
-            builder = builder
+        publishTrackImpl(
+            track,
+            requestConfig = {
+                disableDtx = !options.dtx
+                source = LivekitModels.TrackSource.MICROPHONE
+            },
+            publishListener = publishListener,
         )
-        val transInit = RtpTransceiver.RtpTransceiverInit(
-            RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid)
-        )
-        // TODO: sendEncodings to customize
-        val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
-        track.transceiver = transceiver
-
-        if (transceiver == null) {
-            publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
-            return
-        }
-
-        val publication = LocalTrackPublication(trackInfo, track, this)
-        addTrackPublication(publication)
-        publishListener?.onPublishSuccess(publication)
-        internalListener?.onTrackPublished(publication, this)
-        eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
     }
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
+        publishListener: PublishListener? = null
+    ) {
+
+        val encodings = computeVideoEncodings(track.dimensions, options)
+        val videoLayers = videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
+
+        publishTrackImpl(
+            track,
+            requestConfig = {
+                width = track.dimensions.width
+                height = track.dimensions.height
+                source = if (track.options.isScreencast) {
+                    LivekitModels.TrackSource.SCREEN_SHARE
+                } else {
+                    LivekitModels.TrackSource.CAMERA
+                }
+                addAllLayers(videoLayers)
+            },
+            encodings = encodings,
+            publishListener = publishListener
+        )
+    }
+
+
+    private suspend fun publishTrackImpl(
+        track: Track,
+        requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
+        encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null
     ) {
         if (localTrackPublications.any { it.track == track }) {
@@ -233,28 +237,28 @@ internal constructor(
 
         val cid = track.rtcTrack.id()
         val builder = LivekitRtc.AddTrackRequest.newBuilder().apply {
-            width = track.dimensions.width
-            height = track.dimensions.height
-            source = if(track.options.isScreencast){
-                LivekitModels.TrackSource.SCREEN_SHARE
-            } else {
-                LivekitModels.TrackSource.CAMERA
-            }
+            this.requestConfig()
         }
         val trackInfo = engine.addTrack(
             cid = cid,
             name = track.name,
-            kind = LivekitModels.TrackType.VIDEO,
+            kind = track.kind.toProto(),
             builder = builder
         )
-        val encodings = computeVideoEncodings(track.dimensions, options)
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(this.sid),
             encodings
         )
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
-        track.transceiver = transceiver
+
+        when (track) {
+            is LocalVideoTrack -> track.transceiver
+            is LocalAudioTrack -> track.transceiver
+            else -> {
+                throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
+            }
+        }
 
         if (transceiver == null) {
             publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
@@ -289,14 +293,14 @@ internal constructor(
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
         if (simulcast) {
-            encodings.add(encoding.toRtpEncoding("f"))
 
             val presets = presetsForResolution(width, height)
             val midPreset = presets[1]
             val lowPreset = presets[0]
 
             fun calculateScale(parameter: VideoCaptureParameter): Double {
-                return height / parameter.height.toDouble()
+                val longestSize = max(width, height)
+                return longestSize / parameter.width.toDouble()
             }
 
             fun checkEvenDimensions(parameter: VideoCaptureParameter): Boolean {
@@ -306,36 +310,32 @@ internal constructor(
                 return isEven(parameter.height * scale) && isEven(parameter.width * scale)
             }
 
+            fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
+                if(encodings.size >= VIDEO_RIDS.size) {
+                    throw IllegalStateException("Attempting to add more encodings than we have rids for!")
+                }
+                val rid = VIDEO_RIDS[encodings.size]
+                encodings.add(videoEncoding.toRtpEncoding(rid, scale))
+            }
+
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
-            if (width >= 960) {
+            val size = max(width, height)
+            if (size >= 960) {
                 val hasEvenDimensions =
                     checkEvenDimensions(midPreset.capture) && checkEvenDimensions(lowPreset.capture)
                 val midScale = if (hasEvenDimensions) calculateScale(midPreset.capture) else 2.0
                 val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 4.0
 
-                encodings.add(
-                    midPreset.encoding.toRtpEncoding(
-                        "h",
-                        midScale
-                    )
-                )
-                encodings.add(
-                    lowPreset.encoding.toRtpEncoding(
-                        "q",
-                        lowScale
-                    )
-                )
+                addEncoding(lowPreset.encoding, lowScale)
+                addEncoding(midPreset.encoding, midScale)
             } else {
                 val hasEvenDimensions = checkEvenDimensions(lowPreset.capture)
                 val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 2.0
-                encodings.add(
-                    lowPreset.encoding.toRtpEncoding(
-                        "h",
-                        lowScale
-                    )
-                )
+                addEncoding(lowPreset.encoding, lowScale)
             }
+
+            addEncoding(encoding, 1.0)
         } else {
             encodings.add(encoding.toRtpEncoding())
         }
@@ -345,19 +345,63 @@ internal constructor(
     private fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
         val presets = presetsForResolution(width, height)
 
+        // presets assume width is longest size
+        val longestSize = max(width, height)
         val preset = presets
-            .lastOrNull { width >= it.capture.width && height >= it.capture.height }
-            ?: presets.first()
+            .firstOrNull { it.capture.width >= longestSize}
+            ?: presets.last()
 
         return preset.encoding
     }
 
     private fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
-        val aspectRatio = width.toFloat() / height
-        if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
-            return PRESETS_16_9
+        val longestSize = max(width, height)
+        val shortestSize = min(width, height)
+        val aspectRatio = longestSize.toFloat() / shortestSize
+        return if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
+            PRESETS_16_9
         } else {
-            return PRESETS_4_3
+            PRESETS_4_3
+        }
+    }
+
+    private fun videoLayersFromEncodings(
+        trackWidth: Int,
+        trackHeight: Int,
+        encodings: List<RtpParameters.Encoding>
+    ): List<LivekitModels.VideoLayer> {
+        return if (encodings.isEmpty()) {
+            listOf(
+                LivekitModels.VideoLayer.newBuilder().apply {
+                    width = trackWidth
+                    height = trackHeight
+                    quality = LivekitModels.VideoQuality.HIGH
+                    bitrate = 0
+                }.build()
+            )
+        } else {
+            encodings.map {
+                val scale = it.scaleResolutionDownBy ?: 1.0
+                var videoQuality = videoQualityForRid(it.rid ?: "")
+                if (videoQuality == LivekitModels.VideoQuality.UNRECOGNIZED && encodings.size == 1) {
+                    videoQuality = LivekitModels.VideoQuality.HIGH
+                }
+                LivekitModels.VideoLayer.newBuilder().apply {
+                    width = (trackWidth * scale).roundToInt()
+                    height = (trackHeight * scale).roundToInt()
+                    quality = videoQuality
+                    bitrate = it.maxBitrateBps ?: 0
+                }.build()
+            }
+        }
+    }
+
+    private fun videoQualityForRid(rid: String): LivekitModels.VideoQuality {
+        return when (rid) {
+            "f" -> LivekitModels.VideoQuality.HIGH
+            "h" -> LivekitModels.VideoQuality.MEDIUM
+            "q" -> LivekitModels.VideoQuality.LOW
+            else -> LivekitModels.VideoQuality.UNRECOGNIZED
         }
     }
 
@@ -446,6 +490,8 @@ internal constructor(
     }
 
     companion object {
+        private val VIDEO_RIDS = arrayOf("q", "h", "f")
+
         // Note: maintain order from smallest to biggest.
         private val PRESETS_16_9 = listOf(
             VideoPreset169.QVGA,
