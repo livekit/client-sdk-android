@@ -35,7 +35,6 @@ class SubscriberTransportObserver(
     }
 
     override fun onDataChannel(channel: DataChannel) {
-        LKLog.e { "onDataChannel: ${channel.label()}" }
         dataChannelListener?.invoke(channel)
     }
 
