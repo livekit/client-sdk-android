@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel target="1.8">
-      <module name="livekit-android.livekit-android-sdk" target="11" />
-      <module name="livekit-android.sample-app" target="11" />
-      <module name="livekit-android.sample-app-common" target="11" />
-      <module name="livekit-android.sample-app-compose" target="11" />
-    </bytecodeTargetLevel>
+    <bytecodeTargetLevel target="1.8" />
   </component>
 </project>

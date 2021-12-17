@@ -17,6 +17,8 @@ import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import okio.Utf8
+import java.nio.charset.Charset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
@@ -69,6 +71,9 @@ class CallViewModel(
     private val mutableScreencastEnabled = MutableLiveData(false)
     val screenshareEnabled = mutableScreencastEnabled.hide()
 
+    private val mutableDataReceived = MutableSharedFlow<String>()
+    val dataReceived = mutableDataReceived
+
     init {
         viewModelScope.launch {
             try {
@@ -95,6 +100,11 @@ class CallViewModel(
                     room.events.collect {
                         when (it) {
                             is RoomEvent.FailedToConnect -> mutableError.value = it.error
+                            is RoomEvent.DataReceived -> {
+                                val identity = it.participant.identity ?: ""
+                                val message = it.data.toString(Charsets.UTF_8)
+                                mutableDataReceived.emit("$identity: $message")
+                            }
                         }
                     }
                 }
@@ -186,8 +196,15 @@ class CallViewModel(
     fun dismissError() {
         mutableError.value = null
     }
+
+    fun sendData(message: String) {
+        viewModelScope.launch {
+            room.value?.localParticipant?.publishData(message.toByteArray(Charsets.UTF_8))
+        }
+    }
 }
 
 private fun <T> LiveData<T>.hide(): LiveData<T> = this
 
 private fun <T> MutableStateFlow<T>.hide(): StateFlow<T> = this
+private fun <T> Flow<T>.hide(): Flow<T> = this
