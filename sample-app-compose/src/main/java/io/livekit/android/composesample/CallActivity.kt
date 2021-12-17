@@ -86,21 +86,6 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request failed" }
         }
 
-        lifecycleScope.launchWhenStarted {
-            viewModel.error.collect {
-                if (it != null) {
-                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
-                    viewModel.dismissError()
-                }
-            }
-        }
-
-        lifecycleScope.launchWhenStarted {
-            viewModel.dataReceived.collect {
-                Toast.makeText(this@CallActivity, "Data received: $it", Toast.LENGTH_LONG).show()
-            }
-        }
-
         // Setup compose view.
         setContent {
             val room by viewModel.room.collectAsState()
@@ -123,6 +108,24 @@ class CallActivity : AppCompatActivity() {
                 onExitClick = { finish() },
                 onSendMessage = { viewModel.sendData(it) }
             )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launchWhenResumed {
+            viewModel.error.collect {
+                if (it != null) {
+                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
+                    viewModel.dismissError()
+                }
+            }
+        }
+
+        lifecycleScope.launchWhenResumed {
+            viewModel.dataReceived.collect {
+                Toast.makeText(this@CallActivity, "Data received: $it", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
