@@ -12,7 +12,6 @@ class PublisherTransportObserver(
     private val client: SignalClient,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener {
 
-    var dataChannelListener: ((DataChannel?) -> Unit)? = null
     var iceConnectionChangeListener: ((newState: PeerConnection.IceConnectionState?) -> Unit)? =
         null
 
@@ -63,7 +62,6 @@ class PublisherTransportObserver(
     }
 
     override fun onDataChannel(dataChannel: DataChannel?) {
-        dataChannelListener?.invoke(dataChannel)
     }
 
     override fun onTrack(transceiver: RtpTransceiver?) {

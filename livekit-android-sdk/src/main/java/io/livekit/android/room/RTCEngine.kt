@@ -179,10 +179,7 @@ internal constructor(
 
         if (joinResponse.subscriberPrimary) {
             // in subscriber primary mode, server side opens sub data channels.
-            publisherObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel? ->
-                if (dataChannel == null) {
-                    return@onDataChannel
-                }
+            subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
                 when (dataChannel.label()) {
                     RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                     LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
@@ -190,9 +187,9 @@ internal constructor(
                 }
                 dataChannel.registerObserver(this)
             }
-            publisherObserver.iceConnectionChangeListener = iceConnectionStateListener
-        } else {
             subscriberObserver.iceConnectionChangeListener = iceConnectionStateListener
+        } else {
+            publisherObserver.iceConnectionChangeListener = iceConnectionStateListener
         }
 
         // data channels
@@ -282,7 +279,7 @@ internal constructor(
             if (hasPublished) {
                 publisher.negotiate(
                     getPublisherOfferConstraints().apply {
-                        with(mandatory){
+                        with(mandatory) {
                             add(
                                 MediaConstraints.KeyValuePair(
                                     MediaConstraintKeys.ICE_RESTART,
@@ -323,7 +320,7 @@ internal constructor(
         channel.send(buf)
     }
 
-    private suspend fun ensurePublisherConnected(){
+    private suspend fun ensurePublisherConnected() {
         if (!isSubscriberPrimary) {
             return
         }
@@ -557,7 +554,7 @@ internal constructor(
     }
 }
 
- internal enum class IceState {
+internal enum class IceState {
     DISCONNECTED,
     RECONNECTING,
     CONNECTED,

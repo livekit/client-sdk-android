@@ -86,15 +86,6 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request failed" }
         }
 
-        lifecycleScope.launchWhenStarted {
-            viewModel.error.collect {
-                if(it != null){
-                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
-                    viewModel.dismissError()
-                }
-            }
-        }
-
         // Setup compose view.
         setContent {
             val room by viewModel.room.collectAsState()
@@ -114,8 +105,27 @@ class CallActivity : AppCompatActivity() {
                 videoEnabled,
                 flipButtonEnabled,
                 screencastEnabled,
-                onExitClick = { finish() }
+                onExitClick = { finish() },
+                onSendMessage = { viewModel.sendData(it) }
             )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launchWhenResumed {
+            viewModel.error.collect {
+                if (it != null) {
+                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
+                    viewModel.dismissError()
+                }
+            }
+        }
+
+        lifecycleScope.launchWhenResumed {
+            viewModel.dataReceived.collect {
+                Toast.makeText(this@CallActivity, "Data received: $it", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -141,7 +151,8 @@ class CallActivity : AppCompatActivity() {
         screencastEnabled: Boolean = false,
         onExitClick: () -> Unit = {},
         error: Throwable? = null,
-        onSnackbarDismiss: () -> Unit = {}
+        onSnackbarDismiss: () -> Unit = {},
+        onSendMessage: (String) -> Unit = {},
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -216,7 +227,8 @@ class CallActivity : AppCompatActivity() {
                     Surface(
                         onClick = { viewModel.setMicEnabled(!micEnabled) },
                         indication = rememberRipple(false),
-                        modifier = Modifier.size(controlSize)
+                        modifier = Modifier
+                            .size(controlSize)
                             .padding(controlPadding)
                     ) {
                         val resource =
@@ -230,7 +242,8 @@ class CallActivity : AppCompatActivity() {
                     Surface(
                         onClick = { viewModel.setCameraEnabled(!videoEnabled) },
                         indication = rememberRipple(false),
-                        modifier = Modifier.size(controlSize)
+                        modifier = Modifier
+                            .size(controlSize)
                             .padding(controlPadding)
                     ) {
                         val resource =
@@ -244,7 +257,8 @@ class CallActivity : AppCompatActivity() {
                     Surface(
                         onClick = { viewModel.flipCamera() },
                         indication = rememberRipple(false),
-                        modifier = Modifier.size(controlSize)
+                        modifier = Modifier
+                            .size(controlSize)
                             .padding(controlPadding)
                     ) {
                         Icon(
@@ -262,7 +276,8 @@ class CallActivity : AppCompatActivity() {
                             }
                         },
                         indication = rememberRipple(false),
-                        modifier = Modifier.size(controlSize)
+                        modifier = Modifier
+                            .size(controlSize)
                             .padding(controlPadding)
                     ) {
                         val resource =
@@ -273,10 +288,65 @@ class CallActivity : AppCompatActivity() {
                             tint = Color.White,
                         )
                     }
+
+                    var showMessageDialog by remember { mutableStateOf(false) }
+                    var messageToSend by remember { mutableStateOf("") }
+                    Surface(
+                        onClick = { showMessageDialog = true },
+                        indication = rememberRipple(false),
+                        modifier = Modifier
+                            .size(controlSize)
+                            .padding(controlPadding)
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_chat_24),
+                            contentDescription = "Send Message",
+                            tint = Color.White,
+                        )
+                    }
+
+                    if (showMessageDialog) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                showMessageDialog = false
+                                messageToSend = ""
+                            },
+                            title = {
+                                Text(text = "Send Message")
+                            },
+                            text = {
+                                OutlinedTextField(
+                                    value = messageToSend,
+                                    onValueChange = { messageToSend = it },
+                                    label = { Text("Message") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        onSendMessage(messageToSend)
+                                        showMessageDialog = false
+                                        messageToSend = ""
+                                    }
+                                ) { Text("Send") }
+                            },
+                            dismissButton = {
+                                Button(
+                                    onClick = {
+                                        showMessageDialog = false
+                                        messageToSend = ""
+                                    }
+                                ) { Text("Cancel") }
+                            },
+                            backgroundColor = Color.Black,
+                        )
+                    }
                     Surface(
                         onClick = { onExitClick() },
                         indication = rememberRipple(false),
-                        modifier = Modifier.size(controlSize)
+                        modifier = Modifier
+                            .size(controlSize)
                             .padding(controlPadding)
                     ) {
                         Icon(
@@ -290,7 +360,7 @@ class CallActivity : AppCompatActivity() {
                 // Snack bar for errors
                 val scaffoldState = rememberScaffoldState()
                 val scope = rememberCoroutineScope()
-                if(error != null) {
+                if (error != null) {
                     Scaffold(
                         scaffoldState = scaffoldState,
                         floatingActionButton = {
@@ -307,7 +377,10 @@ class CallActivity : AppCompatActivity() {
                         content = { innerPadding ->
                             Text(
                                 text = "Body content",
-                                modifier = Modifier.padding(innerPadding).fillMaxSize().wrapContentSize()
+                                modifier = Modifier
+                                    .padding(innerPadding)
+                                    .fillMaxSize()
+                                    .wrapContentSize()
                             )
                         }
                     )

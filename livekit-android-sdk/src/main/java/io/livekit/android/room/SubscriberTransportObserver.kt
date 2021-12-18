@@ -12,6 +12,7 @@ class SubscriberTransportObserver(
     private val client: SignalClient,
 ) : PeerConnection.Observer {
 
+    var dataChannelListener: ((DataChannel) -> Unit)? = null
     var iceConnectionChangeListener: ((PeerConnection.IceConnectionState?) -> Unit)? = null
 
     override fun onIceCandidate(candidate: IceCandidate) {
@@ -34,7 +35,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onDataChannel(channel: DataChannel) {
-        LKLog.v { "onDataChannel" }
+        dataChannelListener?.invoke(channel)
     }
 
     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {

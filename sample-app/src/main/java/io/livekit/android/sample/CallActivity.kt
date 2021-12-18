@@ -1,13 +1,16 @@
 package io.livekit.android.sample
 
 import android.app.Activity
+import android.content.DialogInterface
 import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -70,15 +73,6 @@ class CallActivity : AppCompatActivity() {
                         adapter.update(items)
                     }
                 }
-        }
-
-        lifecycleScope.launchWhenStarted {
-            viewModel.error.collect {
-                if(it != null){
-                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
-                    viewModel.dismissError()
-                }
-            }
         }
 
         // speaker view setup
@@ -161,6 +155,19 @@ class CallActivity : AppCompatActivity() {
             )
         }
 
+        binding.message.setOnClickListener {
+            val editText = EditText(this)
+            AlertDialog.Builder(this)
+                .setTitle("Send Message")
+                .setView(editText)
+                .setPositiveButton("Send") { dialog, _ ->
+                    viewModel.sendData(editText.text?.toString() ?: "")
+                }
+                .setNegativeButton("Cancel") { _, _ -> }
+                .create()
+                .show()
+        }
+
         binding.exit.setOnClickListener { finish() }
 
         // Grab audio focus for video call
@@ -181,6 +188,24 @@ class CallActivity : AppCompatActivity() {
             Timber.v { "Audio focus request granted for VOICE_CALL streams" }
         } else {
             Timber.v { "Audio focus request failed" }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launchWhenResumed {
+            viewModel.error.collect {
+                if (it != null) {
+                    Toast.makeText(this@CallActivity, "Error: $it", Toast.LENGTH_LONG).show()
+                    viewModel.dismissError()
+                }
+            }
+        }
+
+        lifecycleScope.launchWhenResumed {
+            viewModel.dataReceived.collect {
+                Toast.makeText(this@CallActivity, "Data received: $it", Toast.LENGTH_LONG).show()
+            }
         }
     }
 

@@ -311,7 +311,7 @@ internal constructor(
             }
 
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
-                if(encodings.size >= VIDEO_RIDS.size) {
+                if (encodings.size >= VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
                 }
                 val rid = VIDEO_RIDS[encodings.size]
@@ -348,7 +348,7 @@ internal constructor(
         // presets assume width is longest size
         val longestSize = max(width, height)
         val preset = presets
-            .firstOrNull { it.capture.width >= longestSize}
+            .firstOrNull { it.capture.width >= longestSize }
             ?: presets.last()
 
         return preset.encoding
@@ -435,7 +435,11 @@ internal constructor(
      * @param destination list of participant SIDs to deliver the payload, null to deliver to everyone
      */
     @Suppress("unused")
-    suspend fun publishData(data: ByteArray, reliability: DataPublishReliability, destination: List<String>?) {
+    suspend fun publishData(
+        data: ByteArray,
+        reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
+        destination: List<String>? = null
+    ) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
         }
@@ -444,16 +448,16 @@ internal constructor(
             DataPublishReliability.RELIABLE -> LivekitModels.DataPacket.Kind.RELIABLE
             DataPublishReliability.LOSSY -> LivekitModels.DataPacket.Kind.LOSSY
         }
-        val packetBuilder = LivekitModels.UserPacket.newBuilder().
-                setPayload(ByteString.copyFrom(data)).
-                setParticipantSid(sid)
+        val packetBuilder = LivekitModels.UserPacket.newBuilder()
+            .setPayload(ByteString.copyFrom(data))
+            .setParticipantSid(sid)
         if (destination != null) {
             packetBuilder.addAllDestinationSids(destination)
         }
-        val dataPacket = LivekitModels.DataPacket.newBuilder().
-            setUser(packetBuilder).
-            setKind(kind).
-            build()
+        val dataPacket = LivekitModels.DataPacket.newBuilder()
+            .setUser(packetBuilder)
+            .setKind(kind)
+            .build()
 
         engine.sendData(dataPacket)
     }
