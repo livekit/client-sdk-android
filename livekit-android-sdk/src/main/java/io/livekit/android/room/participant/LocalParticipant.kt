@@ -381,14 +381,14 @@ internal constructor(
             )
         } else {
             encodings.map {
-                val scale = it.scaleResolutionDownBy ?: 1.0
+                val scaleDownBy = it.scaleResolutionDownBy ?: 1.0
                 var videoQuality = videoQualityForRid(it.rid ?: "")
                 if (videoQuality == LivekitModels.VideoQuality.UNRECOGNIZED && encodings.size == 1) {
                     videoQuality = LivekitModels.VideoQuality.HIGH
                 }
                 LivekitModels.VideoLayer.newBuilder().apply {
-                    width = (trackWidth * scale).roundToInt()
-                    height = (trackHeight * scale).roundToInt()
+                    width = (trackWidth / scaleDownBy).roundToInt()
+                    height = (trackHeight / scaleDownBy).roundToInt()
                     quality = videoQuality
                     bitrate = it.maxBitrateBps ?: 0
                 }.build()
