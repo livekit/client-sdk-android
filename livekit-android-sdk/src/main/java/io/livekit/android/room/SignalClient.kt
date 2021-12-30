@@ -60,12 +60,12 @@ constructor(
         url: String,
         token: String,
         options: ConnectOptions = ConnectOptions(),
-    ) : LivekitRtc.JoinResponse {
-        val joinResponse = connect(url,token, options)
+    ): LivekitRtc.JoinResponse {
+        val joinResponse = connect(url, token, options)
         return (joinResponse as Either.Left).value
     }
 
-    suspend fun reconnect(url: String, token: String){
+    suspend fun reconnect(url: String, token: String) {
         connect(
             url,
             token,
@@ -78,7 +78,7 @@ constructor(
         url: String,
         token: String,
         options: ConnectOptions
-    ) : Either<LivekitRtc.JoinResponse, Unit> {
+    ): Either<LivekitRtc.JoinResponse, Unit> {
         var wsUrlString = "$url/rtc" +
                 "?protocol=$PROTOCOL_VERSION" +
                 "&access_token=$token" +
@@ -119,7 +119,7 @@ constructor(
     }
 
     @ExperimentalCoroutinesApi
-    fun onReady(){
+    fun onReady() {
         coroutineScope.launch {
             responseFlow.collect {
                 responseFlow.resetReplayCache()
@@ -127,6 +127,7 @@ constructor(
             }
         }
     }
+
     //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
         if (isReconnecting) {
@@ -168,9 +169,7 @@ constructor(
         var reason: String? = null
         try {
             lastUrl?.let {
-                val validationUrl = "http" + it.
-                    substring(2).
-                    replaceFirst("/rtc?", "/rtc/validate?")
+                val validationUrl = "http" + it.substring(2).replaceFirst("/rtc?", "/rtc/validate?")
                 val request = Request.Builder().url(validationUrl).build()
                 val resp = okHttpClient.newCall(request).execute()
                 if (!resp.isSuccessful) {
@@ -236,7 +235,7 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendCandidate(candidate: IceCandidate, target: LivekitRtc.SignalTarget){
+    fun sendCandidate(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
         val iceCandidateJSON = IceCandidateJSON(
             candidate = candidate.sdp,
             sdpMid = candidate.sdpMid,
@@ -298,10 +297,10 @@ constructor(
             .addTrackSids(sid)
             .setDisabled(disabled)
             .apply {
-                if(videoDimensions != null) {
+                if (videoDimensions != null) {
                     width = videoDimensions.width
                     height = videoDimensions.height
-                } else if(videoQuality != null) {
+                } else if (videoQuality != null) {
                     quality = videoQuality
                 } else {
                     // default to HIGH
@@ -309,7 +308,7 @@ constructor(
                 }
             }
 
-         val request = LivekitRtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setTrackSetting(trackSettings)
             .build()
 
@@ -321,13 +320,13 @@ constructor(
             .addTrackSids(sid)
             .setSubscribe(subscribe)
 
-         val request = LivekitRtc.SignalRequest.newBuilder()
+        val request = LivekitRtc.SignalRequest.newBuilder()
             .setSubscription(subscription)
             .build()
 
         sendRequest(request)
     }
-    
+
     fun sendLeave() {
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
@@ -370,6 +369,7 @@ constructor(
             responseFlow.tryEmit(response)
         }
     }
+
     private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
         LKLog.v { "response: $response" }
         when (response.messageCase) {
