@@ -418,6 +418,12 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.STREAM_STATE_UPDATE -> {
                 listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
+            LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
+                // TODO
+            }
+            LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
+                // TODO
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
