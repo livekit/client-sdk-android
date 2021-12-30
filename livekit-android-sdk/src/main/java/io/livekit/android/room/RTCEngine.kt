@@ -385,6 +385,7 @@ internal constructor(
         fun onFailToConnect(error: Throwable)
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
+        fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
     }
 
     companion object {
@@ -524,6 +525,10 @@ internal constructor(
 
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
         listener?.onStreamStateUpdate(streamStates)
+    }
+
+    override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        listener?.onSubscribedQualityUpdate(subscribedQualityUpdate)
     }
 
     //--------------------------------- DataChannel.Observer ------------------------------------//

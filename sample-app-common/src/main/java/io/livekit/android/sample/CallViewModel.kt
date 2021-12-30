@@ -76,6 +76,11 @@ class CallViewModel(
 
     init {
         viewModelScope.launch {
+
+            launch {
+                error.collect { Timber.e(it) }
+            }
+
             try {
                 val room = LiveKit.connect(
                     application,

@@ -462,6 +462,10 @@ constructor(
         }
     }
 
+    override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        localParticipant.handleSubscribedQualityUpdate(subscribedQualityUpdate)
+    }
+
     /**
      * @suppress
      */

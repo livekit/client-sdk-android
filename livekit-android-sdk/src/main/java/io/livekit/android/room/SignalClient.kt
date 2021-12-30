@@ -419,7 +419,7 @@ constructor(
                 listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
-                // TODO
+                listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
                 // TODO
@@ -451,6 +451,7 @@ constructor(
         fun onLeave()
         fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
+        fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
     }
 
     companion object {

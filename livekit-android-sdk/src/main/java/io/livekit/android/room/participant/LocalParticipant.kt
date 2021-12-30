@@ -405,6 +405,15 @@ internal constructor(
         }
     }
 
+    private fun ridForVideoQuality(quality: LivekitModels.VideoQuality): String? {
+        return when (quality) {
+            LivekitModels.VideoQuality.HIGH -> "f"
+            LivekitModels.VideoQuality.MEDIUM -> "h"
+            LivekitModels.VideoQuality.LOW -> "q"
+            else -> null
+        }
+    }
+
     fun unpublishTrack(track: Track) {
         val publication = localTrackPublications.firstOrNull { it.track == track }
         if (publication === null) {
@@ -480,6 +489,32 @@ internal constructor(
     fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = tracks[trackSid]
         pub?.muted = muted
+    }
+
+    fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        val trackSid = subscribedQualityUpdate.trackSid
+        val qualities = subscribedQualityUpdate.subscribedQualitiesList
+        val pub = tracks[trackSid] ?: return
+        val track = pub.track as? LocalVideoTrack ?: return
+
+        val sender = track.transceiver?.sender ?: return
+        val parameters = sender.parameters ?: return
+        val encodings = parameters.encodings ?: return
+
+        var hasChanged = false
+        for (quality in qualities) {
+            val rid = ridForVideoQuality(quality.quality) ?: return
+            val encoding = encodings.firstOrNull { it.rid == rid } ?: return
+            if (encoding.active != quality.enabled) {
+                hasChanged = true
+                encoding.active = quality.enabled
+                LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
+            }
+        }
+
+        if (hasChanged) {
+            sender.parameters = parameters
+        }
     }
 
 
