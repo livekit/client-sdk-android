@@ -314,6 +314,7 @@ internal constructor(
                 if (encodings.size >= VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
                 }
+                // encodings is mutable, so this will grab next available rid
                 val rid = VIDEO_RIDS[encodings.size]
                 encodings.add(videoEncoding.toRtpEncoding(rid, scale))
             }
@@ -334,11 +335,13 @@ internal constructor(
                 val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 2.0
                 addEncoding(lowPreset.encoding, lowScale)
             }
-
             addEncoding(encoding, 1.0)
         } else {
             encodings.add(encoding.toRtpEncoding())
         }
+
+        // Make largest size at front. addTransceiver seems to fail if ordered from smallest to largest.
+        encodings.reverse()
         return encodings
     }
 
