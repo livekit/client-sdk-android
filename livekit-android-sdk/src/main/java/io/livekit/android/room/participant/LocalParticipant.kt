@@ -506,8 +506,8 @@ internal constructor(
 
         var hasChanged = false
         for (quality in qualities) {
-            val rid = ridForVideoQuality(quality.quality) ?: return
-            val encoding = encodings.firstOrNull { it.rid == rid } ?: return
+            val rid = ridForVideoQuality(quality.quality) ?: continue
+            val encoding = encodings.firstOrNull { it.rid == rid } ?: continue
             if (encoding.active != quality.enabled) {
                 hasChanged = true
                 encoding.active = quality.enabled
