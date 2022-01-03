@@ -17,8 +17,6 @@ import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import okio.Utf8
-import java.nio.charset.Charset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
@@ -86,7 +84,7 @@ class CallViewModel(
                     application,
                     url,
                     token,
-                    roomOptions = RoomOptions(autoManageVideo = true),
+                    roomOptions = RoomOptions(adaptiveStream = true),
                     listener = this@CallViewModel
                 )
 

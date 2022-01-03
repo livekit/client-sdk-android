@@ -31,6 +31,8 @@ class LocalParticipant
 internal constructor(
     @Assisted
     info: LivekitModels.ParticipantInfo,
+    @Assisted
+    private val dynacast: Boolean,
     internal val engine: RTCEngine,
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
@@ -528,7 +530,7 @@ internal constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(info: LivekitModels.ParticipantInfo): LocalParticipant
+        fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant
     }
 
     companion object {
