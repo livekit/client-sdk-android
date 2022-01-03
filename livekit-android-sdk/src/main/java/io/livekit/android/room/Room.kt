@@ -84,8 +84,18 @@ constructor(
      *
      * Also observes the visibility of attached tracks and pauses receiving data
      * if they are not visible.
+     *
+     * Defaults to false.
      */
-    var autoManageVideo: Boolean = false
+    var adaptiveStream: Boolean = false
+
+    /**
+     * Dynamically pauses video layers that are not being consumed by any subscribers,
+     * significantly reducing publishing CPU and bandwidth usage.
+     *
+     * Defaults to false.
+     */
+    var dynacast: Boolean = false
 
     /**
      * Default options to use when creating an audio track.
@@ -140,7 +150,7 @@ constructor(
             return
         }
 
-        val lp = localParticipantFactory.create(response.participant)
+        val lp = localParticipantFactory.create(response.participant, dynacast)
         lp.internalListener = this
         localParticipant = lp
         if (response.otherParticipantsList.isNotEmpty()) {
@@ -182,12 +192,13 @@ constructor(
     }
 
     fun getParticipant(sid: String): Participant? {
-        if(sid == localParticipant.sid){
+        if (sid == localParticipant.sid) {
             return localParticipant
         } else {
             return remoteParticipants[sid]
         }
     }
+
     @Synchronized
     private fun getOrCreateRemoteParticipant(
         sid: String,
@@ -207,8 +218,14 @@ constructor(
 
         coroutineScope.launch {
             participant.events.collect {
-                when(it){
-                    is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(RoomEvent.TrackStreamStateChanged(this@Room, it.trackPublication, it.streamState))
+                when (it) {
+                    is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(
+                        RoomEvent.TrackStreamStateChanged(
+                            this@Room,
+                            it.trackPublication,
+                            it.streamState
+                        )
+                    )
                 }
             }
         }
@@ -262,7 +279,7 @@ constructor(
             participant.audioLevel = speaker.level
             participant.isSpeaking = speaker.active
 
-            if(speaker.active) {
+            if (speaker.active) {
                 updatedSpeakers[speaker.sid] = participant
             } else {
                 updatedSpeakers.remove(speaker.sid)
@@ -288,14 +305,14 @@ constructor(
     }
 
     private fun handleDisconnect() {
-        if(state == State.DISCONNECTED) {
+        if (state == State.DISCONNECTED) {
             return
         }
 
         try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             cm.unregisterNetworkCallback(this)
-        } catch (e : IllegalArgumentException) {
+        } catch (e: IllegalArgumentException) {
             // do nothing, may happen on older versions if attempting to unregister twice.
         }
 
@@ -377,7 +394,7 @@ constructor(
             trackSid = track.id()
         }
         val participant = getOrCreateRemoteParticipant(participantSid)
-        participant.addSubscribedMediaTrack(track, trackSid!!, autoManageVideo)
+        participant.addSubscribedMediaTrack(track, trackSid!!, adaptiveStream)
     }
 
     /**
@@ -387,7 +404,7 @@ constructor(
         for (info in updates) {
             val participantSid = info.sid
 
-            if(localParticipant.sid == participantSid) {
+            if (localParticipant.sid == participantSid) {
                 localParticipant.updateFromInfo(info)
                 continue
             }
@@ -454,12 +471,16 @@ constructor(
     }
 
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
-        for(streamState in streamStates){
+        for (streamState in streamStates) {
             val participant = getParticipant(streamState.participantSid) ?: continue
             val track = participant.tracks[streamState.trackSid] ?: continue
 
             track.track?.streamState = Track.StreamState.fromProto(streamState.state)
         }
+    }
+
+    override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        localParticipant.handleSubscribedQualityUpdate(subscribedQualityUpdate)
     }
 
     /**
@@ -505,7 +526,7 @@ constructor(
      * @suppress
      */
     override fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        listener?.onTrackPublished(publication,  participant, this)
+        listener?.onTrackPublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
 
@@ -513,7 +534,7 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        listener?.onTrackUnpublished(publication,  participant, this)
+        listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
@@ -521,7 +542,7 @@ constructor(
      * @suppress
      */
     override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        listener?.onTrackPublished(publication,  participant, this)
+        listener?.onTrackPublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
 
@@ -529,7 +550,7 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        listener?.onTrackUnpublished(publication,  participant, this)
+        listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 

@@ -43,7 +43,7 @@ class RoomTest {
     var eglBase: EglBase = MockEglBase()
 
     val localParticantFactory = object : LocalParticipant.Factory {
-        override fun create(info: LivekitModels.ParticipantInfo): LocalParticipant {
+        override fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
         }
     }

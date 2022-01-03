@@ -50,7 +50,7 @@ class LiveKit {
             options.videoTrackPublishDefaults?.let {
                 room.videoTrackPublishDefaults = it
             }
-            room.autoManageVideo = options.autoManageVideo
+            room.adaptiveStream = options.adaptiveStream
 
             return room
         }

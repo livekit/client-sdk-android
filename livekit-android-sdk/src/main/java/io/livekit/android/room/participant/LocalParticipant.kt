@@ -31,6 +31,8 @@ class LocalParticipant
 internal constructor(
     @Assisted
     info: LivekitModels.ParticipantInfo,
+    @Assisted
+    private val dynacast: Boolean,
     internal val engine: RTCEngine,
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
@@ -253,8 +255,8 @@ internal constructor(
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
         when (track) {
-            is LocalVideoTrack -> track.transceiver
-            is LocalAudioTrack -> track.transceiver
+            is LocalVideoTrack -> track.transceiver = transceiver
+            is LocalAudioTrack -> track.transceiver = transceiver
             else -> {
                 throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
             }
@@ -314,6 +316,7 @@ internal constructor(
                 if (encodings.size >= VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
                 }
+                // encodings is mutable, so this will grab next available rid
                 val rid = VIDEO_RIDS[encodings.size]
                 encodings.add(videoEncoding.toRtpEncoding(rid, scale))
             }
@@ -334,11 +337,13 @@ internal constructor(
                 val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 2.0
                 addEncoding(lowPreset.encoding, lowScale)
             }
-
             addEncoding(encoding, 1.0)
         } else {
             encodings.add(encoding.toRtpEncoding())
         }
+
+        // Make largest size at front. addTransceiver seems to fail if ordered from smallest to largest.
+        encodings.reverse()
         return encodings
     }
 
@@ -402,6 +407,15 @@ internal constructor(
             "h" -> LivekitModels.VideoQuality.MEDIUM
             "q" -> LivekitModels.VideoQuality.LOW
             else -> LivekitModels.VideoQuality.UNRECOGNIZED
+        }
+    }
+
+    private fun ridForVideoQuality(quality: LivekitModels.VideoQuality): String? {
+        return when (quality) {
+            LivekitModels.VideoQuality.HIGH -> "f"
+            LivekitModels.VideoQuality.MEDIUM -> "h"
+            LivekitModels.VideoQuality.LOW -> "q"
+            else -> null
         }
     }
 
@@ -482,6 +496,32 @@ internal constructor(
         pub?.muted = muted
     }
 
+    fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        val trackSid = subscribedQualityUpdate.trackSid
+        val qualities = subscribedQualityUpdate.subscribedQualitiesList
+        val pub = tracks[trackSid] ?: return
+        val track = pub.track as? LocalVideoTrack ?: return
+
+        val sender = track.transceiver?.sender ?: return
+        val parameters = sender.parameters ?: return
+        val encodings = parameters.encodings ?: return
+
+        var hasChanged = false
+        for (quality in qualities) {
+            val rid = ridForVideoQuality(quality.quality) ?: continue
+            val encoding = encodings.firstOrNull { it.rid == rid } ?: continue
+            if (encoding.active != quality.enabled) {
+                hasChanged = true
+                encoding.active = quality.enabled
+                LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
+            }
+        }
+
+        if (hasChanged) {
+            sender.parameters = parameters
+        }
+    }
+
 
     interface PublishListener {
         fun onPublishSuccess(publication: TrackPublication) {}
@@ -490,7 +530,7 @@ internal constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(info: LivekitModels.ParticipantInfo): LocalParticipant
+        fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant
     }
 
     companion object {
