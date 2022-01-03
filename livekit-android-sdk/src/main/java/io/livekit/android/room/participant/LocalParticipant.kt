@@ -497,6 +497,10 @@ internal constructor(
     }
 
     fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+        if (!dynacast) {
+            return
+        }
+
         val trackSid = subscribedQualityUpdate.trackSid
         val qualities = subscribedQualityUpdate.subscribedQualitiesList
         val pub = tracks[trackSid] ?: return
