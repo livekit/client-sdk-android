@@ -253,8 +253,8 @@ internal constructor(
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
         when (track) {
-            is LocalVideoTrack -> track.transceiver
-            is LocalAudioTrack -> track.transceiver
+            is LocalVideoTrack -> track.transceiver = transceiver
+            is LocalAudioTrack -> track.transceiver = transceiver
             else -> {
                 throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
             }
