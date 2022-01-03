@@ -1,6 +1,7 @@
 package io.livekit.android.room
 
 import com.google.protobuf.util.JsonFormat
+import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
@@ -50,6 +51,7 @@ constructor(
     private var currentWs: WebSocket? = null
     private var isReconnecting: Boolean = false
     var listener: Listener? = null
+    private var serverVersion: Semver? = null
     private var lastUrl: String? = null
 
     private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
@@ -359,6 +361,11 @@ constructor(
             // Only handle joins if not connected.
             if (response.hasJoin()) {
                 isConnected = true
+                try {
+                    serverVersion = Semver(response.join.serverVersion)
+                } catch (t: Throwable) {
+                    LKLog.w(t) { "Thrown while trying to parse server version." }
+                }
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else {
                 LKLog.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
@@ -419,6 +426,10 @@ constructor(
                 listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
+                val versionToIgnoreUpTo = Semver("0.15.1")
+                if (serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1 <= 0) {
+                    return
+                }
                 listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
