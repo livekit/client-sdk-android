@@ -66,7 +66,7 @@ class LiveKit {
             token: String,
             options: ConnectOptions = ConnectOptions(),
             roomOptions: RoomOptions = RoomOptions(),
-            listener: RoomListener?
+            listener: RoomListener? = null
         ): Room {
             val room = create(appContext, roomOptions)
 
