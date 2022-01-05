@@ -31,6 +31,7 @@ class ParticipantTest {
         assertEquals(INFO.sid, participant.sid)
         assertEquals(INFO.identity, participant.identity)
         assertEquals(INFO.metadata, participant.metadata)
+        assertEquals(INFO.name, participant.name)
         assertEquals(INFO, participant.participantInfo)
     }
 
@@ -118,6 +119,7 @@ class ParticipantTest {
             .setSid("sid")
             .setIdentity("identity")
             .setMetadata("metadata")
+            .setName("name")
             .build()
 
         val TRACK_INFO = LivekitModels.TrackInfo.newBuilder()
@@ -125,6 +127,7 @@ class ParticipantTest {
             .setName("name")
             .setType(LivekitModels.TrackType.AUDIO)
             .setMuted(false)
+            .setMimeType("audio/mpeg")
             .build()
     }
 }
