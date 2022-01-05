@@ -32,6 +32,8 @@ open class TrackPublication(
         internal set
     var source: Track.Source = Track.Source.UNKNOWN
         internal set
+    var mimeType: String? = null
+        internal set
 
     var participant: WeakReference<Participant>
 
@@ -53,5 +55,6 @@ open class TrackPublication(
             simulcasted = info.simulcast
             dimensions = Track.Dimensions(info.width, info.height)
         }
+        mimeType = info.mimeType
     }
 }

@@ -51,6 +51,7 @@ open class Participant(
     @get:FlowObservable
     var audioLevel: Float by flowDelegate(0f)
         internal set
+
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
@@ -63,6 +64,10 @@ open class Participant(
         }
     }
         internal set
+    
+    @get:FlowObservable
+    var name by flowDelegate<String?>(null)
+
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
@@ -104,6 +109,7 @@ open class Participant(
     @get:FlowObservable
     var tracks by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
+
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
@@ -113,6 +119,7 @@ open class Participant(
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
             .stateIn(scope, SharingStarted.Eagerly, emptyMap())
     )
+
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
@@ -204,6 +211,7 @@ open class Participant(
         identity = info.identity
         participantInfo = info
         metadata = info.metadata
+        name = info.name
     }
 
     override fun equals(other: Any?): Boolean {
@@ -237,7 +245,10 @@ open class Participant(
 
     internal fun onTrackStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
         val trackPublication = tracks[trackEvent.track.sid] ?: return
-        eventBus.postEvent(ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState), scope)
+        eventBus.postEvent(
+            ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState),
+            scope
+        )
     }
 
 }
