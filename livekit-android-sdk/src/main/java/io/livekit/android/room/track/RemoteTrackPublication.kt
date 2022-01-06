@@ -72,7 +72,7 @@ class RemoteTrackPublication(
 
     override val subscribed: Boolean
         get() {
-            if (unsubscribed) {
+            if (unsubscribed || !subscriptionAllowed) {
                 return false
             }
             return super.subscribed

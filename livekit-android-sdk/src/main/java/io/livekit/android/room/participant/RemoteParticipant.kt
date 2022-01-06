@@ -118,10 +118,6 @@ class RemoteParticipant(
             return
         }
 
-        if (!publication.subscriptionAllowed) {
-            return
-        }
-
         val track: Track = when (val kind = mediaTrack.kind()) {
             KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
             KIND_VIDEO -> RemoteVideoTrack(
