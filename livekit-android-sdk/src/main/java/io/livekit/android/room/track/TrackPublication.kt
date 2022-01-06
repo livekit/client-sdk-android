@@ -22,10 +22,6 @@ open class TrackPublication(
         private set
     open var muted: Boolean = false
         internal set
-    open val subscribed: Boolean
-        get() {
-            return track != null
-        }
     var simulcasted: Boolean? = null
         internal set
     var dimensions: Track.Dimensions? = null

@@ -43,20 +43,6 @@ class RemoteTrackPublication(
             }
         }
 
-    private fun handleVisibilityChanged(trackEvent: TrackEvent.VisibilityChanged) {
-        disabled = !trackEvent.isVisible
-        sendUpdateTrackSettings.invoke()
-    }
-
-    private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
-        videoDimensions = trackEvent.newDimensions
-        sendUpdateTrackSettings.invoke()
-    }
-
-    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
-        participant.get()?.onTrackStreamStateChanged(trackEvent)
-    }
-
     private var trackJob: Job? = null
 
     private var unsubscribed: Boolean = false
@@ -70,12 +56,15 @@ class RemoteTrackPublication(
     val isAutoManaged: Boolean
         get() = (track as? RemoteVideoTrack)?.autoManageVideo ?: false
 
-    override val subscribed: Boolean
+    val subscribed: SubscriptionStatus
         get() {
-            if (unsubscribed || !subscriptionAllowed) {
-                return false
+            return if (!unsubscribed || track == null) {
+                SubscriptionStatus.UNSUBSCRIBED
+            } else if (!subscriptionAllowed) {
+                SubscriptionStatus.SUBSCRIBED_AND_NOT_ALLOWED
+            } else {
+                SubscriptionStatus.SUBSCRIBED
             }
-            return super.subscribed
         }
 
     override var muted: Boolean = false
@@ -117,7 +106,7 @@ class RemoteTrackPublication(
      * video to reduce bandwidth requirements
      */
     fun setEnabled(enabled: Boolean) {
-        if (isAutoManaged || !subscribed || enabled == !disabled) {
+        if (isAutoManaged || subscribed != SubscriptionStatus.SUBSCRIBED || enabled == !disabled) {
             return
         }
         disabled = !enabled
@@ -132,7 +121,7 @@ class RemoteTrackPublication(
      */
     fun setVideoQuality(quality: LivekitModels.VideoQuality) {
         if (isAutoManaged
-            || !subscribed
+            || subscribed != SubscriptionStatus.SUBSCRIBED
             || quality == videoQuality
             || track !is VideoTrack
         ) {
@@ -148,7 +137,7 @@ class RemoteTrackPublication(
      */
     fun setVideoDimensions(dimensions: Track.Dimensions) {
         if (isAutoManaged
-            || !subscribed
+            || subscribed != SubscriptionStatus.SUBSCRIBED
             || videoDimensions == dimensions
             || track !is VideoTrack
         ) {
@@ -158,6 +147,20 @@ class RemoteTrackPublication(
         videoQuality = null
         videoDimensions = dimensions
         sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleVisibilityChanged(trackEvent: TrackEvent.VisibilityChanged) {
+        disabled = !trackEvent.isVisible
+        sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
+        videoDimensions = trackEvent.newDimensions
+        sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
+        participant.get()?.onTrackStreamStateChanged(trackEvent)
     }
 
     // Debounce just in case multiple settings get changed at once.
@@ -174,5 +177,22 @@ class RemoteTrackPublication(
             videoDimensions,
             videoQuality
         )
+    }
+
+    enum class SubscriptionStatus {
+        /**
+         * Has a valid track, receiving data.
+         */
+        SUBSCRIBED,
+
+        /**
+         * Has a track, but no data will be received due to permissions.
+         */
+        SUBSCRIBED_AND_NOT_ALLOWED,
+
+        /**
+         * Not subscribed.
+         */
+        UNSUBSCRIBED
     }
 }
