@@ -4,7 +4,6 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.util.LKLog
 import io.livekit.android.util.debounce
 import io.livekit.android.util.invoke
 import kotlinx.coroutines.*
@@ -83,19 +82,10 @@ class RemoteTrackPublication(
 
     /**
      * Subscribe or unsubscribe from this track
-     *
-     * If [subscriptionAllowed] is false, subscription will fail.
      */
     fun setSubscribed(subscribed: Boolean) {
-        if (subscribed && !subscriptionAllowed) {
-            LKLog.w { "Attempted to subscribe to a disallowed track." }
-            return
-        }
-
         unsubscribed = !subscribed
-
         val participant = this.participant.get() as? RemoteParticipant ?: return
-
         participant.signalClient.sendUpdateSubscription(sid, !unsubscribed)
     }
 
