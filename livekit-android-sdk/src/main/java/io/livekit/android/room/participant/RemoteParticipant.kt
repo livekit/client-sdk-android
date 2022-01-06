@@ -19,8 +19,8 @@ class RemoteParticipant(
     identity: String? = null,
     val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
-    defaultdispatcher: CoroutineDispatcher,
-) : Participant(sid, identity, defaultdispatcher) {
+    defaultDispatcher: CoroutineDispatcher,
+) : Participant(sid, identity, defaultDispatcher) {
     /**
      * @suppress
      */
@@ -28,13 +28,13 @@ class RemoteParticipant(
         info: LivekitModels.ParticipantInfo,
         signalClient: SignalClient,
         ioDispatcher: CoroutineDispatcher,
-        defaultdispatcher: CoroutineDispatcher,
+        defaultDispatcher: CoroutineDispatcher,
     ) : this(
         info.sid,
         info.identity,
         signalClient,
         ioDispatcher,
-        defaultdispatcher
+        defaultDispatcher
     ) {
         updateFromInfo(info)
     }
