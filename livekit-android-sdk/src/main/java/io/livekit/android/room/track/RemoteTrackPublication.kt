@@ -64,7 +64,7 @@ class RemoteTrackPublication(
     private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
 
-    var allowed: Boolean = true
+    var subscriptionAllowed: Boolean = true
         internal set
 
     val isAutoManaged: Boolean
@@ -94,10 +94,10 @@ class RemoteTrackPublication(
     /**
      * Subscribe or unsubscribe from this track
      *
-     * If [allowed] is false, subscription will fail.
+     * If [subscriptionAllowed] is false, subscription will fail.
      */
     fun setSubscribed(subscribed: Boolean) {
-        if (subscribed && !allowed) {
+        if (subscribed && !subscriptionAllowed) {
             LKLog.w { "Attempted to subscribe to a disallowed track." }
             return
         }

@@ -486,10 +486,10 @@ constructor(
     override fun onSubscriptionPermissionUpdate(update: LivekitRtc.SubscriptionPermissionUpdate) {
         val participant = getParticipant(update.participantSid) ?: return
         val track = participant.tracks[update.trackSid] as? RemoteTrackPublication ?: return
-        track.allowed = update.allowed
+        track.subscriptionAllowed = update.allowed
 
         // Unsubscribe if become disallowed.
-        if(!track.allowed && track.subscribed) {
+        if(!track.subscriptionAllowed && track.subscribed) {
             track.setSubscribed(false)
         }
     }
