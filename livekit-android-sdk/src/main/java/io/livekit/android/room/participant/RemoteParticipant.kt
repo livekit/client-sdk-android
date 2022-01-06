@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.AudioTrack
 import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
@@ -39,7 +40,7 @@ class RemoteParticipant(
         updateFromInfo(info)
     }
 
-    private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
+    private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
 
     fun getTrackPublication(sid: String): RemoteTrackPublication? = tracks[sid] as? RemoteTrackPublication
 
@@ -157,6 +158,19 @@ class RemoteParticipant(
             internalListener?.onTrackUnpublished(publication, this)
             listener?.onTrackUnpublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
+        }
+    }
+
+    internal fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
+        val pub = tracks[subscriptionPermissionUpdate.trackSid] as? RemoteTrackPublication ?: return
+
+        if (pub.subscriptionAllowed != subscriptionPermissionUpdate.allowed) {
+            pub.subscriptionAllowed = subscriptionPermissionUpdate.allowed
+
+            eventBus.postEvent(
+                ParticipantEvent.TrackSubscriptionPermissionChanged(this, pub, pub.subscriptionAllowed),
+                coroutineScope
+            )
         }
     }
 

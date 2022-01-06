@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.*
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
+import io.livekit.android.mock.dagger.TestCoroutinesModule
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.toOkioByteString
@@ -40,7 +42,7 @@ class RoomMockE2ETest {
         context = ApplicationProvider.getApplicationContext()
         val component = DaggerTestLiveKitComponent
             .factory()
-            .create(context)
+            .create(context, TestCoroutinesModule(coroutineRule.dispatcher))
 
         room = component.roomFactory()
             .create(context)
@@ -54,9 +56,10 @@ class RoomMockE2ETest {
                 token = "",
             )
         }
-
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
 
+        // PeerTransport negotiation is on a debounce delay.
+        coroutineRule.dispatcher.advanceTimeBy(1000L)
         runBlockingTest {
             job.join()
         }

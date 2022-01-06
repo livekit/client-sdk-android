@@ -1,5 +1,6 @@
 package io.livekit.android.events
 
+import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
@@ -106,5 +107,15 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
         override val participant: Participant,
         val trackPublication: TrackPublication,
         val streamState: Track.StreamState
+    ) : ParticipantEvent(participant)
+
+
+    /**
+     * A remote track's subscription permissions have changed.
+     */
+    class TrackSubscriptionPermissionChanged(
+        override val participant: RemoteParticipant,
+        val trackPublication: RemoteTrackPublication,
+        val subscriptionAllowed: Boolean
     ) : ParticipantEvent(participant)
 }

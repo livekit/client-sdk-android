@@ -226,6 +226,14 @@ constructor(
                             it.streamState
                         )
                     )
+                    is ParticipantEvent.TrackSubscriptionPermissionChanged -> eventBus.postEvent(
+                        RoomEvent.TrackSubscriptionPermissionChanged(
+                            this@Room,
+                            it.participant,
+                            it.trackPublication,
+                            it.subscriptionAllowed
+                        )
+                    )
                 }
             }
         }
@@ -485,21 +493,7 @@ constructor(
 
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
         val participant = getParticipant(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
-        val pub = participant.tracks[subscriptionPermissionUpdate.trackSid] as? RemoteTrackPublication ?: return
-
-        if (pub.subscriptionAllowed != subscriptionPermissionUpdate.allowed) {
-            pub.subscriptionAllowed = subscriptionPermissionUpdate.allowed
-
-            // Unsubscribe if become disallowed.
-            if (!pub.subscriptionAllowed && pub.subscribed) {
-                pub.setSubscribed(false)
-            }
-
-            eventBus.postEvent(
-                RoomEvent.TrackSubscriptionPermissionChanged(this, participant, pub, pub.subscriptionAllowed),
-                coroutineScope
-            )
-        }
+        participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
     }
 
     /**
