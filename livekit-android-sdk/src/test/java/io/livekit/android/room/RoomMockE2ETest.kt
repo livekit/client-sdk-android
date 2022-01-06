@@ -13,7 +13,6 @@ import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
-import livekit.LivekitRtc
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -69,7 +68,7 @@ class RoomMockE2ETest {
     }
 
     @Test
-    fun connectFailureProperlyContinues(){
+    fun connectFailureProperlyContinues() {
 
         var didThrowException = false
         val job = coroutineRule.scope.launch {
@@ -91,6 +90,7 @@ class RoomMockE2ETest {
 
         Assert.assertTrue(didThrowException)
     }
+
     @Test
     fun roomUpdateTest() {
         connect()
@@ -203,7 +203,14 @@ class RoomMockE2ETest {
         // add track.
         room.onAddTrack(
             MockAudioStreamTrack(),
-            arrayOf(MockMediaStream(id = "${TestData.REMOTE_PARTICIPANT.sid}|${TestData.REMOTE_AUDIO_TRACK.sid}"))
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_AUDIO_TRACK.sid
+                    )
+                )
+            )
         )
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
@@ -217,6 +224,39 @@ class RoomMockE2ETest {
 
         val event = events[0] as RoomEvent.TrackStreamStateChanged
         Assert.assertEquals(Track.StreamState.ACTIVE, event.streamState)
+    }
+
+    @Test
+    fun trackSubscriptionPermissionChanged() {
+        connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+        )
+        room.onAddTrack(
+            MockAudioStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_AUDIO_TRACK.sid
+                    )
+                )
+            )
+        )
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            SignalClientTest.SUBSCRIPTION_PERMISSION_UPDATE.toOkioByteString()
+        )
+        val events = eventCollector.stopCollecting()
+
+        Assert.assertEquals(1, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.TrackSubscriptionPermissionChanged)
+
+        val event = events[0] as RoomEvent.TrackSubscriptionPermissionChanged
+        Assert.assertEquals(false, event.subscriptionAllowed)
     }
 
     @Test

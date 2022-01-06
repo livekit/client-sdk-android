@@ -6,6 +6,7 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 
@@ -128,6 +129,16 @@ sealed class RoomEvent(val room: Room) : Event() {
         room: Room,
         val trackPublication: TrackPublication,
         val streamState: Track.StreamState
+    ) : RoomEvent(room)
+
+    /**
+     * A remote track's subscription permissions have changed.
+     */
+    class TrackSubscriptionPermissionChanged(
+        room: Room,
+        val participant: RemoteParticipant,
+        val trackPublication: RemoteTrackPublication,
+        val subscriptionAllowed: Boolean
     ) : RoomEvent(room)
 
     /**

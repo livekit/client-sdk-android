@@ -77,6 +77,7 @@ class RemoteTrackPublication(
             }
             return super.subscribed
         }
+
     override var muted: Boolean = false
         set(v) {
             if (field == v) {
@@ -103,6 +104,7 @@ class RemoteTrackPublication(
         }
 
         unsubscribed = !subscribed
+
         val participant = this.participant.get() as? RemoteParticipant ?: return
 
         participant.signalClient.sendUpdateSubscription(sid, !unsubscribed)

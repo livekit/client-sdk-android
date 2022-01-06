@@ -4,6 +4,9 @@ import org.webrtc.AudioTrack
 import org.webrtc.MediaStream
 import org.webrtc.VideoTrack
 
+fun createMediaStreamId(participantSid: String, trackSid: String) =
+    "${TestData.REMOTE_PARTICIPANT.sid}|${TestData.REMOTE_AUDIO_TRACK.sid}"
+
 class MockMediaStream(private val id: String = "id") : MediaStream(1L) {
 
     override fun addTrack(track: AudioTrack): Boolean {
