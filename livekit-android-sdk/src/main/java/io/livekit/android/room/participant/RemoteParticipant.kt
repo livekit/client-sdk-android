@@ -98,17 +98,8 @@ class RemoteParticipant(
         triesLeft: Int = 20
     ) {
         val publication = getTrackPublication(sid)
-        val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
-            KIND_VIDEO -> RemoteVideoTrack(
-                rtcTrack = mediaTrack as VideoTrack,
-                name = "",
-                autoManageVideo = autoManageVideo,
-                dispatcher = ioDispatcher
-            )
-            else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
-        }
 
+        // We may receive subscribed tracks before publications come in. Retry until then.
         if (publication == null) {
             if (triesLeft == 0) {
                 val message = "Could not find published track with sid: $sid"
@@ -125,6 +116,21 @@ class RemoteParticipant(
                 }
             }
             return
+        }
+
+        if (!publication.subscriptionAllowed) {
+            return
+        }
+
+        val track: Track = when (val kind = mediaTrack.kind()) {
+            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_VIDEO -> RemoteVideoTrack(
+                rtcTrack = mediaTrack as VideoTrack,
+                name = "",
+                autoManageVideo = autoManageVideo,
+                dispatcher = ioDispatcher
+            )
+            else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
 
         publication.track = track
