@@ -109,7 +109,7 @@ class RemoteTrackPublication(
      * video to reduce bandwidth requirements
      */
     fun setEnabled(enabled: Boolean) {
-        if (isAutoManaged || subscribed != SubscriptionStatus.SUBSCRIBED || enabled == !disabled) {
+        if (isAutoManaged || !subscribed || enabled == !disabled) {
             return
         }
         disabled = !enabled
@@ -124,7 +124,7 @@ class RemoteTrackPublication(
      */
     fun setVideoQuality(quality: LivekitModels.VideoQuality) {
         if (isAutoManaged
-            || subscribed != SubscriptionStatus.SUBSCRIBED
+            || !subscribed
             || quality == videoQuality
             || track !is VideoTrack
         ) {
@@ -140,7 +140,7 @@ class RemoteTrackPublication(
      */
     fun setVideoDimensions(dimensions: Track.Dimensions) {
         if (isAutoManaged
-            || subscribed != SubscriptionStatus.SUBSCRIBED
+            || !subscribed
             || videoDimensions == dimensions
             || track !is VideoTrack
         ) {
