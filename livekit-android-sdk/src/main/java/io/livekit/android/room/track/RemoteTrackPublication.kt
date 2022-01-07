@@ -55,7 +55,20 @@ class RemoteTrackPublication(
     val isAutoManaged: Boolean
         get() = (track as? RemoteVideoTrack)?.autoManageVideo ?: false
 
-    val subscribed: SubscriptionStatus
+    /**
+     * Returns true if track is subscribed, and ready for playback
+     *
+     * @see [subscriptionStatus]
+     */
+    override val subscribed: Boolean
+        get() {
+            if (unsubscribed || !subscriptionAllowed) {
+                return false
+            }
+            return super.subscribed
+        }
+
+    val subscriptionStatus: SubscriptionStatus
         get() {
             return if (!unsubscribed || track == null) {
                 SubscriptionStatus.UNSUBSCRIBED
