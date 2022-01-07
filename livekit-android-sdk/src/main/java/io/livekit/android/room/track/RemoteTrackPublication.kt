@@ -42,20 +42,6 @@ class RemoteTrackPublication(
             }
         }
 
-    private fun handleVisibilityChanged(trackEvent: TrackEvent.VisibilityChanged) {
-        disabled = !trackEvent.isVisible
-        sendUpdateTrackSettings.invoke()
-    }
-
-    private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
-        videoDimensions = trackEvent.newDimensions
-        sendUpdateTrackSettings.invoke()
-    }
-
-    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
-        participant.get()?.onTrackStreamStateChanged(trackEvent)
-    }
-
     private var trackJob: Job? = null
 
     private var unsubscribed: Boolean = false
@@ -63,16 +49,36 @@ class RemoteTrackPublication(
     private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
 
+    var subscriptionAllowed: Boolean = true
+        internal set
+
     val isAutoManaged: Boolean
         get() = (track as? RemoteVideoTrack)?.autoManageVideo ?: false
 
+    /**
+     * Returns true if track is subscribed, and ready for playback
+     *
+     * @see [subscriptionStatus]
+     */
     override val subscribed: Boolean
         get() {
-            if (unsubscribed) {
+            if (unsubscribed || !subscriptionAllowed) {
                 return false
             }
             return super.subscribed
         }
+
+    val subscriptionStatus: SubscriptionStatus
+        get() {
+            return if (!unsubscribed || track == null) {
+                SubscriptionStatus.UNSUBSCRIBED
+            } else if (!subscriptionAllowed) {
+                SubscriptionStatus.SUBSCRIBED_AND_NOT_ALLOWED
+            } else {
+                SubscriptionStatus.SUBSCRIBED
+            }
+        }
+
     override var muted: Boolean = false
         set(v) {
             if (field == v) {
@@ -88,12 +94,11 @@ class RemoteTrackPublication(
         }
 
     /**
-     * subscribe or unsubscribe from this track
+     * Subscribe or unsubscribe from this track
      */
     fun setSubscribed(subscribed: Boolean) {
         unsubscribed = !subscribed
         val participant = this.participant.get() as? RemoteParticipant ?: return
-
         participant.signalClient.sendUpdateSubscription(sid, !unsubscribed)
     }
 
@@ -147,6 +152,20 @@ class RemoteTrackPublication(
         sendUpdateTrackSettings.invoke()
     }
 
+    private fun handleVisibilityChanged(trackEvent: TrackEvent.VisibilityChanged) {
+        disabled = !trackEvent.isVisible
+        sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
+        videoDimensions = trackEvent.newDimensions
+        sendUpdateTrackSettings.invoke()
+    }
+
+    private fun handleStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
+        participant.get()?.onTrackStreamStateChanged(trackEvent)
+    }
+
     // Debounce just in case multiple settings get changed at once.
     private val sendUpdateTrackSettings = debounce<Unit, Unit>(100L, CoroutineScope(ioDispatcher)) {
         sendUpdateTrackSettingsImpl()
@@ -161,5 +180,22 @@ class RemoteTrackPublication(
             videoDimensions,
             videoQuality
         )
+    }
+
+    enum class SubscriptionStatus {
+        /**
+         * Has a valid track, receiving data.
+         */
+        SUBSCRIBED,
+
+        /**
+         * Has a track, but no data will be received due to permissions.
+         */
+        SUBSCRIBED_AND_NOT_ALLOWED,
+
+        /**
+         * Not subscribed.
+         */
+        UNSUBSCRIBED
     }
 }

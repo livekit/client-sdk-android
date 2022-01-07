@@ -241,6 +241,16 @@ class SignalClientTest {
             }
             build()
         }
+
+        val SUBSCRIPTION_PERMISSION_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            subscriptionPermissionUpdate = with(LivekitRtc.SubscriptionPermissionUpdate.newBuilder()) {
+                participantSid = TestData.REMOTE_PARTICIPANT.sid
+                trackSid = TestData.REMOTE_AUDIO_TRACK.sid
+                allowed = false
+                build()
+            }
+            build()
+        }
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
             leave = with(leaveBuilder) {
                 build()

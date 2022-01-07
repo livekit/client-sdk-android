@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
+import livekit.LivekitRtc
 import org.webrtc.AudioTrack
 import org.webrtc.MediaStreamTrack
 import org.webrtc.VideoTrack
@@ -19,8 +20,8 @@ class RemoteParticipant(
     identity: String? = null,
     val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
-    defaultdispatcher: CoroutineDispatcher,
-) : Participant(sid, identity, defaultdispatcher) {
+    defaultDispatcher: CoroutineDispatcher,
+) : Participant(sid, identity, defaultDispatcher) {
     /**
      * @suppress
      */
@@ -28,18 +29,18 @@ class RemoteParticipant(
         info: LivekitModels.ParticipantInfo,
         signalClient: SignalClient,
         ioDispatcher: CoroutineDispatcher,
-        defaultdispatcher: CoroutineDispatcher,
+        defaultDispatcher: CoroutineDispatcher,
     ) : this(
         info.sid,
         info.identity,
         signalClient,
         ioDispatcher,
-        defaultdispatcher
+        defaultDispatcher
     ) {
         updateFromInfo(info)
     }
 
-    private val coroutineScope = CloseableCoroutineScope(SupervisorJob())
+    private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
 
     fun getTrackPublication(sid: String): RemoteTrackPublication? = tracks[sid] as? RemoteTrackPublication
 
@@ -98,17 +99,8 @@ class RemoteParticipant(
         triesLeft: Int = 20
     ) {
         val publication = getTrackPublication(sid)
-        val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
-            KIND_VIDEO -> RemoteVideoTrack(
-                rtcTrack = mediaTrack as VideoTrack,
-                name = "",
-                autoManageVideo = autoManageVideo,
-                dispatcher = ioDispatcher
-            )
-            else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
-        }
 
+        // We may receive subscribed tracks before publications come in. Retry until then.
         if (publication == null) {
             if (triesLeft == 0) {
                 val message = "Could not find published track with sid: $sid"
@@ -125,6 +117,17 @@ class RemoteParticipant(
                 }
             }
             return
+        }
+
+        val track: Track = when (val kind = mediaTrack.kind()) {
+            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_VIDEO -> RemoteVideoTrack(
+                rtcTrack = mediaTrack as VideoTrack,
+                name = "",
+                autoManageVideo = autoManageVideo,
+                dispatcher = ioDispatcher
+            )
+            else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
 
         publication.track = track
@@ -155,6 +158,19 @@ class RemoteParticipant(
             internalListener?.onTrackUnpublished(publication, this)
             listener?.onTrackUnpublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
+        }
+    }
+
+    internal fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
+        val pub = tracks[subscriptionPermissionUpdate.trackSid] as? RemoteTrackPublication ?: return
+
+        if (pub.subscriptionAllowed != subscriptionPermissionUpdate.allowed) {
+            pub.subscriptionAllowed = subscriptionPermissionUpdate.allowed
+
+            eventBus.postEvent(
+                ParticipantEvent.TrackSubscriptionPermissionChanged(this, pub, pub.subscriptionAllowed),
+                coroutineScope
+            )
         }
     }
 

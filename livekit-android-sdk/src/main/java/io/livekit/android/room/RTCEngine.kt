@@ -3,6 +3,7 @@ package io.livekit.android.room
 import android.os.SystemClock
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.*
 import io.livekit.android.util.CloseableCoroutineScope
@@ -229,6 +230,13 @@ internal constructor(
         }
     }
 
+    fun updateSubscriptionPermissions(
+        allParticipants: Boolean,
+        participantTrackPermissions: List<ParticipantTrackPermission>
+    ) {
+        client.sendUpdateSubscriptionPermissions(allParticipants, participantTrackPermissions)
+    }
+
     fun updateMuteStatus(sid: String, muted: Boolean) {
         client.sendMuteTrack(sid, muted)
     }
@@ -386,6 +394,7 @@ internal constructor(
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
+        fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
     }
 
     companion object {
@@ -529,6 +538,10 @@ internal constructor(
 
     override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
         listener?.onSubscribedQualityUpdate(subscribedQualityUpdate)
+    }
+
+    override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
+        listener?.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
     }
 
     //--------------------------------- DataChannel.Observer ------------------------------------//

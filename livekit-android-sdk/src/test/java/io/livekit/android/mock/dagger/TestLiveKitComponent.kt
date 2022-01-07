@@ -23,6 +23,6 @@ interface TestLiveKitComponent : LiveKitComponent {
 
     @Component.Factory
     interface Factory {
-        fun create(@BindsInstance appContext: Context): TestLiveKitComponent
+        fun create(@BindsInstance appContext: Context, coroutinesModule: TestCoroutinesModule = TestCoroutinesModule()): TestLiveKitComponent
     }
 }

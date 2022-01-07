@@ -5,6 +5,7 @@ import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
@@ -329,6 +330,21 @@ constructor(
         sendRequest(request)
     }
 
+    fun sendUpdateSubscriptionPermissions(
+        allParticipants: Boolean,
+        participantTrackPermissions: List<ParticipantTrackPermission>
+    ) {
+        val update = LivekitRtc.UpdateSubscriptionPermissions.newBuilder()
+            .setAllParticipants(allParticipants)
+            .addAllTrackPermissions(participantTrackPermissions.map { it.toProto() })
+
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSubscriptionPermissions(update)
+            .build()
+
+        sendRequest(request)
+    }
+
     fun sendLeave() {
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
@@ -433,7 +449,7 @@ constructor(
                 listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
-                // TODO
+                listener?.onSubscriptionPermissionUpdate(response.subscriptionPermissionUpdate)
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
@@ -463,6 +479,7 @@ constructor(
         fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
+        fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
     }
 
     companion object {

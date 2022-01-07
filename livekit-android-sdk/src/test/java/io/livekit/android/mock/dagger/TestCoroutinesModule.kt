@@ -9,10 +9,10 @@ import kotlinx.coroutines.test.TestCoroutineDispatcher
 import javax.inject.Named
 
 @Module
-object TestCoroutinesModule {
-
+class TestCoroutinesModule(
     @OptIn(ExperimentalCoroutinesApi::class)
     val coroutineDispatcher: CoroutineDispatcher = TestCoroutineDispatcher()
+) {
 
     @Provides
     @Named(InjectionNames.DISPATCHER_DEFAULT)

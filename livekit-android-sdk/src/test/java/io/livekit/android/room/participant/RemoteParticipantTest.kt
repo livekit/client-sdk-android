@@ -24,7 +24,7 @@ class RemoteParticipantTest {
             "sid",
             signalClient = signalClient,
             ioDispatcher = coroutineRule.dispatcher,
-            defaultdispatcher = coroutineRule.dispatcher,
+            defaultDispatcher = coroutineRule.dispatcher,
         )
     }
 
@@ -38,7 +38,7 @@ class RemoteParticipantTest {
             info,
             signalClient,
             ioDispatcher = coroutineRule.dispatcher,
-            defaultdispatcher = coroutineRule.dispatcher,
+            defaultDispatcher = coroutineRule.dispatcher,
         )
 
         assertEquals(1, participant.tracks.values.size)

@@ -419,6 +419,30 @@ internal constructor(
         }
     }
 
+    /**
+     * Control who can subscribe to LocalParticipant's published tracks.
+     *
+     * By default, all participants can subscribe. This allows fine-grained control over
+     * who is able to subscribe at a participant and track level.
+     *
+     * Note: if access is given at a track-level (i.e. both [allParticipantsAllowed] and
+     * [ParticipantTrackPermission.allTracksAllowed] are false), any newer published tracks
+     * will not grant permissions to any participants and will require a subsequent
+     * permissions update to allow subscription.
+     *
+     * @param allParticipantsAllowed Allows all participants to subscribe all tracks.
+     *  Takes precedence over [participantTrackPermissions] if set to true.
+     *  By default this is set to true.
+     * @param participantTrackPermissions Full list of individual permissions per
+     *  participant/track. Any omitted participants will not receive any permissions.
+     */
+    fun setTrackSubscriptionPermissions(
+        allParticipantsAllowed: Boolean,
+        participantTrackPermissions: List<ParticipantTrackPermission> = emptyList()
+    ) {
+        engine.updateSubscriptionPermissions(allParticipantsAllowed, participantTrackPermissions)
+    }
+
     fun unpublishTrack(track: Track) {
         val publication = localTrackPublications.firstOrNull { it.track == track }
         if (publication === null) {
@@ -616,4 +640,29 @@ data class AudioTrackPublishOptions(
         base.audioBitrate,
         base.dtx
     )
+}
+
+data class ParticipantTrackPermission(
+    /**
+     * The participant id this permission applies to.
+     */
+    val participantSid: String,
+    /**
+     * If set to true, the target participant can subscribe to all tracks from the local participant.
+     *
+     * Takes precedence over [allowedTrackSids].
+     */
+    val allTracksAllowed: Boolean,
+    /**
+     * The list of track ids that the target participant can subscribe to.
+     */
+    val allowedTrackSids: List<String> = emptyList()
+) {
+    fun toProto(): LivekitRtc.TrackPermission {
+        return LivekitRtc.TrackPermission.newBuilder()
+            .setParticipantSid(participantSid)
+            .setAllTracks(allTracksAllowed)
+            .addAllTrackSids(allowedTrackSids)
+            .build()
+    }
 }

@@ -226,6 +226,14 @@ constructor(
                             it.streamState
                         )
                     )
+                    is ParticipantEvent.TrackSubscriptionPermissionChanged -> eventBus.postEvent(
+                        RoomEvent.TrackSubscriptionPermissionChanged(
+                            this@Room,
+                            it.participant,
+                            it.trackPublication,
+                            it.subscriptionAllowed
+                        )
+                    )
                 }
             }
         }
@@ -481,6 +489,11 @@ constructor(
 
     override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
         localParticipant.handleSubscribedQualityUpdate(subscribedQualityUpdate)
+    }
+
+    override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
+        val participant = getParticipant(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
+        participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
     }
 
     /**
