@@ -312,38 +312,45 @@ internal constructor(
     }
 
     internal suspend fun sendData(dataPacket: LivekitModels.DataPacket) {
-        ensurePublisherConnected()
+        ensurePublisherConnected(dataPacket.kind)
 
         val buf = DataChannel.Buffer(
             ByteBuffer.wrap(dataPacket.toByteArray()),
             true,
         )
 
-        val channel = when (dataPacket.kind) {
-            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannel
-            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannel
-            else -> null
-        } ?: throw TrackException.PublishException("channel not established for ${dataPacket.kind.name}")
+        val channel = dataChannelForKind(dataPacket.kind)
+            ?: throw TrackException.PublishException("channel not established for ${dataPacket.kind.name}")
 
         channel.send(buf)
     }
 
-    private suspend fun ensurePublisherConnected() {
+    private suspend fun ensurePublisherConnected(kind: LivekitModels.DataPacket.Kind) {
         if (!isSubscriberPrimary) {
             return
         }
 
-        if (this.publisher.peerConnection.isConnected()) {
-            return
+        if (!this::publisher.isInitialized) {
+            throw RoomException.ConnectException("Publisher is not connected!")
         }
 
-        // start negotiation
-        this.negotiate()
+        if (!publisher.peerConnection.isConnected() &&
+            publisher.peerConnection.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
+        ) {
+            // start negotiation
+            this.negotiate();
+        }
+
+
+        val targetChannel = dataChannelForKind(kind) ?: throw IllegalArgumentException("Unknown data packet kind!")
+        if (targetChannel.state() == DataChannel.State.OPEN) {
+            return
+        }
 
         // wait until publisher ICE connected
         val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
         while (SystemClock.elapsedRealtime() < endTime) {
-            if (this.publisher.peerConnection.isConnected()) {
+            if (this.publisher.peerConnection.isConnected() && targetChannel.state() == DataChannel.State.OPEN) {
                 return
             }
             delay(50)
@@ -351,6 +358,13 @@ internal constructor(
 
         throw ConnectException("could not establish publisher connection")
     }
+
+    private fun dataChannelForKind(kind: LivekitModels.DataPacket.Kind) =
+        when (kind) {
+            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannel
+            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannel
+            else -> null
+        }
 
     private fun getPublisherOfferConstraints(): MediaConstraints {
         return MediaConstraints().apply {
