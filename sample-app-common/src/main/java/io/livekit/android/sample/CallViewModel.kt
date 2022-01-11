@@ -72,6 +72,9 @@ class CallViewModel(
     private val mutableDataReceived = MutableSharedFlow<String>()
     val dataReceived = mutableDataReceived
 
+    private val mutablePermissionAllowed = MutableStateFlow(true)
+    val permissionAllowed = mutablePermissionAllowed.hide()
+
     init {
         viewModelScope.launch {
 
@@ -237,6 +240,11 @@ class CallViewModel(
         viewModelScope.launch {
             room.value?.localParticipant?.publishData(message.toByteArray(Charsets.UTF_8))
         }
+    }
+
+    fun toggleSubscriptionPermissions() {
+        mutablePermissionAllowed.value = !mutablePermissionAllowed.value
+        room.value?.localParticipant?.setTrackSubscriptionPermissions(mutablePermissionAllowed.value)
     }
 }
 

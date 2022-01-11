@@ -96,6 +96,7 @@ class CallActivity : AppCompatActivity() {
             val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
             val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
             val screencastEnabled by viewModel.screenshareEnabled.observeAsState(false)
+            val permissionAllowed by viewModel.permissionAllowed.collectAsState()
             Content(
                 room,
                 participants,
@@ -105,6 +106,7 @@ class CallActivity : AppCompatActivity() {
                 videoEnabled,
                 flipButtonEnabled,
                 screencastEnabled,
+                permissionAllowed = permissionAllowed,
                 onExitClick = { finish() },
                 onSendMessage = { viewModel.sendData(it) }
             )
@@ -149,6 +151,7 @@ class CallActivity : AppCompatActivity() {
         videoEnabled: Boolean = true,
         flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
+        permissionAllowed: Boolean = true,
         onExitClick: () -> Unit = {},
         error: Throwable? = null,
         onSnackbarDismiss: () -> Unit = {},
@@ -210,7 +213,7 @@ class CallActivity : AppCompatActivity() {
                 }
 
                 // Control bar for any switches such as mic/camera enable/disable.
-                Row(
+                Column(
                     modifier = Modifier
                         .padding(top = 10.dp, bottom = 20.dp)
                         .fillMaxWidth()
@@ -219,141 +222,170 @@ class CallActivity : AppCompatActivity() {
                             width = Dimension.fillToConstraints
                             height = Dimension.wrapContent
                         },
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Bottom,
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
                     val controlSize = 40.dp
                     val controlPadding = 4.dp
-                    Surface(
-                        onClick = { viewModel.setMicEnabled(!micEnabled) },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Bottom,
                     ) {
-                        val resource =
-                            if (micEnabled) R.drawable.outline_mic_24 else R.drawable.outline_mic_off_24
-                        Icon(
-                            painterResource(id = resource),
-                            contentDescription = "Mic",
-                            tint = Color.White,
-                        )
-                    }
-                    Surface(
-                        onClick = { viewModel.setCameraEnabled(!videoEnabled) },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
-                    ) {
-                        val resource =
-                            if (videoEnabled) R.drawable.outline_videocam_24 else R.drawable.outline_videocam_off_24
-                        Icon(
-                            painterResource(id = resource),
-                            contentDescription = "Video",
-                            tint = Color.White,
-                        )
-                    }
-                    Surface(
-                        onClick = { viewModel.flipCamera() },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
-                    ) {
-                        Icon(
-                            painterResource(id = R.drawable.outline_flip_camera_android_24),
-                            contentDescription = "Flip Camera",
-                            tint = Color.White,
-                        )
-                    }
-                    Surface(
-                        onClick = {
-                            if (!screencastEnabled) {
-                                requestMediaProjection()
-                            } else {
-                                viewModel.stopScreenCapture()
-                            }
-                        },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
-                    ) {
-                        val resource =
-                            if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
-                        Icon(
-                            painterResource(id = resource),
-                            contentDescription = "Flip Camera",
-                            tint = Color.White,
-                        )
+                        Surface(
+                            onClick = { viewModel.setMicEnabled(!micEnabled) },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource =
+                                if (micEnabled) R.drawable.outline_mic_24 else R.drawable.outline_mic_off_24
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Mic",
+                                tint = Color.White,
+                            )
+                        }
+                        Surface(
+                            onClick = { viewModel.setCameraEnabled(!videoEnabled) },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource =
+                                if (videoEnabled) R.drawable.outline_videocam_24 else R.drawable.outline_videocam_off_24
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Video",
+                                tint = Color.White,
+                            )
+                        }
+                        Surface(
+                            onClick = { viewModel.flipCamera() },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            Icon(
+                                painterResource(id = R.drawable.outline_flip_camera_android_24),
+                                contentDescription = "Flip Camera",
+                                tint = Color.White,
+                            )
+                        }
+                        Surface(
+                            onClick = {
+                                if (!screencastEnabled) {
+                                    requestMediaProjection()
+                                } else {
+                                    viewModel.stopScreenCapture()
+                                }
+                            },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource =
+                                if (screencastEnabled) R.drawable.baseline_cast_connected_24 else R.drawable.baseline_cast_24
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Flip Camera",
+                                tint = Color.White,
+                            )
+                        }
+
+                        var showMessageDialog by remember { mutableStateOf(false) }
+                        var messageToSend by remember { mutableStateOf("") }
+                        Surface(
+                            onClick = { showMessageDialog = true },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            Icon(
+                                painterResource(id = R.drawable.baseline_chat_24),
+                                contentDescription = "Send Message",
+                                tint = Color.White,
+                            )
+                        }
+
+                        if (showMessageDialog) {
+                            AlertDialog(
+                                onDismissRequest = {
+                                    showMessageDialog = false
+                                    messageToSend = ""
+                                },
+                                title = {
+                                    Text(text = "Send Message")
+                                },
+                                text = {
+                                    OutlinedTextField(
+                                        value = messageToSend,
+                                        onValueChange = { messageToSend = it },
+                                        label = { Text("Message") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            onSendMessage(messageToSend)
+                                            showMessageDialog = false
+                                            messageToSend = ""
+                                        }
+                                    ) { Text("Send") }
+                                },
+                                dismissButton = {
+                                    Button(
+                                        onClick = {
+                                            showMessageDialog = false
+                                            messageToSend = ""
+                                        }
+                                    ) { Text("Cancel") }
+                                },
+                                backgroundColor = Color.Black,
+                            )
+                        }
+                        Surface(
+                            onClick = { onExitClick() },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            Icon(
+                                painterResource(id = R.drawable.ic_baseline_cancel_24),
+                                contentDescription = "Flip Camera",
+                                tint = Color.White,
+                            )
+                        }
                     }
 
-                    var showMessageDialog by remember { mutableStateOf(false) }
-                    var messageToSend by remember { mutableStateOf("") }
-                    Surface(
-                        onClick = { showMessageDialog = true },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
-                    ) {
-                        Icon(
-                            painterResource(id = R.drawable.baseline_chat_24),
-                            contentDescription = "Send Message",
-                            tint = Color.White,
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    if (showMessageDialog) {
-                        AlertDialog(
-                            onDismissRequest = {
-                                showMessageDialog = false
-                                messageToSend = ""
-                            },
-                            title = {
-                                Text(text = "Send Message")
-                            },
-                            text = {
-                                OutlinedTextField(
-                                    value = messageToSend,
-                                    onValueChange = { messageToSend = it },
-                                    label = { Text("Message") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        onSendMessage(messageToSend)
-                                        showMessageDialog = false
-                                        messageToSend = ""
-                                    }
-                                ) { Text("Send") }
-                            },
-                            dismissButton = {
-                                Button(
-                                    onClick = {
-                                        showMessageDialog = false
-                                        messageToSend = ""
-                                    }
-                                ) { Text("Cancel") }
-                            },
-                            backgroundColor = Color.Black,
-                        )
-                    }
-                    Surface(
-                        onClick = { onExitClick() },
-                        indication = rememberRipple(false),
-                        modifier = Modifier
-                            .size(controlSize)
-                            .padding(controlPadding)
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Bottom,
                     ) {
-                        Icon(
-                            painterResource(id = R.drawable.ic_baseline_cancel_24),
-                            contentDescription = "Flip Camera",
-                            tint = Color.White,
-                        )
+                        Surface(
+                            onClick = { viewModel.toggleSubscriptionPermissions() },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource =
+                                if (permissionAllowed) R.drawable.account_cancel_outline else R.drawable.account_cancel
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Permissions",
+                                tint = Color.White,
+                            )
+                        }
                     }
                 }
 
