@@ -10,6 +10,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.isConnected
+import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -93,6 +94,7 @@ internal constructor(
         sessionUrl = url
         sessionToken = token
         val joinResponse = client.join(url, token, options)
+        listener?.onSignalConnected()
         isClosed = false
 
         isSubscriberPrimary = joinResponse.subscriberPrimary
@@ -279,6 +281,8 @@ internal constructor(
             client.reconnect(url, token)
 
             LKLog.v { "reconnected, restarting ICE" }
+            listener?.onSignalConnected()
+
             wsRetries = 0
 
             // trigger publisher reconnect
@@ -409,6 +413,7 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
+        fun onSignalConnected()
     }
 
     companion object {
@@ -583,6 +588,21 @@ internal constructor(
                 LKLog.v { "invalid value for data packet" }
             }
         }
+    }
+
+    fun sendSyncState(
+        subscription: LivekitRtc.UpdateSubscription,
+        publishedTracks: List<LivekitRtc.TrackPublishedResponse>
+    ) {
+        val answer = subscriber.peerConnection.localDescription.toProtoSessionDescription()
+
+        val syncState = LivekitRtc.SyncState.newBuilder()
+            .setAnswer(answer)
+            .setSubscription(subscription)
+            .addAllPublishTracks(publishedTracks)
+            .build()
+
+        client.sendSyncState(syncState)
     }
 }
 

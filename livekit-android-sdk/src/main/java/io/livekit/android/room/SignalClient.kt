@@ -11,6 +11,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.safe
+import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -207,21 +208,8 @@ constructor(
         return SessionDescription(rtcSdpType, sd.sdp)
     }
 
-    private fun toProtoSessionDescription(sdp: SessionDescription): LivekitRtc.SessionDescription {
-        val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
-        sdBuilder.sdp = sdp.description
-        sdBuilder.type = when (sdp.type) {
-            SessionDescription.Type.ANSWER -> SD_TYPE_ANSWER
-            SessionDescription.Type.OFFER -> SD_TYPE_OFFER
-            SessionDescription.Type.PRANSWER -> SD_TYPE_PRANSWER
-            else -> throw IllegalArgumentException("invalid RTC SdpType: ${sdp.type}")
-        }
-
-        return sdBuilder.build()
-    }
-
     fun sendOffer(offer: SessionDescription) {
-        val sd = toProtoSessionDescription(offer)
+        val sd = offer.toProtoSessionDescription()
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
             .build()
@@ -230,7 +218,7 @@ constructor(
     }
 
     fun sendAnswer(answer: SessionDescription) {
-        val sd = toProtoSessionDescription(answer)
+        val sd = answer.toProtoSessionDescription()
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)
             .build()
@@ -340,6 +328,14 @@ constructor(
 
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setSubscriptionPermissions(update)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendSyncState(syncState: LivekitRtc.SyncState) {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSyncState(syncState)
             .build()
 
         sendRequest(request)
