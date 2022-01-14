@@ -377,6 +377,16 @@ constructor(
     }
 
     /**
+     * Sends a simulated scenario for the server to use.
+     *
+     * To be used for internal testing purposes only.
+     * @suppress
+     */
+    fun sendSimulateScenario(scenario: LivekitRtc.SimulateScenario) {
+        engine.client.sendSimulateScenario(scenario)
+    }
+
+    /**
      * @suppress
      */
     @AssistedFactory

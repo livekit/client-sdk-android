@@ -40,6 +40,7 @@ dependencies {
     api "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
     api "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
     api "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"
+    api "com.google.protobuf:protobuf-java:${versions.protobuf}"
     api project(":livekit-android-sdk")
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

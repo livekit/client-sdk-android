@@ -27,6 +27,7 @@ import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.lifecycleScope
 import com.github.ajalt.timberkt.Timber
 import com.google.accompanist.pager.ExperimentalPagerApi
+import io.livekit.android.composesample.ui.DebugMenuDialog
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
@@ -108,7 +109,8 @@ class CallActivity : AppCompatActivity() {
                 screencastEnabled,
                 permissionAllowed = permissionAllowed,
                 onExitClick = { finish() },
-                onSendMessage = { viewModel.sendData(it) }
+                onSendMessage = { viewModel.sendData(it) },
+                onSimulateMigration = { viewModel.simulateMigration() },
             )
         }
     }
@@ -156,6 +158,7 @@ class CallActivity : AppCompatActivity() {
         error: Throwable? = null,
         onSnackbarDismiss: () -> Unit = {},
         onSendMessage: (String) -> Unit = {},
+        onSimulateMigration: () -> Unit = {},
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -229,6 +232,7 @@ class CallActivity : AppCompatActivity() {
                     val controlSize = 40.dp
                     val controlPadding = 4.dp
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.Bottom,
                     ) {
@@ -368,6 +372,7 @@ class CallActivity : AppCompatActivity() {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.Bottom,
                     ) {
@@ -384,6 +389,28 @@ class CallActivity : AppCompatActivity() {
                                 painterResource(id = resource),
                                 contentDescription = "Permissions",
                                 tint = Color.White,
+                            )
+                        }
+
+                        var showDebugDialog by remember { mutableStateOf(false) }
+                        Surface(
+                            onClick = { showDebugDialog = true },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource = R.drawable.dots_horizontal_circle_outline
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Permissions",
+                                tint = Color.White,
+                            )
+                        }
+                        if (showDebugDialog) {
+                            DebugMenuDialog(
+                                onDismissRequest = { showDebugDialog = false },
+                                simulateMigration = { onSimulateMigration() }
                             )
                         }
                     }

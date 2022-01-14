@@ -341,6 +341,14 @@ constructor(
         sendRequest(request)
     }
 
+    internal fun sendSimulateScenario(scenario: LivekitRtc.SimulateScenario) {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSimulate(scenario)
+            .build()
+
+        sendRequest(request)
+    }
+
     fun sendLeave() {
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
