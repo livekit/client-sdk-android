@@ -2,8 +2,8 @@ package io.livekit.android.mock
 
 import io.livekit.android.room.PeerConnectionTransport
 import kotlinx.coroutines.CoroutineDispatcher
+import org.webrtc.MockPeerConnectionFactory
 import org.webrtc.PeerConnection
-import org.webrtc.PeerConnectionFactory
 
 internal class MockPeerConnectionTransportFactory(
     private val dispatcher: CoroutineDispatcher,
@@ -18,8 +18,7 @@ internal class MockPeerConnectionTransportFactory(
             pcObserver,
             listener,
             dispatcher,
-            PeerConnectionFactory.builder()
-                .createPeerConnectionFactory()
+            MockPeerConnectionFactory()
         )
     }
 }

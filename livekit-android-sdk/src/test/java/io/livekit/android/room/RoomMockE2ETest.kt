@@ -1,14 +1,12 @@
 package io.livekit.android.room
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
-import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.MockE2ETest
 import io.livekit.android.events.EventCollector
-import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
-import io.livekit.android.mock.*
-import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
-import io.livekit.android.mock.dagger.TestCoroutinesModule
+import io.livekit.android.mock.MockAudioStreamTrack
+import io.livekit.android.mock.MockMediaStream
+import io.livekit.android.mock.TestData
+import io.livekit.android.mock.createMediaStreamId
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.toOkioByteString
@@ -16,54 +14,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Assert
-import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.junit.MockitoJUnit
 import org.robolectric.RobolectricTestRunner
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
-class RoomMockE2ETest {
-
-    @get:Rule
-    var mockitoRule = MockitoJUnit.rule()
-
-    @get:Rule
-    var coroutineRule = TestCoroutineRule()
-
-    lateinit var context: Context
-    lateinit var room: Room
-    lateinit var wsFactory: MockWebsocketFactory
-
-    @Before
-    fun setup() {
-        context = ApplicationProvider.getApplicationContext()
-        val component = DaggerTestLiveKitComponent
-            .factory()
-            .create(context, TestCoroutinesModule(coroutineRule.dispatcher))
-
-        room = component.roomFactory()
-            .create(context)
-        wsFactory = component.websocketFactory()
-    }
-
-    fun connect() {
-        val job = coroutineRule.scope.launch {
-            room.connect(
-                url = "http://www.example.com",
-                token = "",
-            )
-        }
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
-
-        // PeerTransport negotiation is on a debounce delay.
-        coroutineRule.dispatcher.advanceTimeBy(1000L)
-        runBlockingTest {
-            job.join()
-        }
-    }
+class RoomMockE2ETest : MockE2ETest() {
 
     @Test
     fun connectTest() {
