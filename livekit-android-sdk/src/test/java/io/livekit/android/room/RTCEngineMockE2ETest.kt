@@ -3,12 +3,14 @@ package io.livekit.android.room
 import io.livekit.android.MockE2ETest
 import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.mock.MockWebSocket
+import io.livekit.android.util.LoggingRule
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import livekit.LivekitRtc
 import org.junit.Assert
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -19,6 +21,10 @@ import org.webrtc.SessionDescription
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class RTCEngineMockE2ETest : MockE2ETest() {
+
+
+    @get:Rule
+    var loggingRule = LoggingRule()
 
     lateinit var rtcEngine: RTCEngine
 
@@ -61,5 +67,4 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val newWs = wsFactory.ws
         Assert.assertNotEquals(oldWs, newWs)
     }
-
 }

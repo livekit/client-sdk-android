@@ -13,6 +13,9 @@ import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
 import org.junit.Before
 import org.junit.Rule
 import org.mockito.junit.MockitoJUnit
@@ -46,10 +49,11 @@ abstract class MockE2ETest {
     fun connect() {
         val job = coroutineRule.scope.launch {
             room.connect(
-                url = "http://www.example.com",
+                url = SignalClientTest.EXAMPLE_URL,
                 token = "",
             )
         }
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
 
         // PeerTransport negotiation is on a debounce delay.
@@ -57,5 +61,14 @@ abstract class MockE2ETest {
         runBlockingTest {
             job.join()
         }
+    }
+
+    fun createOpenResponse(request: Request): Response {
+        return Response.Builder()
+            .request(request)
+            .code(200)
+            .protocol(Protocol.HTTP_2)
+            .message("")
+            .build()
     }
 }

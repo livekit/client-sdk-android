@@ -296,7 +296,7 @@ internal constructor(
                 // trigger publisher reconnect
                 // only restart publisher if it's needed
                 if (hasPublished) {
-                    publisher.negotiate(getPublisherOfferConstraints())
+                    negotiate()
                 }
 
                 // wait until ICE connected
@@ -331,6 +331,9 @@ internal constructor(
         if (!client.isConnected) {
             return
         }
+
+        hasPublished = true
+
         coroutineScope.launch {
             publisher.negotiate(getPublisherOfferConstraints())
         }
@@ -435,7 +438,7 @@ internal constructor(
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSignalConnected()
-        fun onReconnecting() {}
+        fun onReconnecting()
     }
 
     companion object {

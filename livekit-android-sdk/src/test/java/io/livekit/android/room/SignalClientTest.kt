@@ -166,7 +166,7 @@ class SignalClientTest {
 
     // mock data
     companion object {
-        const val EXAMPLE_URL = "http://www.example.com"
+        const val EXAMPLE_URL = "ws://www.example.com"
 
         val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
             join = with(joinBuilder) {
@@ -177,6 +177,7 @@ class SignalClientTest {
                 }
                 participant = TestData.LOCAL_PARTICIPANT
                 subscriberPrimary = true
+                serverVersion = "0.15.2"
                 build()
             }
             build()

@@ -149,7 +149,6 @@ constructor(
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
-        LKLog.v { text }
         val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
         fromJsonProtobuf.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
@@ -205,7 +204,7 @@ constructor(
 
         if (wasConnected) {
             handleWebSocketClose(
-                reason = reason ?: response?.toString() ?: "Internal error",
+                reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: 500
             )
         }
@@ -397,6 +396,8 @@ constructor(
     }
 
     private fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
+        LKLog.v { "response: $response" }
+
         if (!isConnected) {
             // Only handle joins if not connected.
             if (response.hasJoin()) {
@@ -418,7 +419,6 @@ constructor(
     }
 
     private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
-        LKLog.v { "response: $response" }
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)

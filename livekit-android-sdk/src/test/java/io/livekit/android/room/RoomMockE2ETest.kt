@@ -1,5 +1,6 @@
 package io.livekit.android.room
 
+import android.net.Network
 import io.livekit.android.MockE2ETest
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.RoomEvent
@@ -16,6 +17,7 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
 
 @ExperimentalCoroutinesApi
@@ -34,7 +36,7 @@ class RoomMockE2ETest : MockE2ETest() {
         val job = coroutineRule.scope.launch {
             try {
                 room.connect(
-                    url = "http://www.example.com",
+                    url = SignalClientTest.EXAMPLE_URL,
                     token = "",
                 )
             } catch (e: Throwable) {
@@ -219,6 +221,19 @@ class RoomMockE2ETest : MockE2ETest() {
         Assert.assertEquals(TestData.REMOTE_PARTICIPANT.sid, event.participant.sid)
         Assert.assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.trackPublication.sid)
         Assert.assertEquals(false, event.subscriptionAllowed)
+    }
+
+    @Test
+    fun onConnectionAvailableWillReconnect() {
+        connect()
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val network = Mockito.mock(Network::class.java)
+        room.onLost(network)
+        room.onAvailable(network)
+        val events = eventCollector.stopCollecting()
+
+        Assert.assertEquals(1, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
     }
 
     @Test
