@@ -7,7 +7,7 @@ private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
 }
 
 class MockPeerConnection(
-    private val observer: PeerConnection.Observer?
+    val observer: PeerConnection.Observer?
 ) : PeerConnection(MockNativePeerConnectionFactory()) {
 
     var localDesc: SessionDescription? = null
@@ -33,12 +33,12 @@ class MockPeerConnection(
     }
 
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
-        val sdp = SessionDescription(SessionDescription.Type.OFFER, "")
+        val sdp = SessionDescription(SessionDescription.Type.OFFER, "local_offer")
         observer?.onCreateSuccess(sdp)
     }
 
     override fun createAnswer(observer: SdpObserver?, constraints: MediaConstraints?) {
-        val sdp = SessionDescription(SessionDescription.Type.ANSWER, "")
+        val sdp = SessionDescription(SessionDescription.Type.ANSWER, "local_answer")
         observer?.onCreateSuccess(sdp)
     }
 
@@ -143,8 +143,41 @@ class MockPeerConnection(
         return super.signalingState()
     }
 
-    override fun iceConnectionState(): IceConnectionState {
-        return super.iceConnectionState()
+    private var iceConnectionState = IceConnectionState.NEW
+        set(value) {
+            if (field != value) {
+                field = value
+                observer?.onIceConnectionChange(field)
+            }
+        }
+
+    override fun iceConnectionState(): IceConnectionState = iceConnectionState
+
+    fun moveToIceConnectionState(newState: IceConnectionState) {
+        when (newState) {
+            IceConnectionState.NEW,
+            IceConnectionState.CHECKING,
+            IceConnectionState.CONNECTED,
+            IceConnectionState.COMPLETED -> {
+                val currentOrdinal = iceConnectionState.ordinal
+                val newOrdinal = newState.ordinal
+
+                if (currentOrdinal < newOrdinal) {
+                    // Ensure that we move through each state.
+                    for (ordinal in ((currentOrdinal + 1)..newOrdinal)) {
+                        iceConnectionState = IceConnectionState.values()[ordinal]
+                    }
+                } else {
+                    iceConnectionState = newState
+                }
+            }
+            IceConnectionState.FAILED,
+            IceConnectionState.DISCONNECTED,
+            IceConnectionState.CLOSED -> {
+                // jump to state directly.
+                iceConnectionState = newState
+            }
+        }
     }
 
     override fun connectionState(): PeerConnectionState {

@@ -176,6 +176,7 @@ class SignalClientTest {
                     build()
                 }
                 participant = TestData.LOCAL_PARTICIPANT
+                subscriberPrimary = true
                 build()
             }
             build()

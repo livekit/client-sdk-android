@@ -11,6 +11,9 @@ import io.livekit.android.util.debounce
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.webrtc.*
 import javax.inject.Named
 
@@ -37,15 +40,21 @@ constructor(
 
     private var renegotiate = false
 
+    private val mutex = Mutex()
+
     interface Listener {
         fun onOffer(sd: SessionDescription)
     }
 
     fun addIceCandidate(candidate: IceCandidate) {
-        if (peerConnection.remoteDescription != null && !restartingIce) {
-            peerConnection.addIceCandidate(candidate)
-        } else {
-            pendingCandidates.add(candidate)
+        runBlocking {
+            mutex.withLock {
+                if (peerConnection.remoteDescription != null && !restartingIce) {
+                    peerConnection.addIceCandidate(candidate)
+                } else {
+                    pendingCandidates.add(candidate)
+                }
+            }
         }
     }
 
@@ -53,11 +62,13 @@ constructor(
 
         val result = peerConnection.setRemoteDescription(sd)
         if (result is Either.Left) {
-            pendingCandidates.forEach { pending ->
-                peerConnection.addIceCandidate(pending)
+            mutex.withLock {
+                pendingCandidates.forEach { pending ->
+                    peerConnection.addIceCandidate(pending)
+                }
+                pendingCandidates.clear()
+                restartingIce = false
             }
-            pendingCandidates.clear()
-            restartingIce = false
         }
 
         if (this.renegotiate) {

@@ -60,6 +60,10 @@ constructor(
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
+
+    /**
+     * @throws Exception if fails to connect.
+     */
     suspend fun join(
         url: String,
         token: String,
@@ -69,6 +73,9 @@ constructor(
         return (joinResponse as Either.Left).value
     }
 
+    /**
+     * @throws Exception if fails to connect.
+     */
     suspend fun reconnect(url: String, token: String) {
         connect(
             url,
@@ -160,9 +167,7 @@ constructor(
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-        LKLog.v { "websocket closed" }
-
-        listener?.onClose(reason, code)
+        handleWebSocketClose(reason, code)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -194,6 +199,21 @@ constructor(
             listener?.onError(t)
             joinContinuation?.cancel(t)
         }
+
+        val wasConnected = isConnected
+        isConnected = false
+
+        if (wasConnected) {
+            handleWebSocketClose(
+                reason = reason ?: response?.toString() ?: "Internal error",
+                code = response?.code ?: 500
+            )
+        }
+    }
+
+    private fun handleWebSocketClose(reason: String, code: Int) {
+        LKLog.v { "websocket closed" }
+        listener?.onClose(reason, code)
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
@@ -431,7 +451,7 @@ constructor(
                 LKLog.d { "received unexpected extra join message?" }
             }
             LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
-                listener?.onLeave()
+                listener?.onLeave(response.leave)
             }
             LivekitRtc.SignalResponse.MessageCase.MUTE -> {
                 listener?.onRemoteMuteChanged(response.mute.sid, response.mute.muted)
@@ -479,7 +499,7 @@ constructor(
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
-        fun onLeave()
+        fun onLeave(leave: LivekitRtc.LeaveRequest)
         fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
@@ -490,7 +510,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 5
+        const val PROTOCOL_VERSION = 6
         const val SDK_TYPE = "android"
 
         private fun iceServer(url: String) =

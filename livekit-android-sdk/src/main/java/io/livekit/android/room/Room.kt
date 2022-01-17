@@ -178,6 +178,9 @@ constructor(
         }
     }
 
+    /**
+     * Disconnect from the room.
+     */
     fun disconnect() {
         engine.client.sendLeave()
         handleDisconnect()
@@ -310,10 +313,7 @@ constructor(
         if (state == State.RECONNECTING) {
             return
         }
-        state = State.RECONNECTING
         engine.reconnect()
-        listener?.onReconnecting(this)
-        eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
     private fun handleDisconnect() {
@@ -427,6 +427,12 @@ constructor(
         state = State.CONNECTED
         listener?.onReconnected(this)
         eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
+    }
+
+    override fun onReconnecting() {
+        state = State.RECONNECTING
+        listener?.onReconnecting(this)
+        eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
     /**

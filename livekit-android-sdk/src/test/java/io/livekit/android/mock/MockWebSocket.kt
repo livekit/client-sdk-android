@@ -7,6 +7,12 @@ import okio.ByteString
 class MockWebSocket(private val request: Request) : WebSocket {
 
     var isClosed = false
+        private set
+
+    private val mutableSentRequests = mutableListOf<ByteString>()
+    val sentRequests: List<ByteString>
+        get() = mutableSentRequests
+
     override fun cancel() {
         isClosed = true
     }
@@ -23,5 +29,10 @@ class MockWebSocket(private val request: Request) : WebSocket {
 
     override fun send(text: String): Boolean = !isClosed
 
-    override fun send(bytes: ByteString): Boolean = !isClosed
+    override fun send(bytes: ByteString): Boolean {
+        mutableSentRequests.add(bytes)
+        return !isClosed
+    }
+
+
 }
