@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Space
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -175,8 +174,7 @@ class MainActivity : ComponentActivity() {
         const val PREFERENCES_KEY_URL = "url"
         const val PREFERENCES_KEY_TOKEN = "token"
 
-        const val URL = "ws://172.22.201.83:7800"
-        const val TOKEN =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NDI5MjI5NTQsImlzcyI6IkFQSXY0UmE5eDNWQ1RvYiIsImp0aSI6InBob25lIiwibmJmIjoxNjQyMzE4MTU0LCJzdWIiOiJwaG9uZSIsInZpZGVvIjp7ImNhblB1Ymxpc2giOnRydWUsImNhblB1Ymxpc2hEYXRhIjp0cnVlLCJjYW5TdWJzY3JpYmUiOnRydWUsInJvb21Kb2luIjp0cnVlfX0.AFpUYYQy2iYqtnqozKarpli3msklxuGX42L68oKvB1U"
+        const val URL = "wss://www.example.com"
+        const val TOKEN = ""
     }
 }
