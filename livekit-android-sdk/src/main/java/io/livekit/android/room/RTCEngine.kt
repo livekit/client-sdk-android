@@ -446,7 +446,7 @@ internal constructor(
         private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_SIGNAL_RETRIES = 5
-        private const val MAX_ICE_CONNECT_TIMEOUT_MS = 5000
+        private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
