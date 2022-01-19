@@ -46,7 +46,7 @@ constructor(
     @Named(InjectionNames.SIGNAL_JSON_ENABLED)
     private val useJson: Boolean,
     @Named(InjectionNames.DISPATCHER_IO)
-    ioDispatcher: CoroutineDispatcher,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : WebSocketListener() {
     var isConnected = false
         private set
@@ -57,7 +57,7 @@ constructor(
     private var lastUrl: String? = null
 
     private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
-    private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+    private lateinit var coroutineScope: CloseableCoroutineScope
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
@@ -109,13 +109,10 @@ constructor(
 
         LKLog.i { "connecting to $wsUrlString" }
 
-        isConnected = false
-        currentWs?.cancel()
-        currentWs = null
+        // Clean up any pre-existing connection.
+        close()
 
-        joinContinuation?.cancel()
-        joinContinuation = null
-
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         lastUrl = wsUrlString
 
         val request = Request.Builder()
@@ -142,6 +139,7 @@ constructor(
     //--------------------------------- WebSocket Listener --------------------------------------//
     override fun onOpen(webSocket: WebSocket, response: Response) {
         if (isReconnecting) {
+            // no need to wait for join response on reconnection.
             isReconnecting = false
             isConnected = true
             joinContinuation?.resumeWith(Result.success(Either.Right(Unit)))
@@ -482,10 +480,13 @@ constructor(
         }.safe()
     }
 
-    fun close() {
+    fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
         coroutineScope.close()
-        currentWs?.close(1000, "Normal Closure")
+        currentWs?.close(code, reason)
+        currentWs = null
+        joinContinuation?.cancel()
+        joinContinuation = null
     }
 
     interface Listener {
