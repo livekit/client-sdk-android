@@ -2,6 +2,8 @@ package io.livekit.android
 
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
+import io.livekit.android.dagger.LiveKitOverrides
+import io.livekit.android.dagger.create
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.util.LKLog
@@ -29,11 +31,12 @@ class LiveKit {
         fun create(
             appContext: Context,
             options: RoomOptions = RoomOptions(),
+            overrides: LiveKitOverrides = LiveKitOverrides(),
         ): Room {
             val ctx = appContext.applicationContext
             val component = DaggerLiveKitComponent
                 .factory()
-                .create(ctx)
+                .create(ctx, overrides)
 
             val room = component.roomFactory().create(ctx)
 
@@ -66,9 +69,10 @@ class LiveKit {
             token: String,
             options: ConnectOptions = ConnectOptions(),
             roomOptions: RoomOptions = RoomOptions(),
-            listener: RoomListener? = null
+            listener: RoomListener? = null,
+            overrides: LiveKitOverrides = LiveKitOverrides()
         ): Room {
-            val room = create(appContext, roomOptions)
+            val room = create(appContext, roomOptions, overrides)
 
             room.listener = listener
             room.connect(url, token, options)
