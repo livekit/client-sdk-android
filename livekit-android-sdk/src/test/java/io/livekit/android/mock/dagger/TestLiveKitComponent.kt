@@ -17,7 +17,7 @@ import javax.inject.Singleton
         JsonFormatModule::class,
     ]
 )
-interface TestLiveKitComponent : LiveKitComponent {
+internal interface TestLiveKitComponent : LiveKitComponent {
 
     fun websocketFactory(): MockWebsocketFactory
 
