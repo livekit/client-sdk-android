@@ -482,7 +482,9 @@ constructor(
 
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
-        coroutineScope.close()
+        if(::coroutineScope.isInitialized) {
+            coroutineScope.close()
+        }
         currentWs?.close(code, reason)
         currentWs = null
         joinContinuation?.cancel()
