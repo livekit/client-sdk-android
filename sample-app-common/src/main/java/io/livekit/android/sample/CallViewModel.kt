@@ -17,6 +17,7 @@ import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import livekit.LivekitRtc
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
@@ -245,6 +246,14 @@ class CallViewModel(
     fun toggleSubscriptionPermissions() {
         mutablePermissionAllowed.value = !mutablePermissionAllowed.value
         room.value?.localParticipant?.setTrackSubscriptionPermissions(mutablePermissionAllowed.value)
+    }
+
+    fun simulateMigration(){
+        room.value?.sendSimulateScenario(
+            LivekitRtc.SimulateScenario.newBuilder()
+                .setMigration(true)
+                .build()
+        )
     }
 }
 

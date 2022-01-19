@@ -75,7 +75,7 @@ class RoomTest {
         }
         val job = coroutineRule.scope.launch {
             room.connect(
-                url = "http://www.example.com",
+                url = SignalClientTest.EXAMPLE_URL,
                 token = "",
             )
         }
@@ -93,15 +93,10 @@ class RoomTest {
     fun onConnectionAvailableWillReconnect() {
         connect()
 
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
         val network = Mockito.mock(Network::class.java)
         room.onLost(network)
         room.onAvailable(network)
-
-        val events = eventCollector.stopCollecting()
-
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
+        Mockito.verify(rtcEngine).reconnect()
     }
 
     @Test

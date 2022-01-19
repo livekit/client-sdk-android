@@ -133,12 +133,16 @@ constructor(
         get() = mutableActiveSpeakers
 
     private var hasLostConnectivity: Boolean = false
+    private var connectOptions: ConnectOptions = ConnectOptions()
+
+
     suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
+        this.connectOptions = connectOptions
         val response = engine.join(url, token, options)
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
@@ -174,6 +178,9 @@ constructor(
         }
     }
 
+    /**
+     * Disconnect from the room.
+     */
     fun disconnect() {
         engine.client.sendLeave()
         handleDisconnect()
@@ -306,10 +313,7 @@ constructor(
         if (state == State.RECONNECTING) {
             return
         }
-        state = State.RECONNECTING
         engine.reconnect()
-        listener?.onReconnecting(this)
-        eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
     private fun handleDisconnect() {
@@ -343,6 +347,43 @@ constructor(
             eventBus.postEvent(RoomEvent.Disconnected(this@Room, null), coroutineScope).join()
         }
         coroutineScope.cancel()
+    }
+
+    fun sendSyncState() {
+        // Whether we're sending subscribed tracks or tracks to unsubscribe.
+        val sendUnsub = connectOptions.autoSubscribe
+        val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
+        for (participant in remoteParticipants.values) {
+            val builder = LivekitModels.ParticipantTracks.newBuilder()
+            builder.participantSid = participant.sid
+            for (trackPub in participant.tracks.values) {
+                val remoteTrackPub = (trackPub as? RemoteTrackPublication) ?: continue
+                if (remoteTrackPub.subscribed != sendUnsub) {
+                    builder.addTrackSids(remoteTrackPub.sid)
+                }
+            }
+
+            if (builder.trackSidsCount > 0) {
+                participantTracksList.add(builder.build())
+            }
+        }
+
+        val subscription = LivekitRtc.UpdateSubscription.newBuilder()
+            .setSubscribe(!sendUnsub)
+            .addAllParticipantTracks(participantTracksList)
+            .build()
+        val publishedTracks = localParticipant.publishTracksInfo()
+        engine.sendSyncState(subscription, publishedTracks)
+    }
+
+    /**
+     * Sends a simulated scenario for the server to use.
+     *
+     * To be used for internal testing purposes only.
+     * @suppress
+     */
+    fun sendSimulateScenario(scenario: LivekitRtc.SimulateScenario) {
+        engine.client.sendSimulateScenario(scenario)
     }
 
     /**
@@ -386,6 +427,12 @@ constructor(
         state = State.CONNECTED
         listener?.onReconnected(this)
         eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
+    }
+
+    override fun onReconnecting() {
+        state = State.RECONNECTING
+        listener?.onReconnecting(this)
+        eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
     /**
@@ -511,6 +558,13 @@ constructor(
         listener?.onFailedToConnect(this, error)
         // scope will likely be closed already here, so force it out of scope.
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
+    }
+
+    override fun onSignalConnected() {
+        if (state == State.RECONNECTING) {
+            // during reconnection, need to send sync state upon signal connection.
+            sendSyncState()
+        }
     }
 
     //------------------------------- ParticipantListener --------------------------------//

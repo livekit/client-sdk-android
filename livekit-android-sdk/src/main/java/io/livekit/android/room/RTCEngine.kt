@@ -10,10 +10,8 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.isConnected
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import io.livekit.android.webrtc.toProtoSessionDescription
+import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -48,22 +46,25 @@ internal constructor(
             when (value) {
                 IceState.CONNECTED -> {
                     if (oldVal == IceState.DISCONNECTED) {
-                        LKLog.d { "publisher ICE connected" }
+                        LKLog.d { "primary ICE connected" }
                         listener?.onIceConnected()
                     } else if (oldVal == IceState.RECONNECTING) {
-                        LKLog.d { "publisher ICE reconnected" }
+                        LKLog.d { "primary ICE reconnected" }
                         listener?.onIceReconnected()
                     }
                 }
                 IceState.DISCONNECTED -> {
-                    LKLog.d { "publisher ICE disconnected" }
-                    listener?.onDisconnect("Peer connection disconnected")
+                    LKLog.d { "primary ICE disconnected" }
+                    if (oldVal == IceState.CONNECTED) {
+                        reconnect()
+                    }
                 }
                 else -> {
                 }
             }
         }
-    private var wsRetries: Int = 0
+
+    private var reconnectingJob: Job? = null
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
     private var sessionUrl: String? = null
@@ -72,7 +73,7 @@ internal constructor(
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
     internal lateinit var publisher: PeerConnectionTransport
-    private lateinit var subscriber: PeerConnectionTransport
+    internal lateinit var subscriber: PeerConnectionTransport
     private var reliableDataChannel: DataChannel? = null
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
@@ -94,6 +95,7 @@ internal constructor(
         sessionToken = token
         val joinResponse = client.join(url, token, options)
         isClosed = false
+        listener?.onSignalConnected()
 
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
@@ -169,12 +171,13 @@ internal constructor(
             val state =
                 newState ?: throw NullPointerException("unexpected null new state, what do?")
             LKLog.v { "onIceConnection new state: $newState" }
-            if (state == PeerConnection.IceConnectionState.CONNECTED) {
+            if (state.isConnected()) {
                 iceState = IceState.CONNECTED
-            } else if (state == PeerConnection.IceConnectionState.FAILED) {
+            } else if (state == PeerConnection.IceConnectionState.DISCONNECTED ||
+                state == PeerConnection.IceConnectionState.FAILED
+            ) {
                 // when we publish tracks, some WebRTC versions will send out disconnected events periodically
                 iceState = IceState.DISCONNECTED
-                listener?.onDisconnect("Peer connection disconnected")
             }
         }
 
@@ -242,6 +245,7 @@ internal constructor(
     }
 
     fun close() {
+        isClosed = true
         coroutineScope.close()
         publisher.close()
         subscriber.close()
@@ -252,53 +256,74 @@ internal constructor(
      * reconnect Signal and PeerConnections
      */
     internal fun reconnect() {
+        if (reconnectingJob != null) {
+            return
+        }
+        if (this.isClosed) {
+            return
+        }
         val url = sessionUrl
         val token = sessionToken
         if (url == null || token == null) {
             LKLog.w { "couldn't reconnect, no url or no token" }
             return
         }
-        if (iceState == IceState.DISCONNECTED || wsRetries >= MAX_SIGNAL_RETRIES) {
-            LKLog.w { "could not connect to signal after max attempts, giving up" }
-            close()
-            listener?.onDisconnect("could not reconnect after limit")
-            return
-        }
 
-        var startDelay = wsRetries.toLong() * wsRetries * 500
-        if (startDelay > 5000) {
-            startDelay = 5000
-        }
-        coroutineScope.launch {
-            delay(startDelay)
-            if (iceState == IceState.DISCONNECTED) {
-                LKLog.e { "Ice is disconnected" }
-                return@launch
-            }
+        val job = coroutineScope.launch {
+            listener?.onReconnecting()
 
-            client.reconnect(url, token)
+            for (wsRetries in 0 until MAX_SIGNAL_RETRIES) {
+                var startDelay = wsRetries.toLong() * wsRetries * 500
+                if (startDelay > 5000) {
+                    startDelay = 5000
+                }
 
-            LKLog.v { "reconnected, restarting ICE" }
-            wsRetries = 0
+                LKLog.i { "Reconnecting to signal, attempt ${wsRetries + 1}" }
 
-            // trigger publisher reconnect
-            subscriber.prepareForIceRestart()
-            // only restart publisher if it's needed
-            if (hasPublished) {
-                publisher.negotiate(
-                    getPublisherOfferConstraints().apply {
-                        with(mandatory) {
-                            add(
-                                MediaConstraints.KeyValuePair(
-                                    MediaConstraintKeys.ICE_RESTART,
-                                    MediaConstraintKeys.TRUE
-                                )
-                            )
-                        }
+                delay(startDelay)
+                try {
+                    client.reconnect(url, token)
+                } catch (e: Exception) {
+                    // ws reconnect failed, retry.
+                    continue
+                }
+
+                LKLog.v { "ws reconnected, restarting ICE" }
+                listener?.onSignalConnected()
+
+                subscriber.prepareForIceRestart()
+                iceState = IceState.RECONNECTING
+                // trigger publisher reconnect
+                // only restart publisher if it's needed
+                if (hasPublished) {
+                    negotiate()
+                }
+
+                // wait until ICE connected
+                val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
+                while (SystemClock.elapsedRealtime() < endTime) {
+                    if (iceState == IceState.CONNECTED) {
+                        LKLog.v { "reconnected to ICE" }
+                        break
                     }
-                )
+                    delay(100)
+                }
+
+                if (iceState == IceState.CONNECTED) {
+                    return@launch
+                }
             }
 
+
+            listener?.onDisconnect("failed reconnecting.")
+            close()
+        }
+
+        reconnectingJob = job
+        job.invokeOnCompletion {
+            if (reconnectingJob == job) {
+                reconnectingJob = null
+            }
         }
     }
 
@@ -306,6 +331,9 @@ internal constructor(
         if (!client.isConnected) {
             return
         }
+
+        hasPublished = true
+
         coroutineScope.launch {
             publisher.negotiate(getPublisherOfferConstraints())
         }
@@ -409,6 +437,8 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
+        fun onSignalConnected()
+        fun onReconnecting()
     }
 
     companion object {
@@ -416,7 +446,7 @@ internal constructor(
         private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_SIGNAL_RETRIES = 5
-        private const val MAX_ICE_CONNECT_TIMEOUT_MS = 5000
+        private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
@@ -433,11 +463,7 @@ internal constructor(
             LKLog.i { sessionDescription.toString() }
             when (val outcome = publisher.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
-                    // when reconnecting, ICE might not have disconnected and won't trigger
-                    // our connected callback, so we'll take a shortcut and set it to active
-                    if (iceState == IceState.RECONNECTING) {
-                        iceState = IceState.CONNECTED
-                    }
+                    // do nothing.
                 }
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
@@ -520,9 +546,8 @@ internal constructor(
     }
 
     override fun onClose(reason: String, code: Int) {
-        // TODO: reconnect logic
         LKLog.i { "received close event: $reason, code: $code" }
-        listener?.onDisconnect(reason)
+        reconnect()
     }
 
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
@@ -537,13 +562,16 @@ internal constructor(
         listener?.onConnectionQuality(updates)
     }
 
-    override fun onLeave() {
+    override fun onLeave(leave: LivekitRtc.LeaveRequest) {
         close()
-        listener?.onDisconnect("")
+        listener?.onDisconnect("server leave")
     }
 
+    // Signal error
     override fun onError(error: Throwable) {
-        listener?.onFailToConnect(error)
+        if (isClosed) {
+            listener?.onFailToConnect(error)
+        }
     }
 
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
@@ -583,6 +611,21 @@ internal constructor(
                 LKLog.v { "invalid value for data packet" }
             }
         }
+    }
+
+    fun sendSyncState(
+        subscription: LivekitRtc.UpdateSubscription,
+        publishedTracks: List<LivekitRtc.TrackPublishedResponse>
+    ) {
+        val answer = subscriber.peerConnection.localDescription.toProtoSessionDescription()
+
+        val syncState = LivekitRtc.SyncState.newBuilder()
+            .setAnswer(answer)
+            .setSubscription(subscription)
+            .addAllPublishTracks(publishedTracks)
+            .build()
+
+        client.sendSyncState(syncState)
     }
 }
 

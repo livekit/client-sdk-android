@@ -11,6 +11,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.safe
+import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -59,6 +60,10 @@ constructor(
     private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
+
+    /**
+     * @throws Exception if fails to connect.
+     */
     suspend fun join(
         url: String,
         token: String,
@@ -68,6 +73,9 @@ constructor(
         return (joinResponse as Either.Left).value
     }
 
+    /**
+     * @throws Exception if fails to connect.
+     */
     suspend fun reconnect(url: String, token: String) {
         connect(
             url,
@@ -141,7 +149,6 @@ constructor(
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
-        LKLog.v { text }
         val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
         fromJsonProtobuf.merge(text, signalResponseBuilder)
         val response = signalResponseBuilder.build()
@@ -159,9 +166,7 @@ constructor(
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-        LKLog.v { "websocket closed" }
-
-        listener?.onClose(reason, code)
+        handleWebSocketClose(reason, code)
     }
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -193,6 +198,21 @@ constructor(
             listener?.onError(t)
             joinContinuation?.cancel(t)
         }
+
+        val wasConnected = isConnected
+        isConnected = false
+
+        if (wasConnected) {
+            handleWebSocketClose(
+                reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
+                code = response?.code ?: 500
+            )
+        }
+    }
+
+    private fun handleWebSocketClose(reason: String, code: Int) {
+        LKLog.v { "websocket closed" }
+        listener?.onClose(reason, code)
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
@@ -207,21 +227,8 @@ constructor(
         return SessionDescription(rtcSdpType, sd.sdp)
     }
 
-    private fun toProtoSessionDescription(sdp: SessionDescription): LivekitRtc.SessionDescription {
-        val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
-        sdBuilder.sdp = sdp.description
-        sdBuilder.type = when (sdp.type) {
-            SessionDescription.Type.ANSWER -> SD_TYPE_ANSWER
-            SessionDescription.Type.OFFER -> SD_TYPE_OFFER
-            SessionDescription.Type.PRANSWER -> SD_TYPE_PRANSWER
-            else -> throw IllegalArgumentException("invalid RTC SdpType: ${sdp.type}")
-        }
-
-        return sdBuilder.build()
-    }
-
     fun sendOffer(offer: SessionDescription) {
-        val sd = toProtoSessionDescription(offer)
+        val sd = offer.toProtoSessionDescription()
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
             .build()
@@ -230,7 +237,7 @@ constructor(
     }
 
     fun sendAnswer(answer: SessionDescription) {
-        val sd = toProtoSessionDescription(answer)
+        val sd = answer.toProtoSessionDescription()
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)
             .build()
@@ -345,6 +352,22 @@ constructor(
         sendRequest(request)
     }
 
+    fun sendSyncState(syncState: LivekitRtc.SyncState) {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSyncState(syncState)
+            .build()
+
+        sendRequest(request)
+    }
+
+    internal fun sendSimulateScenario(scenario: LivekitRtc.SimulateScenario) {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setSimulate(scenario)
+            .build()
+
+        sendRequest(request)
+    }
+
     fun sendLeave() {
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
@@ -373,6 +396,8 @@ constructor(
     }
 
     private fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
+        LKLog.v { "response: $response" }
+
         if (!isConnected) {
             // Only handle joins if not connected.
             if (response.hasJoin()) {
@@ -394,7 +419,6 @@ constructor(
     }
 
     private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
-        LKLog.v { "response: $response" }
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
@@ -427,7 +451,7 @@ constructor(
                 LKLog.d { "received unexpected extra join message?" }
             }
             LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
-                listener?.onLeave()
+                listener?.onLeave(response.leave)
             }
             LivekitRtc.SignalResponse.MessageCase.MUTE -> {
                 listener?.onRemoteMuteChanged(response.mute.sid, response.mute.muted)
@@ -475,7 +499,7 @@ constructor(
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
-        fun onLeave()
+        fun onLeave(leave: LivekitRtc.LeaveRequest)
         fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
@@ -486,7 +510,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 5
+        const val PROTOCOL_VERSION = 6
         const val SDK_TYPE = "android"
 
         private fun iceServer(url: String) =

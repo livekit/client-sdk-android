@@ -28,12 +28,7 @@ object TestRTCModule {
     fun peerConnectionFactory(
         appContext: Context
     ): PeerConnectionFactory {
-        try {
-            ContextUtils.initialize(appContext)
-            NativeLibraryLoaderTestHelper.initialize()
-        } catch (e: Throwable) {
-            // do nothing. this is expected.
-        }
+        WebRTCInitializer.initialize(appContext)
 
         return MockPeerConnectionFactory()
     }

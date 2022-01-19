@@ -2,7 +2,7 @@ package io.livekit.android.mock.dagger
 
 import dagger.Module
 import dagger.Provides
-import io.livekit.android.mock.MockWebsocketFactory
+import io.livekit.android.mock.MockWebSocketFactory
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -26,13 +26,13 @@ object TestWebModule {
 
     @Provides
     @Singleton
-    fun websocketFactory(websocketFactory: MockWebsocketFactory): WebSocket.Factory {
-        return websocketFactory
+    fun websocketFactory(webSocketFactory: MockWebSocketFactory): WebSocket.Factory {
+        return webSocketFactory
     }
 
     @Provides
     @Singleton
-    fun mockWebsocketFactory(): MockWebsocketFactory {
-        return MockWebsocketFactory()
+    fun mockWebsocketFactory(): MockWebSocketFactory {
+        return MockWebSocketFactory()
     }
 }

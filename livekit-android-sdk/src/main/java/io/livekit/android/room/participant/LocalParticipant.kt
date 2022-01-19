@@ -382,12 +382,13 @@ internal constructor(
                     height = trackHeight
                     quality = LivekitModels.VideoQuality.HIGH
                     bitrate = 0
+                    ssrc = 0
                 }.build()
             )
         } else {
-            encodings.map {
-                val scaleDownBy = it.scaleResolutionDownBy ?: 1.0
-                var videoQuality = videoQualityForRid(it.rid ?: "")
+            encodings.map { encoding ->
+                val scaleDownBy = encoding.scaleResolutionDownBy ?: 1.0
+                var videoQuality = videoQualityForRid(encoding.rid ?: "")
                 if (videoQuality == LivekitModels.VideoQuality.UNRECOGNIZED && encodings.size == 1) {
                     videoQuality = LivekitModels.VideoQuality.HIGH
                 }
@@ -395,7 +396,8 @@ internal constructor(
                     width = (trackWidth / scaleDownBy).roundToInt()
                     height = (trackHeight / scaleDownBy).roundToInt()
                     quality = videoQuality
-                    bitrate = it.maxBitrateBps ?: 0
+                    bitrate = encoding.maxBitrateBps ?: 0
+                    ssrc = 0
                 }.build()
             }
         }
@@ -584,6 +586,17 @@ internal constructor(
             VideoPreset43.HD,
             VideoPreset43.FHD
         )
+    }
+}
+
+internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishedResponse> {
+    return tracks.values.mapNotNull { trackPub ->
+        val track = trackPub.track ?: return@mapNotNull null
+
+        LivekitRtc.TrackPublishedResponse.newBuilder()
+            .setCid(track.rtcTrack.id())
+            .setTrack(trackPub.trackInfo)
+            .build()
     }
 }
 

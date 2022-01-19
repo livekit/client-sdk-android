@@ -5,7 +5,8 @@ import dagger.BindsInstance
 import dagger.Component
 import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
-import io.livekit.android.mock.MockWebsocketFactory
+import io.livekit.android.mock.MockWebSocketFactory
+import io.livekit.android.room.RTCEngine
 import javax.inject.Singleton
 
 @Singleton
@@ -19,10 +20,15 @@ import javax.inject.Singleton
 )
 internal interface TestLiveKitComponent : LiveKitComponent {
 
-    fun websocketFactory(): MockWebsocketFactory
+    fun websocketFactory(): MockWebSocketFactory
+
+    fun rtcEngine(): RTCEngine
 
     @Component.Factory
     interface Factory {
-        fun create(@BindsInstance appContext: Context, coroutinesModule: TestCoroutinesModule = TestCoroutinesModule()): TestLiveKitComponent
+        fun create(
+            @BindsInstance appContext: Context,
+            coroutinesModule: TestCoroutinesModule = TestCoroutinesModule()
+        ): TestLiveKitComponent
     }
 }

@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Space
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -175,8 +174,7 @@ class MainActivity : ComponentActivity() {
         const val PREFERENCES_KEY_URL = "url"
         const val PREFERENCES_KEY_TOKEN = "token"
 
-        const val URL = "wss://livekit.watercooler.fm"
-        const val TOKEN =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE5ODQyMzE0OTgsImlzcyI6IkFQSU1teGlMOHJxdUt6dFpFb1pKVjlGYiIsImp0aSI6ImZvcnRoIiwibmJmIjoxNjI0MjMxNDk4LCJ2aWRlbyI6eyJyb29tIjoibXlyb29tIiwicm9vbUpvaW4iOnRydWV9fQ.PVx_lXAIGxcD2VRslosrbkigc777GXbu-DQME8hjJKI"
+        const val URL = "wss://www.example.com"
+        const val TOKEN = ""
     }
 }

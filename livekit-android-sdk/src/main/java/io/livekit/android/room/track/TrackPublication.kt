@@ -11,6 +11,7 @@ open class TrackPublication(
     track: Track?,
     participant: Participant
 ) {
+
     @get:FlowObservable
     open var track: Track? by flowDelegate(track)
         internal set
@@ -35,6 +36,8 @@ open class TrackPublication(
     var mimeType: String? = null
         internal set
 
+    internal var trackInfo: LivekitModels.TrackInfo? = null
+
     var participant: WeakReference<Participant>
 
     init {
@@ -56,5 +59,7 @@ open class TrackPublication(
             dimensions = Track.Dimensions(info.width, info.height)
         }
         mimeType = info.mimeType
+
+        trackInfo = info
     }
 }
