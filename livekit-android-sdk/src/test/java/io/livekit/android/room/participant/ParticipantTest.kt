@@ -4,6 +4,8 @@ import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.track.TrackPublication
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,6 +13,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+@ExperimentalCoroutinesApi
 class ParticipantTest {
 
     @get:Rule
@@ -24,7 +27,7 @@ class ParticipantTest {
     }
 
     @Test
-    fun updateFromInfo() {
+    fun updateFromInfo() = runTest {
         participant.updateFromInfo(INFO)
 
         assertTrue(participant.hasInfo)
@@ -36,7 +39,7 @@ class ParticipantTest {
     }
 
     @Test
-    fun setMetadataCallsListeners() {
+    fun setMetadataCallsListeners() = runTest {
         class MetadataListener : ParticipantListener {
             var wasCalled = false
             lateinit var participantValue: Participant
@@ -69,7 +72,7 @@ class ParticipantTest {
     }
 
     @Test
-    fun setMetadataChangedEvent() {
+    fun setMetadataChangedEvent() = runTest {
         val eventCollector = EventCollector(participant.events, coroutineRule.scope)
         val prevMetadata = participant.metadata
         val metadata = "metadata"
@@ -87,7 +90,7 @@ class ParticipantTest {
     }
 
     @Test
-    fun setIsSpeakingChangedEvent() {
+    fun setIsSpeakingChangedEvent() = runTest {
         val eventCollector = EventCollector(participant.events, coroutineRule.scope)
         val newIsSpeaking = !participant.isSpeaking
         participant.isSpeaking = newIsSpeaking
@@ -104,7 +107,7 @@ class ParticipantTest {
     }
 
     @Test
-    fun addTrackPublication() {
+    fun addTrackPublication() = runTest {
         val audioPublication = TrackPublication(TRACK_INFO, null, participant)
         participant.addTrackPublication(audioPublication)
 

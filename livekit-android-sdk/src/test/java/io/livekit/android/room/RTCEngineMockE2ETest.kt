@@ -6,7 +6,7 @@ import io.livekit.android.mock.MockWebSocket
 import io.livekit.android.util.LoggingRule
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import livekit.LivekitRtc
 import org.junit.Assert
 import org.junit.Before
@@ -34,7 +34,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun iceSubscriberConnect() = runBlockingTest {
+    fun iceSubscriberConnect() = runTest {
         connect()
 
         val remoteOffer = SessionDescription(SessionDescription.Type.OFFER, "remote_offer")
@@ -59,7 +59,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun reconnectOnFailure() = runBlockingTest {
+    fun reconnectOnFailure() = runTest {
         connect()
         val oldWs = wsFactory.ws
         wsFactory.listener.onFailure(oldWs, Exception(), null)

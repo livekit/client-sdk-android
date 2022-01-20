@@ -13,7 +13,6 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,12 +24,12 @@ import org.robolectric.RobolectricTestRunner
 class RoomMockE2ETest : MockE2ETest() {
 
     @Test
-    fun connectTest() {
+    fun connectTest() = runTest {
         connect()
     }
 
     @Test
-    fun connectFailureProperlyContinues() {
+    fun connectFailureProperlyContinues() = runTest {
 
         var didThrowException = false
         val job = coroutineRule.scope.launch {
@@ -46,15 +45,13 @@ class RoomMockE2ETest : MockE2ETest() {
 
         wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
 
-        runBlockingTest {
-            job.join()
-        }
+        job.join()
 
         Assert.assertTrue(didThrowException)
     }
 
     @Test
-    fun roomUpdateTest() {
+    fun roomUpdateTest() = runTest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.ROOM_UPDATE.toOkioByteString())
@@ -69,7 +66,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun connectionQualityUpdateTest() {
+    fun connectionQualityUpdateTest() = runTest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
@@ -84,7 +81,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun participantConnected() {
+    fun participantConnected() = runTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -99,7 +96,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun participantDisconnected() {
+    fun participantDisconnected() = runTest {
         connect()
         wsFactory.listener.onMessage(
             wsFactory.ws,
@@ -118,7 +115,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun onActiveSpeakersChanged() {
+    fun onActiveSpeakersChanged() = runTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -133,7 +130,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun participantMetadataChanged() {
+    fun participantMetadataChanged() = runTest {
         connect()
 
         wsFactory.listener.onMessage(
@@ -153,7 +150,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun trackStreamStateChanged() {
+    fun trackStreamStateChanged() = runTest {
         connect()
 
         wsFactory.listener.onMessage(
@@ -189,7 +186,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun trackSubscriptionPermissionChanged() {
+    fun trackSubscriptionPermissionChanged() = runTest {
         connect()
 
         wsFactory.listener.onMessage(
@@ -224,7 +221,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun onConnectionAvailableWillReconnect() {
+    fun onConnectionAvailableWillReconnect() = runTest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         val network = Mockito.mock(Network::class.java)
@@ -237,7 +234,7 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun leave() {
+    fun leave() = runTest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(

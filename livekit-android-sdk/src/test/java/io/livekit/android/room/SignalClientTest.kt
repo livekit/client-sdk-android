@@ -1,44 +1,40 @@
 package io.livekit.android.room
 
 import com.google.protobuf.util.JsonFormat
+import io.livekit.android.BaseTest
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.TestData
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.test.runBlockingTest
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import okhttp3.*
-import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.webrtc.SessionDescription
 
 @ExperimentalCoroutinesApi
-class SignalClientTest {
+class SignalClientTest : BaseTest() {
 
     lateinit var wsFactory: MockWebSocketFactory
     lateinit var client: SignalClient
-    lateinit var listener: SignalClient.Listener
-    lateinit var okHttpClient: OkHttpClient
 
-    lateinit var coroutineDispatcher: TestCoroutineDispatcher
-    lateinit var coroutineScope: TestCoroutineScope
+    @Mock
+    lateinit var listener: SignalClient.Listener
+
+    @Mock
+    lateinit var okHttpClient: OkHttpClient
 
     @Before
     fun setup() {
-        coroutineDispatcher = TestCoroutineDispatcher()
-        coroutineScope = TestCoroutineScope(coroutineDispatcher)
         wsFactory = MockWebSocketFactory()
-        okHttpClient = Mockito.mock(OkHttpClient::class.java)
         client = SignalClient(
             wsFactory,
             JsonFormat.parser(),
@@ -46,15 +42,9 @@ class SignalClientTest {
             Json,
             useJson = false,
             okHttpClient = okHttpClient,
-            ioDispatcher = coroutineDispatcher
+            ioDispatcher = coroutineRule.dispatcher
         )
-        listener = Mockito.mock(SignalClient.Listener::class.java)
         client.listener = listener
-    }
-
-    @After
-    fun tearDown() {
-        coroutineScope.cleanupTestCoroutines()
     }
 
     private fun createOpenResponse(request: Request): Response {
@@ -75,36 +65,35 @@ class SignalClientTest {
     }
 
     @Test
-    fun joinAndResponse() {
-        val job = coroutineScope.async {
+    fun joinAndResponse() = runTest {
+        println("dispatcher = ${this.coroutineContext}")
+        val job = async {
             client.join(EXAMPLE_URL, "")
         }
 
         connectWebsocketAndJoin()
 
-        runBlockingTest {
-            val response = job.await()
-            Assert.assertEquals(response, JOIN.join)
-        }
+        val response = job.await()
+        Assert.assertEquals(true, client.isConnected)
+        Assert.assertEquals(response, JOIN.join)
     }
 
     @Test
-    fun reconnect() {
-        val job = coroutineScope.async {
+    fun reconnect() = runTest {
+        val job = async {
             client.reconnect(EXAMPLE_URL, "")
         }
 
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
 
-        runBlockingTest {
-            job.await()
-        }
+        job.await()
+        Assert.assertEquals(true, client.isConnected)
     }
 
     @Test
-    fun joinFailure() {
+    fun joinFailure() = runTest {
         var failed = false
-        val job = coroutineScope.async {
+        val job = async {
             try {
                 client.join(EXAMPLE_URL, "")
             } catch (e: Exception) {
@@ -113,34 +102,34 @@ class SignalClientTest {
         }
 
         client.onFailure(wsFactory.ws, Exception(), null)
-        runBlockingTest { job.await() }
+        job.await()
 
         Assert.assertTrue(failed)
     }
 
     @Test
-    fun listenerNotCalledUntilOnReady() {
-        val job = coroutineScope.async {
+    fun listenerNotCalledUntilOnReady() = runTest {
+        val job = async {
             client.join(EXAMPLE_URL, "")
         }
 
         connectWebsocketAndJoin()
         client.onMessage(wsFactory.ws, OFFER.toOkioByteString())
 
-        runBlockingTest { job.await() }
+        job.await()
 
         Mockito.verifyNoInteractions(listener)
     }
 
     @Test
-    fun listenerCalledAfterOnReady() {
-        val job = coroutineScope.async {
+    fun listenerCalledAfterOnReady() = runTest {
+        val job = async {
             client.join(EXAMPLE_URL, "")
         }
         connectWebsocketAndJoin()
         client.onMessage(wsFactory.ws, OFFER.toOkioByteString())
 
-        runBlockingTest { job.await() }
+        job.await()
         client.onReady()
         Mockito.verify(listener)
             .onOffer(argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp })
@@ -151,12 +140,12 @@ class SignalClientTest {
      * [WebSocketListener.onClosed]. Ensure that listener is called properly.
      */
     @Test
-    fun listenerNotifiedAfterFailure() {
-        val job = coroutineScope.async {
+    fun listenerNotifiedAfterFailure() = runTest {
+        val job = async {
             client.join(EXAMPLE_URL, "")
         }
         connectWebsocketAndJoin()
-        runBlockingTest { job.await() }
+        job.await()
 
         client.onFailure(wsFactory.ws, Exception(), null)
 

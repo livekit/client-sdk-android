@@ -8,8 +8,8 @@ import io.livekit.android.events.EventCollector
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockEglBase
 import io.livekit.android.room.participant.LocalParticipant
-import kotlinx.coroutines.*
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import livekit.LivekitModels
 import org.junit.Assert
 import org.junit.Before
@@ -32,6 +32,7 @@ class RoomTest {
 
     @get:Rule
     var mockitoRule = MockitoJUnit.rule()
+
     @get:Rule
     var coroutineRule = TestCoroutineRule()
 
@@ -64,7 +65,7 @@ class RoomTest {
         )
     }
 
-    fun connect() {
+    suspend fun connect() {
         rtcEngine.stub {
             onBlocking { rtcEngine.join(any(), any(), anyOrNull()) }
                 .doReturn(SignalClientTest.JOIN.join)
@@ -73,24 +74,20 @@ class RoomTest {
             onBlocking { rtcEngine.client }
                 .doReturn(Mockito.mock(SignalClient::class.java))
         }
-        val job = coroutineRule.scope.launch {
-            room.connect(
-                url = SignalClientTest.EXAMPLE_URL,
-                token = "",
-            )
-        }
-        runBlockingTest {
-            job.join()
-        }
+
+        room.connect(
+            url = SignalClientTest.EXAMPLE_URL,
+            token = "",
+        )
     }
 
     @Test
-    fun connectTest() {
+    fun connectTest() = runTest {
         connect()
     }
 
     @Test
-    fun onConnectionAvailableWillReconnect() {
+    fun onConnectionAvailableWillReconnect() = runTest {
         connect()
 
         val network = Mockito.mock(Network::class.java)
@@ -100,7 +97,7 @@ class RoomTest {
     }
 
     @Test
-    fun onDisconnect() {
+    fun onDisconnect() = runTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
