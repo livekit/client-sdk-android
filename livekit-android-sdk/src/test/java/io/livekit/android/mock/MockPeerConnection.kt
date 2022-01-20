@@ -10,6 +10,7 @@ class MockPeerConnection(
     val observer: PeerConnection.Observer?
 ) : PeerConnection(MockNativePeerConnectionFactory()) {
 
+    private var closed = false
     var localDesc: SessionDescription? = null
     var remoteDesc: SessionDescription? = null
     override fun getLocalDescription(): SessionDescription? = localDesc
@@ -140,7 +141,27 @@ class MockPeerConnection(
     }
 
     override fun signalingState(): SignalingState {
-        return super.signalingState()
+        if (closed) {
+            return SignalingState.CLOSED
+        }
+
+        if ((localDesc?.type == null && localDesc?.type == null) ||
+            (localDesc?.type == SessionDescription.Type.OFFER &&
+                    remoteDesc?.type == SessionDescription.Type.ANSWER) ||
+            (localDesc?.type == SessionDescription.Type.ANSWER &&
+                    remoteDesc?.type == SessionDescription.Type.OFFER)
+        ) {
+            return SignalingState.STABLE
+        }
+
+        if (localDesc?.type == SessionDescription.Type.OFFER && remoteDesc?.type == null) {
+            return SignalingState.HAVE_LOCAL_OFFER
+        }
+        if (remoteDesc?.type == SessionDescription.Type.OFFER && localDesc?.type == null) {
+            return SignalingState.HAVE_REMOTE_OFFER
+        }
+
+        throw IllegalStateException("Illegal signalling state? localDesc: $localDesc, remoteDesc: $remoteDesc")
     }
 
     private var iceConnectionState = IceConnectionState.NEW
@@ -148,12 +169,34 @@ class MockPeerConnection(
             if (field != value) {
                 field = value
                 observer?.onIceConnectionChange(field)
+
+                connectionState = when (field) {
+                    IceConnectionState.NEW -> PeerConnectionState.NEW
+                    IceConnectionState.CHECKING -> PeerConnectionState.CONNECTING
+                    IceConnectionState.CONNECTED,
+                    IceConnectionState.COMPLETED -> PeerConnectionState.CONNECTED
+                    IceConnectionState.DISCONNECTED -> PeerConnectionState.DISCONNECTED
+                    IceConnectionState.FAILED -> PeerConnectionState.FAILED
+                    IceConnectionState.CLOSED -> PeerConnectionState.CLOSED
+                }
+            }
+        }
+
+    private var connectionState = PeerConnectionState.NEW
+        set(value) {
+            if (field != value) {
+                field = value
+                observer?.onConnectionChange(field)
             }
         }
 
     override fun iceConnectionState(): IceConnectionState = iceConnectionState
 
     fun moveToIceConnectionState(newState: IceConnectionState) {
+        if (closed && newState != IceConnectionState.CLOSED) {
+            throw IllegalArgumentException("peer connection closed, but attempting to move to $newState")
+        }
+
         when (newState) {
             IceConnectionState.NEW,
             IceConnectionState.CHECKING,
@@ -189,9 +232,12 @@ class MockPeerConnection(
     }
 
     override fun close() {
+        dispose()
     }
 
     override fun dispose() {
+        iceConnectionState = IceConnectionState.CLOSED
+        closed = true
     }
 
     override fun getNativePeerConnection(): Long = 0L

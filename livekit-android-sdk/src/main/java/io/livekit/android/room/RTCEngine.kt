@@ -37,6 +37,10 @@ internal constructor(
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : SignalClient.Listener, DataChannel.Observer {
     internal var listener: Listener? = null
+
+    /**
+     * Reflects the combined connection state of SignalClient and primary PeerConnection.
+     */
     internal var connectionState: ConnectionState = ConnectionState.DISCONNECTED
         set(value) {
             val oldVal = field
