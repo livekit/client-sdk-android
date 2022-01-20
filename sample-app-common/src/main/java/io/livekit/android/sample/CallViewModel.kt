@@ -248,12 +248,23 @@ class CallViewModel(
         room.value?.localParticipant?.setTrackSubscriptionPermissions(mutablePermissionAllowed.value)
     }
 
-    fun simulateMigration(){
+    fun simulateMigration() {
         room.value?.sendSimulateScenario(
             LivekitRtc.SimulateScenario.newBuilder()
                 .setMigration(true)
                 .build()
         )
+    }
+
+    fun reconnect() {
+        room.value?.disconnect()
+
+        viewModelScope.launch {
+            room.value?.connect(
+                url,
+                token
+            )
+        }
     }
 }
 

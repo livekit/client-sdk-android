@@ -2,10 +2,12 @@ package io.livekit.android
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.mock.dagger.TestCoroutinesModule
 import io.livekit.android.mock.dagger.TestLiveKitComponent
+import io.livekit.android.room.PeerConnectionTransport
 import io.livekit.android.room.Room
 import io.livekit.android.room.SignalClientTest
 import io.livekit.android.util.toOkioByteString
@@ -15,14 +17,16 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import org.junit.Before
+import org.webrtc.PeerConnection
 
 @ExperimentalCoroutinesApi
 abstract class MockE2ETest : BaseTest() {
 
     internal lateinit var component: TestLiveKitComponent
-    lateinit var context: Context
-    lateinit var room: Room
-    lateinit var wsFactory: MockWebSocketFactory
+    internal lateinit var context: Context
+    internal lateinit var room: Room
+    internal lateinit var wsFactory: MockWebSocketFactory
+    internal lateinit var subscriber: PeerConnectionTransport
 
     @Before
     fun setup() {
@@ -37,6 +41,11 @@ abstract class MockE2ETest : BaseTest() {
     }
 
     suspend fun connect() {
+        connectSignal()
+        connectPeerConnection()
+    }
+
+    suspend fun connectSignal() {
         val job = coroutineRule.scope.launch {
             room.connect(
                 url = SignalClientTest.EXAMPLE_URL,
@@ -47,6 +56,13 @@ abstract class MockE2ETest : BaseTest() {
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
 
         job.join()
+    }
+
+    suspend fun connectPeerConnection() {
+        subscriber = component.rtcEngine().subscriber
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.OFFER.toOkioByteString())
+        val subPeerConnection = subscriber.peerConnection as MockPeerConnection
+        subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
     }
 
     fun createOpenResponse(request: Request): Response {

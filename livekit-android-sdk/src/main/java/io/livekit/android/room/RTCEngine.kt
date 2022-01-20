@@ -34,7 +34,8 @@ class RTCEngine
 internal constructor(
     val client: SignalClient,
     private val pctFactory: PeerConnectionTransport.Factory,
-    @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
+    @Named(InjectionNames.DISPATCHER_IO)
+    private val ioDispatcher: CoroutineDispatcher,
 ) : SignalClient.Listener, DataChannel.Observer {
     internal var listener: Listener? = null
 
@@ -77,8 +78,20 @@ internal constructor(
 
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
-    internal lateinit var publisher: PeerConnectionTransport
-    internal lateinit var subscriber: PeerConnectionTransport
+
+    private var _publisher: PeerConnectionTransport? = null
+    internal val publisher: PeerConnectionTransport
+        get() {
+            return _publisher
+                ?: throw UninitializedPropertyAccessException("publisher has not been initialized yet.")
+        }
+    private var _subscriber: PeerConnectionTransport? = null
+    internal val subscriber: PeerConnectionTransport
+        get() {
+            return _subscriber
+                ?: throw UninitializedPropertyAccessException("subscriber has not been initialized yet.")
+        }
+
     private var reliableDataChannel: DataChannel? = null
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
@@ -89,13 +102,15 @@ internal constructor(
 
     private var hasPublished = false
 
-    private val coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+    private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
     init {
         client.listener = this
     }
 
     suspend fun join(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
+        coroutineScope.close()
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
         sessionToken = token
         val joinResponse = client.join(url, token, options)
@@ -104,9 +119,8 @@ internal constructor(
 
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
-        if (!this::publisher.isInitialized) {
-            configure(joinResponse, options)
-        }
+        configure(joinResponse, options)
+
         // create offer
         if (!this.isSubscriberPrimary) {
             negotiate()
@@ -116,7 +130,7 @@ internal constructor(
     }
 
     private fun configure(joinResponse: LivekitRtc.JoinResponse, connectOptions: ConnectOptions?) {
-        if (this::publisher.isInitialized || this::subscriber.isInitialized) {
+        if (_publisher != null && _subscriber != null) {
             // already configured
             return
         }
@@ -160,13 +174,14 @@ internal constructor(
                 enableDtlsSrtp = true
             }
 
-
-        publisher = pctFactory.create(
+        _publisher?.close()
+        _publisher = pctFactory.create(
             rtcConfig,
             publisherObserver,
             publisherObserver,
         )
-        subscriber = pctFactory.create(
+        _subscriber?.close()
+        _subscriber = pctFactory.create(
             rtcConfig,
             subscriberObserver,
             null,
@@ -248,10 +263,15 @@ internal constructor(
     }
 
     fun close() {
+        if (isClosed) {
+            return
+        }
         isClosed = true
         coroutineScope.close()
-        publisher.close()
-        subscriber.close()
+        _publisher?.close()
+        _publisher = null
+        _subscriber?.close()
+        _subscriber = null
         client.close()
     }
 
@@ -318,8 +338,8 @@ internal constructor(
             }
 
 
-            listener?.onEngineDisconnected("failed reconnecting.")
             close()
+            listener?.onEngineDisconnected("failed reconnecting.")
         }
 
         reconnectingJob = job
@@ -361,8 +381,8 @@ internal constructor(
             return
         }
 
-        if (!this::publisher.isInitialized) {
-            throw RoomException.ConnectException("Publisher is not connected!")
+        if (_publisher == null) {
+            throw RoomException.ConnectException("Publisher isn't setup yet! Is room not connected?!")
         }
 
         if (!publisher.peerConnection.isConnected() &&
@@ -572,7 +592,7 @@ internal constructor(
 
     // Signal error
     override fun onError(error: Throwable) {
-        if (isClosed) {
+        if (connectionState == ConnectionState.CONNECTING) {
             listener?.onFailToConnect(error)
         }
     }

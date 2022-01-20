@@ -3,6 +3,7 @@ package io.livekit.android.room
 import android.net.Network
 import io.livekit.android.MockE2ETest
 import io.livekit.android.events.EventCollector
+import io.livekit.android.events.FlowCollector
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.mock.MockMediaStream
@@ -10,6 +11,8 @@ import io.livekit.android.mock.TestData
 import io.livekit.android.mock.createMediaStreamId
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.track.Track
+import io.livekit.android.util.delegate
+import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -25,7 +28,13 @@ class RoomMockE2ETest : MockE2ETest() {
 
     @Test
     fun connectTest() = runTest {
+        val collector = FlowCollector(room::state.flow, coroutineRule.scope)
         connect()
+        val events = collector.stopCollecting()
+        Assert.assertEquals(3, events.size)
+        Assert.assertEquals(Room.State.DISCONNECTED, events[0])
+        Assert.assertEquals(Room.State.CONNECTING, events[1])
+        Assert.assertEquals(Room.State.CONNECTED, events[2])
     }
 
     @Test
@@ -247,4 +256,11 @@ class RoomMockE2ETest : MockE2ETest() {
         Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
     }
 
+    @Test
+    fun reconnectAfterDisconnect() = runTest {
+        connect()
+        room.disconnect()
+        connect()
+        Assert.assertEquals(room.state, Room.State.CONNECTED)
+    }
 }

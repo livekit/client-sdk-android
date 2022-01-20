@@ -174,7 +174,7 @@ class SignalClientTest : BaseTest() {
 
         val OFFER = with(LivekitRtc.SignalResponse.newBuilder()) {
             offer = with(offerBuilder) {
-                sdp = ""
+                sdp = "remote_offer"
                 type = "offer"
                 build()
             }

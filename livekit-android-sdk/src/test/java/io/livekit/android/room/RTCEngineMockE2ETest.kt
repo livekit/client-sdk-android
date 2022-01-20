@@ -6,7 +6,6 @@ import io.livekit.android.mock.MockWebSocket
 import io.livekit.android.util.LoggingRule
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
 import livekit.LivekitRtc
 import org.junit.Assert
 import org.junit.Before
@@ -14,17 +13,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.PeerConnection
-import org.webrtc.SessionDescription
 
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class RTCEngineMockE2ETest : MockE2ETest() {
-
-
-    @get:Rule
-    var loggingRule = LoggingRule()
 
     lateinit var rtcEngine: RTCEngine
 
@@ -36,11 +29,10 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     @Test
     fun iceSubscriberConnect() = runTest {
         connect()
-
-        val remoteOffer = SessionDescription(SessionDescription.Type.OFFER, "remote_offer")
-        rtcEngine.onOffer(remoteOffer)
-
-        Assert.assertEquals(remoteOffer, rtcEngine.subscriber.peerConnection.remoteDescription)
+        Assert.assertEquals(
+            SignalClientTest.OFFER.offer.sdp,
+            rtcEngine.subscriber.peerConnection.remoteDescription.description
+        )
 
         val ws = wsFactory.ws as MockWebSocket
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
@@ -52,9 +44,6 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         Assert.assertTrue(sentRequest.hasAnswer())
         Assert.assertEquals(localAnswer.description, sentRequest.answer.sdp)
         Assert.assertEquals(localAnswer.type.canonicalForm(), sentRequest.answer.type)
-
-        subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
-
         Assert.assertEquals(ConnectionState.CONNECTED, rtcEngine.connectionState)
     }
 

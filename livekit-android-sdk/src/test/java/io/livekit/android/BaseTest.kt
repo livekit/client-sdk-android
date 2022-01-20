@@ -9,6 +9,9 @@ import org.mockito.junit.MockitoJUnit
 
 @ExperimentalCoroutinesApi
 abstract class BaseTest {
+    // Uncomment to enable logging in tests.
+    //@get:Rule
+    //var loggingRule = LoggingRule()
 
     @get:Rule
     var mockitoRule = MockitoJUnit.rule()

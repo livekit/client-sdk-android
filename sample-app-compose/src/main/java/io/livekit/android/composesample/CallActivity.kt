@@ -111,6 +111,7 @@ class CallActivity : AppCompatActivity() {
                 onExitClick = { finish() },
                 onSendMessage = { viewModel.sendData(it) },
                 onSimulateMigration = { viewModel.simulateMigration() },
+                fullReconnect = { viewModel.reconnect() },
             )
         }
     }
@@ -159,6 +160,7 @@ class CallActivity : AppCompatActivity() {
         onSnackbarDismiss: () -> Unit = {},
         onSendMessage: (String) -> Unit = {},
         onSimulateMigration: () -> Unit = {},
+        fullReconnect: () -> Unit = {},
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -410,7 +412,8 @@ class CallActivity : AppCompatActivity() {
                         if (showDebugDialog) {
                             DebugMenuDialog(
                                 onDismissRequest = { showDebugDialog = false },
-                                simulateMigration = { onSimulateMigration() }
+                                simulateMigration = { onSimulateMigration() },
+                                fullReconnect = { fullReconnect() },
                             )
                         }
                     }

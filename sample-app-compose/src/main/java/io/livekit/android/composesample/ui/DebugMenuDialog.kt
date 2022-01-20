@@ -17,7 +17,8 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun DebugMenuDialog(
     onDismissRequest: () -> Unit = {},
-    simulateMigration: () -> Unit = {}
+    simulateMigration: () -> Unit = {},
+    fullReconnect: () -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
@@ -35,6 +36,11 @@ fun DebugMenuDialog(
                 onDismissRequest()
             }) {
                 Text("Simulate Migration")
+            }
+            Button(onClick = {
+                fullReconnect()
+            }) {
+                Text("Reconnect to room")
             }
         }
     }
