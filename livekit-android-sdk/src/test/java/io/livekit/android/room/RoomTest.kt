@@ -104,7 +104,7 @@ class RoomTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        room.onDisconnect("")
+        room.onEngineDisconnected("")
         val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)

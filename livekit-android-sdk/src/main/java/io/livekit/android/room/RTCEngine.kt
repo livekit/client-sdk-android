@@ -10,6 +10,7 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.isConnected
+import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -36,7 +37,7 @@ internal constructor(
     @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : SignalClient.Listener, DataChannel.Observer {
     internal var listener: Listener? = null
-    internal var iceState: IceState = IceState.DISCONNECTED
+    internal var connectionState: ConnectionState = ConnectionState.DISCONNECTED
         set(value) {
             val oldVal = field
             field = value
@@ -44,18 +45,18 @@ internal constructor(
                 return
             }
             when (value) {
-                IceState.CONNECTED -> {
-                    if (oldVal == IceState.DISCONNECTED) {
+                ConnectionState.CONNECTED -> {
+                    if (oldVal == ConnectionState.DISCONNECTED) {
                         LKLog.d { "primary ICE connected" }
-                        listener?.onIceConnected()
-                    } else if (oldVal == IceState.RECONNECTING) {
+                        listener?.onEngineConnected()
+                    } else if (oldVal == ConnectionState.RECONNECTING) {
                         LKLog.d { "primary ICE reconnected" }
-                        listener?.onIceReconnected()
+                        listener?.onEngineReconnected()
                     }
                 }
-                IceState.DISCONNECTED -> {
+                ConnectionState.DISCONNECTED -> {
                     LKLog.d { "primary ICE disconnected" }
-                    if (oldVal == IceState.CONNECTED) {
+                    if (oldVal == ConnectionState.CONNECTED) {
                         reconnect()
                     }
                 }
@@ -167,17 +168,14 @@ internal constructor(
             null,
         )
 
-        val iceConnectionStateListener: (PeerConnection.IceConnectionState?) -> Unit = { newState ->
+        val connectionStateListener: (PeerConnection.PeerConnectionState?) -> Unit = { newState ->
             val state =
                 newState ?: throw NullPointerException("unexpected null new state, what do?")
             LKLog.v { "onIceConnection new state: $newState" }
             if (state.isConnected()) {
-                iceState = IceState.CONNECTED
-            } else if (state == PeerConnection.IceConnectionState.DISCONNECTED ||
-                state == PeerConnection.IceConnectionState.FAILED
-            ) {
-                // when we publish tracks, some WebRTC versions will send out disconnected events periodically
-                iceState = IceState.DISCONNECTED
+                connectionState = ConnectionState.CONNECTED
+            } else if (state.isDisconnected()) {
+                connectionState = ConnectionState.DISCONNECTED
             }
         }
 
@@ -191,9 +189,10 @@ internal constructor(
                 }
                 dataChannel.registerObserver(this)
             }
-            subscriberObserver.iceConnectionChangeListener = iceConnectionStateListener
+
+            subscriberObserver.connectionChangeListener = connectionStateListener
         } else {
-            publisherObserver.iceConnectionChangeListener = iceConnectionStateListener
+            publisherObserver.connectionChangeListener = connectionStateListener
         }
 
         // data channels
@@ -270,7 +269,7 @@ internal constructor(
         }
 
         val job = coroutineScope.launch {
-            listener?.onReconnecting()
+            listener?.onEngineReconnecting()
 
             for (wsRetries in 0 until MAX_SIGNAL_RETRIES) {
                 var startDelay = wsRetries.toLong() * wsRetries * 500
@@ -292,7 +291,7 @@ internal constructor(
                 listener?.onSignalConnected()
 
                 subscriber.prepareForIceRestart()
-                iceState = IceState.RECONNECTING
+                connectionState = ConnectionState.RECONNECTING
                 // trigger publisher reconnect
                 // only restart publisher if it's needed
                 if (hasPublished) {
@@ -302,20 +301,20 @@ internal constructor(
                 // wait until ICE connected
                 val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
                 while (SystemClock.elapsedRealtime() < endTime) {
-                    if (iceState == IceState.CONNECTED) {
+                    if (connectionState == ConnectionState.CONNECTED) {
                         LKLog.v { "reconnected to ICE" }
                         break
                     }
                     delay(100)
                 }
 
-                if (iceState == IceState.CONNECTED) {
+                if (connectionState == ConnectionState.CONNECTED) {
                     return@launch
                 }
             }
 
 
-            listener?.onDisconnect("failed reconnecting.")
+            listener?.onEngineDisconnected("failed reconnecting.")
             close()
         }
 
@@ -409,7 +408,7 @@ internal constructor(
                         MediaConstraintKeys.FALSE
                     )
                 )
-                if (iceState == IceState.RECONNECTING) {
+                if (connectionState == ConnectionState.RECONNECTING) {
                     add(
                         MediaConstraints.KeyValuePair(
                             MediaConstraintKeys.ICE_RESTART,
@@ -422,8 +421,11 @@ internal constructor(
     }
 
     internal interface Listener {
-        fun onIceConnected()
-        fun onIceReconnected()
+        fun onEngineConnected()
+        fun onEngineReconnected()
+        fun onEngineReconnecting()
+        fun onEngineDisconnected(reason: String)
+        fun onFailToConnect(error: Throwable)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -431,14 +433,11 @@ internal constructor(
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
-        fun onDisconnect(reason: String)
-        fun onFailToConnect(error: Throwable)
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSignalConnected()
-        fun onReconnecting()
     }
 
     companion object {
@@ -564,7 +563,7 @@ internal constructor(
 
     override fun onLeave(leave: LivekitRtc.LeaveRequest) {
         close()
-        listener?.onDisconnect("server leave")
+        listener?.onEngineDisconnected("server leave")
     }
 
     // Signal error
@@ -627,10 +626,4 @@ internal constructor(
 
         client.sendSyncState(syncState)
     }
-}
-
-internal enum class IceState {
-    DISCONNECTED,
-    RECONNECTING,
-    CONNECTED,
 }
