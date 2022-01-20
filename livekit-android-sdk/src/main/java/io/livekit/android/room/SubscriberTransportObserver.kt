@@ -13,7 +13,7 @@ class SubscriberTransportObserver(
 ) : PeerConnection.Observer {
 
     var dataChannelListener: ((DataChannel) -> Unit)? = null
-    var iceConnectionChangeListener: ((PeerConnection.IceConnectionState?) -> Unit)? = null
+    var connectionChangeListener: ((PeerConnection.PeerConnectionState?) -> Unit)? = null
 
     override fun onIceCandidate(candidate: IceCandidate) {
         LKLog.v { "onIceCandidate: $candidate" }
@@ -43,6 +43,7 @@ class SubscriberTransportObserver(
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
         LKLog.v { "onConnectionChange new state: $newState" }
+        connectionChangeListener?.invoke(newState)
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
@@ -53,7 +54,6 @@ class SubscriberTransportObserver(
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
         LKLog.v { "onIceConnection new state: $newState" }
-        iceConnectionChangeListener?.invoke(newState)
     }
 
     override fun onIceConnectionReceivingChange(p0: Boolean) {

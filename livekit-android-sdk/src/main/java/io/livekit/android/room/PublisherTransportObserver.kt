@@ -12,8 +12,7 @@ class PublisherTransportObserver(
     private val client: SignalClient,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener {
 
-    var iceConnectionChangeListener: ((newState: PeerConnection.IceConnectionState?) -> Unit)? =
-        null
+    var connectionChangeListener: ((newState: PeerConnection.PeerConnectionState?) -> Unit)? = null
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         val candidate = iceCandidate ?: return
@@ -27,7 +26,6 @@ class PublisherTransportObserver(
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
         LKLog.v { "onIceConnection new state: $newState" }
-        iceConnectionChangeListener?.invoke(newState)
     }
 
     override fun onOffer(sd: SessionDescription) {
@@ -38,6 +36,8 @@ class PublisherTransportObserver(
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
+        LKLog.v { "onConnection new state: $newState" }
+        connectionChangeListener?.invoke(newState)
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {

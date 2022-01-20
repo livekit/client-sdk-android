@@ -29,7 +29,7 @@ abstract class MockE2ETest {
     @get:Rule
     var coroutineRule = TestCoroutineRule()
 
-    lateinit var component: TestLiveKitComponent
+    internal lateinit var component: TestLiveKitComponent
     lateinit var context: Context
     lateinit var room: Room
     lateinit var wsFactory: MockWebSocketFactory

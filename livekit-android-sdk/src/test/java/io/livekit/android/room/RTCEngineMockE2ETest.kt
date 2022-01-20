@@ -55,7 +55,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
 
-        Assert.assertEquals(IceState.CONNECTED, rtcEngine.iceState)
+        Assert.assertEquals(ConnectionState.CONNECTED, rtcEngine.connectionState)
     }
 
     @Test

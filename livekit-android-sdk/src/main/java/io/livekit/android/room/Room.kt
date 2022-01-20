@@ -419,17 +419,17 @@ constructor(
 
 
     //----------------------------------- RTCEngine.Listener ------------------------------------//
-    override fun onIceConnected() {
+    override fun onEngineConnected() {
         state = State.CONNECTED
     }
 
-    override fun onIceReconnected() {
+    override fun onEngineReconnected() {
         state = State.CONNECTED
         listener?.onReconnected(this)
         eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
     }
 
-    override fun onReconnecting() {
+    override fun onEngineReconnecting() {
         state = State.RECONNECTING
         listener?.onReconnecting(this)
         eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
@@ -546,7 +546,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onDisconnect(reason: String) {
+    override fun onEngineDisconnected(reason: String) {
         LKLog.v { "engine did disconnect: $reason" }
         handleDisconnect()
     }
