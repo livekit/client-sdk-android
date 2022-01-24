@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package io.livekit.android.room
 
 import android.content.Context
@@ -117,8 +119,12 @@ constructor(
      */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    lateinit var localParticipant: LocalParticipant
-        private set
+    var _localParticipant: LocalParticipant? = null
+    val localParticipant: LocalParticipant
+        get() {
+            return _localParticipant
+                ?: throw UninitializedPropertyAccessException("localParticipant has not been initialized yet.")
+        }
 
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
 
@@ -143,25 +149,8 @@ constructor(
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
         connectOptions = options
-        val response = engine.join(url, token, options)
-        LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
+        engine.join(url, token, options)
 
-        sid = Sid(response.room.sid)
-        name = response.room.name
-
-        if (!response.hasParticipant()) {
-            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
-            return
-        }
-
-        val lp = localParticipantFactory.create(response.participant, dynacast)
-        lp.internalListener = this
-        localParticipant = lp
-        if (response.otherParticipantsList.isNotEmpty()) {
-            response.otherParticipantsList.forEach {
-                getOrCreateRemoteParticipant(it.sid, it)
-            }
-        }
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -186,11 +175,38 @@ constructor(
         handleDisconnect()
     }
 
+    override fun onJoinResponse(response: LivekitRtc.JoinResponse) {
+
+        LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
+
+        sid = Sid(response.room.sid)
+        name = response.room.name
+
+        if (!response.hasParticipant()) {
+            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
+            return
+        }
+
+        if (_localParticipant == null) {
+            val lp = localParticipantFactory.create(response.participant, dynacast)
+            lp.internalListener = this
+            _localParticipant = lp
+        } else {
+            localParticipant.updateFromInfo(response.participant)
+        }
+
+        if (response.otherParticipantsList.isNotEmpty()) {
+            response.otherParticipantsList.forEach {
+                getOrCreateRemoteParticipant(it.sid, it)
+            }
+        }
+    }
+
     private fun handleParticipantDisconnect(sid: String) {
         val newParticipants = mutableRemoteParticipants.toMutableMap()
         val removedParticipant = newParticipants.remove(sid) ?: return
         removedParticipant.tracks.values.toList().forEach { publication ->
-            removedParticipant.unpublishTrack(publication.sid)
+            removedParticipant.unpublishTrack(publication.sid, true)
         }
 
         mutableRemoteParticipants = newParticipants
@@ -316,6 +332,15 @@ constructor(
         engine.reconnect()
     }
 
+    /**
+     * Removes all participants and tracks from the room.
+     */
+    private fun cleanupRoom() {
+        localParticipant.cleanup()
+        remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
+            .forEach { sid -> handleParticipantDisconnect(sid) }
+    }
+
     private fun handleDisconnect() {
         if (state == State.DISCONNECTED) {
             return
@@ -328,19 +353,14 @@ constructor(
             // do nothing, may happen on older versions if attempting to unregister twice.
         }
 
-        for (pub in localParticipant.tracks.values) {
-            pub.track?.stop()
-        }
-        // stop remote tracks too
-        for (p in remoteParticipants.values) {
-            for (pub in p.tracks.values) {
-                pub.track?.stop()
-            }
-        }
+        cleanupRoom()
+
         engine.close()
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
         listener = null
+        _localParticipant?.dispose()
+        _localParticipant = null
 
         // Ensure all observers see the disconnected before closing scope.
         runBlocking {
@@ -560,11 +580,19 @@ constructor(
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
     }
 
-    override fun onSignalConnected() {
-        if (state == State.RECONNECTING) {
+    override fun onSignalConnected(isReconnect: Boolean) {
+        if (state == State.RECONNECTING && isReconnect) {
             // during reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
+    }
+
+    override fun onFullReconnecting() {
+        localParticipant.prepareForFullReconnect()
+    }
+
+    override suspend fun onFullReconnect() {
+        localParticipant.republishTracks()
     }
 
     //------------------------------- ParticipantListener --------------------------------//

@@ -14,7 +14,6 @@ import io.livekit.android.util.safe
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -126,7 +125,13 @@ constructor(
         }
     }
 
-    @ExperimentalCoroutinesApi
+    /**
+     * Notifies that the downstream consumers of SignalClient are ready to consume messages.
+     * Until this method is called, any messages received through the websocket are buffered.
+     *
+     * Should be called after resolving the join message.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun onReady() {
         coroutineScope.launch {
             responseFlow.collect {
@@ -483,6 +488,11 @@ constructor(
         }.safe()
     }
 
+    /**
+     * Closes out any existing websocket connection, and cleans up used resources.
+     *
+     * Can be reused afterwards.
+     */
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
         if(::coroutineScope.isInitialized) {

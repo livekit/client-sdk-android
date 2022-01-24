@@ -74,16 +74,16 @@ class MockPeerConnection(
         return super.createSender(kind, stream_id)
     }
 
-    override fun getSenders(): MutableList<RtpSender> {
-        return super.getSenders()
+    override fun getSenders(): List<RtpSender> {
+        return emptyList()
     }
 
-    override fun getReceivers(): MutableList<RtpReceiver> {
-        return super.getReceivers()
+    override fun getReceivers(): List<RtpReceiver> {
+        return emptyList()
     }
 
-    override fun getTransceivers(): MutableList<RtpTransceiver> {
-        return super.getTransceivers()
+    override fun getTransceivers(): List<RtpTransceiver> {
+        return emptyList()
     }
 
     override fun addTrack(track: MediaStreamTrack?): RtpSender {
@@ -103,10 +103,10 @@ class MockPeerConnection(
     }
 
     override fun addTransceiver(
-        track: MediaStreamTrack?,
+        track: MediaStreamTrack,
         init: RtpTransceiver.RtpTransceiverInit?
     ): RtpTransceiver {
-        return super.addTransceiver(track, init)
+        return MockRtpTransceiver.create(track, init ?: RtpTransceiver.RtpTransceiverInit())
     }
 
     override fun addTransceiver(mediaType: MediaStreamTrack.MediaType?): RtpTransceiver {

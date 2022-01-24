@@ -28,6 +28,7 @@ import kotlin.coroutines.suspendCoroutine
 /**
  * @suppress
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class RTCEngine
 @Inject
@@ -75,6 +76,7 @@ internal constructor(
         mutableMapOf()
     private var sessionUrl: String? = null
     private var sessionToken: String? = null
+    private var connectOptions: ConnectOptions? = null
 
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
@@ -113,9 +115,14 @@ internal constructor(
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
         sessionToken = token
+        return joinImpl(url, token, options)
+    }
+
+    suspend fun joinImpl(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
         val joinResponse = client.join(url, token, options)
+        listener?.onJoinResponse(joinResponse)
         isClosed = false
-        listener?.onSignalConnected()
+        listener?.onSignalConnected(false)
 
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
@@ -245,6 +252,7 @@ internal constructor(
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
 
+        // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
             client.sendAddTrack(cid, name, kind, builder)
@@ -267,11 +275,31 @@ internal constructor(
             return
         }
         isClosed = true
+        hasPublished = false
+        sessionUrl = null
+        sessionToken = null
+        connectOptions = null
+        reconnectingJob?.cancel()
+        reconnectingJob = null
         coroutineScope.close()
+        closeResources()
+    }
+
+    private fun closeResources() {
+        connectionState = ConnectionState.DISCONNECTED
         _publisher?.close()
         _publisher = null
         _subscriber?.close()
         _subscriber = null
+        reliableDataChannel?.close()
+        reliableDataChannel = null
+        reliableDataChannelSub?.close()
+        reliableDataChannelSub = null
+        lossyDataChannel?.close()
+        lossyDataChannel = null
+        lossyDataChannelSub?.close()
+        lossyDataChannelSub = null
+        isSubscriberPrimary = false
         client.close()
     }
 
@@ -293,6 +321,7 @@ internal constructor(
         }
 
         val job = coroutineScope.launch {
+            connectionState = ConnectionState.RECONNECTING
             listener?.onEngineReconnecting()
 
             for (wsRetries in 0 until MAX_SIGNAL_RETRIES) {
@@ -302,28 +331,44 @@ internal constructor(
                 }
 
                 LKLog.i { "Reconnecting to signal, attempt ${wsRetries + 1}" }
-
                 delay(startDelay)
-                try {
-                    client.reconnect(url, token)
-                } catch (e: Exception) {
-                    // ws reconnect failed, retry.
-                    continue
+
+                // full reconnect after first try.
+                val isFullReconnect = true
+
+                if (isFullReconnect) {
+                    try {
+                        closeResources()
+                        listener?.onFullReconnecting()
+                        joinImpl(url, token, connectOptions ?: ConnectOptions())
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "Error during reconnection." }
+                        // reconnect failed, retry.
+                        continue
+                    }
+                } else {
+                    try {
+                        client.reconnect(url, token)
+                        // no join response for regular reconnects
+                        client.onReady()
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "Error during reconnection." }
+                        // ws reconnect failed, retry.
+                        continue
+                    }
+
+                    LKLog.v { "ws reconnected, restarting ICE" }
+                    listener?.onSignalConnected(!isFullReconnect)
+
+                    subscriber.prepareForIceRestart()
+                    // trigger publisher reconnect
+                    // only restart publisher if it's needed
+                    if (hasPublished) {
+                        negotiate()
+                    }
                 }
-
-                LKLog.v { "ws reconnected, restarting ICE" }
-                listener?.onSignalConnected()
-
-                subscriber.prepareForIceRestart()
-                connectionState = ConnectionState.RECONNECTING
-                // trigger publisher reconnect
-                // only restart publisher if it's needed
-                if (hasPublished) {
-                    negotiate()
-                }
-
                 // wait until ICE connected
-                val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
+                val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
                 while (SystemClock.elapsedRealtime() < endTime) {
                     if (connectionState == ConnectionState.CONNECTED) {
                         LKLog.v { "reconnected to ICE" }
@@ -333,10 +378,12 @@ internal constructor(
                 }
 
                 if (connectionState == ConnectionState.CONNECTED) {
+                    if (isFullReconnect) {
+                        listener?.onFullReconnect()
+                    }
                     return@launch
                 }
             }
-
 
             close()
             listener?.onEngineDisconnected("failed reconnecting.")
@@ -389,7 +436,7 @@ internal constructor(
             publisher.peerConnection.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
         ) {
             // start negotiation
-            this.negotiate();
+            this.negotiate()
         }
 
 
@@ -399,7 +446,7 @@ internal constructor(
         }
 
         // wait until publisher ICE connected
-        val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS;
+        val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
         while (SystemClock.elapsedRealtime() < endTime) {
             if (this.publisher.peerConnection.isConnected() && targetChannel.state() == DataChannel.State.OPEN) {
                 return
@@ -450,6 +497,7 @@ internal constructor(
         fun onEngineReconnecting()
         fun onEngineDisconnected(reason: String)
         fun onFailToConnect(error: Throwable)
+        fun onJoinResponse(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -461,7 +509,9 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
-        fun onSignalConnected()
+        fun onSignalConnected(isReconnect: Boolean)
+        fun onFullReconnecting()
+        suspend fun onFullReconnect()
     }
 
     companion object {

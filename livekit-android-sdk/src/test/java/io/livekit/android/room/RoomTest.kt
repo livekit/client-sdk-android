@@ -6,7 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.RoomEvent
-import io.livekit.android.mock.MockEglBase
+import io.livekit.android.mock.*
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -106,5 +106,33 @@ class RoomTest {
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
+    }
+
+    @Test
+    fun disconnectCleansUpParticipants() = runTest {
+        connect()
+
+        room.onUpdateParticipants(SignalClientTest.PARTICIPANT_JOIN.update.participantsList)
+        room.onAddTrack(
+            MockAudioStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_AUDIO_TRACK.sid
+                    )
+                )
+            )
+        )
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onEngineDisconnected("")
+        val events = eventCollector.stopCollecting()
+
+        Assert.assertEquals(4, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnsubscribed)
+        Assert.assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
+        Assert.assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
+        Assert.assertEquals(true, events[3] is RoomEvent.Disconnected)
     }
 }
