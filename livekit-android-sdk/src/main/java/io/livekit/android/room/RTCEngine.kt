@@ -609,6 +609,10 @@ internal constructor(
         listener?.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
     }
 
+    override fun onRefreshToken(token: String) {
+        sessionToken = token
+    }
+
     //--------------------------------- DataChannel.Observer ------------------------------------//
 
     override fun onBufferedAmountChange(previousAmount: Long) {
