@@ -349,7 +349,7 @@ constructor(
         coroutineScope.cancel()
     }
 
-    fun sendSyncState() {
+    private fun sendSyncState() {
         // Whether we're sending subscribed tracks or tracks to unsubscribe.
         val sendUnsub = connectOptions.autoSubscribe
         val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
