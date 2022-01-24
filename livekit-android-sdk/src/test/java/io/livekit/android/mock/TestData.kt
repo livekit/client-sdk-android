@@ -4,6 +4,12 @@ import livekit.LivekitModels
 
 object TestData {
 
+    val LOCAL_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
+        sid = "local_audio_track_sid"
+        type = LivekitModels.TrackType.AUDIO
+        build()
+    }
+
     val REMOTE_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
         sid = "remote_audio_track_sid"
         type = LivekitModels.TrackType.AUDIO

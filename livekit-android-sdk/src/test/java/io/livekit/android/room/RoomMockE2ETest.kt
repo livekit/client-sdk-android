@@ -10,8 +10,8 @@ import io.livekit.android.mock.MockMediaStream
 import io.livekit.android.mock.TestData
 import io.livekit.android.mock.createMediaStreamId
 import io.livekit.android.room.participant.ConnectionQuality
+import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.Track
-import io.livekit.android.util.delegate
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -254,6 +254,30 @@ class RoomMockE2ETest : MockE2ETest() {
 
         Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
+    }
+
+    @Test
+    fun disconnectCleansLocalParticipant() = runTest {
+        connect()
+
+        val publishJob = launch {
+            room.localParticipant.publishAudioTrack(
+                LocalAudioTrack(
+                    "",
+                    MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
+                )
+            )
+        }
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.LOCAL_TRACK_PUBLISHED.toOkioByteString())
+        publishJob.join()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.disconnect()
+        val events = eventCollector.stopCollecting()
+
+        Assert.assertEquals(2, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
+        Assert.assertEquals(true, events[1] is RoomEvent.Disconnected)
     }
 
     @Test

@@ -32,4 +32,10 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
     override fun send(buffer: Buffer?): Boolean {
         return true
     }
+
+    override fun close() {
+    }
+
+    override fun dispose() {
+    }
 }

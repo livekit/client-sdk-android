@@ -192,9 +192,10 @@ class SignalClientTest : BaseTest() {
             build()
         }
 
-        val TRACK_PUBLISHED = with(LivekitRtc.SignalResponse.newBuilder()) {
+        val LOCAL_TRACK_PUBLISHED = with(LivekitRtc.SignalResponse.newBuilder()) {
             trackPublished = with(trackPublishedBuilder) {
-                track = TestData.REMOTE_AUDIO_TRACK
+                cid = "local_cid"
+                track = TestData.LOCAL_AUDIO_TRACK
                 build()
             }
             build()
