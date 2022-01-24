@@ -480,7 +480,7 @@ internal constructor(
         val sid = publication.sid
         tracks = tracks.toMutableMap().apply { remove(sid) }
 
-        if(engine.connectionState == ConnectionState.CONNECTED) {
+        if (engine.connectionState == ConnectionState.CONNECTED) {
             val senders = engine.publisher.peerConnection.senders
             for (sender in senders) {
                 val t = sender.track() ?: continue
@@ -612,6 +612,11 @@ internal constructor(
                 unpublishTrack(track)
             }
         }
+    }
+
+    fun dispose() {
+        cleanup()
+        scope.cancel()
     }
 
     interface PublishListener {

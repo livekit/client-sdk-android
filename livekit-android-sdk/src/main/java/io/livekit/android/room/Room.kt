@@ -119,8 +119,12 @@ constructor(
      */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    lateinit var localParticipant: LocalParticipant
-        private set
+    var _localParticipant: LocalParticipant? = null
+    val localParticipant: LocalParticipant
+        get() {
+            return _localParticipant
+                ?: throw UninitializedPropertyAccessException("localParticipant has not been initialized yet.")
+        }
 
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
 
@@ -183,9 +187,14 @@ constructor(
             return
         }
 
-        val lp = localParticipantFactory.create(response.participant, dynacast)
-        lp.internalListener = this
-        localParticipant = lp
+        if (_localParticipant == null) {
+            val lp = localParticipantFactory.create(response.participant, dynacast)
+            lp.internalListener = this
+            _localParticipant = lp
+        } else {
+            localParticipant.updateFromInfo(response.participant)
+        }
+
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
                 getOrCreateRemoteParticipant(it.sid, it)
@@ -327,7 +336,6 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
-
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
@@ -351,6 +359,8 @@ constructor(
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
         listener = null
+        _localParticipant?.dispose()
+        _localParticipant = null
 
         // Ensure all observers see the disconnected before closing scope.
         runBlocking {
