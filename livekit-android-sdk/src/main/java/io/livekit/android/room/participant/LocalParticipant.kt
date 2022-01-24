@@ -9,11 +9,13 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.cancel
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.EglBase
@@ -57,6 +59,13 @@ internal constructor(
         get() = tracks.values
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
+
+    private var isReconnecting = false
+
+    /**
+     * Holds on to publishes that need to be republished after a full reconnect.
+     */
+    private var publishes = mutableMapOf<Track, TrackPublishOptions>()
 
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
@@ -189,7 +198,7 @@ internal constructor(
         ),
         publishListener: PublishListener? = null
     ) {
-        publishTrackImpl(
+        val published = publishTrackImpl(
             track,
             requestConfig = {
                 disableDtx = !options.dtx
@@ -197,6 +206,10 @@ internal constructor(
             },
             publishListener = publishListener,
         )
+
+        if (published) {
+            publishes[track] = options
+        }
     }
 
     suspend fun publishVideoTrack(
@@ -208,7 +221,7 @@ internal constructor(
         val encodings = computeVideoEncodings(track.dimensions, options)
         val videoLayers = videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
 
-        publishTrackImpl(
+        val published = publishTrackImpl(
             track,
             requestConfig = {
                 width = track.dimensions.width
@@ -223,18 +236,25 @@ internal constructor(
             encodings = encodings,
             publishListener = publishListener
         )
+
+        if (published) {
+            publishes[track] = options
+        }
     }
 
 
+    /**
+     * @return true if the track publish was successful.
+     */
     private suspend fun publishTrackImpl(
         track: Track,
         requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null
-    ) {
+    ): Boolean {
         if (localTrackPublications.any { it.track == track }) {
             publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
-            return
+            return false
         }
 
         val cid = track.rtcTrack.id()
@@ -264,16 +284,19 @@ internal constructor(
 
         if (transceiver == null) {
             publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
-            return
+            return false
         }
 
         // TODO: enable setting preferred codec
 
         val publication = LocalTrackPublication(trackInfo, track, this)
         addTrackPublication(publication)
+
         publishListener?.onPublishSuccess(publication)
         internalListener?.onTrackPublished(publication, this)
         eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
+
+        return true
     }
 
     private fun computeVideoEncodings(
@@ -451,14 +474,19 @@ internal constructor(
             LKLog.d { "this track was never published." }
             return
         }
+
+        publishes.remove(track)
+
         val sid = publication.sid
         tracks = tracks.toMutableMap().apply { remove(sid) }
 
-        val senders = engine.publisher.peerConnection.senders ?: return
-        for (sender in senders) {
-            val t = sender.track() ?: continue
-            if (t.id() == track.rtcTrack.id()) {
-                engine.publisher.peerConnection.removeTrack(sender)
+        if(engine.connectionState == ConnectionState.CONNECTED) {
+            val senders = engine.publisher.peerConnection.senders
+            for (sender in senders) {
+                val t = sender.track() ?: continue
+                if (t.id() == track.rtcTrack.id()) {
+                    engine.publisher.peerConnection.removeTrack(sender)
+                }
             }
         }
         track.stop()
@@ -555,6 +583,36 @@ internal constructor(
         }
     }
 
+    fun prepareForFullReconnect() {
+        val pubs = localTrackPublications // creates a copy, so is safe from the following removal.
+        tracks = tracks.toMutableMap().apply { clear() }
+
+        for (publication in pubs) {
+            internalListener?.onTrackUnpublished(publication, this)
+            eventBus.postEvent(ParticipantEvent.LocalTrackUnpublished(this, publication), scope)
+        }
+    }
+
+    suspend fun republishTracks() {
+        for ((track, options) in publishes) {
+            when (track) {
+                is LocalAudioTrack -> publishAudioTrack(track, options as AudioTrackPublishOptions, null)
+                is LocalVideoTrack -> publishVideoTrack(track, options as VideoTrackPublishOptions, null)
+                else -> throw IllegalStateException("LocalParticipant has a non local track publish?")
+            }
+        }
+    }
+
+    fun cleanup() {
+        for (pub in tracks.values) {
+            val track = pub.track
+
+            if (track != null) {
+                track.stop()
+                unpublishTrack(track)
+            }
+        }
+    }
 
     interface PublishListener {
         fun onPublishSuccess(publication: TrackPublication) {}
@@ -678,4 +736,16 @@ data class ParticipantTrackPermission(
             .addAllTrackSids(allowedTrackSids)
             .build()
     }
+}
+
+sealed class PublishRecord() {
+    data class AudioTrackPublishRecord(
+        val track: LocalAudioTrack,
+        val options: AudioTrackPublishOptions
+    )
+
+    data class VideoTrackPublishRecord(
+        val track: LocalVideoTrack,
+        val options: VideoTrackPublishOptions
+    )
 }

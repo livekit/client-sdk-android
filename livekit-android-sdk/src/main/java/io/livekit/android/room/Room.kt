@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package io.livekit.android.room
 
 import android.content.Context
@@ -162,6 +164,8 @@ constructor(
                 getOrCreateRemoteParticipant(it.sid, it)
             }
         }
+        engine.onReady()
+
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -190,7 +194,7 @@ constructor(
         val newParticipants = mutableRemoteParticipants.toMutableMap()
         val removedParticipant = newParticipants.remove(sid) ?: return
         removedParticipant.tracks.values.toList().forEach { publication ->
-            removedParticipant.unpublishTrack(publication.sid)
+            removedParticipant.unpublishTrack(publication.sid, true)
         }
 
         mutableRemoteParticipants = newParticipants
@@ -316,6 +320,16 @@ constructor(
         engine.reconnect()
     }
 
+    /**
+     * Removes all participants and tracks from the room.
+     */
+    private fun cleanupRoom() {
+
+        localParticipant.cleanup()
+        remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
+            .forEach { sid -> handleParticipantDisconnect(sid) }
+    }
+
     private fun handleDisconnect() {
         if (state == State.DISCONNECTED) {
             return
@@ -328,15 +342,8 @@ constructor(
             // do nothing, may happen on older versions if attempting to unregister twice.
         }
 
-        for (pub in localParticipant.tracks.values) {
-            pub.track?.stop()
-        }
-        // stop remote tracks too
-        for (p in remoteParticipants.values) {
-            for (pub in p.tracks.values) {
-                pub.track?.stop()
-            }
-        }
+        cleanupRoom()
+
         engine.close()
         state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
@@ -565,6 +572,14 @@ constructor(
             // during reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
+    }
+
+    override fun onFullReconnecting() {
+        localParticipant.prepareForFullReconnect()
+    }
+
+    override suspend fun onFullReconnect() {
+        localParticipant.republishTracks()
     }
 
     //------------------------------- ParticipantListener --------------------------------//
