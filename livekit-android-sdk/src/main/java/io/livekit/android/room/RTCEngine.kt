@@ -334,8 +334,9 @@ internal constructor(
                 LKLog.i { "Reconnecting to signal, attempt ${wsRetries + 1}" }
                 delay(startDelay)
 
+                val isFullReconnect = wsRetries == 0
                 try {
-                    if (wsRetries == 0) {
+                    if (!isFullReconnect) {
                         client.reconnect(url, token)
                         // no join response for regular reconnects
                         client.onReady()
@@ -371,7 +372,7 @@ internal constructor(
                 }
 
                 if (connectionState == ConnectionState.CONNECTED) {
-                    if (wsRetries != 0) {
+                    if (isFullReconnect) {
                         listener?.onFullReconnect()
                     }
                     return@launch
