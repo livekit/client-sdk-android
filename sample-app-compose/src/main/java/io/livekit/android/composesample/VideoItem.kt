@@ -1,6 +1,5 @@
 package io.livekit.android.composesample
 
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -52,6 +51,12 @@ fun VideoItem(
         onDispose {
             videoSinkVisibility.onDispose()
             cleanupVideoTrack()
+        }
+    }
+
+    DisposableEffect(currentCompositeKeyHash.toString()) {
+        onDispose {
+            view?.release()
         }
     }
 
