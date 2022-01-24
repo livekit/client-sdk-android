@@ -92,7 +92,7 @@ constructor(
     ): Either<LivekitRtc.JoinResponse, Unit> {
         var wsUrlString = "$url/rtc" +
                 "?protocol=$PROTOCOL_VERSION" +
-                "&access_token=$token" +
+                "&$CONNECT_QUERY_TOKEN=$token" +
                 "&sdk=$SDK_TYPE" +
                 "&version=${Version.CLIENT_VERSION}"
         isReconnecting = false
@@ -339,12 +339,12 @@ constructor(
         allParticipants: Boolean,
         participantTrackPermissions: List<ParticipantTrackPermission>
     ) {
-        val update = LivekitRtc.UpdateSubscriptionPermissions.newBuilder()
+        val update = LivekitRtc.SubscriptionPermission.newBuilder()
             .setAllParticipants(allParticipants)
             .addAllTrackPermissions(participantTrackPermissions.map { it.toProto() })
 
         val request = LivekitRtc.SignalRequest.newBuilder()
-            .setSubscriptionPermissions(update)
+            .setSubscriptionPermission(update)
             .build()
 
         sendRequest(request)
@@ -473,6 +473,9 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
                 listener?.onSubscriptionPermissionUpdate(response.subscriptionPermissionUpdate)
             }
+            LivekitRtc.SignalResponse.MessageCase.REFRESH_TOKEN -> {
+                listener?.onRefreshToken(response.refreshToken)
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
@@ -507,9 +510,12 @@ constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
+        fun onRefreshToken(token: String)
     }
 
     companion object {
+        const val CONNECT_QUERY_TOKEN = "access_token"
+
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"

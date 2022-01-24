@@ -275,6 +275,11 @@ class SignalClientTest : BaseTest() {
             }
             build()
         }
+
+        val REFRESH_TOKEN = with(LivekitRtc.SignalResponse.newBuilder()) {
+            refreshToken = "refresh_token"
+            build()
+        }
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
             leave = with(leaveBuilder) {
                 build()
