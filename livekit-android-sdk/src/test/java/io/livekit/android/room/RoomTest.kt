@@ -19,10 +19,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
-import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.stub
+import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
 
@@ -68,7 +65,11 @@ class RoomTest {
     suspend fun connect() {
         rtcEngine.stub {
             onBlocking { rtcEngine.join(any(), any(), anyOrNull()) }
-                .doReturn(SignalClientTest.JOIN.join)
+                .doSuspendableAnswer {
+                    room.onJoinResponse(SignalClientTest.JOIN.join)
+                    SignalClientTest.JOIN.join
+                }
+
         }
         rtcEngine.stub {
             onBlocking { rtcEngine.client }

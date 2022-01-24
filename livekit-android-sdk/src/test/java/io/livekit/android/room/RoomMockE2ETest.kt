@@ -119,8 +119,9 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.ParticipantDisconnected)
+        Assert.assertEquals(2, events.size)
+        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
+        Assert.assertEquals(true, events[1] is RoomEvent.ParticipantDisconnected)
     }
 
     @Test
