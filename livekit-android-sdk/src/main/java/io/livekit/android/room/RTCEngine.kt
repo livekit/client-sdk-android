@@ -115,9 +115,14 @@ internal constructor(
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
         sessionToken = token
+        return joinImpl(url, token, options)
+    }
+
+    suspend fun joinImpl(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
         val joinResponse = client.join(url, token, options)
+        listener?.onJoinResponse(joinResponse)
         isClosed = false
-        listener?.onSignalConnected()
+        listener?.onSignalConnected(false)
 
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
@@ -127,14 +132,8 @@ internal constructor(
         if (!this.isSubscriberPrimary) {
             negotiate()
         }
-        return joinResponse
-    }
-
-    /**
-     * @see [SignalClient.onReady]
-     */
-    fun onReady() {
         client.onReady()
+        return joinResponse
     }
 
     private fun configure(joinResponse: LivekitRtc.JoinResponse, connectOptions: ConnectOptions?) {
@@ -334,33 +333,40 @@ internal constructor(
                 LKLog.i { "Reconnecting to signal, attempt ${wsRetries + 1}" }
                 delay(startDelay)
 
-                val isFullReconnect = wsRetries == 0
-                try {
-                    if (!isFullReconnect) {
+                // full reconnect after first try.
+                val isFullReconnect = true
+
+                if (isFullReconnect) {
+                    try {
+                        closeResources()
+                        listener?.onFullReconnecting()
+                        joinImpl(url, token, connectOptions ?: ConnectOptions())
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "Error during reconnection." }
+                        // reconnect failed, retry.
+                        continue
+                    }
+                } else {
+                    try {
                         client.reconnect(url, token)
                         // no join response for regular reconnects
                         client.onReady()
-                    } else {
-                        // full reconnect after first try.
-                        closeResources()
-                        listener?.onFullReconnecting()
-                        client.connect(url, token, connectOptions ?: ConnectOptions())
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "Error during reconnection." }
+                        // ws reconnect failed, retry.
+                        continue
                     }
-                } catch (e: Exception) {
-                    // ws reconnect failed, retry.
-                    continue
+
+                    LKLog.v { "ws reconnected, restarting ICE" }
+                    listener?.onSignalConnected(!isFullReconnect)
+
+                    subscriber.prepareForIceRestart()
+                    // trigger publisher reconnect
+                    // only restart publisher if it's needed
+                    if (hasPublished) {
+                        negotiate()
+                    }
                 }
-
-                LKLog.v { "ws reconnected, restarting ICE" }
-                listener?.onSignalConnected()
-
-                subscriber.prepareForIceRestart()
-                // trigger publisher reconnect
-                // only restart publisher if it's needed
-                if (hasPublished) {
-                    negotiate()
-                }
-
                 // wait until ICE connected
                 val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
                 while (SystemClock.elapsedRealtime() < endTime) {
@@ -491,6 +497,7 @@ internal constructor(
         fun onEngineReconnecting()
         fun onEngineDisconnected(reason: String)
         fun onFailToConnect(error: Throwable)
+        fun onJoinResponse(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -502,7 +509,7 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
-        fun onSignalConnected()
+        fun onSignalConnected(isReconnect: Boolean)
         fun onFullReconnecting()
         suspend fun onFullReconnect()
     }

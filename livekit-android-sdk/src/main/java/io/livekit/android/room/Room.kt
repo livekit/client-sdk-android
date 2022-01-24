@@ -145,26 +145,7 @@ constructor(
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
         connectOptions = options
-        val response = engine.join(url, token, options)
-        LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
-
-        sid = Sid(response.room.sid)
-        name = response.room.name
-
-        if (!response.hasParticipant()) {
-            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
-            return
-        }
-
-        val lp = localParticipantFactory.create(response.participant, dynacast)
-        lp.internalListener = this
-        localParticipant = lp
-        if (response.otherParticipantsList.isNotEmpty()) {
-            response.otherParticipantsList.forEach {
-                getOrCreateRemoteParticipant(it.sid, it)
-            }
-        }
-        engine.onReady()
+        engine.join(url, token, options)
 
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
@@ -188,6 +169,28 @@ constructor(
     fun disconnect() {
         engine.client.sendLeave()
         handleDisconnect()
+    }
+
+    override fun onJoinResponse(response: LivekitRtc.JoinResponse) {
+
+        LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
+
+        sid = Sid(response.room.sid)
+        name = response.room.name
+
+        if (!response.hasParticipant()) {
+            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
+            return
+        }
+
+        val lp = localParticipantFactory.create(response.participant, dynacast)
+        lp.internalListener = this
+        localParticipant = lp
+        if (response.otherParticipantsList.isNotEmpty()) {
+            response.otherParticipantsList.forEach {
+                getOrCreateRemoteParticipant(it.sid, it)
+            }
+        }
     }
 
     private fun handleParticipantDisconnect(sid: String) {
@@ -567,8 +570,8 @@ constructor(
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
     }
 
-    override fun onSignalConnected() {
-        if (state == State.RECONNECTING) {
+    override fun onSignalConnected(isReconnect: Boolean) {
+        if (state == State.RECONNECTING && isReconnect) {
             // during reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
