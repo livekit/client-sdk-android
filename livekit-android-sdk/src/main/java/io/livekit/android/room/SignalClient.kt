@@ -1,5 +1,6 @@
 package io.livekit.android.room
 
+import android.net.Uri
 import com.google.protobuf.util.JsonFormat
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
@@ -7,6 +8,7 @@ import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
+import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
@@ -89,22 +91,8 @@ constructor(
         token: String,
         options: ConnectOptions
     ): Either<LivekitRtc.JoinResponse, Unit> {
-        var wsUrlString = "$url/rtc" +
-                "?protocol=$PROTOCOL_VERSION" +
-                "&$CONNECT_QUERY_TOKEN=$token" +
-                "&sdk=$SDK_TYPE" +
-                "&version=${Version.CLIENT_VERSION}"
-        isReconnecting = false
-        wsUrlString += "&auto_subscribe="
-        wsUrlString += if (options.autoSubscribe) {
-            "1"
-        } else {
-            "0"
-        }
-        if (options.reconnect) {
-            wsUrlString += "&reconnect=1"
-            isReconnecting = true
-        }
+        val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options)
+        isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
 
@@ -122,6 +110,36 @@ constructor(
         return suspendCancellableCoroutine {
             // Wait for join response through WebSocketListener
             joinContinuation = it
+        }
+    }
+
+    private fun createConnectionParams(
+        token: String,
+        clientInfo: LivekitModels.ClientInfo,
+        options: ConnectOptions
+    ): String {
+
+        val queryParams = mutableListOf<Pair<String, String>>()
+        queryParams.add(CONNECT_QUERY_TOKEN to token)
+
+        if (options.reconnect) {
+            queryParams.add(CONNECT_QUERY_RECONNECT to 1.toString())
+        }
+
+        val autoSubscribe = if(options.autoSubscribe) 1 else 0
+        queryParams.add(CONNECT_QUERY_AUTOSUBSCRIBE to autoSubscribe.toString())
+
+        // Client info
+        queryParams.add(CONNECT_QUERY_SDK to "android")
+        queryParams.add(CONNECT_QUERY_VERSION to clientInfo.version)
+        queryParams.add(CONNECT_QUERY_PROTOCOL to clientInfo.protocol.toString())
+        queryParams.add(CONNECT_QUERY_DEVICE_MODEL to clientInfo.deviceModel)
+        queryParams.add(CONNECT_QUERY_OS to clientInfo.os)
+        queryParams.add(CONNECT_QUERY_OS_VERSION to clientInfo.osVersion)
+
+        return queryParams.foldIndexed("") { index, acc, pair ->
+            val separator = if(index == 0) "?" else "&"
+            acc + separator + "${pair.first}=${pair.second}"
         }
     }
 
@@ -495,7 +513,7 @@ constructor(
      */
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
-        if(::coroutineScope.isInitialized) {
+        if (::coroutineScope.isInitialized) {
             coroutineScope.close()
         }
         currentWs?.close(code, reason)
@@ -525,6 +543,14 @@ constructor(
 
     companion object {
         const val CONNECT_QUERY_TOKEN = "access_token"
+        const val CONNECT_QUERY_RECONNECT = "reconnect"
+        const val CONNECT_QUERY_AUTOSUBSCRIBE = "autoSubscribe"
+        const val CONNECT_QUERY_SDK = "sdk"
+        const val CONNECT_QUERY_VERSION = "version"
+        const val CONNECT_QUERY_PROTOCOL = "protocol"
+        const val CONNECT_QUERY_DEVICE_MODEL = "device_model"
+        const val CONNECT_QUERY_OS = "os"
+        const val CONNECT_QUERY_OS_VERSION = "os_version"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
