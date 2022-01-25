@@ -99,7 +99,12 @@ class RemoteTrackPublication(
     fun setSubscribed(subscribed: Boolean) {
         unsubscribed = !subscribed
         val participant = this.participant.get() as? RemoteParticipant ?: return
-        participant.signalClient.sendUpdateSubscription(sid, !unsubscribed)
+        val participantTracks = with(LivekitModels.ParticipantTracks.newBuilder()) {
+            participantSid = participant.sid
+            addTrackSids(sid)
+            build()
+        }
+        participant.signalClient.sendUpdateSubscription(!unsubscribed, participantTracks)
     }
 
     /**
