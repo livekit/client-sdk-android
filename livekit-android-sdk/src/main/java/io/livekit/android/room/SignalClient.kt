@@ -346,9 +346,9 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendUpdateSubscription(sid: String, subscribe: Boolean) {
+    fun sendUpdateSubscription(subscribe: Boolean, vararg participantTracks: LivekitModels.ParticipantTracks) {
         val subscription = LivekitRtc.UpdateSubscription.newBuilder()
-            .addTrackSids(sid)
+            .addAllParticipantTracks(participantTracks.toList())
             .setSubscribe(subscribe)
 
         val request = LivekitRtc.SignalRequest.newBuilder()
