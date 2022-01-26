@@ -22,6 +22,7 @@ import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
+import java.lang.Exception
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -135,5 +136,14 @@ class RoomTest {
         Assert.assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
         Assert.assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
         Assert.assertEquals(true, events[3] is RoomEvent.Disconnected)
+
+        var localParticipantEmpty = false
+        try{
+            room.localParticipant // should throw
+        } catch (e: Exception) {
+            localParticipantEmpty = true
+        }
+        Assert.assertTrue(localParticipantEmpty)
+        Assert.assertTrue(room.remoteParticipants.isEmpty())
     }
 }
