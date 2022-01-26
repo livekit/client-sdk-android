@@ -35,7 +35,7 @@ dependencies {
     api "androidx.core:core-ktx:${versions.androidx_core}"
     api 'androidx.appcompat:appcompat:1.4.0'
     api 'com.google.android.material:material:1.4.0'
-    api deps.kotlinx_coroutines
+    api deps.coroutines.lib
     api deps.timber
     api "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
     api "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
