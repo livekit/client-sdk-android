@@ -39,6 +39,7 @@ fun DebugMenuDialog(
             }
             Button(onClick = {
                 fullReconnect()
+                onDismissRequest()
             }) {
                 Text("Reconnect to room")
             }
