@@ -336,7 +336,7 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
-        localParticipant.cleanup()
+        _localParticipant?.cleanup()
         remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
     }
