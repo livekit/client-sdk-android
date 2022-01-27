@@ -94,7 +94,7 @@ class RemoteVideoTrack(
         }
     }
 
-    fun dispose() {
+    override fun dispose() {
         super.dispose()
         coroutineScope.cancel()
     }
