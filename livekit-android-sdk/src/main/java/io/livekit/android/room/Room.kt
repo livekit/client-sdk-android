@@ -388,9 +388,14 @@ constructor(
             }
         }
 
+        // backwards compatibility for protocol version < 6
+        val trackSids = participantTracksList.map { it.trackSidsList }
+            .flatten()
+
         val subscription = LivekitRtc.UpdateSubscription.newBuilder()
             .setSubscribe(!sendUnsub)
             .addAllParticipantTracks(participantTracksList)
+            .addAllTrackSids(trackSids)
             .build()
         val publishedTracks = localParticipant.publishTracksInfo()
         engine.sendSyncState(subscription, publishedTracks)

@@ -347,8 +347,13 @@ constructor(
     }
 
     fun sendUpdateSubscription(subscribe: Boolean, vararg participantTracks: LivekitModels.ParticipantTracks) {
+        val participantTracksList = participantTracks.toList()
+
+        // backwards compatibility for protocol version < 6
+        val trackSids = participantTracksList.map { it.trackSidsList }.flatten()
         val subscription = LivekitRtc.UpdateSubscription.newBuilder()
             .addAllParticipantTracks(participantTracks.toList())
+            .addAllTrackSids(trackSids)
             .setSubscribe(subscribe)
 
         val request = LivekitRtc.SignalRequest.newBuilder()
