@@ -100,7 +100,7 @@ class CallViewModel(
                 mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
                 mutableRoom.value = room
 
-                mutablePrimarySpeaker.value = room.remoteParticipants.values.firstOrNull() ?: localParticipant
+                handlePrimarySpeaker(emptyList(), emptyList(), room)
 
                 launch {
                     combine(participants, activeSpeakers) { participants, speakers -> participants to speakers }
@@ -257,13 +257,17 @@ class CallViewModel(
     }
 
     fun reconnect() {
-        room.value?.disconnect()
-
+        Timber.e { "Reconnecting." }
+        val room = mutableRoom.value ?: return
+        mutableRoom.value = null
+        mutablePrimarySpeaker.value = null
+        room.disconnect()
         viewModelScope.launch {
-            room.value?.connect(
+            room.connect(
                 url,
                 token
             )
+            mutableRoom.value = room
         }
     }
 }
