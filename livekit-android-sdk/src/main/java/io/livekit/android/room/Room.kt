@@ -353,10 +353,10 @@ constructor(
             // do nothing, may happen on older versions if attempting to unregister twice.
         }
 
+        state = State.DISCONNECTED
+        engine.close()
         cleanupRoom()
 
-        engine.close()
-        state = State.DISCONNECTED
         listener?.onDisconnect(this, null)
         listener = null
         _localParticipant?.dispose()

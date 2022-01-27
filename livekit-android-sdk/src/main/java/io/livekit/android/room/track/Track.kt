@@ -119,6 +119,10 @@ open class Track(
     open fun stop() {
         rtcTrack.setEnabled(false)
     }
+
+    open fun dispose() {
+        rtcTrack.dispose()
+    }
 }
 
 

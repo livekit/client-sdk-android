@@ -159,6 +159,8 @@ class RemoteParticipant(
             listener?.onTrackUnpublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
         }
+        track?.dispose()
+        publication.track = null
     }
 
     internal fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {

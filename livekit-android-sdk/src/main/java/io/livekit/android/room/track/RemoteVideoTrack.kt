@@ -6,10 +6,7 @@ import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max
@@ -95,5 +92,10 @@ class RemoteVideoTrack(
                 eventBus.postEvents(eventsToPost)
             }
         }
+    }
+
+    fun dispose() {
+        super.dispose()
+        coroutineScope.cancel()
     }
 }
