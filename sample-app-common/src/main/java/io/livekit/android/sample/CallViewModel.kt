@@ -38,7 +38,7 @@ class CallViewModel(
                                 .mapNotNull { remoteParticipants[it] }
                 }
         } else {
-            emptyFlow()
+            flowOf(emptyList())
         }
     }
 
@@ -52,7 +52,7 @@ class CallViewModel(
         if (room != null) {
             room::activeSpeakers.flow
         } else {
-            emptyFlow()
+            flowOf(emptyList())
         }
     }
 
