@@ -79,12 +79,13 @@ class RemoteTrackPublication(
             }
         }
 
-    override var muted: Boolean = false
+    override var muted: Boolean
+        get() = super.muted
         set(v) {
-            if (field == v) {
+            if (super.muted == v) {
                 return
             }
-            field = v
+            super.muted = v
             val participant = this.participant.get() as? RemoteParticipant ?: return
             if (v) {
                 participant.onTrackMuted(this)

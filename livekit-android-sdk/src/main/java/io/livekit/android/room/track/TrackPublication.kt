@@ -21,7 +21,9 @@ open class TrackPublication(
         private set
     var kind: Track.Kind
         private set
-    open var muted: Boolean = false
+
+    @get:FlowObservable
+    open var muted: Boolean by flowDelegate(false)
         internal set
     open val subscribed: Boolean
         get() {

@@ -8,8 +8,14 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.ParticipantItemBinding
+import io.livekit.android.util.flow
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 
 class ParticipantItem(
     val room: Room,
@@ -17,6 +23,7 @@ class ParticipantItem(
 ) : BindableItem<ParticipantItemBinding>() {
 
     private var boundVideoTrack: VideoTrack? = null
+    private var coroutineScope: CoroutineScope? = null
 
     override fun initializeViewBinding(view: View): ParticipantItemBinding {
         val binding = ParticipantItemBinding.bind(view)
@@ -24,8 +31,34 @@ class ParticipantItem(
         return binding
     }
 
+    private fun ensureCoroutineScope() {
+        if (coroutineScope == null) {
+            coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        }
+    }
+
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
-        viewBinding.identityText.text = participant.identity
+
+        ensureCoroutineScope()
+        coroutineScope?.launch {
+            participant::identity.flow.collect { identity ->
+                viewBinding.identityText.text = identity
+            }
+        }
+        coroutineScope?.launch {
+            participant::audioTracks.flow
+                .flatMapLatest { tracks ->
+                    val audioTrack = tracks.values.firstOrNull()
+                    if (audioTrack != null) {
+                        audioTrack::muted.flow
+                    } else {
+                        flowOf(true)
+                    }
+                }
+                .collect { muted ->
+                    viewBinding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+                }
+        }
         participant.listener = object : ParticipantListener {
             override fun onTrackSubscribed(
                 track: Track,
@@ -67,6 +100,8 @@ class ParticipantItem(
     }
 
     override fun unbind(viewHolder: GroupieViewHolder<ParticipantItemBinding>) {
+        coroutineScope?.cancel()
+        coroutineScope = null
         super.unbind(viewHolder)
         boundVideoTrack?.removeRenderer(viewHolder.binding.renderer)
         boundVideoTrack = null
