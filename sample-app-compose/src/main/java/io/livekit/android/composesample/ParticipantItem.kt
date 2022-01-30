@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -18,6 +19,7 @@ import androidx.constraintlayout.compose.Dimension
 import io.livekit.android.composesample.ui.theme.BlueMain
 import io.livekit.android.composesample.ui.theme.NoVideoBackground
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
@@ -48,7 +50,7 @@ fun ParticipantItem(
                 }
             }
     ) {
-        val (videoCamOff, identityBar, identityText, muteIndicator) = createRefs()
+        val (videoCamOff, identityBar, identityText, muteIndicator, connectionIndicator) = createRefs()
         val videoTrack = participant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? VideoTrack
             ?: participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
             ?: videoTracks.values.firstOrNull()?.track as? VideoTrack
@@ -112,6 +114,29 @@ fun ParticipantItem(
                     bottom.linkTo(identityBar.bottom)
                     end.linkTo(identityBar.end, margin = identityBarPadding)
                 }
+            )
+        }
+
+        val connectionQuality by participant::connectionQuality.flow.collectAsState()
+
+        val connectionIcon = when (connectionQuality) {
+            ConnectionQuality.EXCELLENT -> R.drawable.wifi_strength_4
+            ConnectionQuality.GOOD -> R.drawable.wifi_strength_3
+            ConnectionQuality.POOR -> R.drawable.wifi_strength_alert_outline
+            ConnectionQuality.UNKNOWN -> R.drawable.wifi_strength_alert_outline
+        }
+
+        if (connectionQuality == ConnectionQuality.POOR) {
+            Icon(
+                painter = painterResource(id = connectionIcon),
+                contentDescription = "",
+                tint = Color.Red,
+                modifier = Modifier
+                    .constrainAs(connectionIndicator) {
+                        top.linkTo(parent.top, margin = identityBarPadding)
+                        end.linkTo(parent.end, margin = identityBarPadding)
+                    }
+                    .alpha(0.5f)
             )
         }
     }
