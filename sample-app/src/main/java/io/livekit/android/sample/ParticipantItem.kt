@@ -5,6 +5,7 @@ import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
@@ -57,6 +58,13 @@ class ParticipantItem(
                 }
                 .collect { muted ->
                     viewBinding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+                }
+        }
+        coroutineScope?.launch {
+            participant::connectionQuality.flow
+                .collect { quality ->
+                    viewBinding.connectionQuality.visibility =
+                        if (quality == ConnectionQuality.POOR) View.VISIBLE else View.INVISIBLE
                 }
         }
         participant.listener = object : ParticipantListener {
