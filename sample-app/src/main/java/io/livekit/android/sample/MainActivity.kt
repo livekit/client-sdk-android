@@ -7,23 +7,22 @@ import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
-import androidx.preference.PreferenceManager
 import io.livekit.android.sample.databinding.MainActivityBinding
 
 
 class MainActivity : AppCompatActivity() {
 
+    val viewModel by viewModels<MainViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val binding = MainActivityBinding.inflate(layoutInflater)
 
-        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
-        val urlString = preferences.getString(PREFERENCES_KEY_URL, URL)
-        val tokenString = preferences.getString(PREFERENCES_KEY_TOKEN, TOKEN)
+        val urlString = viewModel.getSavedUrl()
+        val tokenString = viewModel.getSavedToken()
         binding.run {
             url.editText?.text = SpannableStringBuilder(urlString)
             token.editText?.text = SpannableStringBuilder(tokenString)
@@ -42,10 +41,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             saveButton.setOnClickListener {
-                preferences.edit {
-                    putString(PREFERENCES_KEY_URL, url.editText?.text.toString())
-                    putString(PREFERENCES_KEY_TOKEN, token.editText?.text.toString())
-                }
+
+                viewModel.setSavedUrl(url.editText?.text?.toString() ?: "")
+                viewModel.setSavedToken(token.editText?.text?.toString() ?: "")
 
                 Toast.makeText(
                     this@MainActivity,
@@ -55,11 +53,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             resetButton.setOnClickListener {
-                preferences.edit {
-                    clear()
-                }
-                url.editText?.text = SpannableStringBuilder(URL)
-                token.editText?.text = SpannableStringBuilder(TOKEN)
+                viewModel.reset()
+                url.editText?.text = SpannableStringBuilder(MainViewModel.URL)
+                token.editText?.text = SpannableStringBuilder(MainViewModel.TOKEN)
 
                 Toast.makeText(
                     this@MainActivity,
@@ -102,14 +98,5 @@ class MainActivity : AppCompatActivity() {
         if (neededPermissions.isNotEmpty()) {
             requestPermissionLauncher.launch(neededPermissions)
         }
-    }
-
-    companion object {
-        const val PREFERENCES_KEY_URL = "url"
-        const val PREFERENCES_KEY_TOKEN = "token"
-
-        const val URL = "wss://livekit.watercooler.fm"
-        const val TOKEN =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE5ODQyMzE0OTgsImlzcyI6IkFQSU1teGlMOHJxdUt6dFpFb1pKVjlGYiIsImp0aSI6ImZvcnRoIiwibmJmIjoxNjI0MjMxNDk4LCJ2aWRlbyI6eyJyb29tIjoibXlyb29tIiwicm9vbUpvaW4iOnRydWV9fQ.PVx_lXAIGxcD2VRslosrbkigc777GXbu-DQME8hjJKI"
     }
 }

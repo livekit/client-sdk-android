@@ -41,7 +41,6 @@ dependencies {
     implementation "androidx.core:core-ktx:${versions.androidx_core}"
     implementation "androidx.activity:activity-ktx:1.4.0"
     implementation 'androidx.fragment:fragment-ktx:1.3.6'
-    implementation 'androidx.preference:preference:1.1.1'
     implementation "androidx.viewpager2:viewpager2:1.0.0"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"

@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
@@ -18,24 +19,22 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
-import androidx.preference.PreferenceManager
 import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
+import io.livekit.android.sample.MainViewModel
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {
+
+    val viewModel by viewModels<MainViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         requestPermissions()
-        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
-        val defaultUrl = preferences.getString(PREFERENCES_KEY_URL, URL) as String
-        val defaultToken = preferences.getString(PREFERENCES_KEY_TOKEN, TOKEN) as String
         setContent {
             MainContent(
-                defaultUrl = defaultUrl,
-                defaultToken = defaultToken,
+                defaultUrl = viewModel.getSavedUrl(),
+                defaultToken = viewModel.getSavedToken(),
                 onConnect = { url, token ->
                     val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                         putExtra(
@@ -49,10 +48,8 @@ class MainActivity : ComponentActivity() {
                     startActivity(intent)
                 },
                 onSave = { url, token ->
-                    preferences.edit {
-                        putString(PREFERENCES_KEY_URL, url)
-                        putString(PREFERENCES_KEY_TOKEN, token)
-                    }
+                    viewModel.setSavedUrl(url)
+                    viewModel.setSavedToken(token)
 
                     Toast.makeText(
                         this@MainActivity,
@@ -61,9 +58,7 @@ class MainActivity : ComponentActivity() {
                     ).show()
                 },
                 onReset = {
-                    preferences.edit {
-                        clear()
-                    }
+                    viewModel.reset()
                     Toast.makeText(
                         this@MainActivity,
                         "Values reset.",
@@ -80,8 +75,8 @@ class MainActivity : ComponentActivity() {
     )
     @Composable
     fun MainContent(
-        defaultUrl: String = URL,
-        defaultToken: String = TOKEN,
+        defaultUrl: String = MainViewModel.URL,
+        defaultToken: String = MainViewModel.TOKEN,
         onConnect: (url: String, token: String) -> Unit = { _, _ -> },
         onSave: (url: String, token: String) -> Unit = { _, _ -> },
         onReset: () -> Unit = {},
@@ -130,9 +125,9 @@ class MainActivity : ComponentActivity() {
 
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(onClick = {
-                        url = URL
-                        token = TOKEN
                         onReset()
+                        url = MainViewModel.URL
+                        token = MainViewModel.TOKEN
                     }) {
                         Text("Reset Values")
                     }
@@ -170,11 +165,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    companion object {
-        const val PREFERENCES_KEY_URL = "url"
-        const val PREFERENCES_KEY_TOKEN = "token"
-
-        const val URL = "wss://www.example.com"
-        const val TOKEN = ""
-    }
 }

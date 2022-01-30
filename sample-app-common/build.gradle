@@ -42,6 +42,7 @@ dependencies {
     api "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"
     api "com.google.protobuf:protobuf-java:${versions.protobuf}"
     api project(":livekit-android-sdk")
+    implementation 'androidx.preference:preference-ktx:1.1.1'
     // debugImplementation because LeakCanary should only run in debug builds.
     debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.8.1'
     testImplementation 'junit:junit:4.+'
