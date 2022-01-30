@@ -250,7 +250,6 @@ open class Participant(
             scope
         )
     }
-
 }
 
 @Deprecated("Use Participant.events instead.")

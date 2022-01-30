@@ -9,9 +9,10 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.room.track.video.ComposeVisibility
+import io.livekit.android.util.flow
+import kotlinx.coroutines.flow.map
 
 /**
  * Widget for displaying a VideoTrack. Handles the Compose <-> AndroidView interop needed to use
@@ -84,13 +85,19 @@ fun VideoItem(
 fun VideoItemTrackSelector(
     room: Room,
     participant: Participant,
-    videoTracks: Map<String, TrackPublication>,
     modifier: Modifier = Modifier
 ) {
 
-    val videoTrack = participant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? VideoTrack
-        ?: participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
-        ?: videoTracks.values.firstOrNull()?.track as? VideoTrack
+    val subscribedVideoTracksFlow by remember(participant) {
+        mutableStateOf(
+            participant::videoTracks.flow
+                .map { tracks -> tracks.values.filter { pub -> pub.subscribed } }
+        )
+    }
+    val videoTracks by subscribedVideoTracksFlow.collectAsState(initial = emptyList())
+    val videoTrack = videoTracks.firstOrNull { pub -> pub.source == Track.Source.SCREEN_SHARE }?.track as? VideoTrack
+        ?: videoTracks.firstOrNull { pub -> pub.source == Track.Source.CAMERA }?.track as? VideoTrack
+        ?: videoTracks.firstOrNull()?.track as? VideoTrack
 
     if (videoTrack != null) {
         VideoItem(

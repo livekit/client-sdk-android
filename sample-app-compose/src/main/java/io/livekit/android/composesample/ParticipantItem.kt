@@ -58,7 +58,6 @@ fun ParticipantItem(
             VideoItemTrackSelector(
                 room = room,
                 participant = participant,
-                videoTracks = videoTracks,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
