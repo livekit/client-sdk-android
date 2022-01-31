@@ -444,16 +444,26 @@ constructor(
 
 
     //----------------------------------- RTCEngine.Listener ------------------------------------//
+
+    /**
+     * @suppress
+     */
     override fun onEngineConnected() {
         state = State.CONNECTED
     }
 
+    /**
+     * @suppress
+     */
     override fun onEngineReconnected() {
         state = State.CONNECTED
         listener?.onReconnected(this)
         eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
     }
 
+    /**
+     * @suppress
+     */
     override fun onEngineReconnecting() {
         state = State.RECONNECTING
         listener?.onReconnecting(this)
@@ -510,10 +520,16 @@ constructor(
         handleActiveSpeakersUpdate(speakers)
     }
 
+    /**
+     * @suppress
+     */
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         localParticipant.onRemoteMuteChanged(trackSid, muted)
     }
 
+    /**
+     * @suppress
+     */
     override fun onRoomUpdate(update: LivekitModels.Room) {
         val oldMetadata = metadata
         metadata = update.metadata
@@ -521,6 +537,9 @@ constructor(
         eventBus.postEvent(RoomEvent.RoomMetadataChanged(this, metadata, oldMetadata), coroutineScope)
     }
 
+    /**
+     * @suppress
+     */
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
         updates.forEach { info ->
             val quality = ConnectionQuality.fromProto(info.quality)
@@ -550,6 +569,9 @@ constructor(
         participant.onDataReceived(data)
     }
 
+    /**
+     * @suppress
+     */
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
         for (streamState in streamStates) {
             val participant = getParticipant(streamState.participantSid) ?: continue
@@ -559,10 +581,16 @@ constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
         localParticipant.handleSubscribedQualityUpdate(subscribedQualityUpdate)
     }
 
+    /**
+     * @suppress
+     */
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
         val participant = getParticipant(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
         participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
@@ -585,6 +613,9 @@ constructor(
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
     }
 
+    /**
+     * @suppress
+     */
     override fun onSignalConnected(isReconnect: Boolean) {
         if (state == State.RECONNECTING && isReconnect) {
             // during reconnection, need to send sync state upon signal connection.
@@ -592,10 +623,18 @@ constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     override fun onFullReconnecting() {
         localParticipant.prepareForFullReconnect()
+        remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
+            .forEach { sid -> handleParticipantDisconnect(sid) }
     }
 
+    /**
+     * @suppress
+     */
     override suspend fun onFullReconnect() {
         localParticipant.republishTracks()
     }
