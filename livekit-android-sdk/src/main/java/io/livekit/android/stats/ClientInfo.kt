@@ -9,7 +9,7 @@ internal fun getClientInfo() = with(LivekitModels.ClientInfo.newBuilder()) {
     sdk = LivekitModels.ClientInfo.SDK.ANDROID
     protocol = SignalClient.PROTOCOL_VERSION
     version = BuildConfig.VERSION_NAME
-    os = "android"
+    os = SignalClient.SDK_TYPE
     osVersion = Build.VERSION.RELEASE ?: ""
 
     val vendor = Build.MANUFACTURER ?: ""
