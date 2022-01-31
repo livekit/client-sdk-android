@@ -32,8 +32,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private const val PREFERENCES_KEY_URL = "url"
         private const val PREFERENCES_KEY_TOKEN = "token"
 
-        const val URL = "ws://192.168.11.5:7880"
+        const val URL = "ws://www.example.com"
         const val TOKEN =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NDUyNDU1ODEsImlzcyI6IkFQSVNRdmdrYWJZdXFUQSIsImp0aSI6InBob25lIiwibmJmIjoxNjQyNjUzNTgxLCJzdWIiOiJwaG9uZSIsInZpZGVvIjp7InJvb20iOiJteXJvb20iLCJyb29tSm9pbiI6dHJ1ZX19.JLJgQoCdPCTELJYsEhWGOiBuLl3eoZksWyAl08tJqLg" //nocommit
+            ""
     }
 }
