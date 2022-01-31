@@ -18,6 +18,7 @@ import livekit.LivekitRtc
 import org.webrtc.*
 import java.net.ConnectException
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -324,17 +325,18 @@ internal constructor(
             connectionState = ConnectionState.RECONNECTING
             listener?.onEngineReconnecting()
 
-            for (wsRetries in 0 until MAX_SIGNAL_RETRIES) {
-                var startDelay = wsRetries.toLong() * wsRetries * 500
+            val reconnectStartTime = SystemClock.elapsedRealtime()
+            for (retries in 0 until MAX_RECONNECT_RETRIES) {
+                var startDelay = retries.toLong() * retries * 500
                 if (startDelay > 5000) {
                     startDelay = 5000
                 }
 
-                LKLog.i { "Reconnecting to signal, attempt ${wsRetries + 1}" }
+                LKLog.i { "Reconnecting to signal, attempt ${retries + 1}" }
                 delay(startDelay)
 
                 // full reconnect after first try.
-                val isFullReconnect = true
+                val isFullReconnect = retries != 0
 
                 if (isFullReconnect) {
                     try {
@@ -382,6 +384,11 @@ internal constructor(
                         listener?.onFullReconnect()
                     }
                     return@launch
+                }
+
+                val curReconnectTime = SystemClock.elapsedRealtime() - reconnectStartTime
+                if(curReconnectTime > MAX_RECONNECT_TIMEOUT){
+                    break
                 }
             }
 
@@ -518,7 +525,8 @@ internal constructor(
         private const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
         private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
-        private const val MAX_SIGNAL_RETRIES = 5
+        private const val MAX_RECONNECT_RETRIES = 10
+        private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {

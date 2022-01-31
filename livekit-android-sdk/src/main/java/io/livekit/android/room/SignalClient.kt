@@ -91,13 +91,13 @@ constructor(
         token: String,
         options: ConnectOptions
     ): Either<LivekitRtc.JoinResponse, Unit> {
+        // Clean up any pre-existing connection.
+        close()
+
         val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options)
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
-
-        // Clean up any pre-existing connection.
-        close()
 
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         lastUrl = wsUrlString
@@ -518,6 +518,7 @@ constructor(
      */
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
+        isReconnecting = false
         if (::coroutineScope.isInitialized) {
             coroutineScope.close()
         }
