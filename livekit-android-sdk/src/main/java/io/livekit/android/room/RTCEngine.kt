@@ -18,7 +18,6 @@ import livekit.LivekitRtc
 import org.webrtc.*
 import java.net.ConnectException
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -380,14 +379,12 @@ internal constructor(
                 }
 
                 if (connectionState == ConnectionState.CONNECTED) {
-                    if (isFullReconnect) {
-                        listener?.onFullReconnect()
-                    }
+                    listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
 
                 val curReconnectTime = SystemClock.elapsedRealtime() - reconnectStartTime
-                if(curReconnectTime > MAX_RECONNECT_TIMEOUT){
+                if (curReconnectTime > MAX_RECONNECT_TIMEOUT) {
                     break
                 }
             }
@@ -516,9 +513,9 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
-        fun onSignalConnected(isReconnect: Boolean)
+        fun onSignalConnected(isFullReconnect: Boolean)
         fun onFullReconnecting()
-        suspend fun onFullReconnect()
+        suspend fun onPostReconnect(isFullReconnect: Boolean)
     }
 
     companion object {

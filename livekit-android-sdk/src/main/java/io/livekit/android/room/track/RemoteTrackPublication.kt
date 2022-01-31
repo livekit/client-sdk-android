@@ -173,7 +173,7 @@ class RemoteTrackPublication(
     }
 
     // Debounce just in case multiple settings get changed at once.
-    private val sendUpdateTrackSettings = debounce<Unit, Unit>(100L, CoroutineScope(ioDispatcher)) {
+    internal val sendUpdateTrackSettings = debounce<Unit, Unit>(100L, CoroutineScope(ioDispatcher)) {
         sendUpdateTrackSettingsImpl()
     }
 

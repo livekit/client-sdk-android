@@ -23,6 +23,7 @@ import io.livekit.android.room.track.*
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.util.invoke
 import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -616,8 +617,8 @@ constructor(
     /**
      * @suppress
      */
-    override fun onSignalConnected(isReconnect: Boolean) {
-        if (state == State.RECONNECTING && isReconnect) {
+    override fun onSignalConnected(isFullReconnect: Boolean) {
+        if (state == State.RECONNECTING && isFullReconnect) {
             // during reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
@@ -635,8 +636,18 @@ constructor(
     /**
      * @suppress
      */
-    override suspend fun onFullReconnect() {
-        localParticipant.republishTracks()
+    override suspend fun onPostReconnect(isFullReconnect: Boolean) {
+        if (isFullReconnect) {
+            localParticipant.republishTracks()
+        } else {
+            val remoteParticipants = remoteParticipants.values.toList()
+            for (participant in remoteParticipants) {
+                for (pub in participant.videoTracks.values) {
+                    val remotePub = pub as? RemoteTrackPublication ?: continue
+                    remotePub.sendUpdateTrackSettings.invoke()
+                }
+            }
+        }
     }
 
     //------------------------------- ParticipantListener --------------------------------//
