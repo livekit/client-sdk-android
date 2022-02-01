@@ -513,7 +513,7 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
-        fun onSignalConnected(isFullReconnect: Boolean)
+        fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
     }

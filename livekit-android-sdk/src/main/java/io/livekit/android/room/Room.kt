@@ -617,9 +617,9 @@ constructor(
     /**
      * @suppress
      */
-    override fun onSignalConnected(isFullReconnect: Boolean) {
-        if (state == State.RECONNECTING && isFullReconnect) {
-            // during reconnection, need to send sync state upon signal connection.
+    override fun onSignalConnected(isResume: Boolean) {
+        if (state == State.RECONNECTING && isResume) {
+            // during resume reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
     }
@@ -642,9 +642,12 @@ constructor(
         } else {
             val remoteParticipants = remoteParticipants.values.toList()
             for (participant in remoteParticipants) {
-                for (pub in participant.videoTracks.values) {
+                val pubs = participant.tracks.values.toList()
+                for (pub in pubs) {
                     val remotePub = pub as? RemoteTrackPublication ?: continue
-                    remotePub.sendUpdateTrackSettings.invoke()
+                    if(remotePub.subscribed) {
+                        remotePub.sendUpdateTrackSettings.invoke()
+                    }
                 }
             }
         }
