@@ -145,7 +145,7 @@ class MockPeerConnection(
             return SignalingState.CLOSED
         }
 
-        if ((localDesc?.type == null && localDesc?.type == null) ||
+        if ((localDesc?.type == null && remoteDesc?.type == null) ||
             (localDesc?.type == SessionDescription.Type.OFFER &&
                     remoteDesc?.type == SessionDescription.Type.ANSWER) ||
             (localDesc?.type == SessionDescription.Type.ANSWER &&
