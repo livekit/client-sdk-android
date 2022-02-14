@@ -11,13 +11,20 @@ import android.hardware.camera2.CameraManager
  */
 internal class Camera2Helper {
     companion object {
+
+        fun getSupportedFormats(
+            cameraManager: CameraManager,
+            cameraId: String?,
+        ): List<CameraEnumerationAndroid.CaptureFormat>? =
+            Camera2Enumerator.getSupportedFormats(cameraManager, cameraId)
+
         fun findClosestCaptureFormat(
             cameraManager: CameraManager,
             cameraId: String?,
             width: Int,
             height: Int
         ): Size {
-            val sizes = Camera2Enumerator.getSupportedFormats(cameraManager, cameraId)
+            val sizes = getSupportedFormats(cameraManager, cameraId)
                 ?.map { Size(it.width, it.height) }
                 ?: emptyList()
             return CameraEnumerationAndroid.getClosestSupportedSize(sizes, width, height)

@@ -209,6 +209,8 @@ constructor(
                 position = enumerator.getCameraPosition(targetDeviceName!!)
             )
             if (targetVideoCapturer is Camera1Capturer) {
+                // Cache supported capture formats ahead of time to avoid future camera locks.
+                Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(newOptions.deviceId))
                 return Pair(
                     Camera1CapturerWithSize(targetVideoCapturer, targetDeviceName),
                     newOptions

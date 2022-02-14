@@ -10,13 +10,16 @@ internal class Camera1Helper {
     companion object {
         fun getCameraId(deviceName: String?) = Camera1Enumerator.getCameraIndex(deviceName)
 
+        fun getSupportedFormats(cameraId: Int): List<CameraEnumerationAndroid.CaptureFormat> =
+            Camera1Enumerator.getSupportedFormats(cameraId)
+
         fun findClosestCaptureFormat(
             cameraId: Int,
             width: Int,
             height: Int
         ): Size {
             return CameraEnumerationAndroid.getClosestSupportedSize(
-                Camera1Enumerator.getSupportedFormats(cameraId)
+                getSupportedFormats(cameraId)
                     .map { Size(it.width, it.height) },
                 width,
                 height
