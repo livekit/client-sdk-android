@@ -13,6 +13,8 @@ import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
+import io.livekit.android.room.util.EncodingUtils
+import io.livekit.android.room.util.EncodingUtils.findEvenScaleDownBy
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -23,10 +25,7 @@ import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpParameters
 import org.webrtc.RtpTransceiver
 import javax.inject.Named
-import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 class LocalParticipant
 @AssistedInject
@@ -219,7 +218,8 @@ internal constructor(
     ) {
 
         val encodings = computeVideoEncodings(track.dimensions, options)
-        val videoLayers = videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
+        val videoLayers =
+            EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
 
         val published = publishTrackImpl(
             track,
@@ -312,35 +312,24 @@ internal constructor(
         }
 
         if (encoding == null) {
-            encoding = determineAppropriateEncoding(width, height)
+            encoding = EncodingUtils.determineAppropriateEncoding(width, height)
             LKLog.d { "using video encoding: $encoding" }
         }
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
         if (simulcast) {
 
-            val presets = presetsForResolution(width, height)
+            val presets = EncodingUtils.presetsForResolution(width, height)
             val midPreset = presets[1]
             val lowPreset = presets[0]
 
-            fun calculateScale(parameter: VideoCaptureParameter): Double {
-                val longestSize = max(width, height)
-                return longestSize / parameter.width.toDouble()
-            }
-
-            fun checkEvenDimensions(parameter: VideoCaptureParameter): Boolean {
-                fun isEven(value: Double) = ((value.roundToInt()) % 2 == 0)
-                val scale = calculateScale(parameter)
-
-                return isEven(parameter.height * scale) && isEven(parameter.width * scale)
-            }
 
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
-                if (encodings.size >= VIDEO_RIDS.size) {
+                if (encodings.size >= EncodingUtils.VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
                 }
                 // encodings is mutable, so this will grab next available rid
-                val rid = VIDEO_RIDS[encodings.size]
+                val rid = EncodingUtils.VIDEO_RIDS[encodings.size]
                 encodings.add(videoEncoding.toRtpEncoding(rid, scale))
             }
 
@@ -348,16 +337,17 @@ internal constructor(
             // otherwise only send h
             val size = max(width, height)
             if (size >= 960) {
-                val hasEvenDimensions =
-                    checkEvenDimensions(midPreset.capture) && checkEvenDimensions(lowPreset.capture)
-                val midScale = if (hasEvenDimensions) calculateScale(midPreset.capture) else 2.0
-                val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 4.0
+                var lowScale = findEvenScaleDownBy(width, height, lowPreset.capture.width, lowPreset.capture.height)
+                var midScale = findEvenScaleDownBy(width, height, midPreset.capture.width, midPreset.capture.height)
 
+                if (midScale == null || lowScale == null) {
+                    lowScale = 4.0
+                    midScale = 2.0
+                }
                 addEncoding(lowPreset.encoding, lowScale)
                 addEncoding(midPreset.encoding, midScale)
             } else {
-                val hasEvenDimensions = checkEvenDimensions(lowPreset.capture)
-                val lowScale = if (hasEvenDimensions) calculateScale(lowPreset.capture) else 2.0
+                val lowScale = findEvenScaleDownBy(width, height, lowPreset.capture.width, lowPreset.capture.height) ?: 2.0
                 addEncoding(lowPreset.encoding, lowScale)
             }
             addEncoding(encoding, 1.0)
@@ -370,79 +360,6 @@ internal constructor(
         return encodings
     }
 
-    private fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
-        val presets = presetsForResolution(width, height)
-
-        // presets assume width is longest size
-        val longestSize = max(width, height)
-        val preset = presets
-            .firstOrNull { it.capture.width >= longestSize }
-            ?: presets.last()
-
-        return preset.encoding
-    }
-
-    private fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
-        val longestSize = max(width, height)
-        val shortestSize = min(width, height)
-        val aspectRatio = longestSize.toFloat() / shortestSize
-        return if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
-            PRESETS_16_9
-        } else {
-            PRESETS_4_3
-        }
-    }
-
-    private fun videoLayersFromEncodings(
-        trackWidth: Int,
-        trackHeight: Int,
-        encodings: List<RtpParameters.Encoding>
-    ): List<LivekitModels.VideoLayer> {
-        return if (encodings.isEmpty()) {
-            listOf(
-                LivekitModels.VideoLayer.newBuilder().apply {
-                    width = trackWidth
-                    height = trackHeight
-                    quality = LivekitModels.VideoQuality.HIGH
-                    bitrate = 0
-                    ssrc = 0
-                }.build()
-            )
-        } else {
-            encodings.map { encoding ->
-                val scaleDownBy = encoding.scaleResolutionDownBy ?: 1.0
-                var videoQuality = videoQualityForRid(encoding.rid ?: "")
-                if (videoQuality == LivekitModels.VideoQuality.UNRECOGNIZED && encodings.size == 1) {
-                    videoQuality = LivekitModels.VideoQuality.HIGH
-                }
-                LivekitModels.VideoLayer.newBuilder().apply {
-                    width = (trackWidth / scaleDownBy).roundToInt()
-                    height = (trackHeight / scaleDownBy).roundToInt()
-                    quality = videoQuality
-                    bitrate = encoding.maxBitrateBps ?: 0
-                    ssrc = 0
-                }.build()
-            }
-        }
-    }
-
-    private fun videoQualityForRid(rid: String): LivekitModels.VideoQuality {
-        return when (rid) {
-            "f" -> LivekitModels.VideoQuality.HIGH
-            "h" -> LivekitModels.VideoQuality.MEDIUM
-            "q" -> LivekitModels.VideoQuality.LOW
-            else -> LivekitModels.VideoQuality.UNRECOGNIZED
-        }
-    }
-
-    private fun ridForVideoQuality(quality: LivekitModels.VideoQuality): String? {
-        return when (quality) {
-            LivekitModels.VideoQuality.HIGH -> "f"
-            LivekitModels.VideoQuality.MEDIUM -> "h"
-            LivekitModels.VideoQuality.LOW -> "q"
-            else -> null
-        }
-    }
 
     /**
      * Control who can subscribe to LocalParticipant's published tracks.
@@ -566,7 +483,7 @@ internal constructor(
 
         var hasChanged = false
         for (quality in qualities) {
-            val rid = ridForVideoQuality(quality.quality) ?: continue
+            val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
             val encoding = encodings.firstOrNull { it.rid == rid }
             // use low quality layer settings for non-simulcasted streams
                 ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
@@ -630,25 +547,6 @@ internal constructor(
     }
 
     companion object {
-        private val VIDEO_RIDS = arrayOf("q", "h", "f")
-
-        // Note: maintain order from smallest to biggest.
-        private val PRESETS_16_9 = listOf(
-            VideoPreset169.QVGA,
-            VideoPreset169.VGA,
-            VideoPreset169.QHD,
-            VideoPreset169.HD,
-            VideoPreset169.FHD
-        )
-
-        // Note: maintain order from smallest to biggest.
-        private val PRESETS_4_3 = listOf(
-            VideoPreset43.QVGA,
-            VideoPreset43.VGA,
-            VideoPreset43.QHD,
-            VideoPreset43.HD,
-            VideoPreset43.FHD
-        )
     }
 }
 
