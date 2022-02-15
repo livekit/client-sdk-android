@@ -178,7 +178,6 @@ internal constructor(
                 sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
                 continualGatheringPolicy =
                     PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-                enableDtlsSrtp = true
             }
 
         _publisher?.close()
