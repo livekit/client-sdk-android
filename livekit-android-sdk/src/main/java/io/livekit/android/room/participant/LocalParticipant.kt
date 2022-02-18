@@ -14,7 +14,6 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.room.util.EncodingUtils
-import io.livekit.android.room.util.EncodingUtils.findEvenScaleDownBy
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -323,7 +322,6 @@ internal constructor(
             val midPreset = presets[1]
             val lowPreset = presets[0]
 
-
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
                 if (encodings.size >= EncodingUtils.VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
@@ -336,18 +334,19 @@ internal constructor(
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
             val size = max(width, height)
-            if (size >= 960) {
-                var lowScale = findEvenScaleDownBy(width, height, lowPreset.capture.width, lowPreset.capture.height)
-                var midScale = findEvenScaleDownBy(width, height, midPreset.capture.width, midPreset.capture.height)
 
-                if (midScale == null || lowScale == null) {
-                    lowScale = 4.0
-                    midScale = 2.0
-                }
+            fun calculateScaleDown(captureParam: VideoCaptureParameter): Double {
+                val targetSize = max(captureParam.width, captureParam.height)
+                return size / targetSize.toDouble()
+            }
+            if (size >= 960) {
+                val lowScale = calculateScaleDown(lowPreset.capture)
+                val midScale = calculateScaleDown(midPreset.capture)
+
                 addEncoding(lowPreset.encoding, lowScale)
                 addEncoding(midPreset.encoding, midScale)
             } else {
-                val lowScale = findEvenScaleDownBy(width, height, lowPreset.capture.width, lowPreset.capture.height) ?: 2.0
+                val lowScale = calculateScaleDown(lowPreset.capture)
                 addEncoding(lowPreset.encoding, lowScale)
             }
             addEncoding(encoding, 1.0)

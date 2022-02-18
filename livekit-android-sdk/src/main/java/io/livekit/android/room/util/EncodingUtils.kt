@@ -32,39 +32,6 @@ internal object EncodingUtils {
         VideoPreset43.FHD
     )
 
-
-    /**
-     * Encoders will often not be able to handle odd dimensions, so we should try to find a scale that will
-     * result in even dimensions.
-     *
-     * @return a scale that will result in dimensions that are both even, or null if none found.
-     */
-    fun findEvenScaleDownBy(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        targetWidth: Int,
-        targetHeight: Int,
-    ): Double? {
-        fun Int.isEven() = this % 2 == 0
-
-        val sourceSize = min(sourceWidth, sourceHeight)
-        val targetSize = min(targetWidth, targetHeight)
-        for (i in 0..20) {
-            val scaleDownBy = sourceSize.toDouble() / (targetSize + i)
-            // Internally, WebRTC casts directly to int without rounding.
-            // https://github.com/webrtc-sdk/webrtc/blob/8c7139f8e6fa19ddf2c91510c177a19746e1ded3/media/engine/webrtc_video_engine.cc#L3676
-            val scaledWidth = (sourceWidth / scaleDownBy).toInt()
-            val scaledHeight = (sourceHeight / scaleDownBy).toInt()
-
-            if (scaledHeight.isEven() && scaledWidth.isEven()) {
-                return scaleDownBy
-            }
-        }
-
-        return null
-    }
-
-
     fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
         val presets = presetsForResolution(width, height)
 
