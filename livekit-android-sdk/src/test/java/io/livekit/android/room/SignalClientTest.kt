@@ -191,6 +191,31 @@ class SignalClientTest : BaseTest() {
         Assert.assertTrue(sentRequest.hasMute())
     }
 
+    @Test
+    fun queuedRequestsWhileReconnecting() = runTest {
+        client.sendMuteTrack("sid", true)
+        client.sendMuteTrack("sid", true)
+        client.sendMuteTrack("sid", true)
+
+        val job = async { client.reconnect(EXAMPLE_URL, "") }
+        client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        job.await()
+
+        val ws = wsFactory.ws
+
+        // Wait until peer connection is connected to send requests.
+        Assert.assertEquals(0, ws.sentRequests.size)
+
+        client.onPCConnected()
+
+        Assert.assertEquals(3, ws.sentRequests.size)
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(ws.sentRequests[0].toPBByteString())
+            .build()
+
+        Assert.assertTrue(sentRequest.hasMute())
+    }
+
     // mock data
     companion object {
         const val EXAMPLE_URL = "ws://www.example.com"
