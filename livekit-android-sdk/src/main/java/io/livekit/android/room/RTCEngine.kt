@@ -5,7 +5,9 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
-import io.livekit.android.room.util.*
+import io.livekit.android.room.util.MediaConstraintKeys
+import io.livekit.android.room.util.createAnswer
+import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
@@ -132,7 +134,7 @@ internal constructor(
         if (!this.isSubscriberPrimary) {
             negotiate()
         }
-        client.onReady()
+        client.onReadyForResponses()
         return joinResponse
     }
 
@@ -350,7 +352,7 @@ internal constructor(
                     try {
                         client.reconnect(url, token)
                         // no join response for regular reconnects
-                        client.onReady()
+                        client.onReadyForResponses()
                     } catch (e: Exception) {
                         LKLog.w(e) { "Error during reconnection." }
                         // ws reconnect failed, retry.
@@ -378,6 +380,7 @@ internal constructor(
                 }
 
                 if (connectionState == ConnectionState.CONNECTED) {
+                    client.onPCConnected()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }

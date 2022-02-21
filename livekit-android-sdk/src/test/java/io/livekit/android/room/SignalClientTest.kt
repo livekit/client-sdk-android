@@ -5,6 +5,7 @@ import io.livekit.android.BaseTest
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.TestData
 import io.livekit.android.util.toOkioByteString
+import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.serialization.json.Json
@@ -130,7 +131,7 @@ class SignalClientTest : BaseTest() {
         client.onMessage(wsFactory.ws, OFFER.toOkioByteString())
 
         job.await()
-        client.onReady()
+        client.onReadyForResponses()
         Mockito.verify(listener)
             .onOffer(argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp })
     }
@@ -151,6 +152,43 @@ class SignalClientTest : BaseTest() {
 
         Mockito.verify(listener)
             .onClose(any(), any())
+    }
+
+    @Test
+    fun sendRequest() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+
+        client.sendMuteTrack("sid", true)
+
+        val ws = wsFactory.ws
+
+        Assert.assertEquals(1, ws.sentRequests.size)
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(ws.sentRequests[0].toPBByteString())
+            .build()
+
+        Assert.assertTrue(sentRequest.hasMute())
+    }
+
+    @Test
+    fun queuedRequests() = runTest {
+        client.sendMuteTrack("sid", true)
+        client.sendMuteTrack("sid", true)
+        client.sendMuteTrack("sid", true)
+
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+
+        val ws = wsFactory.ws
+        Assert.assertEquals(3, ws.sentRequests.size)
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(ws.sentRequests[0].toPBByteString())
+            .build()
+
+        Assert.assertTrue(sentRequest.hasMute())
     }
 
     // mock data
