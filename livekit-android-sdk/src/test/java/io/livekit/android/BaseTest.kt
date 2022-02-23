@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.mockito.junit.MockitoJUnit
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 abstract class BaseTest {
     // Uncomment to enable logging in tests.
     //@get:Rule
@@ -19,6 +19,6 @@ abstract class BaseTest {
     @get:Rule
     var coroutineRule = TestCoroutineRule()
 
-    @ExperimentalCoroutinesApi
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun runTest(testBody: suspend TestScope.() -> Unit) = coroutineRule.scope.runTest(testBody = testBody)
 }

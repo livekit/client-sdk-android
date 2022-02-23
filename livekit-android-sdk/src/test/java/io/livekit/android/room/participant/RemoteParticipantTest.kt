@@ -1,18 +1,20 @@
 package io.livekit.android.room.participant
 
-import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.BaseTest
 import io.livekit.android.room.SignalClient
+import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.util.flow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import org.junit.Assert.*
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
 
-class RemoteParticipantTest {
+@OptIn(ExperimentalCoroutinesApi::class)
+class RemoteParticipantTest : BaseTest() {
 
-    @get:Rule
-    var coroutineRule = TestCoroutineRule()
 
     lateinit var signalClient: SignalClient
     lateinit var participant: RemoteParticipant
@@ -50,11 +52,58 @@ class RemoteParticipantTest {
         val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
             .addTracks(TRACK_INFO)
             .build()
-
         participant.updateFromInfo(newTrackInfo)
 
         assertEquals(1, participant.tracks.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))
+    }
+
+    @Test
+    fun tracksFlow() = runTest {
+
+        val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
+            .addTracks(TRACK_INFO)
+            .build()
+
+        val emissions = mutableListOf<Map<String, TrackPublication>>()
+        val job = launch {
+            participant::tracks.flow.collect {
+                emissions.add(it)
+            }
+        }
+
+        assertEquals(1, emissions.size)
+        assertEquals(emptyMap<String, TrackPublication>(), emissions.first())
+
+        participant.updateFromInfo(newTrackInfo)
+
+        job.cancel()
+        assertEquals(2, emissions.size)
+        assertEquals(1, emissions[1].size)
+    }
+
+    @Test
+    fun audioTracksFlow() = runTest {
+
+        val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
+            .addTracks(TRACK_INFO)
+            .build()
+
+        val emissions = mutableListOf<Map<String, TrackPublication>>()
+        val job = launch {
+            participant::audioTracks.flow.collect {
+                emissions.add(it)
+            }
+        }
+
+        assertEquals(1, emissions.size)
+        assertEquals(emptyMap<String, TrackPublication>(), emissions.first())
+
+        participant.updateFromInfo(newTrackInfo)
+
+        job.cancel()
+        assertEquals(2, emissions.size)
+        assertEquals(1, emissions[1].size)
     }
 
     @Test
