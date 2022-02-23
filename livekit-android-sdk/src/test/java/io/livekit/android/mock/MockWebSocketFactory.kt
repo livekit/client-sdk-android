@@ -8,7 +8,7 @@ class MockWebSocketFactory : WebSocket.Factory {
     /**
      * The most recently created [WebSocket].
      */
-    lateinit var ws: WebSocket
+    lateinit var ws: MockWebSocket
 
     /**
      * The request used to create [ws]

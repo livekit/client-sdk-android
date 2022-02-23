@@ -33,7 +33,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             rtcEngine.subscriber.peerConnection.remoteDescription.description
         )
 
-        val ws = wsFactory.ws as MockWebSocket
+        val ws = wsFactory.ws
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
             .mergeFrom(ws.sentRequests[0].toPBByteString())
             .build()

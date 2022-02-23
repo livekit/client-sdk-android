@@ -1,10 +1,8 @@
 package io.livekit.android.room
 
-import android.net.Uri
 import com.google.protobuf.util.JsonFormat
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
-import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
@@ -59,6 +57,10 @@ constructor(
 
     private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
+
+    private val requestFlowJobLock = Object()
+    private var requestFlowJob: Job? = null
+    private val requestFlow = MutableSharedFlow<LivekitRtc.SignalRequest>(Int.MAX_VALUE)
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
@@ -150,13 +152,38 @@ constructor(
      * Should be called after resolving the join message.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun onReady() {
+    fun onReadyForResponses() {
         coroutineScope.launch {
             responseFlow.collect {
                 responseFlow.resetReplayCache()
                 handleSignalResponseImpl(it)
             }
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun startRequestQueue() {
+        if (requestFlowJob != null) {
+            return
+        }
+        synchronized(requestFlowJobLock) {
+            if (requestFlowJob == null) {
+                requestFlowJob = coroutineScope.launch {
+                    requestFlow.collect {
+                        requestFlow.resetReplayCache()
+                        sendRequestImpl(it)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * On reconnection, SignalClient waits until the peer connection is established to send messages.
+     * Call this method when it is connected.
+     */
+    fun onPCConnected() {
+        startRequestQueue()
     }
 
     //--------------------------------- WebSocket Listener --------------------------------------//
@@ -402,6 +429,16 @@ constructor(
     }
 
     private fun sendRequest(request: LivekitRtc.SignalRequest) {
+        val skipQueue = skipQueueTypes.contains(request.messageCase)
+
+        if (skipQueue) {
+            sendRequestImpl(request)
+        } else {
+            requestFlow.tryEmit(request)
+        }
+    }
+
+    private fun sendRequestImpl(request: LivekitRtc.SignalRequest) {
         LKLog.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
             LKLog.w { "not connected, could not send request $request" }
@@ -428,6 +465,7 @@ constructor(
             // Only handle joins if not connected.
             if (response.hasJoin()) {
                 isConnected = true
+                startRequestQueue()
                 try {
                     serverVersion = Semver(response.join.serverVersion)
                 } catch (t: Throwable) {
@@ -439,9 +477,7 @@ constructor(
             }
             return
         }
-        coroutineScope.launch {
-            responseFlow.tryEmit(response)
-        }
+        responseFlow.tryEmit(response)
     }
 
     private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
@@ -519,6 +555,7 @@ constructor(
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
         isConnected = false
         isReconnecting = false
+        requestFlowJob = null
         if (::coroutineScope.isInitialized) {
             coroutineScope.close()
         }
@@ -563,6 +600,14 @@ constructor(
         const val SD_TYPE_PRANSWER = "pranswer"
         const val PROTOCOL_VERSION = 6
         const val SDK_TYPE = "android"
+
+        private val skipQueueTypes = listOf(
+            LivekitRtc.SignalRequest.MessageCase.SYNC_STATE,
+            LivekitRtc.SignalRequest.MessageCase.TRICKLE,
+            LivekitRtc.SignalRequest.MessageCase.OFFER,
+            LivekitRtc.SignalRequest.MessageCase.ANSWER,
+            LivekitRtc.SignalRequest.MessageCase.SIMULATE
+        )
 
         private fun iceServer(url: String) =
             PeerConnection.IceServer.builder(url).createIceServer()
