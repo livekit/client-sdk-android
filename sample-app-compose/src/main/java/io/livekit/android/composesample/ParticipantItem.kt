@@ -2,7 +2,6 @@ package io.livekit.android.composesample
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Icon
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -21,8 +20,6 @@ import io.livekit.android.composesample.ui.theme.NoVideoBackground
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
-import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.util.flow
 
 /**
@@ -50,33 +47,20 @@ fun ParticipantItem(
                 }
             }
     ) {
-        val (videoCamOff, identityBar, identityText, muteIndicator, connectionIndicator) = createRefs()
-        val videoTrack = participant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? VideoTrack
-            ?: participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
-            ?: videoTracks.values.firstOrNull()?.track as? VideoTrack
+        val (videoItem, identityBar, identityText, muteIndicator, connectionIndicator) = createRefs()
 
-
-        if (videoTrack != null && videoTrack.enabled) {
-            VideoItemTrackSelector(
-                room = room,
-                participant = participant,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Icon(
-                painter = painterResource(id = R.drawable.outline_videocam_off_24),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.constrainAs(videoCamOff) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                    width = Dimension.wrapContent
-                    height = Dimension.wrapContent
-                }
-            )
-        }
+        VideoItemTrackSelector(
+            room = room,
+            participant = participant,
+            modifier = Modifier.constrainAs(videoItem) {
+                top.linkTo(parent.top)
+                bottom.linkTo(parent.bottom)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.fillToConstraints
+                height = Dimension.fillToConstraints
+            }
+        )
 
         Surface(
             color = Color(0x80000000),
