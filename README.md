@@ -14,6 +14,8 @@ LiveKit for Android is available as a Maven package.
 ...
 dependencies {
   implementation "io.livekit:livekit-android:<version>"
+  // Snapshots of the latest development version are available at:
+  // implementation "io.livekit:livekit-android:<version>-SNAPSHOT"
 }
 ```
 
