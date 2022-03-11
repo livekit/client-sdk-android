@@ -28,6 +28,9 @@ subprojects {
         mavenCentral()
         // ...
         maven { url 'https://jitpack.io' }
+        
+        // For SNAPSHOT access
+        // maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 ```
