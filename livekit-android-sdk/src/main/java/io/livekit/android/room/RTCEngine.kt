@@ -1,6 +1,7 @@
 package io.livekit.android.room
 
 import android.os.SystemClock
+import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
@@ -682,7 +683,7 @@ internal constructor(
         if (buffer == null) {
             return
         }
-        val dp = LivekitModels.DataPacket.parseFrom(buffer.data)
+        val dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
         when (dp.valueCase) {
             LivekitModels.DataPacket.ValueCase.SPEAKER -> {
                 listener?.onActiveSpeakersUpdate(dp.speaker.speakersList)

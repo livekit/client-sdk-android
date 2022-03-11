@@ -42,3 +42,5 @@
 -keepclasseswithmembers class io.livekit.android.** { # <-- change package name to your app's
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }

@@ -1,6 +1,5 @@
 package io.livekit.android.room
 
-import com.google.protobuf.util.JsonFormat
 import io.livekit.android.BaseTest
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.TestData
@@ -38,10 +37,7 @@ class SignalClientTest : BaseTest() {
         wsFactory = MockWebSocketFactory()
         client = SignalClient(
             wsFactory,
-            JsonFormat.parser(),
-            JsonFormat.printer(),
             Json,
-            useJson = false,
             okHttpClient = okHttpClient,
             ioDispatcher = coroutineRule.dispatcher
         )
@@ -221,8 +217,8 @@ class SignalClientTest : BaseTest() {
         const val EXAMPLE_URL = "ws://www.example.com"
 
         val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
-            join = with(joinBuilder) {
-                room = with(roomBuilder) {
+            join = with(LivekitRtc.JoinResponse.newBuilder()) {
+                room = with(LivekitModels.Room.newBuilder()) {
                     name = "roomname"
                     sid = "room_sid"
                     build()
@@ -236,7 +232,7 @@ class SignalClientTest : BaseTest() {
         }
 
         val OFFER = with(LivekitRtc.SignalResponse.newBuilder()) {
-            offer = with(offerBuilder) {
+            offer = with(LivekitRtc.SessionDescription.newBuilder()) {
                 sdp = "remote_offer"
                 type = "offer"
                 build()
@@ -245,8 +241,8 @@ class SignalClientTest : BaseTest() {
         }
 
         val ROOM_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
-            roomUpdate = with(roomUpdateBuilder) {
-                room = with(roomBuilder) {
+            roomUpdate = with(LivekitRtc.RoomUpdate.newBuilder()) {
+                room = with(LivekitModels.Room.newBuilder()) {
                     metadata = "metadata"
                     build()
                 }
@@ -256,7 +252,7 @@ class SignalClientTest : BaseTest() {
         }
 
         val LOCAL_TRACK_PUBLISHED = with(LivekitRtc.SignalResponse.newBuilder()) {
-            trackPublished = with(trackPublishedBuilder) {
+            trackPublished = with(LivekitRtc.TrackPublishedResponse.newBuilder()) {
                 cid = "local_cid"
                 track = TestData.LOCAL_AUDIO_TRACK
                 build()
@@ -306,7 +302,7 @@ class SignalClientTest : BaseTest() {
 
 
         val CONNECTION_QUALITY = with(LivekitRtc.SignalResponse.newBuilder()) {
-            connectionQuality = with(connectionQualityBuilder) {
+            connectionQuality = with(LivekitRtc.ConnectionQualityUpdate.newBuilder()) {
                 addUpdates(with(LivekitRtc.ConnectionQualityInfo.newBuilder()) {
                     participantSid = JOIN.join.participant.sid
                     quality = LivekitModels.ConnectionQuality.EXCELLENT
@@ -345,7 +341,7 @@ class SignalClientTest : BaseTest() {
             build()
         }
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
-            leave = with(leaveBuilder) {
+            leave = with(LivekitRtc.LeaveRequest.newBuilder()) {
                 build()
             }
             build()

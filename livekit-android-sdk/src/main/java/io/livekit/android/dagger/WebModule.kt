@@ -1,10 +1,10 @@
 package io.livekit.android.dagger
 
+import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import okhttp3.OkHttpClient
 import okhttp3.WebSocket
-import javax.annotation.Nullable
 import javax.inject.Named
 import javax.inject.Singleton
 
