@@ -1,6 +1,5 @@
 package io.livekit.android.room
 
-import com.google.protobuf.util.JsonFormat
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.dagger.InjectionNames
@@ -38,12 +37,8 @@ class SignalClient
 @Inject
 constructor(
     private val websocketFactory: WebSocket.Factory,
-    private val fromJsonProtobuf: JsonFormat.Parser,
-    private val toJsonProtobuf: JsonFormat.Printer,
     private val json: Json,
     private val okHttpClient: OkHttpClient,
-    @Named(InjectionNames.SIGNAL_JSON_ENABLED)
-    private val useJson: Boolean,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
 ) : WebSocketListener() {
@@ -197,11 +192,7 @@ constructor(
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
-        val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
-        fromJsonProtobuf.merge(text, signalResponseBuilder)
-        val response = signalResponseBuilder.build()
-
-        handleSignalResponse(response)
+        LKLog.w { "received JSON message, unsupported in this version." }
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
@@ -444,14 +435,8 @@ constructor(
             LKLog.w { "not connected, could not send request $request" }
             return
         }
-        val sent: Boolean
-        if (useJson) {
-            val message = toJsonProtobuf.print(request)
-            sent = currentWs?.send(message) ?: false
-        } else {
-            val message = request.toByteArray().toByteString()
-            sent = currentWs?.send(message) ?: false
-        }
+        val message = request.toByteArray().toByteString()
+        val sent = currentWs?.send(message) ?: false
 
         if (!sent) {
             LKLog.e { "error sending request: $request" }
@@ -463,7 +448,7 @@ constructor(
 
         if (!isConnected) {
             // Only handle joins if not connected.
-            if (response.hasJoin()) {
+            if (response.join != null) {
                 isConnected = true
                 startRequestQueue()
                 try {
@@ -473,7 +458,7 @@ constructor(
                 }
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else {
-                LKLog.e { "Received response while not connected. ${toJsonProtobuf.print(response)}" }
+                LKLog.e { "Received response while not connected. $response" }
             }
             return
         }

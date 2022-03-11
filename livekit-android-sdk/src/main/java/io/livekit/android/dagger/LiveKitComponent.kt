@@ -1,13 +1,13 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import androidx.annotation.Nullable
 import dagger.BindsInstance
 import dagger.Component
 import io.livekit.android.room.Room
 import okhttp3.OkHttpClient
 import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
-import javax.annotation.Nullable
 import javax.inject.Named
 import javax.inject.Singleton
 
