@@ -704,10 +704,21 @@ internal constructor(
     ) {
         val answer = subscriber.peerConnection.localDescription.toProtoSessionDescription()
 
+        val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
+            .toList()
+            .mapNotNull { kind -> dataChannelForKind(kind) }
+            .map { dataChannel ->
+                LivekitRtc.DataChannelInfo.newBuilder()
+                    .setId(dataChannel.id())
+                    .setLabel(dataChannel.label())
+                    .build()
+            }
+
         val syncState = LivekitRtc.SyncState.newBuilder()
             .setAnswer(answer)
             .setSubscription(subscription)
             .addAllPublishTracks(publishedTracks)
+            .addAllDataChannels(dataChannelInfos)
             .build()
 
         client.sendSyncState(syncState)
