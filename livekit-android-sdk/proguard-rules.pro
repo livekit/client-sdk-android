@@ -20,27 +20,6 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
-# Kotlin Serialization Proguard Rules
-########################################
-
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt # core serialization annotations
-
-# kotlinx-serialization-json specific. Add this if you have java.lang.NoClassDefFoundError kotlinx.serialization.json.JsonObjectSerializer
--keepclassmembers class kotlinx.serialization.json.** {
-    *** Companion;
-}
--keepclasseswithmembers class kotlinx.serialization.json.** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Change here com.yourcompany.yourpackage
--keep,includedescriptorclasses class io.livekit.android.**$$serializer { *; } # <-- change package name to your app's
--keepclassmembers class io.livekit.android.** { # <-- change package name to your app's
-    *** Companion;
-}
--keepclasseswithmembers class io.livekit.android.** { # <-- change package name to your app's
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
--keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+#############################################################################
+# NOTE: Any rules should probably be applied to consumer-rules.pro instead. #
+#############################################################################
