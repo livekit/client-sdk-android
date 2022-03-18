@@ -82,7 +82,7 @@ screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureInt
 
 ### Rendering subscribed tracks
 
-LiveKit uses WebRTC-provided `org.webrtc.SurfaceViewRenderer` to render video tracks. Subscribed audio tracks are automatically played.
+LiveKit uses WebRTC-provided `org.webrtc.SurfaceViewRenderer` to render video tracks. A `TextureView` implementation is also provided through `TextureViewRenderer`. Subscribed audio tracks are automatically played.
 
 ```kt
 class MainActivity : AppCompatActivity(), RoomListener {
@@ -92,30 +92,30 @@ class MainActivity : AppCompatActivity(), RoomListener {
         val url = "wss://your_host";
         val token = "your_token"
 
-        launch {
+        lifecycleScope.launch {
             val room = LiveKit.connect(
                 applicationContext,
                 url,
                 token,
                 ConnectOptions(),
                 RoomOptions(),
-                this
             )
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
             localParticipant.setCameraEnabled(true)
 
-            attachVideo(videoTrack)
+            launch {
+                room.events.collect { event ->
+                    when(event){
+                        is RoomEvent.TrackSubscribed -> onTrackSubscribed(event)
+                    }
+                }
+            }
         }
     }
 
-    override fun onTrackSubscribed(
-        track: Track,
-        publication: RemoteTrackPublication,
-        participant: RemoteParticipant,
-        room: Room
-    ) {
-        if (track is VideoTrack) {
+    private fun onTrackSubscribed(event: RoomEvent.TrackSubscribed) {
+        if (event.track is VideoTrack) {
             attachVideo(track)
         }
     }
@@ -124,6 +124,18 @@ class MainActivity : AppCompatActivity(), RoomListener {
         // viewBinding.renderer is a `org.webrtc.SurfaceViewRenderer` in your
         // layout
         videoTrack.addRenderer(viewBinding.renderer)
+    }
+}
+```
+
+### `@FlowObservable`
+
+Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes directly:
+
+```kt
+coroutineScope.launch {
+    room::activeSpeakers.flow.collectLatest { speakersList ->
+        /*...*/
     }
 }
 ```
