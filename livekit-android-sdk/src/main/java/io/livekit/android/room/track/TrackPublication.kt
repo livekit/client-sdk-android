@@ -12,6 +12,7 @@ open class TrackPublication(
     participant: Participant
 ) {
 
+    @FlowObservable
     @get:FlowObservable
     open var track: Track? by flowDelegate(track)
         internal set
@@ -22,6 +23,7 @@ open class TrackPublication(
     var kind: Track.Kind
         private set
 
+    @FlowObservable
     @get:FlowObservable
     open var muted: Boolean by flowDelegate(false)
         internal set

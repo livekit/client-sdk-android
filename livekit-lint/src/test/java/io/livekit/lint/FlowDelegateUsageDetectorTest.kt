@@ -22,6 +22,7 @@ class FlowDelegateUsageDetectorTest {
                     import io.livekit.android.util.flow
                     import io.livekit.android.util.flowDelegate
                     class Example {
+                        @FlowObservable
                         @get:FlowObservable
                         val value: Int by flowDelegate(0)
                         fun foo() {
@@ -50,6 +51,7 @@ class FlowDelegateUsageDetectorTest {
                     import io.livekit.android.util.flow
                     import io.livekit.android.util.flowDelegate
                     class Example {
+                        @FlowObservable
                         @get:FlowObservable
                         val value: Int by flowDelegate(0)
                         fun foo() {
@@ -78,6 +80,7 @@ class FlowDelegateUsageDetectorTest {
                     import io.livekit.android.util.flow
                     import io.livekit.android.util.flowDelegate
                     class FlowContainer {
+                        @FlowObservable
                         @get:FlowObservable
                         val value: Int by flowDelegate(0)
                     }
@@ -109,6 +112,7 @@ class FlowDelegateUsageDetectorTest {
                     import io.livekit.android.util.flow
                     import io.livekit.android.util.flowDelegate
                     class FlowContainer {
+                        @FlowObservable
                         @get:FlowObservable
                         val value: Int by flowDelegate(0)
                     }
@@ -141,6 +145,7 @@ class FlowDelegateUsageDetectorTest {
                     import io.livekit.android.util.flowDelegate
                     class FlowContainer {
                         var value: Int by flowDelegate(0)
+                        @FlowObservable
                         @get:FlowObservable
                         val otherValue: Int
                             get() = value
@@ -205,7 +210,7 @@ fun flowAccess(): TestFile {
         val <T> KProperty0<T>.flow: StateFlow<T>
             get() = delegate as StateFlow<T>
         
-        @Target(AnnotationTarget.PROPERTY_GETTER)
+        @Target(AnnotationTarget.PROPERTY, AnnotationTarget.PROPERTY_GETTER)
         @Retention(AnnotationRetention.SOURCE)
         @MustBeDocumented
         annotation class FlowObservable

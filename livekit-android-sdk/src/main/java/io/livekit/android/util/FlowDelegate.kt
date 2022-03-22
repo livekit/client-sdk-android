@@ -65,7 +65,7 @@ val <T> KProperty0<T>.flow: StateFlow<T>
 /**
  * Indicates that the target property changes can be observed with [flow].
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY_GETTER)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.BINARY)
 @MustBeDocumented
 annotation class FlowObservable

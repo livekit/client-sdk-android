@@ -65,17 +65,21 @@ constructor(
     @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
+    @FlowObservable
     @get:FlowObservable
     var sid: Sid? by flowDelegate(null)
 
+    @FlowObservable
     @get:FlowObservable
     var name: String? by flowDelegate(null)
         private set
 
+    @FlowObservable
     @get:FlowObservable
     var state: State by flowDelegate(State.DISCONNECTED)
         private set
 
+    @FlowObservable
     @get:FlowObservable
     var metadata: String? by flowDelegate(null)
         private set
@@ -129,12 +133,14 @@ constructor(
 
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
 
+    @FlowObservable
     @get:FlowObservable
     val remoteParticipants: Map<String, RemoteParticipant>
         get() = mutableRemoteParticipants
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
 
+    @FlowObservable
     @get:FlowObservable
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
