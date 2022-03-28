@@ -11,6 +11,8 @@ import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.ViewModel
@@ -63,27 +65,35 @@ class CallActivity : AppCompatActivity() {
 
                 Surface(
                     color = Color.Cyan,
-                    modifier = Modifier.constrainAs(topConnectionItem) {
-                        top.linkTo(parent.top)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                        bottom.linkTo(bottomConnectionItem.top)
-                        width = Dimension.fillToConstraints
-                        height = Dimension.fillToConstraints
-                    }) {
+                    modifier = Modifier
+                        .semantics {
+                            testTag = TEST_TAG1
+                        }
+                        .constrainAs(topConnectionItem) {
+                            top.linkTo(parent.top)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                            bottom.linkTo(bottomConnectionItem.top)
+                            width = Dimension.fillToConstraints
+                            height = Dimension.fillToConstraints
+                        }) {
                     ConnectionItem(viewModel = viewModel1)
                 }
 
                 Surface(
                     color = Color.Magenta,
-                    modifier = Modifier.constrainAs(bottomConnectionItem) {
-                        top.linkTo(topConnectionItem.bottom)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                        bottom.linkTo(parent.bottom)
-                        width = Dimension.fillToConstraints
-                        height = Dimension.fillToConstraints
-                    }) {
+                    modifier = Modifier
+                        .semantics {
+                            testTag = TEST_TAG2
+                        }
+                        .constrainAs(bottomConnectionItem) {
+                            top.linkTo(topConnectionItem.bottom)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                            bottom.linkTo(parent.bottom)
+                            width = Dimension.fillToConstraints
+                            height = Dimension.fillToConstraints
+                        }) {
                     ConnectionItem(viewModel = viewModel2)
                 }
             }
@@ -94,6 +104,9 @@ class CallActivity : AppCompatActivity() {
         const val KEY_ARGS = "args"
         const val VIEWMODEL_KEY1 = "key1"
         const val VIEWMODEL_KEY2 = "key2"
+
+        const val TEST_TAG1 = "tag1"
+        const val TEST_TAG2 = "tag2"
     }
 
     @Parcelize

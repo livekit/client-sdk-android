@@ -15,7 +15,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import io.livekit.android.composesample.R
 import io.livekit.android.composesample.ui.theme.BlueMain
 import io.livekit.android.composesample.ui.theme.NoVideoBackground
 import io.livekit.android.room.Room

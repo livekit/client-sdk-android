@@ -130,13 +130,6 @@ constructor(
             rootEglBase: EglBase,
             trackFactory: Factory
         ): LocalVideoTrack {
-
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                throw SecurityException("Camera permissions are required to create a camera video track.")
-            }
-
             val source = peerConnectionFactory.createVideoSource(false)
             capturer.initialize(
                 SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),

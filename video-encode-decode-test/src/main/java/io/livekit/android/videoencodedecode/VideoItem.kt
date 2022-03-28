@@ -11,9 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import io.livekit.android.composesample.R
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
@@ -98,14 +99,19 @@ fun VideoItem(
         )
 
         // Frame Indicator
-        val frameIndicatorColor = if (receivedVideoFrames) Color.Green else Color.Red
-        Surface(
-            color = frameIndicatorColor,
-            modifier = Modifier.size(40.dp)
-        ) {}
+        if (receivedVideoFrames) {
+            val frameIndicatorColor = Color.Green
+            Surface(
+                color = frameIndicatorColor,
+                modifier = Modifier
+                    .size(40.dp)
+                    .semantics { testTag = VIDEO_FRAME_INDICATOR }
+            ) {}
+        }
     }
 }
 
+const val VIDEO_FRAME_INDICATOR = "frame_indicator"
 /**
  * This widget primarily serves as a way to observe changes in [videoTracks].
  */

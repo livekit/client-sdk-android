@@ -2,13 +2,14 @@ package io.livekit.android.videoencodedecode
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.ColorInt
 import org.webrtc.*
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-class DummyVideoCapturer(@ColorInt val color: Int) : VideoCapturer {
+class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
     var capturerObserver: CapturerObserver? = null
     val timer = Timer()
     var frameWidth = 0
@@ -56,6 +57,9 @@ class DummyVideoCapturer(@ColorInt val color: Int) : VideoCapturer {
 
         val buffer = JavaI420Buffer.allocate(this.frameWidth, this.frameHeight)
         encodeYUV420SP(buffer, this.color, frameWidth, frameHeight)
+
+        this.color = (color + 1) % 0xFFFFFF
+        Log.e("DummyvideoCapturer", String.format("%X", color))
         return VideoFrame(buffer, 0, captureTimeNs)
     }
 
