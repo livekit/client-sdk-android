@@ -80,10 +80,7 @@ jobs:
         
     - name: Trigger BrowserStack tests
       run: |
-        TEST_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
--X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
--d '{"deviceLogs": true, "app": "$BROWSERSTACK_APP_ID", "testSuite": "$BROWSERSTACK_TEST_ID", "devices": ["Samsung Galaxy Tab S8-12.0","Samsung Galaxy S22-12.0", "Samsung Galaxy S21-12.0","Samsung Galaxy S20-10.0", "Google Pixel 6-12.0", "Google Pixel 5-11.0", "Google Pixel 4-11.0", "Google Pixel 3-10.0", "OnePlus 7-9.0","Xiaomi Redmi Note 8-9.0","Huawei P30-9.0"]}' \
--H "Content-Type: application/json")
+        TEST_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" -d '{"deviceLogs": true, "app": "$BROWSERSTACK_APP_ID", "testSuite": "$BROWSERSTACK_TEST_ID", "devices": ["Samsung Galaxy Tab S8-12.0","Samsung Galaxy S22-12.0", "Samsung Galaxy S21-12.0","Samsung Galaxy S20-10.0", "Google Pixel 6-12.0", "Google Pixel 5-11.0", "Google Pixel 4-11.0", "Google Pixel 3-10.0", "OnePlus 7-9.0","Xiaomi Redmi Note 8-9.0","Huawei P30-9.0"]}' -H "Content-Type: application/json")
         echo "APP_UPLOAD_RESPONSE : " + $APP_UPLOAD_RESPONSE
       env:
         BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
