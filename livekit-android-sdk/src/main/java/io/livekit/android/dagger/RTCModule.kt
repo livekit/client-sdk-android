@@ -106,7 +106,7 @@ object RTCModule {
             SimulcastVideoEncoderFactoryWrapper(
                 eglContext,
                 enableIntelVp8Encoder = true,
-                enableH264HighProfile = false,
+                enableH264HighProfile = true,
             )
         } else {
             SoftwareVideoEncoderFactory()
