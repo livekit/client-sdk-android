@@ -19,10 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.cancel
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.EglBase
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpParameters
-import org.webrtc.RtpTransceiver
+import org.webrtc.*
 import javax.inject.Named
 import kotlin.math.max
 
@@ -75,6 +72,25 @@ internal constructor(
         options: LocalAudioTrackOptions = audioTrackCaptureDefaults,
     ): LocalAudioTrack {
         return LocalAudioTrack.createTrack(context, peerConnectionFactory, options, name)
+    }
+
+    /**
+     * Creates a video track, recording video through the supplied [capturer]
+     */
+    fun createVideoTrack(
+        name: String = "",
+        capturer: VideoCapturer,
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+    ): LocalVideoTrack {
+        return LocalVideoTrack.createTrack(
+            peerConnectionFactory = peerConnectionFactory,
+            context = context,
+            name = name,
+            capturer = capturer,
+            options = LocalVideoTrackOptions(),
+            rootEglBase = eglBase,
+            trackFactory = videoTrackFactory,
+        )
     }
 
     /**
