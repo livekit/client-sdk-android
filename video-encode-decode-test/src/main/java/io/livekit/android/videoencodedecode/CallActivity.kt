@@ -37,7 +37,7 @@ class CallActivity : AppCompatActivity() {
                     ?: throw NullPointerException("args is null!")
 
                 val token = if (key == VIEWMODEL_KEY1) args.token1 else args.token2
-                return CallViewModel(args.url, token, application) as T
+                return CallViewModel(args.url, token, args.useDefaultVideoEncoderFactory, args.codecWhiteList, application) as T
             }
         })
         viewModel1 = viewModelProvider.get(VIEWMODEL_KEY1, CallViewModel::class.java)
@@ -110,5 +110,11 @@ class CallActivity : AppCompatActivity() {
     }
 
     @Parcelize
-    data class BundleArgs(val url: String, val token1: String, val token2: String) : Parcelable
+    data class BundleArgs(
+        val url: String,
+        val token1: String,
+        val token2: String,
+        val useDefaultVideoEncoderFactory: Boolean = false,
+        val codecWhiteList: List<String>? = null,
+    ) : Parcelable
 }

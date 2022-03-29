@@ -8,6 +8,7 @@ import io.livekit.android.room.Room
 import okhttp3.OkHttpClient
 import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
+import org.webrtc.VideoEncoderFactory
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -36,7 +37,12 @@ internal interface LiveKitComponent {
             @BindsInstance
             @Named(InjectionNames.OVERRIDE_OKHTTP)
             @Nullable
-            okHttpClientOverride: OkHttpClient?
+            okHttpClientOverride: OkHttpClient?,
+
+            @BindsInstance
+            @Named(InjectionNames.OVERRIDE_VIDEO_ENCODER_FACTORY)
+            @Nullable
+            videoEncoderFactory: VideoEncoderFactory?,
         ): LiveKitComponent
     }
 }
@@ -47,7 +53,8 @@ internal fun LiveKitComponent.Factory.create(
 ): LiveKitComponent {
     return create(
         appContext = context,
-        okHttpClientOverride = overrides.okHttpClient
+        okHttpClientOverride = overrides.okHttpClient,
+        videoEncoderFactory = overrides.videoEncoderFactory,
     )
 }
 
@@ -55,5 +62,6 @@ internal fun LiveKitComponent.Factory.create(
  * Overrides to replace LiveKit internally used component with custom implementations.
  */
 data class LiveKitOverrides(
-    val okHttpClient: OkHttpClient? = null
+    val okHttpClient: OkHttpClient? = null,
+    val videoEncoderFactory: VideoEncoderFactory? = null,
 )

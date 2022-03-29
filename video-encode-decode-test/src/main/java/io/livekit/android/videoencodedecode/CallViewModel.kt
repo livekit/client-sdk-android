@@ -8,17 +8,21 @@ import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
+import io.livekit.android.dagger.LiveKitOverrides
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.webrtc.EglBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
     val url: String,
     val token: String,
+    val useDefaultVideoEncoder: Boolean = false,
+    val codecWhiteList: List<String>? = null,
     application: Application
 ) : AndroidViewModel(application) {
     private val mutableRoom = MutableStateFlow<Room?>(null)
@@ -49,17 +53,38 @@ class CallViewModel(
             }
 
             try {
+                val videoEncoderFactory = if (useDefaultVideoEncoder || codecWhiteList != null) {
+                    val factory = if (useDefaultVideoEncoder) {
+                        WhitelistDefaultVideoEncoderFactory(
+                            EglBase.create().eglBaseContext,
+                            true,
+                            true
+                        )
+                    } else {
+                        WhitelistSimulcastVideoEncoderFactory(
+                            EglBase.create().eglBaseContext,
+                            true,
+                            true,
+                        )
+                    }
+                    factory.apply { codecWhitelist = this@CallViewModel.codecWhiteList }
+                } else {
+                    null
+                }
+                val overrides = LiveKitOverrides(videoEncoderFactory = videoEncoderFactory)
+
                 val room = LiveKit.connect(
                     application,
                     url,
                     token,
                     roomOptions = RoomOptions(adaptiveStream = true, dynacast = true),
+                    overrides = overrides
                 )
 
                 // Create and publish audio/video tracks
                 val localParticipant = room.localParticipant
 
-                val capturer = DummyVideoCapturer(Color.BLUE)
+                val capturer = DummyVideoCapturer(Color.RED)
                 val videoTrack = localParticipant.createVideoTrack(capturer = capturer)
                 videoTrack.startCapture()
                 localParticipant.publishVideoTrack(videoTrack)

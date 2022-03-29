@@ -2,7 +2,6 @@ package io.livekit.android.videoencodedecode
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import androidx.annotation.ColorInt
 import org.webrtc.*
 import java.nio.ByteBuffer
@@ -35,8 +34,8 @@ class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
     }
 
     override fun startCapture(width: Int, height: Int, framerate: Int) {
-        frameWidth = 100
-        frameHeight = 100
+        frameWidth = width
+        frameHeight = height
         this.timer.schedule(this.tickTask, 0L, (1000 / framerate).toLong())
     }
 
@@ -51,7 +50,7 @@ class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
         this.timer.cancel()
     }
 
-    fun createFrame(): VideoFrame {
+    private fun createFrame(): VideoFrame {
 
         val captureTimeNs = TimeUnit.MILLISECONDS.toNanos(SystemClock.elapsedRealtime())
 
@@ -59,7 +58,6 @@ class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
         encodeYUV420SP(buffer, this.color, frameWidth, frameHeight)
 
         this.color = (color + 1) % 0xFFFFFF
-        Log.e("DummyvideoCapturer", String.format("%X", color))
         return VideoFrame(buffer, 0, captureTimeNs)
     }
 
@@ -69,11 +67,10 @@ class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
 
     companion object {
 
+        // adapted from https://stackoverflow.com/a/13055615/295675
         fun encodeYUV420SP(yuvBuffer: JavaI420Buffer, color: Int, width: Int, height: Int) {
-            val frameSize = width * height
             var yIndex = 0
             var uvIndex = 0
-            var a: Int
             var R: Int
             var G: Int
             var B: Int

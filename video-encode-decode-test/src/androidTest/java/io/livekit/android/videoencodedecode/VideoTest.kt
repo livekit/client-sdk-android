@@ -1,6 +1,6 @@
 package io.livekit.android.videoencodedecode
 
-import android.content.Intent
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.jsonwebtoken.Jwts
@@ -12,12 +12,18 @@ import java.util.*
 import javax.crypto.spec.SecretKeySpec
 
 @RunWith(AndroidJUnit4::class)
-class VideoTest {
+abstract class VideoTest {
 
     val roomName = "browserStackTestRoom-${randomAlphanumericString(12)}"
 
+    companion object {
+        val SERVER_URL = BuildConfig.SERVER_URL
+        val API_KEY = BuildConfig.API_KEY
+        val API_SECRET = BuildConfig.API_SECRET
+    }
+
     private fun createToken(name: String) = Jwts.builder()
-        .setIssuer(BuildConfig.API_KEY)
+        .setIssuer(API_KEY)
         .setExpiration(Date(System.currentTimeMillis() + 1000 * 60 * 60 /* 1hour */))
         .setNotBefore(Date(0))
         .setSubject(name)
@@ -32,28 +38,16 @@ class VideoTest {
             )
         )
         .signWith(
-            SecretKeySpec(BuildConfig.API_SECRET.toByteArray(), "HmacSHA256"),
+            SecretKeySpec(API_SECRET.toByteArray(), "HmacSHA256"),
             SignatureAlgorithm.HS256
         )
         .compact()
 
-    private val token1 = createToken("phone1")
-
-    private val token2 = createToken("phone2")
+    protected val token1 = createToken("phone1")
+    protected val token2 = createToken("phone2")
 
     @get:Rule
-    val composeTestRule = createAndroidIntentComposeRule<CallActivity> { context ->
-        Intent(context, CallActivity::class.java).apply {
-            putExtra(
-                CallActivity.KEY_ARGS,
-                CallActivity.BundleArgs(
-                    "wss://demo.livekit.cloud",
-                    token1,
-                    token2,
-                )
-            )
-        }
-    }
+    abstract val composeTestRule: ComposeTestRule
 
     @Test
     fun videoReceivedTest() {
@@ -63,4 +57,5 @@ class VideoTest {
                 .size == 2
         }
     }
+
 }

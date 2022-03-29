@@ -26,4 +26,5 @@ object InjectionNames {
 
     // Overrides
     internal const val OVERRIDE_OKHTTP = "override_okhttp"
+    internal const val OVERRIDE_VIDEO_ENCODER_FACTORY = "override_video_encoder_factory"
 }

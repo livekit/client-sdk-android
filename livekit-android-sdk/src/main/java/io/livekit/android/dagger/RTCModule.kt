@@ -1,6 +1,7 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.util.LKLog
@@ -99,10 +100,12 @@ object RTCModule {
     fun videoEncoderFactory(
         @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
         videoHwAccel: Boolean,
-        eglContext: EglBase.Context
+        eglContext: EglBase.Context,
+        @Named(InjectionNames.OVERRIDE_VIDEO_ENCODER_FACTORY)
+        @Nullable
+        videoEncoderFactoryOverride: VideoEncoderFactory?
     ): VideoEncoderFactory {
-
-        return if (videoHwAccel) {
+        return videoEncoderFactoryOverride ?: if (videoHwAccel) {
             SimulcastVideoEncoderFactoryWrapper(
                 eglContext,
                 enableIntelVp8Encoder = true,

@@ -4,6 +4,10 @@ plugins {
     id 'kotlin-parcelize'
 }
 
+def getServerUrl() {
+    return hasProperty('livekitUrl') ? livekitUrl : ""
+}
+
 def getApiKey() {
     return hasProperty('livekitApiKey') ? livekitApiKey : ""
 }
@@ -12,6 +16,7 @@ def getApiSecret() {
     return hasProperty('livekitApiSecret') ? livekitApiSecret : ""
 }
 
+final serverUrl = getServerUrl()
 final apiKey = getApiKey()
 final apiSecret = getApiSecret()
 
@@ -35,11 +40,13 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "SERVER_URL", "\"$serverUrl\""
             buildConfigField "String", "API_KEY", "\"$apiKey\""
             buildConfigField "String", "API_SECRET", "\"$apiSecret\""
         }
 
         debug {
+            buildConfigField "String", "SERVER_URL", "\"$serverUrl\""
             buildConfigField "String", "API_KEY", "\"$apiKey\""
             buildConfigField "String", "API_SECRET", "\"$apiSecret\""
         }

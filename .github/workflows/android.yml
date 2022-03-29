@@ -33,9 +33,11 @@ jobs:
 
     - name: Import video test keys into gradle properties
       run: |
+        sed -i -e "s,livekitUrl=,livekitUrl=$LIVEKIT_URL,g" gradle.properties
         sed -i -e "s,livekitApiKey=,livekitApiKey=$LIVEKIT_API_KEY,g" gradle.properties
         sed -i -e "s,livekitApiSecret=,livekitApiSecret=$LIVEKIT_API_SECRET,g" gradle.properties
       env:
+        LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
         LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
         LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
       
