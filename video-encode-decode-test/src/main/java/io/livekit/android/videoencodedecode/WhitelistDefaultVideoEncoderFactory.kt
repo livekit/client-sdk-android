@@ -15,10 +15,10 @@ class WhitelistDefaultVideoEncoderFactory(
 
     override fun getSupportedCodecs(): Array<VideoCodecInfo> {
         val supportedCodecs = super.getSupportedCodecs()
-        Timber.v { "actual supported codecs: $supportedCodecs" }
+        Timber.v { "actual supported codecs: ${supportedCodecs.map { it.name }}" }
 
         val filteredCodecs = supportedCodecs.filter { codecWhitelist?.contains(it.name) ?: true }.toTypedArray()
-        Timber.v { "filtered supported codecs: $filteredCodecs" }
+        Timber.v { "filtered supported codecs: ${filteredCodecs.map { it.name }}" }
 
         return filteredCodecs
     }
