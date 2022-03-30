@@ -11,6 +11,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.LiveKitOverrides
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.util.flow
@@ -80,7 +81,7 @@ class CallViewModel(
                     application,
                     url,
                     token,
-                    roomOptions = RoomOptions(adaptiveStream = true, dynacast = true),
+                    roomOptions = RoomOptions(videoTrackPublishDefaults = VideoTrackPublishDefaults(simulcast = !useDefaultVideoEncoder)),
                     overrides = overrides
                 )
 
