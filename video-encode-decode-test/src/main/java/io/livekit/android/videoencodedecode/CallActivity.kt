@@ -37,7 +37,16 @@ class CallActivity : AppCompatActivity() {
                     ?: throw NullPointerException("args is null!")
 
                 val token = if (key == VIEWMODEL_KEY1) args.token1 else args.token2
-                return CallViewModel(args.url, token, args.useDefaultVideoEncoderFactory, args.codecWhiteList, application) as T
+                val showVideo = key == VIEWMODEL_KEY1
+                @Suppress("UNCHECKED_CAST")
+                return CallViewModel(
+                    args.url,
+                    token,
+                    args.useDefaultVideoEncoderFactory,
+                    args.codecWhiteList,
+                    showVideo,
+                    application
+                ) as T
             }
         })
         viewModel1 = viewModelProvider.get(VIEWMODEL_KEY1, CallViewModel::class.java)

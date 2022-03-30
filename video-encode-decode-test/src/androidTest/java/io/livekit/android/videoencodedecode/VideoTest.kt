@@ -53,8 +53,7 @@ abstract class VideoTest {
     fun videoReceivedTest() {
         composeTestRule.waitForIdle()
         composeTestRule.waitUntil(20 * 1000L) {
-            composeTestRule.onAllNodesWithTag(VIDEO_FRAME_INDICATOR).fetchSemanticsNodes(false, "")
-                .size == 2
+            composeTestRule.onAllNodesWithTag(VIDEO_FRAME_INDICATOR).fetchSemanticsNodes(false, "").isNotEmpty()
         }
     }
 

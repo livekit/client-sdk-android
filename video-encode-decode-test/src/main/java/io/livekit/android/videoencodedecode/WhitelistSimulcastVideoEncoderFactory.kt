@@ -1,5 +1,6 @@
 package io.livekit.android.videoencodedecode
 
+import com.github.ajalt.timberkt.Timber
 import io.livekit.android.webrtc.SimulcastVideoEncoderFactoryWrapper
 import org.webrtc.EglBase
 import org.webrtc.VideoCodecInfo
@@ -14,7 +15,11 @@ class WhitelistSimulcastVideoEncoderFactory(
 
     override fun getSupportedCodecs(): Array<VideoCodecInfo> {
         val supportedCodecs = super.getSupportedCodecs()
+        Timber.v { "actual supported codecs: $supportedCodecs" }
 
-        return supportedCodecs.filter { codecWhitelist?.contains(it.name) ?: true }.toTypedArray()
+        val filteredCodecs = supportedCodecs.filter { codecWhitelist?.contains(it.name) ?: true }.toTypedArray()
+        Timber.v { "filtered supported codecs: $filteredCodecs" }
+
+        return filteredCodecs
     }
 }
