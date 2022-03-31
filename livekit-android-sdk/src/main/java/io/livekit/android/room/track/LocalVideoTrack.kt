@@ -125,6 +125,31 @@ constructor(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
             name: String,
+            capturer: VideoCapturer,
+            options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+            rootEglBase: EglBase,
+            trackFactory: Factory
+        ): LocalVideoTrack {
+            val source = peerConnectionFactory.createVideoSource(false)
+            capturer.initialize(
+                SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
+                context,
+                source.capturerObserver
+            )
+            val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
+
+            return trackFactory.create(
+                capturer = capturer,
+                source = source,
+                options = options,
+                name = name,
+                rtcTrack = track
+            )
+        }
+        internal fun createTrack(
+            peerConnectionFactory: PeerConnectionFactory,
+            context: Context,
+            name: String,
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
             trackFactory: Factory

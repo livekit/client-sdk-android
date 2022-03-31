@@ -22,7 +22,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
-internal class SimulcastVideoEncoderFactoryWrapper(
+open class SimulcastVideoEncoderFactoryWrapper(
     sharedContext: EglBase.Context?,
     enableIntelVp8Encoder: Boolean,
     enableH264HighProfile: Boolean
