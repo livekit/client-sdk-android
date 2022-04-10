@@ -1,8 +1,8 @@
 package io.livekit.android.events
 
-import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.ParticipantPermission
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
@@ -117,5 +117,16 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
         override val participant: RemoteParticipant,
         val trackPublication: RemoteTrackPublication,
         val subscriptionAllowed: Boolean
+    ) : ParticipantEvent(participant)
+
+    /**
+     * A participant's permissions have changed.
+     *
+     * Currently only fires for the local participant.
+     */
+    class ParticipantPermissionsChanged(
+        override val participant: Participant,
+        val newPermissions: ParticipantPermission?,
+        val oldPermissions: ParticipantPermission?,
     ) : ParticipantEvent(participant)
 }

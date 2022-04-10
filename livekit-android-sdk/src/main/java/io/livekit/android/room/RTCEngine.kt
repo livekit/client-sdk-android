@@ -519,6 +519,7 @@ internal constructor(
         fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
+        fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
     }
 
     companion object {
@@ -669,6 +670,10 @@ internal constructor(
 
     override fun onRefreshToken(token: String) {
         sessionToken = token
+    }
+
+    override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
+        listener?.onLocalTrackUnpublished(trackUnpublished)
     }
 
     //--------------------------------- DataChannel.Observer ------------------------------------//

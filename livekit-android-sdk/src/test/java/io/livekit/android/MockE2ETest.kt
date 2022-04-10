@@ -2,6 +2,7 @@ package io.livekit.android
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.google.protobuf.MessageLite
 import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okio.ByteString
 import org.junit.Before
 import org.webrtc.PeerConnection
 
@@ -72,5 +74,19 @@ abstract class MockE2ETest : BaseTest() {
             .protocol(Protocol.HTTP_2)
             .message("")
             .build()
+    }
+
+    /**
+     * Simulates receiving [message] from the server
+     */
+    fun simulateMessageFromServer(message: MessageLite) {
+        simulateMessageFromServer(message.toOkioByteString())
+    }
+
+    /**
+     * Simulates receiving [message] from the server
+     */
+    fun simulateMessageFromServer(message: ByteString) {
+        wsFactory.listener.onMessage(wsFactory.ws, message)
     }
 }

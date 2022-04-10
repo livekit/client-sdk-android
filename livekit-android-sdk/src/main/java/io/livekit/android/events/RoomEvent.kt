@@ -1,10 +1,7 @@
 package io.livekit.android.events
 
 import io.livekit.android.room.Room
-import io.livekit.android.room.participant.ConnectionQuality
-import io.livekit.android.room.participant.LocalParticipant
-import io.livekit.android.room.participant.Participant
-import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
@@ -157,4 +154,15 @@ sealed class RoomEvent(val room: Room) : Event() {
 
     class FailedToConnect(room: Room, val error: Throwable) : RoomEvent(room)
 
+    /**
+     * A participant's permissions have changed.
+     *
+     * Currently only fires for the local participant.
+     */
+    class ParticipantPermissionsChanged(
+        room: Room,
+        val participant: Participant,
+        val newPermissions: ParticipantPermission?,
+        val oldPermissions: ParticipantPermission?,
+    ) : RoomEvent(room)
 }
