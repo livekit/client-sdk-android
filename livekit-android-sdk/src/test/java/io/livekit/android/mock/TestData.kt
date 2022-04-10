@@ -20,6 +20,13 @@ object TestData {
         sid = "local_participant_sid"
         identity = "local_participant_identity"
         state = LivekitModels.ParticipantInfo.State.ACTIVE
+        permission = LivekitModels.ParticipantPermission.newBuilder()
+            .setCanPublish(true)
+            .setCanSubscribe(true)
+            .setCanPublishData(true)
+            .setHidden(true)
+            .setRecorder(false)
+            .build()
         build()
     }
 

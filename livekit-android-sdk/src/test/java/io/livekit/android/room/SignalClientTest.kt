@@ -260,6 +260,34 @@ class SignalClientTest : BaseTest() {
             build()
         }
 
+        val LOCAL_TRACK_UNPUBLISHED = with(LivekitRtc.SignalResponse.newBuilder()) {
+            trackUnpublished = with(LivekitRtc.TrackUnpublishedResponse.newBuilder()) {
+                trackSid = TestData.LOCAL_AUDIO_TRACK.sid
+                build()
+            }
+            build()
+        }
+
+        val PERMISSION_CHANGE = with(LivekitRtc.SignalResponse.newBuilder()) {
+            update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
+                addParticipants(
+                    TestData.LOCAL_PARTICIPANT.toBuilder()
+                        .setPermission(
+                            LivekitModels.ParticipantPermission.newBuilder()
+                                .setCanPublish(false)
+                                .setCanSubscribe(false)
+                                .setCanPublishData(false)
+                                .setHidden(false)
+                                .setRecorder(false)
+                                .build()
+                        )
+                        .build()
+                )
+                build()
+            }
+            build()
+        }
+
         val PARTICIPANT_JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
             update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
                 addParticipants(TestData.REMOTE_PARTICIPANT)

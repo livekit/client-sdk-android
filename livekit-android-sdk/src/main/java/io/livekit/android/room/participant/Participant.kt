@@ -9,6 +9,7 @@ import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import livekit.LivekitModels
+import livekit.LivekitRtc
 import javax.inject.Named
 
 open class Participant(
@@ -83,6 +85,25 @@ open class Participant(
             listener?.onMetadataChanged(this, oldMetadata)
             internalListener?.onMetadataChanged(this, oldMetadata)
             eventBus.postEvent(ParticipantEvent.MetadataChanged(this, oldMetadata), scope)
+        }
+    }
+        internal set
+
+    /**
+     *
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var permissions: ParticipantPermission? by flowDelegate(null) { newPermissions, oldPermissions ->
+        if (newPermissions != oldPermissions) {
+            eventBus.postEvent(
+                ParticipantEvent.ParticipantPermissionsChanged(
+                    this,
+                    newPermissions,
+                    oldPermissions
+                ),
+                scope
+            )
         }
     }
         internal set
@@ -222,6 +243,9 @@ open class Participant(
         participantInfo = info
         metadata = info.metadata
         name = info.name
+        if (info.hasPermission()) {
+            permissions = ParticipantPermission.fromProto(info.permission)
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -238,7 +262,6 @@ open class Participant(
     override fun hashCode(): Int {
         return sid.hashCode()
     }
-
 
     // Internal methods just for posting events.
     internal fun onTrackMuted(trackPublication: TrackPublication) {
@@ -362,6 +385,26 @@ enum class ConnectionQuality {
                 LivekitModels.ConnectionQuality.POOR -> POOR
                 LivekitModels.ConnectionQuality.UNRECOGNIZED -> UNKNOWN
             }
+        }
+    }
+}
+
+data class ParticipantPermission(
+    val canPublish: Boolean,
+    val canSubscribe: Boolean,
+    val canPublishData: Boolean,
+    val hidden: Boolean,
+    val recorder: Boolean,
+) {
+    companion object {
+        fun fromProto(proto: LivekitModels.ParticipantPermission): ParticipantPermission {
+            return ParticipantPermission(
+                canPublish = proto.canPublish,
+                canSubscribe = proto.canSubscribe,
+                canPublishData = proto.canPublishData,
+                hidden = proto.hidden,
+                recorder = proto.recorder,
+            )
         }
     }
 }

@@ -474,15 +474,12 @@ internal constructor(
         }
     }
 
-    /**
-     * @suppress
-     */
-    fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
+    internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = tracks[trackSid]
         pub?.muted = muted
     }
 
-    fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
+    internal fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
         if (!dynacast) {
             return
         }
@@ -513,6 +510,17 @@ internal constructor(
         if (hasChanged) {
             sender.parameters = parameters
         }
+    }
+
+    internal fun handleLocalTrackUnpublished(unpublishedResponse: LivekitRtc.TrackUnpublishedResponse) {
+        val pub = tracks[unpublishedResponse.trackSid]
+        val track = pub?.track
+        if (track == null) {
+            LKLog.w { "Received unpublished track response for unknown or non-published track: ${unpublishedResponse.trackSid}" }
+            return
+        }
+
+        unpublishTrack(track)
     }
 
     fun prepareForFullReconnect() {

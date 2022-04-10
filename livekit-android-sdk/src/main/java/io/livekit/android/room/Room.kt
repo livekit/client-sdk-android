@@ -197,6 +197,23 @@ constructor(
         if (_localParticipant == null) {
             val lp = localParticipantFactory.create(response.participant, dynacast)
             lp.internalListener = this
+            coroutineScope.launch {
+                lp.events.collect {
+                    when (it) {
+                        is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
+                            RoomEvent.ParticipantPermissionsChanged(
+                                room = this@Room,
+                                participant = it.participant,
+                                newPermissions = it.newPermissions,
+                                oldPermissions = it.oldPermissions,
+                            )
+                        )
+                        else -> {
+                            /* do nothing */
+                        }
+                    }
+                }
+            }
             _localParticipant = lp
         } else {
             localParticipant.updateFromInfo(response.participant)
@@ -264,6 +281,17 @@ constructor(
                             it.subscriptionAllowed
                         )
                     )
+                    is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
+                        RoomEvent.ParticipantPermissionsChanged(
+                            room = this@Room,
+                            participant = it.participant,
+                            newPermissions = it.newPermissions,
+                            oldPermissions = it.oldPermissions,
+                        )
+                    )
+                    else -> {
+                        /* do nothing */
+                    }
                 }
             }
         }
@@ -651,12 +679,19 @@ constructor(
                 val pubs = participant.tracks.values.toList()
                 for (pub in pubs) {
                     val remotePub = pub as? RemoteTrackPublication ?: continue
-                    if(remotePub.subscribed) {
+                    if (remotePub.subscribed) {
                         remotePub.sendUpdateTrackSettings.invoke()
                     }
                 }
             }
         }
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
+        localParticipant.handleLocalTrackUnpublished(trackUnpublished)
     }
 
     //------------------------------- ParticipantListener --------------------------------//

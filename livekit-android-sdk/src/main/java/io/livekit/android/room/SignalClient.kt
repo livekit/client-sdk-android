@@ -525,6 +525,9 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.REFRESH_TOKEN -> {
                 listener?.onRefreshToken(response.refreshToken)
             }
+            LivekitRtc.SignalResponse.MessageCase.TRACK_UNPUBLISHED -> {
+                listener?.onLocalTrackUnpublished(response.trackUnpublished)
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
@@ -567,6 +570,7 @@ constructor(
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onRefreshToken(token: String)
+        fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
     }
 
     companion object {
@@ -583,7 +587,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 6
+        const val PROTOCOL_VERSION = 7
         const val SDK_TYPE = "android"
 
         private val skipQueueTypes = listOf(
