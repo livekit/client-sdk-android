@@ -1,13 +1,15 @@
 package io.livekit.android.mock
 
-import org.webrtc.AudioTrack
+import org.webrtc.VideoSink
+import org.webrtc.VideoTrack
 
-class MockAudioStreamTrack(
+class MockVideoStreamTrack(
     val id: String = "id",
     val kind: String = AUDIO_TRACK_KIND,
     var enabled: Boolean = true,
     var state: State = State.LIVE,
-) : AudioTrack(1L) {
+) : VideoTrack(1L) {
+    val sinks = mutableSetOf<VideoSink>()
     override fun id(): String = id
 
     override fun kind(): String = kind
@@ -26,6 +28,11 @@ class MockAudioStreamTrack(
     override fun dispose() {
     }
 
-    override fun setVolume(volume: Double) {
+    override fun addSink(sink: VideoSink) {
+        sinks.add(sink)
+    }
+
+    override fun removeSink(sink: VideoSink) {
+        sinks.remove(sink)
     }
 }
