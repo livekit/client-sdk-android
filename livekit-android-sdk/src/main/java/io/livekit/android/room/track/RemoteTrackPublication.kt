@@ -33,11 +33,16 @@ class RemoteTrackPublication(
                 trackJob = CoroutineScope(ioDispatcher).launch {
                     value.events.collect {
                         when (it) {
-                            is TrackEvent.VisibilityChanged -> handleVisibilityChanged(it)
-                            is TrackEvent.VideoDimensionsChanged -> handleVideoDimensionsChanged(it)
+                            is TrackEvent.VisibilityChanged -> handleVisibilityChanged(it.isVisible)
+                            is TrackEvent.VideoDimensionsChanged -> handleVideoDimensionsChanged(it.newDimensions)
                             is TrackEvent.StreamStateChanged -> handleStreamStateChanged(it)
                         }
                     }
+                }
+
+                if (value is RemoteVideoTrack) {
+                    handleVideoDimensionsChanged(value.lastDimensions)
+                    handleVisibilityChanged(value.lastVisibility)
                 }
             }
         }
@@ -158,13 +163,13 @@ class RemoteTrackPublication(
         sendUpdateTrackSettings.invoke()
     }
 
-    private fun handleVisibilityChanged(trackEvent: TrackEvent.VisibilityChanged) {
-        disabled = !trackEvent.isVisible
+    private fun handleVisibilityChanged(isVisible: Boolean) {
+        disabled = !isVisible
         sendUpdateTrackSettings.invoke()
     }
 
-    private fun handleVideoDimensionsChanged(trackEvent: TrackEvent.VideoDimensionsChanged) {
-        videoDimensions = trackEvent.newDimensions
+    private fun handleVideoDimensionsChanged(newDimensions: Track.Dimensions) {
+        videoDimensions = newDimensions
         sendUpdateTrackSettings.invoke()
     }
 
