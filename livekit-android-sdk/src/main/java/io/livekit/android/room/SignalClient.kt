@@ -576,7 +576,7 @@ constructor(
     companion object {
         const val CONNECT_QUERY_TOKEN = "access_token"
         const val CONNECT_QUERY_RECONNECT = "reconnect"
-        const val CONNECT_QUERY_AUTOSUBSCRIBE = "autoSubscribe"
+        const val CONNECT_QUERY_AUTOSUBSCRIBE = "auto_subscribe"
         const val CONNECT_QUERY_SDK = "sdk"
         const val CONNECT_QUERY_VERSION = "version"
         const val CONNECT_QUERY_PROTOCOL = "protocol"
