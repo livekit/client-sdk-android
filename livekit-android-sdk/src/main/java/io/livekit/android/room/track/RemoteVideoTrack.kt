@@ -24,7 +24,9 @@ class RemoteVideoTrack(
     private val visibilities = sinkVisibilityMap.values
 
     internal var lastVisibility = false
+        private set
     internal var lastDimensions: Dimensions = Dimensions(0, 0)
+        private set
 
     override fun addRenderer(renderer: VideoSink) {
         if (autoManageVideo && renderer is View) {
