@@ -11,6 +11,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
+import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
@@ -148,6 +149,15 @@ constructor(
     private var hasLostConnectivity: Boolean = false
     private var connectOptions: ConnectOptions = ConnectOptions()
 
+    private fun getCurrentRoomOptions(): RoomOptions =
+        RoomOptions(
+            adaptiveStream = adaptiveStream,
+            dynacast = dynacast,
+            audioTrackCaptureDefaults = audioTrackCaptureDefaults,
+            videoTrackCaptureDefaults = videoTrackCaptureDefaults,
+            audioTrackPublishDefaults = audioTrackPublishDefaults,
+            videoTrackPublishDefaults = videoTrackPublishDefaults,
+        )
 
     suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
         if (this::coroutineScope.isInitialized) {
@@ -156,7 +166,7 @@ constructor(
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
         state = State.CONNECTING
         connectOptions = options
-        engine.join(url, token, options)
+        engine.join(url, token, options, getCurrentRoomOptions())
 
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
