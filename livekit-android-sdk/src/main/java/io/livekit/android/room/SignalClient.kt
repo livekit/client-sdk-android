@@ -2,6 +2,7 @@ package io.livekit.android.room
 
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
+import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
@@ -49,6 +50,8 @@ constructor(
     var listener: Listener? = null
     private var serverVersion: Semver? = null
     private var lastUrl: String? = null
+    private var lastOptions: ConnectOptions? = null
+    private var lastRoomOptions: RoomOptions? = null
 
     private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
@@ -59,6 +62,7 @@ constructor(
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
+
     /**
      * @throws Exception if fails to connect.
      */
@@ -66,8 +70,9 @@ constructor(
         url: String,
         token: String,
         options: ConnectOptions = ConnectOptions(),
+        roomOptions: RoomOptions = RoomOptions(),
     ): LivekitRtc.JoinResponse {
-        val joinResponse = connect(url, token, options)
+        val joinResponse = connect(url, token, options, roomOptions)
         return (joinResponse as Either.Left).value
     }
 
@@ -78,26 +83,30 @@ constructor(
         connect(
             url,
             token,
-            ConnectOptions()
-                .apply { reconnect = true }
+            (lastOptions ?: ConnectOptions()).copy()
+                .apply { reconnect = true },
+            lastRoomOptions ?: RoomOptions()
         )
     }
 
     suspend fun connect(
         url: String,
         token: String,
-        options: ConnectOptions
+        options: ConnectOptions,
+        roomOptions: RoomOptions
     ): Either<LivekitRtc.JoinResponse, Unit> {
         // Clean up any pre-existing connection.
         close()
 
-        val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options)
+        val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
 
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         lastUrl = wsUrlString
+        lastOptions = options
+        lastRoomOptions = roomOptions
 
         val request = Request.Builder()
             .url(wsUrlString)
@@ -113,7 +122,8 @@ constructor(
     private fun createConnectionParams(
         token: String,
         clientInfo: LivekitModels.ClientInfo,
-        options: ConnectOptions
+        options: ConnectOptions,
+        roomOptions: RoomOptions
     ): String {
 
         val queryParams = mutableListOf<Pair<String, String>>()
@@ -123,8 +133,11 @@ constructor(
             queryParams.add(CONNECT_QUERY_RECONNECT to 1.toString())
         }
 
-        val autoSubscribe = if(options.autoSubscribe) 1 else 0
+        val autoSubscribe = if (options.autoSubscribe) 1 else 0
         queryParams.add(CONNECT_QUERY_AUTOSUBSCRIBE to autoSubscribe.toString())
+
+        val adaptiveStream = if (roomOptions.adaptiveStream) 1 else 0
+        queryParams.add(CONNECT_QUERY_ADAPTIVE_STREAM to adaptiveStream.toString())
 
         // Client info
         queryParams.add(CONNECT_QUERY_SDK to "android")
@@ -551,6 +564,9 @@ constructor(
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
+        lastUrl = null
+        lastOptions = null
+        lastRoomOptions = null
     }
 
     interface Listener {
@@ -577,6 +593,7 @@ constructor(
         const val CONNECT_QUERY_TOKEN = "access_token"
         const val CONNECT_QUERY_RECONNECT = "reconnect"
         const val CONNECT_QUERY_AUTOSUBSCRIBE = "auto_subscribe"
+        const val CONNECT_QUERY_ADAPTIVE_STREAM = "adaptive_stream"
         const val CONNECT_QUERY_SDK = "sdk"
         const val CONNECT_QUERY_VERSION = "version"
         const val CONNECT_QUERY_PROTOCOL = "protocol"

@@ -22,7 +22,6 @@ import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.EglBase
-import java.lang.Exception
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -65,7 +64,7 @@ class RoomTest {
 
     suspend fun connect() {
         rtcEngine.stub {
-            onBlocking { rtcEngine.join(any(), any(), anyOrNull()) }
+            onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull()) }
                 .doSuspendableAnswer {
                     room.onJoinResponse(SignalClientTest.JOIN.join)
                     SignalClientTest.JOIN.join

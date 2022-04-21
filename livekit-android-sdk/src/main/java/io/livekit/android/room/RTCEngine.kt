@@ -3,6 +3,7 @@ package io.livekit.android.room
 import android.os.SystemClock
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
+import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
@@ -80,6 +81,7 @@ internal constructor(
     private var sessionUrl: String? = null
     private var sessionToken: String? = null
     private var connectOptions: ConnectOptions? = null
+    private var lastRoomOptions: RoomOptions? = null
 
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
@@ -113,16 +115,28 @@ internal constructor(
         client.listener = this
     }
 
-    suspend fun join(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
+    suspend fun join(
+        url: String,
+        token: String,
+        options: ConnectOptions,
+        roomOptions: RoomOptions
+    ): LivekitRtc.JoinResponse {
         coroutineScope.close()
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
         sessionToken = token
-        return joinImpl(url, token, options)
+        connectOptions = options
+        lastRoomOptions = roomOptions
+        return joinImpl(url, token, options, roomOptions)
     }
 
-    suspend fun joinImpl(url: String, token: String, options: ConnectOptions): LivekitRtc.JoinResponse {
-        val joinResponse = client.join(url, token, options)
+    suspend fun joinImpl(
+        url: String,
+        token: String,
+        options: ConnectOptions,
+        roomOptions: RoomOptions
+    ): LivekitRtc.JoinResponse {
+        val joinResponse = client.join(url, token, options, roomOptions)
         listener?.onJoinResponse(joinResponse)
         isClosed = false
         listener?.onSignalConnected(false)
@@ -281,6 +295,7 @@ internal constructor(
         sessionUrl = null
         sessionToken = null
         connectOptions = null
+        lastRoomOptions = null
         reconnectingJob?.cancel()
         reconnectingJob = null
         coroutineScope.close()
@@ -343,7 +358,7 @@ internal constructor(
                     try {
                         closeResources()
                         listener?.onFullReconnecting()
-                        joinImpl(url, token, connectOptions ?: ConnectOptions())
+                        joinImpl(url, token, connectOptions ?: ConnectOptions(), lastRoomOptions ?: RoomOptions())
                     } catch (e: Exception) {
                         LKLog.w(e) { "Error during reconnection." }
                         // reconnect failed, retry.
