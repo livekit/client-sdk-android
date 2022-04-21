@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch
 
 
 /**
- * Display the video stream on a SurfaceView.
+ * Display the video stream on a TextureView.
  */
 class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink,
     RendererEvents, ViewVisibility.Notifier {
