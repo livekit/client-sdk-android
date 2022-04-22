@@ -12,6 +12,12 @@ import timber.log.Timber
 
 class LiveKit {
     companion object {
+        /**
+         * [LoggingLevel] to use for Livekit logs. Set to [LoggingLevel.OFF] to turn off logs.
+         *
+         * Defaults to [LoggingLevel.OFF]
+         */
+        @JvmStatic
         var loggingLevel: LoggingLevel
             get() = LKLog.loggingLevel
             set(value) {
@@ -27,6 +33,14 @@ class LiveKit {
                     }
                 }
             }
+
+        /**
+         * Enables logs for the underlying WebRTC sdk logging. Used in conjunction with [loggingLevel].
+         *
+         * Note: WebRTC logging is very noisy and should only be used to diagnose native WebRTC issues.
+         */
+        @JvmStatic
+        var enableWebRTCLogging: Boolean = false
 
         fun create(
             appContext: Context,

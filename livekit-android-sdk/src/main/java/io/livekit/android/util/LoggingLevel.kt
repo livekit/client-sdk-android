@@ -1,4 +1,7 @@
 package io.livekit.android.util
+
+import android.util.Log
+
 enum class LoggingLevel {
     VERBOSE,
     INFO,
@@ -6,5 +9,18 @@ enum class LoggingLevel {
     WARN,
     ERROR,
     WTF,
-    OFF,
+    OFF;
+
+    fun toAndroidLogPriority(): Int {
+        return when (this) {
+            VERBOSE -> Log.VERBOSE
+            INFO -> Log.INFO
+            DEBUG -> Log.DEBUG
+            WARN -> Log.WARN
+            ERROR -> Log.ERROR
+            WTF -> Log.ERROR
+            OFF -> 0
+        }
+    }
 }
+

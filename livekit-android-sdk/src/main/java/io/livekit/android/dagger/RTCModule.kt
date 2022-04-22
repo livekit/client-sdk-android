@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.LiveKit
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.SimulcastVideoEncoderFactoryWrapper
 import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
+import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -140,9 +143,25 @@ object RTCModule {
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions
                 .builder(appContext)
+                .setInjectableLogger({ s, severity, s2 ->
+                    if (!LiveKit.enableWebRTCLogging) {
+                        return@setInjectableLogger
+                    }
+
+                    val loggingLevel = when (severity) {
+                        Logging.Severity.LS_VERBOSE -> LoggingLevel.VERBOSE
+                        Logging.Severity.LS_INFO -> LoggingLevel.INFO
+                        Logging.Severity.LS_WARNING -> LoggingLevel.WARN
+                        Logging.Severity.LS_ERROR -> LoggingLevel.ERROR
+                        else -> LoggingLevel.OFF
+                    }
+
+                    LKLog.log(loggingLevel) {
+                        Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
+                    }
+                }, Logging.Severity.LS_VERBOSE)
                 .createInitializationOptions()
         )
-
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
             .setVideoEncoderFactory(videoEncoderFactory)
