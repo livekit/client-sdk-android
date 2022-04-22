@@ -200,38 +200,37 @@ constructor(
             context: Context,
             enumerator: CameraEnumerator,
             options: LocalVideoTrackOptions
-        ): Pair<VideoCapturerWithSize, LocalVideoTrackOptions>? {
-            val deviceNames = enumerator.deviceNames
+        ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
             var targetDeviceName: String? = null
-            var targetVideoCapturer: VideoCapturer? = null
-            for (deviceName in deviceNames) {
-                if ((options.deviceId != null && deviceName == options.deviceId)
-                    || (enumerator.isFrontFacing(deviceName) && options.position == CameraPosition.FRONT)
-                ) {
-                    LKLog.v { "Creating front facing camera capturer." }
-                    val videoCapturer = enumerator.createCapturer(deviceName, null)
-                    if (videoCapturer != null) {
-                        targetDeviceName = deviceName
-                        targetVideoCapturer = videoCapturer
-                        break
-                    }
-                } else if ((options.deviceId != null && deviceName == options.deviceId)
-                    || (enumerator.isBackFacing(deviceName) && options.position == CameraPosition.BACK)
-                ) {
-                    LKLog.v { "Creating back facing camera capturer." }
-                    val videoCapturer = enumerator.createCapturer(deviceName, null)
-                    if (videoCapturer != null) {
-                        targetDeviceName = deviceName
-                        targetVideoCapturer = videoCapturer
-                        break
-                    }
+            val targetVideoCapturer: VideoCapturer?
+
+            // Prioritize search by deviceId first
+            if (options.deviceId != null) {
+                targetDeviceName = enumerator.findCamera { deviceName -> deviceName == options.deviceId }
+            }
+
+            // Search by camera position
+            if (targetDeviceName == null && options.position != null) {
+                targetDeviceName = enumerator.findCamera { deviceName ->
+                    enumerator.getCameraPosition(deviceName) == options.position
                 }
             }
+
+            // Fall back by choosing first available camera.
+            if (targetDeviceName == null) {
+                targetDeviceName = enumerator.findCamera { true }
+            }
+
+            if (targetDeviceName == null) {
+                return null
+            }
+
+            targetVideoCapturer = enumerator.createCapturer(targetDeviceName, null)
 
             // back fill any missing information
             val newOptions = options.copy(
                 deviceId = targetDeviceName,
-                position = enumerator.getCameraPosition(targetDeviceName!!)
+                position = enumerator.getCameraPosition(targetDeviceName)
             )
             if (targetVideoCapturer is Camera1Capturer) {
                 // Cache supported capture formats ahead of time to avoid future camera locks.
@@ -253,6 +252,26 @@ constructor(
                 )
             }
 
+            LKLog.w { "unknown CameraCapturer class: ${targetVideoCapturer.javaClass.canonicalName}. Reported dimensions may be inaccurate." }
+            if (targetVideoCapturer != null) {
+                return Pair(
+                    targetVideoCapturer,
+                    newOptions
+                )
+            }
+
+            return null
+        }
+
+        fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
+            for (deviceName in deviceNames) {
+                if (predicate(deviceName)) {
+                    val videoCapturer = createCapturer(deviceName, null)
+                    if (videoCapturer != null) {
+                        return deviceName
+                    }
+                }
+            }
             return null
         }
 
