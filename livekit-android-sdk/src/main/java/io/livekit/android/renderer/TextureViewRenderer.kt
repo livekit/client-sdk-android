@@ -10,30 +10,26 @@
 package io.livekit.android.renderer
 
 import android.content.Context
-import android.view.SurfaceView
-import android.view.SurfaceHolder
-import org.webrtc.RendererCommon.RendererEvents
-import org.webrtc.RendererCommon.VideoLayoutMeasure
-import kotlin.jvm.JvmOverloads
-import org.webrtc.RendererCommon.GlDrawer
-import org.webrtc.RendererCommon.ScalingType
 import android.content.res.Resources.NotFoundException
 import android.graphics.Matrix
+import android.graphics.SurfaceTexture
 import android.os.Looper
 import android.util.AttributeSet
-import android.view.TextureView
-import org.webrtc.*
-import android.graphics.SurfaceTexture
 import android.view.Surface
-
-import org.webrtc.ThreadUtils
+import android.view.SurfaceHolder
+import android.view.TextureView
+import android.view.View
+import io.livekit.android.room.track.video.ViewVisibility
+import org.webrtc.*
+import org.webrtc.RendererCommon.*
 import java.util.concurrent.CountDownLatch
 
 
 /**
- * Display the video stream on a SurfaceView.
+ * Display the video stream on a TextureView.
  */
-class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink, RendererEvents {
+class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink,
+    RendererEvents, ViewVisibility.Notifier {
     // Cached resource name.
     private val resourceName: String
     private val videoLayoutMeasure = VideoLayoutMeasure()
@@ -358,5 +354,11 @@ class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.Sur
 
     companion object {
         private const val TAG = "SurfaceViewRenderer"
+    }
+
+    override var viewVisibility: ViewVisibility? = null
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        viewVisibility?.recalculate()
     }
 }

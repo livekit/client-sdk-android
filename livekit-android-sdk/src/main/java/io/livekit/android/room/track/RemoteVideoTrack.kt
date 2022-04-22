@@ -23,8 +23,10 @@ class RemoteVideoTrack(
     private val sinkVisibilityMap = mutableMapOf<VideoSink, VideoSinkVisibility>()
     private val visibilities = sinkVisibilityMap.values
 
-    private var lastVisibility = false
-    private var lastDimensions: Dimensions = Dimensions(0, 0)
+    internal var lastVisibility = false
+        private set
+    internal var lastDimensions: Dimensions = Dimensions(0, 0)
+        private set
 
     override fun addRenderer(renderer: VideoSink) {
         if (autoManageVideo && renderer is View) {
@@ -49,6 +51,9 @@ class RemoteVideoTrack(
         super.removeRenderer(renderer)
         val visibility = sinkVisibilityMap.remove(renderer)
         visibility?.close()
+        if (autoManageVideo && visibility != null) {
+            recalculateVisibility()
+        }
     }
 
     override fun stop() {

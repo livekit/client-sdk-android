@@ -8,6 +8,7 @@ import android.view.ViewTreeObserver
 import androidx.annotation.CallSuper
 import androidx.compose.ui.layout.LayoutCoordinates
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.video.ViewVisibility.Notifier
 import java.util.*
 
 abstract class VideoSinkVisibility : Observable() {
@@ -63,40 +64,54 @@ class ComposeVisibility : VideoSinkVisibility() {
     }
 }
 
+/**
+ * A [VideoSinkVisibility] for views. If using a custom view other than the sdk provided renderers,
+ * you must implement [Notifier], override [View.onVisibilityChanged] and call through to [recalculate], or
+ * the visibility may not be calculated correctly.
+ */
 class ViewVisibility(private val view: View) : VideoSinkVisibility() {
 
+    private val lastVisibility = false
+    private val lastSize = Track.Dimensions(0, 0)
+
     private val handler = Handler(Looper.getMainLooper())
-    private val globalLayoutListener = object : ViewTreeObserver.OnGlobalLayoutListener {
-        val lastVisibility = false
-        val lastSize = Track.Dimensions(0, 0)
+    private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+        handler.removeCallbacksAndMessages(null)
+        handler.postDelayed({
+            recalculate()
+        }, 2000)
+    }
 
-        override fun onGlobalLayout() {
-            handler.removeCallbacksAndMessages(null)
-            handler.postDelayed({
-                var shouldNotify = false
-                val newVisibility = isVisible()
-                val newSize = size()
-                if (newVisibility != lastVisibility) {
-                    shouldNotify = true
-                }
-                if (newSize != lastSize) {
-                    shouldNotify = true
-                }
-
-                if (shouldNotify) {
-                    notifyChanged()
-                }
-            }, 2000)
-        }
+    interface Notifier {
+        var viewVisibility: ViewVisibility?
     }
 
     init {
         view.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+        if (view is Notifier) {
+            view.viewVisibility = this
+        }
     }
 
     private val loc = IntArray(2)
     private val viewRect = Rect()
     private val windowRect = Rect()
+
+    fun recalculate() {
+        var shouldNotify = false
+        val newVisibility = isVisible()
+        val newSize = size()
+        if (newVisibility != lastVisibility) {
+            shouldNotify = true
+        }
+        if (newSize != lastSize) {
+            shouldNotify = true
+        }
+
+        if (shouldNotify) {
+            notifyChanged()
+        }
+    }
 
     private fun isViewAncestorsVisible(view: View): Boolean {
         if (view.visibility != View.VISIBLE) {
@@ -132,5 +147,8 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
         super.close()
         handler.removeCallbacksAndMessages(null)
         view.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
+        if (view is Notifier && view.viewVisibility == this) {
+            view.viewVisibility = null
+        }
     }
 }

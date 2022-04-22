@@ -82,7 +82,8 @@ screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureInt
 
 ### Rendering subscribed tracks
 
-LiveKit uses WebRTC-provided `org.webrtc.SurfaceViewRenderer` to render video tracks. A `TextureView` implementation is also provided through `TextureViewRenderer`. Subscribed audio tracks are automatically played.
+LiveKit uses `SurfaceViewRenderer` to render video tracks. A `TextureView` implementation is also
+provided through `TextureViewRenderer`. Subscribed audio tracks are automatically played.
 
 ```kt
 class MainActivity : AppCompatActivity(), RoomListener {
@@ -121,7 +122,7 @@ class MainActivity : AppCompatActivity(), RoomListener {
     }
 
     private fun attachVideo(videoTrack: VideoTrack) {
-        // viewBinding.renderer is a `org.webrtc.SurfaceViewRenderer` in your
+        // viewBinding.renderer is a `io.livekit.android.renderer.SurfaceViewRenderer` in your
         // layout
         videoTrack.addRenderer(viewBinding.renderer)
     }
