@@ -64,6 +64,10 @@ constructor(
         )
     }
 
+    open fun stopCapture() {
+        capturer.stopCapture()
+    }
+
     override fun stop() {
         capturer.stopCapture()
         super.stop()
