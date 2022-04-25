@@ -171,6 +171,10 @@ internal constructor(
         if (enabled) {
             if (pub != null) {
                 pub.muted = false
+
+                if (source == Track.Source.CAMERA && pub.track is LocalVideoTrack) {
+                    (pub.track as? LocalVideoTrack)?.startCapture()
+                }
             } else {
                 when (source) {
                     Track.Source.CAMERA -> {
@@ -199,6 +203,11 @@ internal constructor(
                     unpublishTrack(track)
                 } else {
                     pub.muted = true
+
+                    // Release camera session so other apps can use.
+                    if (pub.source == Track.Source.CAMERA && track is LocalVideoTrack) {
+                        track.stopCapture()
+                    }
                 }
             }
         }
