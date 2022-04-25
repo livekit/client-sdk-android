@@ -210,13 +210,11 @@ internal constructor(
             null,
         )
 
-        val connectionStateListener: (PeerConnection.PeerConnectionState?) -> Unit = { newState ->
-            val state =
-                newState ?: throw NullPointerException("unexpected null new state, what do?")
+        val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
             LKLog.v { "onIceConnection new state: $newState" }
-            if (state.isConnected()) {
+            if (newState.isConnected()) {
                 connectionState = ConnectionState.CONNECTED
-            } else if (state.isDisconnected()) {
+            } else if (newState.isDisconnected()) {
                 connectionState = ConnectionState.DISCONNECTED
             }
         }
@@ -233,6 +231,12 @@ internal constructor(
             }
 
             subscriberObserver.connectionChangeListener = connectionStateListener
+            // Also reconnect on publisher disconnect
+            publisherObserver.connectionChangeListener = { newState ->
+                if (newState.isDisconnected()) {
+                    reconnect()
+                }
+            }
         } else {
             publisherObserver.connectionChangeListener = connectionStateListener
         }
@@ -387,6 +391,16 @@ internal constructor(
                 }
                 // wait until ICE connected
                 val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
+                if (hasPublished) {
+                    while (SystemClock.elapsedRealtime() < endTime) {
+                        if (publisher.peerConnection.connectionState().isConnected()) {
+                            LKLog.v { "publisher reconnected to ICE" }
+                            break
+                        }
+                        delay(100)
+                    }
+                }
+
                 while (SystemClock.elapsedRealtime() < endTime) {
                     if (connectionState == ConnectionState.CONNECTED) {
                         LKLog.v { "reconnected to ICE" }
@@ -395,7 +409,9 @@ internal constructor(
                     delay(100)
                 }
 
-                if (connectionState == ConnectionState.CONNECTED) {
+                if (connectionState == ConnectionState.CONNECTED &&
+                    (!hasPublished || publisher.peerConnection.connectionState().isConnected())
+                ) {
                     client.onPCConnected()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
