@@ -223,9 +223,7 @@ class MockPeerConnection(
         }
     }
 
-    override fun connectionState(): PeerConnectionState {
-        return super.connectionState()
-    }
+    override fun connectionState(): PeerConnectionState = connectionState
 
     override fun iceGatheringState(): IceGatheringState {
         return super.iceGatheringState()

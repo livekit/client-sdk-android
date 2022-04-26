@@ -2,7 +2,6 @@ package io.livekit.android.room
 
 import io.livekit.android.MockE2ETest
 import io.livekit.android.mock.MockPeerConnection
-import io.livekit.android.mock.MockWebSocket
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,6 +11,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.webrtc.PeerConnection
 
 
 @ExperimentalCoroutinesApi
@@ -51,6 +51,30 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         val oldWs = wsFactory.ws
         wsFactory.listener.onFailure(oldWs, Exception(), null)
+
+        val newWs = wsFactory.ws
+        Assert.assertNotEquals(oldWs, newWs)
+    }
+
+    @Test
+    fun reconnectOnSubscriberFailure() = runTest {
+        connect()
+        val oldWs = wsFactory.ws
+
+        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
+
+        val newWs = wsFactory.ws
+        Assert.assertNotEquals(oldWs, newWs)
+    }
+
+    @Test
+    fun reconnectOnPublisherFailure() = runTest {
+        connect()
+        val oldWs = wsFactory.ws
+
+        val pubPeerConnection = rtcEngine.publisher.peerConnection as MockPeerConnection
+        pubPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
 
         val newWs = wsFactory.ws
         Assert.assertNotEquals(oldWs, newWs)
