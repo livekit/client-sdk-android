@@ -2,7 +2,6 @@ package io.livekit.android
 
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
-import io.livekit.android.dagger.LiveKitOverrides
 import io.livekit.android.dagger.create
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener

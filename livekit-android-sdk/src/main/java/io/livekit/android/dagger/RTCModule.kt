@@ -20,7 +20,19 @@ import javax.inject.Singleton
 object RTCModule {
     @Provides
     @Singleton
-    fun audioModule(appContext: Context): AudioDeviceModule {
+    @JvmSuppressWildcards
+    fun audioModule(
+        @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE)
+        @Nullable
+        audioDeviceModuleOverride: AudioDeviceModule?,
+        @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
+        @Nullable
+        moduleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)?,
+        appContext: Context
+    ): AudioDeviceModule {
+        if (audioDeviceModuleOverride != null) {
+            return audioDeviceModuleOverride
+        }
 
         // Set audio record error callbacks.
         val audioRecordErrorCallback = object : JavaAudioDeviceModule.AudioRecordErrorCallback {
@@ -80,14 +92,16 @@ object RTCModule {
             }
         }
 
-        return JavaAudioDeviceModule.builder(appContext)
+        val builder = JavaAudioDeviceModule.builder(appContext)
             .setUseHardwareAcousticEchoCanceler(true)
             .setUseHardwareNoiseSuppressor(true)
             .setAudioRecordErrorCallback(audioRecordErrorCallback)
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
-            .createAudioDeviceModule()
+
+        moduleCustomizer?.invoke(builder)
+        return builder.createAudioDeviceModule()
     }
 
     @Provides
@@ -124,8 +138,11 @@ object RTCModule {
         @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
         videoHwAccel: Boolean,
         eglContext: EglBase.Context,
+        @Named(InjectionNames.OVERRIDE_VIDEO_DECODER_FACTORY)
+        @Nullable
+        videoDecoderFactoryOverride: VideoDecoderFactory?
     ): VideoDecoderFactory {
-        return if (videoHwAccel) {
+        return videoDecoderFactoryOverride ?: if (videoHwAccel) {
             DefaultVideoDecoderFactory(eglContext)
         } else {
             SoftwareVideoDecoderFactory()
