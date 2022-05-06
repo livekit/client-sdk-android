@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
-import io.livekit.android.dagger.LiveKitOverrides
+import io.livekit.android.LiveKitOverrides
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
