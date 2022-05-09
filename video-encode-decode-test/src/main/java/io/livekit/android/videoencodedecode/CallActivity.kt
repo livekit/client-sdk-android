@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.constraintlayout.compose.ConstraintLayout
-import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.accompanist.pager.ExperimentalPagerApi
@@ -24,8 +23,7 @@ import kotlinx.parcelize.Parcelize
 @OptIn(ExperimentalPagerApi::class)
 class CallActivity : AppCompatActivity() {
 
-    private lateinit var viewModel1: CallViewModel
-    private lateinit var viewModel2: CallViewModel
+    private lateinit var viewModel: P2PCallViewModel
 
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,74 +34,42 @@ class CallActivity : AppCompatActivity() {
                 val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
                     ?: throw NullPointerException("args is null!")
 
-                val token = if (key == VIEWMODEL_KEY1) args.token1 else args.token2
-                val showVideo = key == VIEWMODEL_KEY1
                 @Suppress("UNCHECKED_CAST")
-                return CallViewModel(
-                    args.url,
-                    token,
+                return P2PCallViewModel(
                     args.useDefaultVideoEncoderFactory,
                     args.codecWhiteList,
-                    showVideo,
                     application
                 ) as T
             }
         })
-        viewModel1 = viewModelProvider.get(VIEWMODEL_KEY1, CallViewModel::class.java)
-        viewModel2 = viewModelProvider.get(VIEWMODEL_KEY2, CallViewModel::class.java)
+        viewModel = viewModelProvider.get(P2PCallViewModel::class.java)
 
         // Setup compose view.
         setContent {
             Content(
-                viewModel1,
-                viewModel2
+                viewModel
             )
         }
     }
 
     @ExperimentalMaterialApi
     @Composable
-    fun Content(viewModel1: CallViewModel, viewModel2: CallViewModel) {
+    fun Content(viewModel: P2PCallViewModel) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Red)
             ) {
-                val (topConnectionItem, bottomConnectionItem) = createRefs()
-
                 Surface(
                     color = Color.Cyan,
                     modifier = Modifier
                         .semantics {
                             testTag = TEST_TAG1
                         }
-                        .constrainAs(topConnectionItem) {
-                            top.linkTo(parent.top)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                            bottom.linkTo(bottomConnectionItem.top)
-                            width = Dimension.fillToConstraints
-                            height = Dimension.fillToConstraints
-                        }) {
-                    ConnectionItem(viewModel = viewModel1)
-                }
-
-                Surface(
-                    color = Color.Magenta,
-                    modifier = Modifier
-                        .semantics {
-                            testTag = TEST_TAG2
-                        }
-                        .constrainAs(bottomConnectionItem) {
-                            top.linkTo(topConnectionItem.bottom)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                            bottom.linkTo(parent.bottom)
-                            width = Dimension.fillToConstraints
-                            height = Dimension.fillToConstraints
-                        }) {
-                    ConnectionItem(viewModel = viewModel2)
+                        .fillMaxSize()
+                ) {
+                    ConnectionItem(viewModel = viewModel)
                 }
             }
         }

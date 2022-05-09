@@ -1,28 +1,19 @@
 package io.livekit.android.videoencodedecode
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import io.livekit.android.room.Room
-import io.livekit.android.room.participant.Participant
+import androidx.compose.runtime.livedata.observeAsState
 
 /**
  * Widget for showing the other participant in a connection.
  */
 @Composable
-fun ConnectionItem(viewModel: CallViewModel) {
+fun ConnectionItem(viewModel: P2PCallViewModel) {
 
-    val room by viewModel.room.collectAsState()
-    val participants by viewModel.participants.collectAsState(initial = emptyList())
-    if (room != null) {
-        RoomItem(room = room!!, participants)
-    }
-}
+    val track by viewModel.videoTrack.observeAsState()
 
-@Composable
-fun RoomItem(room: Room, participants: List<Participant>) {
-    val remoteParticipant = participants.filterNot { it == room.localParticipant }.firstOrNull()
-    if (remoteParticipant != null) {
-        ParticipantItem(room = room, participant = remoteParticipant, isSpeaking = false)
+    val curTrack = track
+    if (curTrack != null) {
+        P2PVideoItem(videoTrack = curTrack)
     }
 }
