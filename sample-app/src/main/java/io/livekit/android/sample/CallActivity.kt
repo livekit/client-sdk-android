@@ -1,7 +1,6 @@
 package io.livekit.android.sample
 
 import android.app.Activity
-import android.content.DialogInterface
 import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
@@ -97,13 +96,10 @@ class CallActivity : AppCompatActivity() {
                     }
                 }.flatMapLatest { (participant, videoTracks) ->
 
-                    for (videoTrack in videoTracks.values) {
-                        Timber.e { "videoTrack is ${videoTrack.track}" }
-                    }
                     // Prioritize any screenshare streams.
                     val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
                         ?: participant.getTrackPublication(Track.Source.CAMERA)
-                        ?: videoTracks.values.firstOrNull()
+                        ?: videoTracks.firstOrNull()?.first
                         ?: return@flatMapLatest emptyFlow()
 
                     trackPublication::track.flow

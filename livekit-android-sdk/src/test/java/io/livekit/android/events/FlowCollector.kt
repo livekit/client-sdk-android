@@ -11,8 +11,8 @@ open class FlowCollector<T>(
     private val flow: Flow<T>,
     coroutineScope: CoroutineScope
 ) {
-    val signal = MutableStateFlow<Unit?>(null)
-    val collectEventsDeferred = coroutineScope.async {
+    private val signal = MutableStateFlow<Unit?>(null)
+    private val collectEventsDeferred = coroutineScope.async {
         flow.toListUntilSignal(signal)
     }
 

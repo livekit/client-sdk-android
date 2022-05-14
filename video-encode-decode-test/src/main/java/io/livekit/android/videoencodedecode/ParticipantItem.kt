@@ -86,7 +86,7 @@ fun ParticipantItem(
             },
         )
 
-        val isMuted = audioTracks.values.none { it.track != null && !it.muted }
+        val isMuted = audioTracks.none { (pub) -> pub.track != null && !pub.muted }
 
         if (isMuted) {
             Icon(

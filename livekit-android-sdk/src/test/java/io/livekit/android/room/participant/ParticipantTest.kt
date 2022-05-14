@@ -113,8 +113,8 @@ class ParticipantTest {
 
         assertEquals(1, participant.tracks.values.size)
         assertEquals(audioPublication, participant.tracks.values.first())
-        assertEquals(1, participant.audioTracks.values.size)
-        assertEquals(audioPublication, participant.audioTracks.values.first())
+        assertEquals(1, participant.audioTracks.size)
+        assertEquals(audioPublication, participant.audioTracks.first().first)
     }
 
     companion object {

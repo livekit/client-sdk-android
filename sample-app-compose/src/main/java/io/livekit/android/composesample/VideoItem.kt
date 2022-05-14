@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.viewinterop.AndroidView
-import com.github.ajalt.timberkt.Timber
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
@@ -94,29 +93,12 @@ fun VideoItemTrackSelector(
     participant: Participant,
     modifier: Modifier = Modifier
 ) {
-
-    val subscribedVideoTracksFlow by remember(participant) {
-        mutableStateOf(
-            participant::videoTracks.flow
-                .flatMapLatest { videoTracks ->
-                    combine(
-                        videoTracks.values
-                            .map { trackPublication ->
-                                // Re-emit when track changes
-                                trackPublication::track.flow
-                                    .map { trackPublication }
-                            }
-                    ) { trackPubs ->
-                        trackPubs.toList().filter { trackPublication -> trackPublication.track != null }
-                    }
-                }
-        )
-    }
-
-    val videoTracks by subscribedVideoTracksFlow.collectAsState(initial = emptyList())
-    val videoTrack = videoTracks.firstOrNull { pub -> pub.source == Track.Source.SCREEN_SHARE }?.track as? VideoTrack
-        ?: videoTracks.firstOrNull { pub -> pub.source == Track.Source.CAMERA }?.track as? VideoTrack
-        ?: videoTracks.firstOrNull()?.track as? VideoTrack
+    val videoTrackMap by participant::videoTracks.flow.collectAsState(initial = emptyList())
+    val videoPubs = videoTrackMap.filter { (pub) -> pub.subscribed }
+        .map { (pub) -> pub }
+    val videoTrack = videoPubs.firstOrNull { pub -> pub.source == Track.Source.SCREEN_SHARE }?.track as? VideoTrack
+        ?: videoPubs.firstOrNull { pub -> pub.source == Track.Source.CAMERA }?.track as? VideoTrack
+        ?: videoPubs.firstOrNull()?.track as? VideoTrack
 
     if (videoTrack != null) {
         VideoItem(

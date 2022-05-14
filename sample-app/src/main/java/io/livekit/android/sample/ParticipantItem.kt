@@ -49,7 +49,7 @@ class ParticipantItem(
         coroutineScope?.launch {
             participant::audioTracks.flow
                 .flatMapLatest { tracks ->
-                    val audioTrack = tracks.values.firstOrNull()
+                    val audioTrack = tracks.firstOrNull()?.first
                     if (audioTrack != null) {
                         audioTrack::muted.flow
                     } else {

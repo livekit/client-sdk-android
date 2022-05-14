@@ -1,11 +1,11 @@
 package io.livekit.android.room.participant
 
 import io.livekit.android.BaseTest
+import io.livekit.android.events.FlowCollector
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import org.junit.Assert.*
 import org.junit.Before
@@ -65,20 +65,12 @@ class RemoteParticipantTest : BaseTest() {
             .addTracks(TRACK_INFO)
             .build()
 
-        val emissions = mutableListOf<Map<String, TrackPublication>>()
-        val job = launch {
-            participant::tracks.flow.collect {
-                emissions.add(it)
-            }
-        }
-
-        assertEquals(1, emissions.size)
-        assertEquals(emptyMap<String, TrackPublication>(), emissions.first())
-
+        val collector = FlowCollector(participant::tracks.flow, coroutineRule.scope)
         participant.updateFromInfo(newTrackInfo)
 
-        job.cancel()
+        val emissions = collector.stopCollecting()
         assertEquals(2, emissions.size)
+        assertEquals(emptyMap<String, TrackPublication>(), emissions[0])
         assertEquals(1, emissions[1].size)
     }
 
@@ -89,20 +81,12 @@ class RemoteParticipantTest : BaseTest() {
             .addTracks(TRACK_INFO)
             .build()
 
-        val emissions = mutableListOf<Map<String, TrackPublication>>()
-        val job = launch {
-            participant::audioTracks.flow.collect {
-                emissions.add(it)
-            }
-        }
-
-        assertEquals(1, emissions.size)
-        assertEquals(emptyMap<String, TrackPublication>(), emissions.first())
-
+        val collector = FlowCollector(participant::tracks.flow, coroutineRule.scope)
         participant.updateFromInfo(newTrackInfo)
 
-        job.cancel()
+        val emissions = collector.stopCollecting()
         assertEquals(2, emissions.size)
+        assertEquals(emptyMap<String, TrackPublication>(), emissions[0])
         assertEquals(1, emissions[1].size)
     }
 
