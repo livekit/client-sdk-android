@@ -33,33 +33,41 @@ abstract class VideoSinkVisibility : Observable() {
 }
 
 class ComposeVisibility : VideoSinkVisibility() {
-    private var lastCoordinates: LayoutCoordinates? = null
+    private var coordinates: LayoutCoordinates? = null
 
+    private var lastVisible = isVisible()
+    private var lastSize = size()
     override fun isVisible(): Boolean {
-        return (lastCoordinates?.isAttached == true && lastCoordinates?.size?.width != 0 && lastCoordinates?.size?.height != 0)
+        return (coordinates?.isAttached == true &&
+                coordinates?.size?.width != 0 &&
+                coordinates?.size?.height != 0)
     }
 
     override fun size(): Track.Dimensions {
-        val width = lastCoordinates?.size?.width ?: 0
-        val height = lastCoordinates?.size?.height ?: 0
+        val width = coordinates?.size?.width ?: 0
+        val height = coordinates?.size?.height ?: 0
         return Track.Dimensions(width, height)
     }
 
+    // Note, LayoutCoordinates are mutable and may be reused.
     fun onGloballyPositioned(layoutCoordinates: LayoutCoordinates) {
-        val lastVisible = isVisible()
-        val lastSize = size()
-        lastCoordinates = layoutCoordinates
+        coordinates = layoutCoordinates
+        val visible = isVisible()
+        val size = size()
 
-        if (lastVisible != isVisible() || lastSize != size()) {
+        if (lastVisible != visible || lastSize != size) {
             notifyChanged()
         }
+
+        lastVisible = visible
+        lastSize = size
     }
 
     fun onDispose() {
-        if (lastCoordinates == null) {
+        if (coordinates == null) {
             return
         }
-        lastCoordinates = null
+        coordinates = null
         notifyChanged()
     }
 }

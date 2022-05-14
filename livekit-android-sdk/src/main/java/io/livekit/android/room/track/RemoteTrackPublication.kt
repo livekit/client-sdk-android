@@ -40,7 +40,7 @@ class RemoteTrackPublication(
                     }
                 }
 
-                if (value is RemoteVideoTrack) {
+                if (value is RemoteVideoTrack && value.autoManageVideo) {
                     handleVideoDimensionsChanged(value.lastDimensions)
                     handleVisibilityChanged(value.lastVisibility)
                 }
