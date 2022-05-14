@@ -42,6 +42,12 @@ android {
         sourceCompatibility java_version
         targetCompatibility java_version
     }
+    buildFeatures {
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion compose_compiler_version
+    }
     kotlinOptions {
         freeCompilerArgs = ["-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn"]
         jvmTarget = java_version

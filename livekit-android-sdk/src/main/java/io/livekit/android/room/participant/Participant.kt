@@ -9,17 +9,13 @@ import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.FlowObservable
-import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import livekit.LivekitModels
-import livekit.LivekitRtc
 import javax.inject.Named
 
 open class Participant(
@@ -139,6 +135,21 @@ open class Participant(
     var tracks by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
 
+    private fun Flow<Map<String, TrackPublication>>.trackUpdateFlow(): Flow<List<Pair<TrackPublication, Track?>>> {
+        return flatMapLatest { videoTracks ->
+            combine(
+                videoTracks.values
+                    .map { trackPublication ->
+                        // Re-emit when track changes
+                        trackPublication::track.flow
+                            .map { trackPublication to trackPublication.track }
+                    }
+            ) { trackPubs ->
+                trackPubs.toList()
+            }
+        }
+    }
+
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
@@ -147,7 +158,8 @@ open class Participant(
     val audioTracks by flowDelegate(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
-            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+            .trackUpdateFlow()
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
     )
 
     /**
@@ -157,10 +169,9 @@ open class Participant(
     @get:FlowObservable
     val videoTracks by flowDelegate(
         stateFlow = ::tracks.flow
-            .map {
-                it.filterValues { publication -> publication.kind == Track.Kind.VIDEO }
-            }
-            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+            .map { it.filterValues { publication -> publication.kind == Track.Kind.VIDEO } }
+            .trackUpdateFlow()
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
     )
 
     /**

@@ -3,6 +3,7 @@ package io.livekit.android.room.track
 import android.view.View
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.room.track.video.ComposeVisibility
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
@@ -28,6 +29,13 @@ class RemoteVideoTrack(
     internal var lastDimensions: Dimensions = Dimensions(0, 0)
         private set
 
+    /**
+     * If `autoManageVideo` is enabled, a VideoSinkVisibility should be passed, using
+     * [ViewVisibility] if using a traditional View layout, or [ComposeVisibility]
+     * if using Jetpack Compose.
+     *
+     * By default, any Views passed to this method will be added with a [ViewVisibility].
+     */
     override fun addRenderer(renderer: VideoSink) {
         if (autoManageVideo && renderer is View) {
             addRenderer(renderer, ViewVisibility(renderer))

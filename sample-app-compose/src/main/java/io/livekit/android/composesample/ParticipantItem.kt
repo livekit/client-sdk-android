@@ -34,7 +34,6 @@ fun ParticipantItem(
 ) {
 
     val identity by participant::identity.flow.collectAsState()
-    val videoTracks by participant::videoTracks.flow.collectAsState()
     val audioTracks by participant::audioTracks.flow.collectAsState()
     val identityBarPadding = 4.dp
     ConstraintLayout(
@@ -86,7 +85,7 @@ fun ParticipantItem(
             },
         )
 
-        val isMuted = audioTracks.values.none { it.track != null && !it.muted }
+        val isMuted = audioTracks.none { (pub) -> pub.track != null && !pub.muted }
 
         if (isMuted) {
             Icon(
