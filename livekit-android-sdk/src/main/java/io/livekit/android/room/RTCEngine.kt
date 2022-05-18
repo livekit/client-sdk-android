@@ -738,7 +738,7 @@ internal constructor(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>
     ) {
-        val answer = subscriber.peerConnection.localDescription.toProtoSessionDescription()
+        val answer = subscriber.peerConnection.localDescription?.toProtoSessionDescription()
 
         val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
             .toList()
