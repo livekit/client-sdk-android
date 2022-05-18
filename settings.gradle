@@ -1,7 +1,6 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
-        jcenter()
     }
 }
 include ':sample-app', ':sample-app-compose', ':livekit-android-sdk'

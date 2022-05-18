@@ -185,6 +185,11 @@ class RemoteTrackPublication(
     private fun sendUpdateTrackSettingsImpl() {
         val participant = this.participant.get() as? RemoteParticipant ?: return
 
+        val rtcTrack = track?.rtcTrack
+        if (rtcTrack is org.webrtc.VideoTrack) {
+            rtcTrack.setEnabled(!disabled)
+        }
+
         participant.signalClient.sendUpdateTrackSettings(
             sid,
             disabled,
