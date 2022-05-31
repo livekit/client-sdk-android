@@ -76,6 +76,8 @@ internal constructor(
         }
 
     private var reconnectingJob: Job? = null
+    private var fullReconnectOnNext = false
+
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
     private var sessionUrl: String? = null
@@ -340,7 +342,8 @@ internal constructor(
             LKLog.w { "couldn't reconnect, no url or no token" }
             return
         }
-
+        val forceFullReconnect = fullReconnectOnNext
+        fullReconnectOnNext = false
         val job = coroutineScope.launch {
             connectionState = ConnectionState.RECONNECTING
             listener?.onEngineReconnecting()
@@ -356,7 +359,7 @@ internal constructor(
                 delay(startDelay)
 
                 // full reconnect after first try.
-                val isFullReconnect = retries != 0
+                val isFullReconnect = retries != 0 || forceFullReconnect
 
                 if (isFullReconnect) {
                     try {
@@ -676,8 +679,13 @@ internal constructor(
     }
 
     override fun onLeave(leave: LivekitRtc.LeaveRequest) {
-        close()
-        listener?.onEngineDisconnected("server leave")
+        if (leave.canReconnect) {
+            // reconnect will be triggered on close.
+            fullReconnectOnNext = true
+        } else {
+            close()
+            listener?.onEngineDisconnected("server leave")
+        }
     }
 
     // Signal error
