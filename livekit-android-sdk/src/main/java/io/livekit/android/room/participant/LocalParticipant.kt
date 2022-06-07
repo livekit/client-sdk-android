@@ -650,22 +650,34 @@ data class AudioTrackPublishOptions(
 
 data class ParticipantTrackPermission(
     /**
+     * The participant identity this permission applies to.
+     * You can either provide this or `participantSid`
+     */
+    val participantIdentity: String? = null,
+    /**
      * The participant id this permission applies to.
      */
-    val participantSid: String,
+    val participantSid: String? = null,
     /**
      * If set to true, the target participant can subscribe to all tracks from the local participant.
      *
      * Takes precedence over [allowedTrackSids].
      */
-    val allTracksAllowed: Boolean,
+    val allTracksAllowed: Boolean = false,
     /**
      * The list of track ids that the target participant can subscribe to.
      */
     val allowedTrackSids: List<String> = emptyList()
 ) {
+    init {
+        if (participantIdentity == null && participantSid == null) {
+            throw IllegalArgumentException("Either identity or sid must be provided.")
+        }
+    }
+
     fun toProto(): LivekitRtc.TrackPermission {
         return LivekitRtc.TrackPermission.newBuilder()
+            .setParticipantIdentity(participantIdentity)
             .setParticipantSid(participantSid)
             .setAllTracks(allTracksAllowed)
             .addAllTrackSids(allowedTrackSids)
