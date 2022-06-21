@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 
 class ParticipantItem(
-    val room: Room,
-    val participant: Participant
+    private val room: Room,
+    private val participant: Participant
 ) : BindableItem<ParticipantItemBinding>() {
 
     private var boundVideoTrack: VideoTrack? = null
