@@ -32,6 +32,7 @@ jobs:
       run: ./gradlew clean livekit-android-sdk:assembleRelease livekit-android-sdk:testRelease
 
     - name: Import video test keys into gradle properties
+      if: github.event_name == 'push'
       run: |
         sed -i -e "s,livekitUrl=,livekitUrl=$LIVEKIT_URL,g" gradle.properties
         sed -i -e "s,livekitApiKey=,livekitApiKey=$LIVEKIT_API_KEY,g" gradle.properties
@@ -42,9 +43,11 @@ jobs:
         LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
       
     - name: Build video test app
+      if: github.event_name == 'push'
       run: ./gradlew video-encode-decode-test:assembleDebug video-encode-decode-test:assembleDebugAndroidTest
       
     - name: Video Encode Decode App upload and Set app id in environment variable.
+      if: github.event_name == 'push'
       run: |
         APP_UPLOAD_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -X POST https://api-cloud.browserstack.com/app-automate/upload -F "file=@video-encode-decode-test/build/outputs/apk/debug/video-encode-decode-test-debug.apk")
         echo "APP_UPLOAD_RESPONSE: $APP_UPLOAD_RESPONSE"
@@ -63,6 +66,7 @@ jobs:
         BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
 
     - name: Video Encode Decode Test Suite upload and Set test suite id in environment variable.
+      if: github.event_name == 'push'
       run: |
         APP_UPLOAD_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -X POST https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite -F "file=@video-encode-decode-test/build/outputs/apk/androidTest/debug/video-encode-decode-test-debug-androidTest.apk")
         echo "APP_UPLOAD_RESPONSE: $APP_UPLOAD_RESPONSE"
@@ -81,6 +85,7 @@ jobs:
         BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
         
     - name: Trigger BrowserStack tests
+      if: github.event_name == 'push'
       run: |
         TEST_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" -d '{"deviceLogs": true, "app": "'"$BROWSERSTACK_APP_ID"'", "testSuite": "'"$BROWSERSTACK_TEST_ID"'", "devices": ["Samsung Galaxy Tab S7-10.0","Samsung Galaxy S22-12.0", "Samsung Galaxy S21-12.0","Samsung Galaxy S20-10.0", "Google Pixel 6-12.0", "Google Pixel 5-11.0", "Google Pixel 3-10.0", "OnePlus 7-9.0","Xiaomi Redmi Note 8-9.0", "Huawei P30-9.0"]}' -H "Content-Type: application/json")
         echo "TEST_RESPONSE: $TEST_RESPONSE"
