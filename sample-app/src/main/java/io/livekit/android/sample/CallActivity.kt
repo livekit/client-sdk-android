@@ -87,6 +87,21 @@ class CallActivity : AppCompatActivity() {
                     // Update new primary speaker identity
                     binding.identityText.text = primarySpeaker?.identity
 
+                    if (primarySpeaker != null) {
+                        primarySpeaker::audioTracks.flow
+                            .flatMapLatest { tracks ->
+                                val audioTrack = tracks.firstOrNull()?.first
+                                if (audioTrack != null) {
+                                    audioTrack::muted.flow
+                                } else {
+                                    flowOf(true)
+                                }
+                            }
+                            .collect { muted ->
+                                binding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+                            }
+                    }
+
                     // observe videoTracks changes.
                     if (primarySpeaker != null) {
                         primarySpeaker::videoTracks.flow
