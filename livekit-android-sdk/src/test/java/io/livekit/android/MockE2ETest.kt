@@ -14,6 +14,7 @@ import io.livekit.android.room.SignalClientTest
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import livekit.LivekitRtc
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -42,12 +43,12 @@ abstract class MockE2ETest : BaseTest() {
         wsFactory = component.websocketFactory()
     }
 
-    suspend fun connect() {
-        connectSignal()
+    suspend fun connect(joinResponse: LivekitRtc.SignalResponse = SignalClientTest.JOIN) {
+        connectSignal(joinResponse)
         connectPeerConnection()
     }
 
-    suspend fun connectSignal() {
+    suspend fun connectSignal(joinResponse: LivekitRtc.SignalResponse) {
         val job = coroutineRule.scope.launch {
             room.connect(
                 url = SignalClientTest.EXAMPLE_URL,
@@ -55,14 +56,14 @@ abstract class MockE2ETest : BaseTest() {
             )
         }
         wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.JOIN.toOkioByteString())
+        simulateMessageFromServer(joinResponse)
 
         job.join()
     }
 
     suspend fun connectPeerConnection() {
         subscriber = component.rtcEngine().subscriber
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.OFFER.toOkioByteString())
+        simulateMessageFromServer(SignalClientTest.OFFER)
         val subPeerConnection = subscriber.peerConnection as MockPeerConnection
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
     }

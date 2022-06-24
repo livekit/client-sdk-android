@@ -210,6 +210,13 @@ constructor(
             coroutineScope.launch {
                 lp.events.collect {
                     when (it) {
+                        is ParticipantEvent.TrackPublished -> eventBus.postEvent(
+                            RoomEvent.TrackPublished(
+                                room = this@Room,
+                                publication = it.publication,
+                                participant = it.participant,
+                            )
+                        )
                         is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
                             RoomEvent.ParticipantPermissionsChanged(
                                 room = this@Room,
@@ -276,6 +283,17 @@ constructor(
         coroutineScope.launch {
             participant.events.collect {
                 when (it) {
+                    is ParticipantEvent.TrackPublished -> {
+                        if (state == State.CONNECTED) {
+                            eventBus.postEvent(
+                                RoomEvent.TrackPublished(
+                                    room = this@Room,
+                                    publication = it.publication,
+                                    participant = it.participant,
+                                )
+                            )
+                        }
+                    }
                     is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(
                         RoomEvent.TrackStreamStateChanged(
                             this@Room,
@@ -304,6 +322,10 @@ constructor(
                     }
                 }
             }
+        }
+
+        if (info != null) {
+            participant.updateFromInfo(info)
         }
 
         val newRemoteParticipants = mutableRemoteParticipants.toMutableMap()
@@ -729,25 +751,9 @@ constructor(
     /**
      * @suppress
      */
-    override fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        listener?.onTrackPublished(publication, participant, this)
-        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
-    }
-
-    /**
-     * @suppress
-     */
     override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
-    }
-
-    /**
-     * @suppress
-     */
-    override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        listener?.onTrackPublished(publication, participant, this)
-        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
 
     /**

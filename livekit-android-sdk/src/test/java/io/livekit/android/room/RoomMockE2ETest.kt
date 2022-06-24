@@ -14,6 +14,7 @@ import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
+import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.junit.Assert
@@ -35,6 +36,30 @@ class RoomMockE2ETest : MockE2ETest() {
         Assert.assertEquals(Room.State.DISCONNECTED, events[0])
         Assert.assertEquals(Room.State.CONNECTING, events[1])
         Assert.assertEquals(Room.State.CONNECTED, events[2])
+    }
+
+    @Test
+    fun connectNoEvents() = runTest {
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        connect()
+        val events = collector.stopCollecting()
+        assertEquals(0, events.size)
+    }
+
+    @Test
+    fun connectNoEventsWithRemoteParticipant() = runTest {
+        val joinResponse = with(SignalClientTest.JOIN.toBuilder()) {
+            join = with(SignalClientTest.JOIN.join.toBuilder()) {
+                addOtherParticipants(TestData.REMOTE_PARTICIPANT)
+                build()
+            }
+            build()
+        }
+
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        connect(joinResponse)
+        val events = collector.stopCollecting()
+        assertEquals(0, events.size)
     }
 
     @Test
@@ -94,14 +119,12 @@ class RoomMockE2ETest : MockE2ETest() {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        wsFactory.listener.onMessage(
-            wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
-        )
+        simulateMessageFromServer(SignalClientTest.PARTICIPANT_JOIN)
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
+        Assert.assertEquals(2, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.ParticipantConnected)
+        Assert.assertEquals(true, events[1] is RoomEvent.TrackPublished)
     }
 
     @Test
