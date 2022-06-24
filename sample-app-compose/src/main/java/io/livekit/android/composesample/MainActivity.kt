@@ -1,13 +1,10 @@
 package io.livekit.android.composesample
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -20,10 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.sample.MainViewModel
+import io.livekit.android.sample.util.requestNeededPermissions
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {
@@ -32,7 +29,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        requestPermissions()
+        requestNeededPermissions()
         setContent {
             MainContent(
                 defaultUrl = viewModel.getSavedUrl(),
@@ -145,34 +142,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    private fun requestPermissions() {
-        val requestPermissionLauncher =
-            registerForActivityResult(
-                ActivityResultContracts.RequestMultiplePermissions()
-            ) { grants ->
-                for (grant in grants.entries) {
-                    if (!grant.value) {
-                        Toast.makeText(
-                            this,
-                            "Missing permission: ${grant.key}",
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    }
-                }
-            }
-        val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-            .filter {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    it
-                ) == PackageManager.PERMISSION_DENIED
-            }
-            .toTypedArray()
-        if (neededPermissions.isNotEmpty()) {
-            requestPermissionLauncher.launch(neededPermissions)
-        }
-    }
-
 }

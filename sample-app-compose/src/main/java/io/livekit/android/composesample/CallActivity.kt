@@ -1,7 +1,6 @@
 package io.livekit.android.composesample
 
 import android.app.Activity
-import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
@@ -25,19 +24,15 @@ import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.lifecycleScope
-import com.github.ajalt.timberkt.Timber
-import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.DebugMenuDialog
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.sample.CallViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
-@OptIn(ExperimentalPagerApi::class)
 class CallActivity : AppCompatActivity() {
 
     private val viewModel: CallViewModel by viewModelByFactory {
@@ -45,10 +40,6 @@ class CallActivity : AppCompatActivity() {
             ?: throw NullPointerException("args is null!")
         CallViewModel(args.url, args.token, application)
     }
-    private val focusChangeListener = AudioManager.OnAudioFocusChangeListener {}
-
-    private var previousSpeakerphoneOn = true
-    private var previousMicrophoneMute = false
 
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
@@ -66,26 +57,6 @@ class CallActivity : AppCompatActivity() {
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Obtain audio focus.
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        with(audioManager) {
-            previousSpeakerphoneOn = isSpeakerphoneOn
-            previousMicrophoneMute = isMicrophoneMute
-            isSpeakerphoneOn = true
-            isMicrophoneMute = false
-            mode = AudioManager.MODE_IN_COMMUNICATION
-        }
-        val result = audioManager.requestAudioFocus(
-            focusChangeListener,
-            AudioManager.STREAM_VOICE_CALL,
-            AudioManager.AUDIOFOCUS_GAIN,
-        )
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            Timber.v { "Audio focus request granted for VOICE_CALL streams" }
-        } else {
-            Timber.v { "Audio focus request failed" }
-        }
 
         // Setup compose view.
         setContent {
@@ -448,19 +419,6 @@ class CallActivity : AppCompatActivity() {
                     )
                 }
             }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        // release audio focus and revert audio settings.
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        with(audioManager) {
-            isSpeakerphoneOn = previousSpeakerphoneOn
-            isMicrophoneMute = previousMicrophoneMute
-            abandonAudioFocus(focusChangeListener)
-            mode = AudioManager.MODE_NORMAL
         }
     }
 

@@ -1,7 +1,6 @@
 package io.livekit.android.sample
 
 import android.app.Activity
-import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
@@ -13,7 +12,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
@@ -30,11 +28,6 @@ class CallActivity : AppCompatActivity() {
         CallViewModel(args.url, args.token, application)
     }
     lateinit var binding: CallActivityBinding
-    val focusChangeListener = AudioManager.OnAudioFocusChangeListener {}
-
-    private var previousSpeakerphoneOn = true
-    private var previousMicrophoneMute = false
-
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -180,26 +173,6 @@ class CallActivity : AppCompatActivity() {
         }
 
         binding.exit.setOnClickListener { finish() }
-
-        // Grab audio focus for video call
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        with(audioManager) {
-            previousSpeakerphoneOn = isSpeakerphoneOn
-            previousMicrophoneMute = isMicrophoneMute
-            isSpeakerphoneOn = true
-            isMicrophoneMute = false
-            mode = AudioManager.MODE_IN_COMMUNICATION
-        }
-        val result = audioManager.requestAudioFocus(
-            focusChangeListener,
-            AudioManager.STREAM_VOICE_CALL,
-            AudioManager.AUDIOFOCUS_GAIN,
-        )
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            Timber.v { "Audio focus request granted for VOICE_CALL streams" }
-        } else {
-            Timber.v { "Audio focus request failed" }
-        }
     }
 
     override fun onResume() {
@@ -231,15 +204,6 @@ class CallActivity : AppCompatActivity() {
 
         // Release video views
         binding.speakerVideoView.release()
-
-        // Undo audio mode changes
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        with(audioManager) {
-            isSpeakerphoneOn = previousSpeakerphoneOn
-            isMicrophoneMute = previousMicrophoneMute
-            abandonAudioFocus(focusChangeListener)
-            mode = AudioManager.MODE_NORMAL
-        }
     }
 
     companion object {

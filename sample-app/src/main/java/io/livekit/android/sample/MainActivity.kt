@@ -3,6 +3,7 @@ package io.livekit.android.sample
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.widget.Toast
@@ -11,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import io.livekit.android.sample.databinding.MainActivityBinding
+import io.livekit.android.sample.util.requestNeededPermissions
 
 
 class MainActivity : AppCompatActivity() {
@@ -67,36 +69,6 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
-        requestPermissions()
-
-    }
-
-    private fun requestPermissions() {
-        val requestPermissionLauncher =
-            registerForActivityResult(
-                ActivityResultContracts.RequestMultiplePermissions()
-            ) { grants ->
-                for (grant in grants.entries) {
-                    if (!grant.value) {
-                        Toast.makeText(
-                            this,
-                            "Missing permission: ${grant.key}",
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    }
-                }
-            }
-        val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-            .filter {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    it
-                ) == PackageManager.PERMISSION_DENIED
-            }
-            .toTypedArray()
-        if (neededPermissions.isNotEmpty()) {
-            requestPermissionLauncher.launch(neededPermissions)
-        }
+        requestNeededPermissions()
     }
 }
