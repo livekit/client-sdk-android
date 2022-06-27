@@ -77,53 +77,57 @@ class CallActivity : AppCompatActivity() {
                     // Observe primary speaker changes
                     emitAll(viewModel.primarySpeaker)
                 }.flatMapLatest { primarySpeaker ->
-                    // Update new primary speaker identity
-                    binding.identityText.text = primarySpeaker?.identity
-
                     if (primarySpeaker != null) {
-                        primarySpeaker::audioTracks.flow
-                            .flatMapLatest { tracks ->
-                                val audioTrack = tracks.firstOrNull()?.first
-                                if (audioTrack != null) {
-                                    audioTrack::muted.flow
-                                } else {
-                                    flowOf(true)
-                                }
-                            }
-                            .collect { muted ->
-                                binding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
-                            }
-                    }
-
-                    // observe videoTracks changes.
-                    if (primarySpeaker != null) {
-                        primarySpeaker::videoTracks.flow
-                            .map { primarySpeaker to it }
+                        flowOf(primarySpeaker)
                     } else {
                         emptyFlow()
                     }
-                }.flatMapLatest { (participant, videoTracks) ->
+                }.collect { participant ->
+                    // Update new primary speaker identity
+                    binding.identityText.text = participant.identity
 
-                    // Prioritize any screenshare streams.
-                    val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
-                        ?: participant.getTrackPublication(Track.Source.CAMERA)
-                        ?: videoTracks.firstOrNull()?.first
-                        ?: return@flatMapLatest emptyFlow()
+                    // observe videoTracks changes.
+                    val videoTrackFlow = participant::videoTracks.flow
+                        .map { participant to it }
+                        .flatMapLatest { (participant, videoTracks) ->
+                            // Prioritize any screenshare streams.
+                            val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
+                                ?: participant.getTrackPublication(Track.Source.CAMERA)
+                                ?: videoTracks.firstOrNull()?.first
+                                ?: return@flatMapLatest emptyFlow()
 
-                    trackPublication::track.flow
-                }.collect { videoTrack ->
-                    // Cleanup old video track
-                    val oldVideoTrack = binding.speakerVideoView.tag as? VideoTrack
-                    oldVideoTrack?.removeRenderer(binding.speakerVideoView)
+                            trackPublication::track.flow
+                        }
 
-                    // Bind new video track to video view.
-                    if (videoTrack is VideoTrack) {
-                        videoTrack.addRenderer(binding.speakerVideoView)
-                        binding.speakerVideoView.visibility = View.VISIBLE
-                    } else {
-                        binding.speakerVideoView.visibility = View.INVISIBLE
+                    // observe audioTracks changes.
+                    val mutedFlow = participant::audioTracks.flow
+                        .flatMapLatest { tracks ->
+                            val audioTrack = tracks.firstOrNull()?.first
+                            if (audioTrack != null) {
+                                audioTrack::muted.flow
+                            } else {
+                                flowOf(true)
+                            }
+                        }
+
+                    combine(videoTrackFlow, mutedFlow) { videoTrack, muted ->
+                        videoTrack to muted
+                    }.collect { (videoTrack, muted) ->
+                        // Cleanup old video track
+                        val oldVideoTrack = binding.speakerVideoView.tag as? VideoTrack
+                        oldVideoTrack?.removeRenderer(binding.speakerVideoView)
+
+                        // Bind new video track to video view.
+                        if (videoTrack is VideoTrack) {
+                            videoTrack.addRenderer(binding.speakerVideoView)
+                            binding.speakerVideoView.visibility = View.VISIBLE
+                        } else {
+                            binding.speakerVideoView.visibility = View.INVISIBLE
+                        }
+                        binding.speakerVideoView.tag = videoTrack
+
+                        binding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
                     }
-                    binding.speakerVideoView.tag = videoTrack
                 }
         }
 
