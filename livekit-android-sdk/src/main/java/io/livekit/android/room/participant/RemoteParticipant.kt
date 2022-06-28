@@ -131,6 +131,7 @@ class RemoteParticipant(
         }
 
         publication.track = track
+        publication.subscriptionAllowed = true
         track.name = publication.name
         track.sid = publication.sid
         addTrackPublication(publication)
