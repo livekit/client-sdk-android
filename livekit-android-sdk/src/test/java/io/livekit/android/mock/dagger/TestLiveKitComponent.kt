@@ -15,6 +15,7 @@ import javax.inject.Singleton
         TestCoroutinesModule::class,
         TestRTCModule::class,
         TestWebModule::class,
+        TestAudioHandlerModule::class,
         JsonFormatModule::class,
     ]
 )

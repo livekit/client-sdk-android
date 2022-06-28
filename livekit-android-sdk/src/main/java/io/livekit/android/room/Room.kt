@@ -13,6 +13,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
+import io.livekit.android.audio.AudioHandler
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
@@ -43,6 +44,7 @@ constructor(
     private val defaultDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
+    private val audioHandler: AudioHandler,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -77,7 +79,15 @@ constructor(
 
     @FlowObservable
     @get:FlowObservable
-    var state: State by flowDelegate(State.DISCONNECTED)
+    var state: State by flowDelegate(State.DISCONNECTED) { new, old ->
+        if (new != old) {
+            when (new) {
+                State.CONNECTING -> audioHandler.start()
+                State.DISCONNECTED -> audioHandler.stop()
+                else -> {}
+            }
+        }
+    }
         private set
 
     @FlowObservable

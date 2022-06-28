@@ -1,5 +1,7 @@
 package io.livekit.android
 
+import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.NoAudioHandler
 import okhttp3.OkHttpClient
 import org.webrtc.VideoDecoderFactory
 import org.webrtc.VideoEncoderFactory
@@ -36,4 +38,10 @@ data class LiveKitOverrides(
      * Override the [VideoDecoderFactory] used by the library.
      */
     val videoDecoderFactory: VideoDecoderFactory? = null,
+
+    /**
+     * Override the default [AudioHandler]. Use [NoAudioHandler] to turn off automatic audio handling.
+     */
+
+    val audioHandler: AudioHandler? = null
 )
