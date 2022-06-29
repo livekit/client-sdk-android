@@ -1,5 +1,6 @@
 package io.livekit.android
 
+import android.app.Application
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.create
@@ -47,6 +48,11 @@ class LiveKit {
             overrides: LiveKitOverrides = LiveKitOverrides(),
         ): Room {
             val ctx = appContext.applicationContext
+
+            if (ctx !is Application) {
+                LKLog.w { "Application context was not found, this may cause memory leaks." }
+            }
+
             val component = DaggerLiveKitComponent
                 .factory()
                 .create(ctx, overrides)

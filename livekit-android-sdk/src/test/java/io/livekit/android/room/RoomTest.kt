@@ -3,6 +3,7 @@ package io.livekit.android.room
 import android.content.Context
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
+import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.RoomEvent
@@ -40,7 +41,7 @@ class RoomTest {
 
     var eglBase: EglBase = MockEglBase()
 
-    val localParticantFactory = object : LocalParticipant.Factory {
+    val localParticipantFactory = object : LocalParticipant.Factory {
         override fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
         }
@@ -52,13 +53,14 @@ class RoomTest {
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         room = Room(
-            context,
-            rtcEngine,
-            eglBase,
-            localParticantFactory,
-            DefaultsManager(),
-            coroutineRule.dispatcher,
-            coroutineRule.dispatcher,
+            context = context,
+            engine = rtcEngine,
+            eglBase = eglBase,
+            localParticipantFactory = localParticipantFactory,
+            defaultsManager = DefaultsManager(),
+            defaultDispatcher = coroutineRule.dispatcher,
+            ioDispatcher = coroutineRule.dispatcher,
+            audioHandler = NoAudioHandler(),
         )
     }
 

@@ -17,6 +17,7 @@ import javax.inject.Singleton
         WebModule::class,
         JsonFormatModule::class,
         OverridesModule::class,
+        AudioHandlerModule::class,
     ]
 )
 internal interface LiveKitComponent {

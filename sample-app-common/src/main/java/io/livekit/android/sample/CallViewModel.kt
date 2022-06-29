@@ -16,7 +16,6 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
-import io.livekit.android.sample.audio.AppRTCAudioManager
 import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -72,12 +71,7 @@ class CallViewModel(
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
-    private val audioManager = AppRTCAudioManager(application)
-
     init {
-
-        audioManager.start(null)
-
         viewModelScope.launch {
             launch {
                 error.collect { Timber.e(it) }
@@ -200,7 +194,6 @@ class CallViewModel(
     override fun onCleared() {
         super.onCleared()
         room.disconnect()
-        audioManager.stop()
     }
 
     fun setMicEnabled(enabled: Boolean) {
