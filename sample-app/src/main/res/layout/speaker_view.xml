@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/no_video_background">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/no_video_background"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:src="@drawable/outline_videocam_off_24"
+            app:tint="@color/no_video_participant" />
+
+        <io.livekit.android.renderer.TextureViewRenderer
+            android:id="@+id/renderer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <ImageView
+            android:id="@+id/connection_quality"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/identity_bar_padding"
+            android:layout_marginEnd="@dimen/identity_bar_padding"
+            android:alpha="0.5"
+            android:src="@drawable/wifi_strength_1"
+            android:visibility="invisible"
+            app:tint="#FF0000" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/identity_bar"
+        android:layout_width="0dp"
+        android:layout_height="30dp"
+        android:background="#80000000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageView
+        android:id="@+id/mute_indicator"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="@dimen/identity_bar_padding"
+        android:src="@drawable/outline_mic_off_24"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/identity_bar"
+        app:layout_constraintEnd_toEndOf="@id/identity_bar"
+        app:layout_constraintTop_toTopOf="@id/identity_bar"
+        app:tint="#BB0000" />
+
+    <TextView
+        android:id="@+id/identity_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/identity_bar_padding"
+        android:ellipsize="end"
+        app:layout_constraintBottom_toBottomOf="@id/identity_bar"
+        app:layout_constraintEnd_toStartOf="@id/mute_indicator"
+        app:layout_constraintStart_toStartOf="@id/identity_bar"
+        app:layout_constraintTop_toTopOf="@id/identity_bar" />
+</androidx.constraintlayout.widget.ConstraintLayout>
