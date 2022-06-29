@@ -1,7 +1,9 @@
 package io.livekit.android.room.participant
 
 import io.livekit.android.BaseTest
+import io.livekit.android.events.EventCollector
 import io.livekit.android.events.FlowCollector
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.flow
@@ -31,31 +33,20 @@ class RemoteParticipantTest : BaseTest() {
     }
 
     @Test
-    fun constructorAddsTrack() {
-        val info = LivekitModels.ParticipantInfo.newBuilder(INFO)
-            .addTracks(TRACK_INFO)
-            .build()
-
-        participant = RemoteParticipant(
-            info,
-            signalClient,
-            ioDispatcher = coroutineRule.dispatcher,
-            defaultDispatcher = coroutineRule.dispatcher,
-        )
-
-        assertEquals(1, participant.tracks.values.size)
-        assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))
-    }
-
-    @Test
-    fun updateFromInfoAddsTrack() {
+    fun updateFromInfoAddsTrack() = runTest {
         val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
             .addTracks(TRACK_INFO)
             .build()
+
+        val collector = EventCollector(participant.events, coroutineRule.scope)
         participant.updateFromInfo(newTrackInfo)
+        val events = collector.stopCollecting()
 
         assertEquals(1, participant.tracks.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))
+
+        val publishes = events.filterIsInstance<ParticipantEvent.TrackPublished>()
+        assertEquals(1, publishes.size)
     }
 
     @Test

@@ -23,6 +23,10 @@ class RemoteParticipant(
     defaultDispatcher: CoroutineDispatcher,
 ) : Participant(sid, identity, defaultDispatcher) {
     /**
+     * Note: This constructor does not update all info due to event listener race conditions.
+     *
+     * Callers are responsible for calling through to [updateFromInfo] once ready.
+     *
      * @suppress
      */
     constructor(
@@ -37,7 +41,7 @@ class RemoteParticipant(
         ioDispatcher,
         defaultDispatcher
     ) {
-        updateFromInfo(info)
+        super.updateFromInfo(info)
     }
 
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
@@ -48,7 +52,6 @@ class RemoteParticipant(
      * @suppress
      */
     override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
-        val hadInfo = hasInfo
         super.updateFromInfo(info)
 
         val validTrackPublication = mutableMapOf<String, RemoteTrackPublication>()
@@ -74,12 +77,10 @@ class RemoteParticipant(
             validTrackPublication[trackSid] = publication
         }
 
-        if (hadInfo) {
-            for (publication in newTrackPublications.values) {
-                internalListener?.onTrackPublished(publication, this)
-                listener?.onTrackPublished(publication, this)
-                eventBus.postEvent(ParticipantEvent.TrackPublished(this, publication), scope)
-            }
+        for (publication in newTrackPublications.values) {
+            internalListener?.onTrackPublished(publication, this)
+            listener?.onTrackPublished(publication, this)
+            eventBus.postEvent(ParticipantEvent.TrackPublished(this, publication), scope)
         }
 
         val invalidKeys = tracks.keys - validTrackPublication.keys

@@ -20,6 +20,7 @@ object TestData {
         sid = "local_participant_sid"
         identity = "local_participant_identity"
         state = LivekitModels.ParticipantInfo.State.ACTIVE
+        metadata = "local_metadata"
         permission = LivekitModels.ParticipantPermission.newBuilder()
             .setCanPublish(true)
             .setCanSubscribe(true)
@@ -34,6 +35,14 @@ object TestData {
         sid = "remote_participant_sid"
         identity = "remote_participant_identity"
         state = LivekitModels.ParticipantInfo.State.ACTIVE
+        metadata = "remote_metadata"
+        isPublisher = true
+        permission = with(LivekitModels.ParticipantPermission.newBuilder()) {
+            canPublish = true
+            canSubscribe = true
+            canPublishData
+            build()
+        }
         addTracks(REMOTE_AUDIO_TRACK)
         build()
     }
