@@ -70,54 +70,105 @@
         android:layout_height="60dp"
         android:gravity="center"
         android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toTopOf="@id/controls_box2">
 
         <ImageView
             android:id="@+id/camera"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/outline_videocam_24" />
+            android:src="@drawable/outline_videocam_24"
+            app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/mic"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/outline_mic_24" />
+            android:src="@drawable/outline_mic_24"
+            app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/flip_camera"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/outline_flip_camera_android_24" />
+            android:src="@drawable/outline_flip_camera_android_24"
+            app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/screen_share"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/baseline_cast_24" />
+            android:src="@drawable/baseline_cast_24"
+            app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/message"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/baseline_chat_24" />
+            android:src="@drawable/baseline_chat_24"
+            app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/exit"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
             android:background="?android:attr/selectableItemBackground"
             android:padding="@dimen/control_padding"
-            android:src="@drawable/ic_baseline_cancel_24" />
+            android:src="@drawable/ic_baseline_cancel_24"
+            app:tint="@android:color/white" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/controls_box2"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageView
+            android:id="@+id/audio_select"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/volume_up_48px"
+            app:tint="@android:color/white" />
+
+        <ImageView
+            android:id="@+id/permissions"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/account_cancel_outline"
+            app:tint="@android:color/white" />
+
+        <ImageView
+            android:id="@+id/debug_menu"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/dots_horizontal_circle_outline"
+            app:tint="@android:color/white" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -16,6 +16,8 @@ import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.sample.dialog.showDebugMenuDialog
+import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import io.livekit.android.util.flow
 import kotlinx.coroutines.flow.*
 import kotlinx.parcelize.Parcelize
@@ -177,6 +179,24 @@ class CallActivity : AppCompatActivity() {
         }
 
         binding.exit.setOnClickListener { finish() }
+
+        // Controls row 2
+        binding.audioSelect.setOnClickListener {
+            showSelectAudioDeviceDialog(viewModel)
+        }
+        lifecycleScope.launchWhenCreated {
+            viewModel.permissionAllowed.collect { allowed ->
+                val resource = if (allowed) R.drawable.account_cancel_outline else R.drawable.account_cancel
+                binding.permissions.setImageResource(resource)
+            }
+        }
+        binding.permissions.setOnClickListener {
+            viewModel.toggleSubscriptionPermissions()
+        }
+
+        binding.debugMenu.setOnClickListener {
+            showDebugMenuDialog(viewModel)
+        }
     }
 
     override fun onResume() {
