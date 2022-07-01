@@ -7,18 +7,20 @@ import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.ParticipantListener
+import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.ParticipantItemBinding
 import io.livekit.android.util.flow
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ParticipantItem(
     private val room: Room,
-    private val participant: Participant,
-    private val speakerView: Boolean = false,
+    private val participant: Participant
 ) : BindableItem<ParticipantItemBinding>() {
 
     private var boundVideoTrack: VideoTrack? = null
@@ -65,44 +67,25 @@ class ParticipantItem(
                         if (quality == ConnectionQuality.POOR) View.VISIBLE else View.INVISIBLE
                 }
         }
-
-        // observe videoTracks changes.
-        val videoTrackPubFlow = participant::videoTracks.flow
-            .map { participant to it }
-            .flatMapLatest { (participant, videoTracks) ->
-                // Prioritize any screenshare streams.
-                val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
-                    ?: participant.getTrackPublication(Track.Source.CAMERA)
-                    ?: videoTracks.firstOrNull()?.first
-
-                flowOf(trackPublication)
+        participant.listener = object : ParticipantListener {
+            override fun onTrackSubscribed(
+                track: Track,
+                publication: RemoteTrackPublication,
+                participant: RemoteParticipant
+            ) {
+                if (track !is VideoTrack) return
+                if (publication.source == Track.Source.CAMERA) {
+                    setupVideoIfNeeded(track, viewBinding)
+                }
             }
 
-        coroutineScope?.launch {
-            videoTrackPubFlow
-                .flatMapLatest { pub ->
-                    if (pub != null) {
-                        pub::track.flow
-                    } else {
-                        flowOf(null)
-                    }
-                }
-                .collectLatest { videoTrack ->
-                    setupVideoIfNeeded(videoTrack as? VideoTrack, viewBinding)
-                }
-        }
-        coroutineScope?.launch {
-            videoTrackPubFlow
-                .flatMapLatest { pub ->
-                    if (pub != null) {
-                        pub::muted.flow
-                    } else {
-                        flowOf(true)
-                    }
-                }
-                .collectLatest { muted ->
-                    viewBinding.renderer.visibleOrInvisible(!muted)
-                }
+            override fun onTrackUnpublished(
+                publication: RemoteTrackPublication,
+                participant: RemoteParticipant
+            ) {
+                super.onTrackUnpublished(publication, participant)
+                Timber.e { "Track unpublished" }
+            }
         }
         val existingTrack = getVideoTrack()
         if (existingTrack != null) {
@@ -114,14 +97,14 @@ class ParticipantItem(
         return participant.getTrackPublication(Track.Source.CAMERA)?.track as? VideoTrack
     }
 
-    private fun setupVideoIfNeeded(videoTrack: VideoTrack?, viewBinding: ParticipantItemBinding) {
-        if (boundVideoTrack == videoTrack) {
+    internal fun setupVideoIfNeeded(videoTrack: VideoTrack, viewBinding: ParticipantItemBinding) {
+        if (boundVideoTrack != null) {
             return
         }
-        boundVideoTrack?.removeRenderer(viewBinding.renderer)
+
         boundVideoTrack = videoTrack
         Timber.v { "adding renderer to $videoTrack" }
-        videoTrack?.addRenderer(viewBinding.renderer)
+        videoTrack.addRenderer(viewBinding.renderer)
     }
 
     override fun unbind(viewHolder: GroupieViewHolder<ParticipantItemBinding>) {
@@ -132,25 +115,5 @@ class ParticipantItem(
         boundVideoTrack = null
     }
 
-    override fun getLayout(): Int =
-        if (speakerView)
-            R.layout.speaker_view
-        else
-            R.layout.participant_item
-}
-
-private fun View.visibleOrGone(visible: Boolean) {
-    visibility = if (visible) {
-        View.VISIBLE
-    } else {
-        View.GONE
-    }
-}
-
-private fun View.visibleOrInvisible(visible: Boolean) {
-    visibility = if (visible) {
-        View.VISIBLE
-    } else {
-        View.INVISIBLE
-    }
+    override fun getLayout(): Int = R.layout.participant_item
 }

@@ -82,7 +82,6 @@ class LiveKit {
          * @param url URL to LiveKit server (i.e. ws://mylivekitdeploy.io)
          * @param listener Listener to Room events. LiveKit interactions take place with these callbacks
          */
-        @Deprecated("Use LiveKit.create() and Room.connect() instead.")
         suspend fun connect(
             appContext: Context,
             url: String,

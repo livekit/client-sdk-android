@@ -60,7 +60,7 @@ class CallActivity : AppCompatActivity() {
 
         // Setup compose view.
         setContent {
-            val room = viewModel.room
+            val room by viewModel.room.collectAsState()
             val participants by viewModel.participants.collectAsState(initial = emptyList())
             val primarySpeaker by viewModel.primarySpeaker.collectAsState()
             val activeSpeakers by viewModel.activeSpeakers.collectAsState(initial = emptyList())
