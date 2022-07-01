@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
+import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.events.RoomEvent
@@ -80,7 +81,7 @@ class CallViewModel(
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
-    val audioHandler = room.audioHandler as AudioSwitchHandler
+    val audioHandler = AudioSwitchHandler(application)
     init {
         viewModelScope.launch {
 
@@ -94,6 +95,7 @@ class CallViewModel(
                     url,
                     token,
                     roomOptions = RoomOptions(adaptiveStream = true, dynacast = true),
+                    overrides = LiveKitOverrides(audioHandler = audioHandler)
                 )
 
                 // Create and publish audio/video tracks
