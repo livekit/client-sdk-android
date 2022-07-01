@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.lifecycleScope
+import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.composesample.ui.DebugMenuDialog
+import io.livekit.android.composesample.ui.SelectAudioDeviceDialog
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
@@ -78,6 +80,7 @@ class CallActivity : AppCompatActivity() {
                 videoEnabled,
                 flipButtonEnabled,
                 screencastEnabled,
+                audioSwitchHandler = viewModel.audioHandler,
                 permissionAllowed = permissionAllowed,
                 onExitClick = { finish() },
                 onSendMessage = { viewModel.sendData(it) },
@@ -126,6 +129,7 @@ class CallActivity : AppCompatActivity() {
         flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
         permissionAllowed: Boolean = true,
+        audioSwitchHandler: AudioSwitchHandler? = null,
         onExitClick: () -> Unit = {},
         error: Throwable? = null,
         onSnackbarDismiss: () -> Unit = {},
@@ -349,6 +353,29 @@ class CallActivity : AppCompatActivity() {
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.Bottom,
                     ) {
+                        var showAudioDeviceDialog by remember { mutableStateOf(false) }
+                        Surface(
+                            onClick = { showAudioDeviceDialog = true },
+                            indication = rememberRipple(false),
+                            modifier = Modifier
+                                .size(controlSize)
+                                .padding(controlPadding)
+                        ) {
+                            val resource = R.drawable.volume_up_48px
+                            Icon(
+                                painterResource(id = resource),
+                                contentDescription = "Select Audio Device",
+                                tint = Color.White,
+                            )
+                        }
+                        if (showAudioDeviceDialog) {
+                            SelectAudioDeviceDialog(
+                                onDismissRequest = { showAudioDeviceDialog = false },
+                                selectDevice = { audioSwitchHandler?.selectDevice(it) },
+                                currentDevice = audioSwitchHandler?.selectedAudioDevice,
+                                availableDevices = audioSwitchHandler?.availableAudioDevices ?: emptyList()
+                            )
+                        }
                         Surface(
                             onClick = { viewModel.toggleSubscriptionPermissions() },
                             indication = rememberRipple(false),
