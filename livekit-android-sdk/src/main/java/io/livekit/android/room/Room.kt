@@ -44,7 +44,7 @@ constructor(
     private val defaultDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
-    private val audioHandler: AudioHandler,
+    val audioHandler: AudioHandler,
 ) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
 
     private lateinit var coroutineScope: CoroutineScope

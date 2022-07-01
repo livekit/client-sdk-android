@@ -40,7 +40,9 @@ data class LiveKitOverrides(
     val videoDecoderFactory: VideoDecoderFactory? = null,
 
     /**
-     * Override the default [AudioHandler]. Use [NoAudioHandler] to turn off automatic audio handling.
+     * Override the default [AudioHandler].
+     *
+     * Use [NoAudioHandler] to turn off automatic audio handling.
      */
 
     val audioHandler: AudioHandler? = null
