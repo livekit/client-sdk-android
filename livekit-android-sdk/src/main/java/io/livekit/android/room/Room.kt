@@ -177,14 +177,14 @@ constructor(
         coroutineScope.launch {
             localParticipant.events.collect {
                 when (it) {
-                    is ParticipantEvent.TrackPublished -> eventBus.postEvent(
+                    is ParticipantEvent.TrackPublished -> emitWhenConnected(
                         RoomEvent.TrackPublished(
                             room = this@Room,
                             publication = it.publication,
                             participant = it.participant,
                         )
                     )
-                    is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
+                    is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
                         RoomEvent.ParticipantPermissionsChanged(
                             room = this@Room,
                             participant = it.participant,
@@ -192,6 +192,16 @@ constructor(
                             oldPermissions = it.oldPermissions,
                         )
                     )
+                    is ParticipantEvent.MetadataChanged -> {
+                        listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
+                        emitWhenConnected(
+                            RoomEvent.ParticipantMetadataChanged(
+                                this@Room,
+                                it.participant,
+                                it.prevMetadata
+                            )
+                        )
+                    }
                     else -> {
                         /* do nothing */
                     }
@@ -314,6 +324,16 @@ constructor(
                             it.subscriptionAllowed
                         )
                     )
+                    is ParticipantEvent.MetadataChanged -> {
+                        listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
+                        emitWhenConnected(
+                            RoomEvent.ParticipantMetadataChanged(
+                                this@Room,
+                                it.participant,
+                                it.prevMetadata
+                            )
+                        )
+                    }
                     is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
                         RoomEvent.ParticipantPermissionsChanged(
                             room = this@Room,
@@ -736,8 +756,6 @@ constructor(
      * @suppress
      */
     override fun onMetadataChanged(participant: Participant, prevMetadata: String?) {
-        listener?.onMetadataChanged(participant, prevMetadata, this)
-        eventBus.postEvent(RoomEvent.ParticipantMetadataChanged(this, participant, prevMetadata), coroutineScope)
     }
 
     /** @suppress */
@@ -820,6 +838,11 @@ constructor(
         viewRenderer.setEnableHardwareScaler(false /* enabled */)
     }
 
+    private suspend fun emitWhenConnected(event: RoomEvent) {
+        if (state == State.CONNECTED) {
+            eventBus.postEvent(event)
+        }
+    }
 }
 
 /**
