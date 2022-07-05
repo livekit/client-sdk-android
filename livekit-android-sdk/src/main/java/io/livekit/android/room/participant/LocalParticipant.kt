@@ -16,7 +16,6 @@ import io.livekit.android.room.track.*
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.cancel
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -26,8 +25,6 @@ import kotlin.math.max
 class LocalParticipant
 @AssistedInject
 internal constructor(
-    @Assisted
-    info: LivekitModels.ParticipantInfo,
     @Assisted
     private val dynacast: Boolean,
     internal val engine: RTCEngine,
@@ -39,16 +36,12 @@ internal constructor(
     private val defaultsManager: DefaultsManager,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     coroutineDispatcher: CoroutineDispatcher,
-) : Participant(info.sid, info.identity, coroutineDispatcher) {
+) : Participant("", null, coroutineDispatcher) {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
-
-    init {
-        updateFromInfo(info)
-    }
 
     private val localTrackPublications
         get() = tracks.values
@@ -563,9 +556,9 @@ internal constructor(
         }
     }
 
-    fun dispose() {
+    override fun dispose() {
         cleanup()
-        scope.cancel()
+        super.dispose()
     }
 
     interface PublishListener {
@@ -575,7 +568,7 @@ internal constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant
+        fun create(dynacast: Boolean): LocalParticipant
     }
 
     companion object {

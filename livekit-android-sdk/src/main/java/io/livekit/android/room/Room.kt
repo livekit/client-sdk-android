@@ -135,12 +135,9 @@ constructor(
      */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    var _localParticipant: LocalParticipant? = null
-    val localParticipant: LocalParticipant
-        get() {
-            return _localParticipant
-                ?: throw UninitializedPropertyAccessException("localParticipant has not been initialized yet.")
-        }
+    val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = dynacast).apply {
+        internalListener = this@Room
+    }
 
     private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
 
@@ -174,6 +171,34 @@ constructor(
             coroutineScope.cancel()
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
+
+        // Setup local participant.
+        localParticipant.reinitialize()
+        coroutineScope.launch {
+            localParticipant.events.collect {
+                when (it) {
+                    is ParticipantEvent.TrackPublished -> eventBus.postEvent(
+                        RoomEvent.TrackPublished(
+                            room = this@Room,
+                            publication = it.publication,
+                            participant = it.participant,
+                        )
+                    )
+                    is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
+                        RoomEvent.ParticipantPermissionsChanged(
+                            room = this@Room,
+                            participant = it.participant,
+                            newPermissions = it.newPermissions,
+                            oldPermissions = it.oldPermissions,
+                        )
+                    )
+                    else -> {
+                        /* do nothing */
+                    }
+                }
+            }
+        }
+
         state = State.CONNECTING
         connectOptions = options
         engine.join(url, token, options, getCurrentRoomOptions())
@@ -214,37 +239,7 @@ constructor(
             return
         }
 
-        if (_localParticipant == null) {
-            val lp = localParticipantFactory.create(response.participant, dynacast)
-            lp.internalListener = this
-            coroutineScope.launch {
-                lp.events.collect {
-                    when (it) {
-                        is ParticipantEvent.TrackPublished -> eventBus.postEvent(
-                            RoomEvent.TrackPublished(
-                                room = this@Room,
-                                publication = it.publication,
-                                participant = it.participant,
-                            )
-                        )
-                        is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
-                            RoomEvent.ParticipantPermissionsChanged(
-                                room = this@Room,
-                                participant = it.participant,
-                                newPermissions = it.newPermissions,
-                                oldPermissions = it.oldPermissions,
-                            )
-                        )
-                        else -> {
-                            /* do nothing */
-                        }
-                    }
-                }
-            }
-            _localParticipant = lp
-        } else {
-            localParticipant.updateFromInfo(response.participant)
-        }
+        localParticipant.updateFromInfo(response.participant)
 
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach {
@@ -413,7 +408,7 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
-        _localParticipant?.cleanup()
+        localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
     }
@@ -436,8 +431,7 @@ constructor(
 
         listener?.onDisconnect(this, null)
         listener = null
-        _localParticipant?.dispose()
-        _localParticipant = null
+        localParticipant.dispose()
 
         // Ensure all observers see the disconnected before closing scope.
         runBlocking {
