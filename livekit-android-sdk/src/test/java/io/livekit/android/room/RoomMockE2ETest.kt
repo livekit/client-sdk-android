@@ -43,7 +43,7 @@ class RoomMockE2ETest : MockE2ETest() {
         val collector = EventCollector(room.events, coroutineRule.scope)
         connect()
         val events = collector.stopCollecting()
-        assertEquals(0, events.size)
+        assertEquals(emptyList<RoomEvent>(), events)
     }
 
     @Test
@@ -59,7 +59,7 @@ class RoomMockE2ETest : MockE2ETest() {
         val collector = EventCollector(room.events, coroutineRule.scope)
         connect(joinResponse)
         val events = collector.stopCollecting()
-        assertEquals(0, events.size)
+        assertEquals(emptyList<RoomEvent>(), events)
     }
 
     @Test

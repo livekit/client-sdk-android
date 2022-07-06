@@ -6,12 +6,15 @@ import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
+import io.livekit.android.events.EventListenable
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.*
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.runTest
-import livekit.LivekitModels
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -42,8 +45,13 @@ class RoomTest {
     var eglBase: EglBase = MockEglBase()
 
     val localParticipantFactory = object : LocalParticipant.Factory {
-        override fun create(info: LivekitModels.ParticipantInfo, dynacast: Boolean): LocalParticipant {
+        override fun create(dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
+                .apply {
+                    whenever(this.events).thenReturn(object : EventListenable<ParticipantEvent> {
+                        override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
+                    })
+                }
         }
     }
 
@@ -137,14 +145,6 @@ class RoomTest {
         Assert.assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
         Assert.assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
         Assert.assertEquals(true, events[3] is RoomEvent.Disconnected)
-
-        var localParticipantEmpty = false
-        try{
-            room.localParticipant // should throw
-        } catch (e: Exception) {
-            localParticipantEmpty = true
-        }
-        Assert.assertTrue(localParticipantEmpty)
         Assert.assertTrue(room.remoteParticipants.isEmpty())
     }
 }

@@ -11,9 +11,7 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import livekit.LivekitModels
 import javax.inject.Named
@@ -22,9 +20,17 @@ open class Participant(
     var sid: String,
     identity: String? = null,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
-    coroutineDispatcher: CoroutineDispatcher,
+    private val coroutineDispatcher: CoroutineDispatcher,
 ) {
-    protected val scope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+
+    /**
+     * To only be used for flow delegate scoping, and should not be cancelled.
+     **/
+    private val delegateScope = createScope()
+    protected var scope: CoroutineScope = createScope()
+        private set
+
+    private fun createScope() = CoroutineScope(coroutineDispatcher + SupervisorJob())
 
     protected val eventBus = BroadcastEventBus<ParticipantEvent>()
     val events = eventBus.readOnly()
@@ -159,7 +165,7 @@ open class Participant(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
             .trackUpdateFlow()
-            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList())
     )
 
     /**
@@ -171,7 +177,7 @@ open class Participant(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.VIDEO } }
             .trackUpdateFlow()
-            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList())
     )
 
     /**
@@ -293,6 +299,16 @@ open class Participant(
             ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState),
             scope
         )
+    }
+
+    internal fun reinitialize() {
+        if (!scope.isActive) {
+            scope = createScope()
+        }
+    }
+
+    internal open fun dispose() {
+        scope.cancel()
     }
 }
 
