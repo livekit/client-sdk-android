@@ -17,6 +17,7 @@ import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
@@ -32,7 +33,6 @@ import kotlin.coroutines.suspendCoroutine
 /**
  * @suppress
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class RTCEngine
 @Inject
@@ -76,6 +76,7 @@ internal constructor(
         }
 
     private var reconnectingJob: Job? = null
+    private val reconnectingLock = Mutex()
     private var fullReconnectOnNext = false
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
@@ -330,7 +331,8 @@ internal constructor(
      * reconnect Signal and PeerConnections
      */
     internal fun reconnect() {
-        if (reconnectingJob != null) {
+        val didLock = reconnectingLock.tryLock()
+        if (!didLock) {
             return
         }
         if (this.isClosed) {
@@ -345,6 +347,7 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         val job = coroutineScope.launch {
+
             connectionState = ConnectionState.RECONNECTING
             listener?.onEngineReconnecting()
 
@@ -372,6 +375,7 @@ internal constructor(
                         continue
                     }
                 } else {
+                    subscriber.prepareForIceRestart()
                     try {
                         client.reconnect(url, token)
                         // no join response for regular reconnects
@@ -385,7 +389,6 @@ internal constructor(
                     LKLog.v { "ws reconnected, restarting ICE" }
                     listener?.onSignalConnected(!isFullReconnect)
 
-                    subscriber.prepareForIceRestart()
                     // trigger publisher reconnect
                     // only restart publisher if it's needed
                     if (hasPublished) {
@@ -435,6 +438,7 @@ internal constructor(
             if (reconnectingJob == job) {
                 reconnectingJob = null
             }
+            reconnectingLock.unlock()
         }
     }
 

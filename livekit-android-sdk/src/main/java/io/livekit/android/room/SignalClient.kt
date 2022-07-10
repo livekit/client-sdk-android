@@ -111,11 +111,11 @@ constructor(
         val request = Request.Builder()
             .url(wsUrlString)
             .build()
-        currentWs = websocketFactory.newWebSocket(request, this)
 
         return suspendCancellableCoroutine {
             // Wait for join response through WebSocketListener
             joinContinuation = it
+            currentWs = websocketFactory.newWebSocket(request, this)
         }
     }
 

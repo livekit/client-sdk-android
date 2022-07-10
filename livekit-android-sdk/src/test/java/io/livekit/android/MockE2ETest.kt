@@ -61,11 +61,18 @@ abstract class MockE2ETest : BaseTest() {
         job.join()
     }
 
-    suspend fun connectPeerConnection() {
+    fun connectPeerConnection() {
         subscriber = component.rtcEngine().subscriber
         simulateMessageFromServer(SignalClientTest.OFFER)
         val subPeerConnection = subscriber.peerConnection as MockPeerConnection
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
+    }
+
+    fun disconnectPeerConnection() {
+        subscriber = component.rtcEngine().subscriber
+        simulateMessageFromServer(SignalClientTest.OFFER)
+        val subPeerConnection = subscriber.peerConnection as MockPeerConnection
+        subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
     }
 
     fun createOpenResponse(request: Request): Response {
