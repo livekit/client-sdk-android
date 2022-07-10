@@ -263,7 +263,7 @@ class RoomMockE2ETest : MockE2ETest() {
         room.onAvailable(network)
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events)
+        Assert.assertEquals(1, events.size)
         Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
     }
 
