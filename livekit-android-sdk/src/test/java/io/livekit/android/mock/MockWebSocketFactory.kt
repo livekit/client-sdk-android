@@ -20,10 +20,13 @@ class MockWebSocketFactory : WebSocket.Factory {
      */
     lateinit var listener: WebSocketListener
     override fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket {
-        this.ws = MockWebSocket(request)
-
+        this.ws = MockWebSocket(request, listener)
         this.listener = listener
         this.request = request
+
+        onOpen?.invoke(this)
         return ws
     }
+
+    var onOpen: ((MockWebSocketFactory) -> Unit)? = null
 }
