@@ -32,8 +32,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private const val PREFERENCES_KEY_URL = "url"
         private const val PREFERENCES_KEY_TOKEN = "token"
 
-        const val URL = "ws://www.example.com"
-        const val TOKEN =
-            ""
+        const val URL = BuildConfig.DEFAULT_URL
+        const val TOKEN = BuildConfig.DEFAULT_TOKEN
     }
 }
