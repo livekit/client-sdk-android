@@ -1,5 +1,6 @@
 package io.livekit.android
 
+import io.livekit.android.room.ProtocolVersion
 import org.webrtc.PeerConnection
 
 
@@ -17,6 +18,11 @@ data class ConnectOptions(
      * capture and publish video track on connect, defaults to false
      */
     val video: Boolean = false,
+
+    /**
+     * the protocol version to use with the server.
+     */
+    val protocolVersion: ProtocolVersion = ProtocolVersion.v8
 ) {
     internal var reconnect: Boolean = false
 }

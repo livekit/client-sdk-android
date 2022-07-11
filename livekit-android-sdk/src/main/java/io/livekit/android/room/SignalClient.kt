@@ -128,6 +128,7 @@ constructor(
 
         val queryParams = mutableListOf<Pair<String, String>>()
         queryParams.add(CONNECT_QUERY_TOKEN to token)
+        queryParams.add(CONNECT_QUERY_PROTOCOL to options.protocolVersion.value.toString())
 
         if (options.reconnect) {
             queryParams.add(CONNECT_QUERY_RECONNECT to 1.toString())
@@ -142,7 +143,6 @@ constructor(
         // Client info
         queryParams.add(CONNECT_QUERY_SDK to "android")
         queryParams.add(CONNECT_QUERY_VERSION to clientInfo.version)
-        queryParams.add(CONNECT_QUERY_PROTOCOL to clientInfo.protocol.toString())
         queryParams.add(CONNECT_QUERY_DEVICE_MODEL to clientInfo.deviceModel)
         queryParams.add(CONNECT_QUERY_OS to clientInfo.os)
         queryParams.add(CONNECT_QUERY_OS_VERSION to clientInfo.osVersion)
@@ -604,7 +604,6 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
-        const val PROTOCOL_VERSION = 7
         const val SDK_TYPE = "android"
 
         private val skipQueueTypes = listOf(
@@ -627,4 +626,15 @@ constructor(
 //            iceServer("stun:stun4.l.google.com:19302"),
         )
     }
+}
+
+enum class ProtocolVersion(val value: Int) {
+    v1(1),
+    v2(2),
+    v3(3),
+    v4(4),
+    v5(5),
+    v6(6),
+    v7(7),
+    v8(8),
 }
