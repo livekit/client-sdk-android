@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.create
+import io.livekit.android.room.ProtocolVersion
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.util.LKLog
@@ -82,6 +83,7 @@ class LiveKit {
          * @param url URL to LiveKit server (i.e. ws://mylivekitdeploy.io)
          * @param listener Listener to Room events. LiveKit interactions take place with these callbacks
          */
+        @Deprecated("Use LiveKit.create and Room.connect instead. This is limited to max protocol 7.")
         suspend fun connect(
             appContext: Context,
             url: String,
@@ -94,7 +96,11 @@ class LiveKit {
             val room = create(appContext, roomOptions, overrides)
 
             room.listener = listener
-            room.connect(url, token, options)
+
+            val protocolVersion = maxOf(options.protocolVersion, ProtocolVersion.v7)
+            val connectOptions = options.copy(protocolVersion = protocolVersion)
+
+            room.connect(url, token, connectOptions)
             return room
         }
 
