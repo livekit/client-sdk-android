@@ -4,7 +4,6 @@ import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
-import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,13 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
-import io.livekit.android.util.flow
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
 
 class CallActivity : AppCompatActivity() {
@@ -50,87 +46,32 @@ class CallActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Audience row setup
-        binding.audienceRow.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        val adapter = GroupieAdapter()
-
+        val audienceAdapter = GroupieAdapter()
         binding.audienceRow.apply {
-            this.adapter = adapter
+            layoutManager = LinearLayoutManager(this@CallActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = audienceAdapter
         }
 
         lifecycleScope.launchWhenCreated {
-            viewModel.room
-                .combine(viewModel.participants) { room, participants -> room to participants }
-                .collect { (room, participants) ->
-                    if (room != null) {
-                        val items = participants.map { participant -> ParticipantItem(room, participant) }
-                        adapter.update(items)
-                    }
+            viewModel.participants
+                .collect { participants ->
+                    val items = participants.map { participant -> ParticipantItem(viewModel.room, participant) }
+                    audienceAdapter.update(items)
                 }
         }
 
         // speaker view setup
+        val speakerAdapter = GroupieAdapter()
+        binding.speakerView.apply {
+            layoutManager = LinearLayoutManager(this@CallActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = speakerAdapter
+        }
         lifecycleScope.launchWhenCreated {
-            viewModel.room.filterNotNull().take(1)
-                .transform { room ->
-                    // Initialize video renderer
-                    room.initVideoRenderer(binding.speakerVideoView)
-
-                    // Observe primary speaker changes
-                    emitAll(viewModel.primarySpeaker)
-                }.flatMapLatest { primarySpeaker ->
-                    if (primarySpeaker != null) {
-                        flowOf(primarySpeaker)
-                    } else {
-                        emptyFlow()
-                    }
-                }.collect { participant ->
-                    // Update new primary speaker identity
-                    binding.identityText.text = participant.identity
-
-                    // observe videoTracks changes.
-                    val videoTrackFlow = participant::videoTracks.flow
-                        .map { participant to it }
-                        .flatMapLatest { (participant, videoTracks) ->
-                            // Prioritize any screenshare streams.
-                            val trackPublication = participant.getTrackPublication(Track.Source.SCREEN_SHARE)
-                                ?: participant.getTrackPublication(Track.Source.CAMERA)
-                                ?: videoTracks.firstOrNull()?.first
-                                ?: return@flatMapLatest emptyFlow()
-
-                            trackPublication::track.flow
-                        }
-
-                    // observe audioTracks changes.
-                    val mutedFlow = participant::audioTracks.flow
-                        .flatMapLatest { tracks ->
-                            val audioTrack = tracks.firstOrNull()?.first
-                            if (audioTrack != null) {
-                                audioTrack::muted.flow
-                            } else {
-                                flowOf(true)
-                            }
-                        }
-
-                    combine(videoTrackFlow, mutedFlow) { videoTrack, muted ->
-                        videoTrack to muted
-                    }.collect { (videoTrack, muted) ->
-                        // Cleanup old video track
-                        val oldVideoTrack = binding.speakerVideoView.tag as? VideoTrack
-                        oldVideoTrack?.removeRenderer(binding.speakerVideoView)
-
-                        // Bind new video track to video view.
-                        if (videoTrack is VideoTrack) {
-                            videoTrack.addRenderer(binding.speakerVideoView)
-                            binding.speakerVideoView.visibility = View.VISIBLE
-                        } else {
-                            binding.speakerVideoView.visibility = View.INVISIBLE
-                        }
-                        binding.speakerVideoView.tag = videoTrack
-
-                        binding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
-                    }
-                }
+            viewModel.primarySpeaker.collectLatest { speaker ->
+                val items = listOfNotNull(speaker)
+                    .map { participant -> ParticipantItem(viewModel.room, participant, speakerView = true) }
+                speakerAdapter.update(items)
+            }
         }
 
         // Controls setup
@@ -224,10 +165,9 @@ class CallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        binding.audienceRow.adapter = null
+        binding.speakerView.adapter = null
         super.onDestroy()
-
-        // Release video views
-        binding.speakerVideoView.release()
     }
 
     companion object {
