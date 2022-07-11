@@ -48,13 +48,6 @@ internal constructor(
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
-    private var isReconnecting = false
-
-    /**
-     * Holds on to publishes that need to be republished after a full reconnect.
-     */
-    private var publishes = mutableMapOf<Track, TrackPublishOptions>()
-
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
      *
@@ -214,18 +207,15 @@ internal constructor(
         ),
         publishListener: PublishListener? = null
     ) {
-        val published = publishTrackImpl(
-            track,
+        publishTrackImpl(
+            track = track,
+            options = options,
             requestConfig = {
                 disableDtx = !options.dtx
                 source = LivekitModels.TrackSource.MICROPHONE
             },
             publishListener = publishListener,
         )
-
-        if (published) {
-            publishes[track] = options
-        }
     }
 
     suspend fun publishVideoTrack(
@@ -238,8 +228,9 @@ internal constructor(
         val videoLayers =
             EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
 
-        val published = publishTrackImpl(
-            track,
+        publishTrackImpl(
+            track = track,
+            options = options,
             requestConfig = {
                 width = track.dimensions.width
                 height = track.dimensions.height
@@ -253,10 +244,6 @@ internal constructor(
             encodings = encodings,
             publishListener = publishListener
         )
-
-        if (published) {
-            publishes[track] = options
-        }
     }
 
 
@@ -265,6 +252,7 @@ internal constructor(
      */
     private suspend fun publishTrackImpl(
         track: Track,
+        options: TrackPublishOptions,
         requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null
@@ -306,7 +294,12 @@ internal constructor(
 
         // TODO: enable setting preferred codec
 
-        val publication = LocalTrackPublication(trackInfo, track, this)
+        val publication = LocalTrackPublication(
+            info = trackInfo,
+            track = track,
+            participant = this,
+            options = options,
+        )
         addTrackPublication(publication)
 
         publishListener?.onPublishSuccess(publication)
@@ -402,14 +395,12 @@ internal constructor(
         engine.updateSubscriptionPermissions(allParticipantsAllowed, participantTrackPermissions)
     }
 
-    fun unpublishTrack(track: Track) {
+    fun unpublishTrack(track: Track, stopOnUnpublish: Boolean = true) {
         val publication = localTrackPublications.firstOrNull { it.track == track }
         if (publication === null) {
             LKLog.d { "this track was never published." }
             return
         }
-
-        publishes.remove(track)
 
         val sid = publication.sid
         tracks = tracks.toMutableMap().apply { remove(sid) }
@@ -423,7 +414,9 @@ internal constructor(
                 }
             }
         }
-        track.stop()
+        if (stopOnUnpublish) {
+            track.stop()
+        }
         internalListener?.onTrackUnpublished(publication, this)
         eventBus.postEvent(ParticipantEvent.LocalTrackUnpublished(this, publication), scope)
     }
@@ -536,11 +529,18 @@ internal constructor(
     }
 
     suspend fun republishTracks() {
-        for ((track, options) in publishes) {
-            when (track) {
-                is LocalAudioTrack -> publishAudioTrack(track, options as AudioTrackPublishOptions, null)
-                is LocalVideoTrack -> publishVideoTrack(track, options as VideoTrackPublishOptions, null)
-                else -> throw IllegalStateException("LocalParticipant has a non local track publish?")
+        val republishes = localTrackPublications
+
+        for (pub in republishes) {
+            val track = pub.track ?: continue
+            unpublishTrack(track, false)
+            // Cannot publish muted tracks.
+            if (!pub.muted) {
+                when (track) {
+                    is LocalAudioTrack -> publishAudioTrack(track, pub.options as AudioTrackPublishOptions, null)
+                    is LocalVideoTrack -> publishVideoTrack(track, pub.options as VideoTrackPublishOptions, null)
+                    else -> throw IllegalStateException("LocalParticipant has a non local track publish?")
+                }
             }
         }
     }
