@@ -1,6 +1,7 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import android.os.Build
 import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
@@ -72,11 +73,11 @@ object RTCModule {
         val audioRecordStateCallback: JavaAudioDeviceModule.AudioRecordStateCallback = object :
             JavaAudioDeviceModule.AudioRecordStateCallback {
             override fun onWebRtcAudioRecordStart() {
-                LKLog.i { "Audio recording starts" }
+                LKLog.v { "Audio recording starts" }
             }
 
             override fun onWebRtcAudioRecordStop() {
-                LKLog.i { "Audio recording stops" }
+                LKLog.v { "Audio recording stops" }
             }
         }
 
@@ -84,17 +85,18 @@ object RTCModule {
         val audioTrackStateCallback: JavaAudioDeviceModule.AudioTrackStateCallback = object :
             JavaAudioDeviceModule.AudioTrackStateCallback {
             override fun onWebRtcAudioTrackStart() {
-                LKLog.i { "Audio playout starts" }
+                LKLog.v { "Audio playout starts" }
             }
 
             override fun onWebRtcAudioTrackStop() {
-                LKLog.i { "Audio playout stops" }
+                LKLog.v { "Audio playout stops" }
             }
         }
 
+        val useHardwareAudioProcessing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         val builder = JavaAudioDeviceModule.builder(appContext)
-            .setUseHardwareAcousticEchoCanceler(true)
-            .setUseHardwareNoiseSuppressor(true)
+            .setUseHardwareAcousticEchoCanceler(useHardwareAudioProcessing)
+            .setUseHardwareNoiseSuppressor(useHardwareAudioProcessing)
             .setAudioRecordErrorCallback(audioRecordErrorCallback)
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
