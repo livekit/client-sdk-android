@@ -762,12 +762,15 @@ internal constructor(
                     .build()
             }
 
-        val syncState = LivekitRtc.SyncState.newBuilder()
-            .setAnswer(answer)
-            .setSubscription(subscription)
-            .addAllPublishTracks(publishedTracks)
-            .addAllDataChannels(dataChannelInfos)
-            .build()
+        val syncState = with(LivekitRtc.SyncState.newBuilder()) {
+            if (answer != null) {
+                setAnswer(answer)
+            }
+            setSubscription(subscription)
+            addAllPublishTracks(publishedTracks)
+            addAllDataChannels(dataChannelInfos)
+            build()
+        }
 
         client.sendSyncState(syncState)
     }
