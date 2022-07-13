@@ -94,17 +94,13 @@ class MainActivity : AppCompatActivity(), RoomListener {
         val token = "your_token"
 
         lifecycleScope.launch {
-            val room = LiveKit.connect(
+            // Create Room object.
+            val room = LiveKit.create(
                 applicationContext,
-                url,
-                token,
-                ConnectOptions(),
                 RoomOptions(),
             )
-            val localParticipant = room.localParticipant
-            localParticipant.setMicrophoneEnabled(true)
-            localParticipant.setCameraEnabled(true)
-
+        
+            // Setup event handling.
             launch {
                 room.events.collect { event ->
                     when(event){
@@ -112,6 +108,18 @@ class MainActivity : AppCompatActivity(), RoomListener {
                     }
                 }
             }
+            
+            // Connect to server.
+            room.connect(
+                url,
+                token,
+                ConnectOptions()
+            )
+            
+            // Turn on audio/video recording.
+            val localParticipant = room.localParticipant
+            localParticipant.setMicrophoneEnabled(true)
+            localParticipant.setCameraEnabled(true)
         }
     }
 
