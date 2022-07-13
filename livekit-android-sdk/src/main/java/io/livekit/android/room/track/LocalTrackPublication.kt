@@ -1,12 +1,14 @@
 package io.livekit.android.room.track
 
 import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.TrackPublishOptions
 import livekit.LivekitModels
 
 class LocalTrackPublication(
     info: LivekitModels.TrackInfo,
     track: Track,
-    participant: LocalParticipant
+    participant: LocalParticipant,
+    val options: TrackPublishOptions,
 ) : TrackPublication(info, track, participant) {
 
     /**
