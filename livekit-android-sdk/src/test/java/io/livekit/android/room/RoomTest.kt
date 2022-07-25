@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -95,6 +96,11 @@ class RoomTest {
     @Test
     fun connectTest() = runTest {
         connect()
+        val roomInfo = SignalClientTest.JOIN.join.room
+
+        assertEquals(roomInfo.name, room.name)
+        assertEquals(Room.Sid(roomInfo.sid), room.sid)
+        assertEquals(roomInfo.metadata, room.metadata)
     }
 
     @Test
