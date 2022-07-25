@@ -2,6 +2,8 @@ package io.livekit.android.audio
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
 import com.twilio.audioswitch.AudioDevice
 import com.twilio.audioswitch.AudioDeviceChangeListener
 import com.twilio.audioswitch.AudioSwitch
@@ -19,23 +21,32 @@ constructor(private val context: Context) : AudioHandler {
 
     private var audioSwitch: AudioSwitch? = null
 
+    // AudioSwitch is not threadsafe, so all calls should be done on the main thread.
+    private val handler = Handler(Looper.getMainLooper())
+
     override fun start() {
         if (audioSwitch == null) {
-            val switch = AudioSwitch(
-                context = context,
-                loggingEnabled = loggingEnabled,
-                audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
-                preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
-            )
-            audioSwitch = switch
-            switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
-            switch.activate()
+            handler.removeCallbacksAndMessages(null)
+            handler.post {
+                val switch = AudioSwitch(
+                    context = context,
+                    loggingEnabled = loggingEnabled,
+                    audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
+                    preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
+                )
+                audioSwitch = switch
+                switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
+                switch.activate()
+            }
         }
     }
 
     override fun stop() {
-        audioSwitch?.stop()
-        audioSwitch = null
+        handler.removeCallbacksAndMessages(null)
+        handler.post {
+            audioSwitch?.stop()
+            audioSwitch = null
+        }
     }
 
     val selectedAudioDevice: AudioDevice?
