@@ -19,21 +19,23 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.*
 import io.livekit.android.util.flow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import livekit.LivekitRtc
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class CallViewModel(
     val url: String,
     val token: String,
     application: Application
 ) : AndroidViewModel(application) {
 
+    val audioHandler = AudioSwitchHandler(application)
     val room = LiveKit.create(
         appContext = application,
         options = RoomOptions(adaptiveStream = true, dynacast = true),
+        overrides = LiveKitOverrides(
+            audioHandler = audioHandler
+        )
     )
 
     val participants = room::remoteParticipants.flow
@@ -73,7 +75,6 @@ class CallViewModel(
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
-    val audioHandler = AudioSwitchHandler(application)
     init {
         viewModelScope.launch {
             launch {
