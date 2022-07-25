@@ -243,6 +243,7 @@ constructor(
 
         sid = Sid(response.room.sid)
         name = response.room.name
+        metadata = response.room.metadata
 
         if (!response.hasParticipant()) {
             listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
