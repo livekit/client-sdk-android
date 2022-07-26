@@ -202,6 +202,7 @@ constructor(
             isConnected = true
             joinContinuation?.resumeWith(Result.success(Either.Right(Unit)))
         }
+        response.body?.close()
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
@@ -232,9 +233,11 @@ constructor(
                 val validationUrl = "http" + it.substring(2).replaceFirst("/rtc?", "/rtc/validate?")
                 val request = Request.Builder().url(validationUrl).build()
                 val resp = okHttpClient.newCall(request).execute()
+                val body = resp.body
                 if (!resp.isSuccessful) {
-                    reason = resp.body?.string()
+                    reason = body?.string()
                 }
+                body?.close()
             }
         } catch (e: Throwable) {
             LKLog.e(e) { "failed to validate connection" }
