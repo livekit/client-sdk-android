@@ -4,6 +4,7 @@ import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,7 +41,7 @@ class CallActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         binding = CallActivityBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
