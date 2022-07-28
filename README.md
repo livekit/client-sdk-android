@@ -35,13 +35,6 @@ subprojects {
 }
 ```
 
-## Sample App
-
-There are two sample apps with similar functionality:
-
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample)
-* [Standard app](https://github.com/livekit/client-sdk-android/tree/master/sample-app)
-
 ## Usage
 
 ### Permissions
@@ -149,12 +142,27 @@ coroutineScope.launch {
 }
 ```
 
+## Sample App
+
+There are two sample apps with similar functionality:
+
+* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample)
+* [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
+
+They both use the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt),
+which handles the `Room` connection and exposes the data needed for a basic video conferencing app.
+
+The respective `ParticipantItem` class in each app is responsible for the displaying of each 
+participant's UI.
+
+* [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
+* [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
+
 ## Dev Environment
 
-To develop the Android SDK or running the sample app, you'll need:
+To develop the Android SDK or running the sample app directly from this repo, you'll need:
 
 - Ensure the protocol submodule repo is initialized and updated with `git submodule update --init`
-- Install [Android Studio Arctic Fox 2020.3.1+](https://developer.android.com/studio)
 
 For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
 
