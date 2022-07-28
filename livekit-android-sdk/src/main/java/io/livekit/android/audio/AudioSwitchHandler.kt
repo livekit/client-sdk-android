@@ -10,13 +10,43 @@ import com.twilio.audioswitch.AudioSwitch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * An [AudioHandler] built on top of [AudioSwitch].
+ *
+ * The various settings should be set before connecting to a [Room] and [start] is called.
+ */
 @Singleton
 class AudioSwitchHandler
 @Inject
 constructor(private val context: Context) : AudioHandler {
+    /**
+     * Toggle whether logging is enabled for [AudioSwitch]. By default, this is set to false.
+     */
     var loggingEnabled = false
+
+    /**
+     * Listen to changes in the available and active audio devices.
+     *
+     * @see AudioDeviceChangeListener
+     */
     var audioDeviceChangeListener: AudioDeviceChangeListener? = null
+
+    /**
+     * Listen to changes in audio focus.
+     *
+     * @see AudioManager.OnAudioFocusChangeListener
+     */
     var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
+
+    /**
+     * The preferred priority of audio devices to use. The first available audio device will be used.
+     *
+     * By default, the preferred order is set to:
+     * 1. BluetoothHeadset
+     * 2. WiredHeadset
+     * 3. Earpiece
+     * 4. Speakerphone
+     */
     var preferredDeviceList: List<Class<out AudioDevice>>? = null
 
     private var audioSwitch: AudioSwitch? = null
