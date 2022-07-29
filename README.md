@@ -84,36 +84,47 @@ LiveKit uses `SurfaceViewRenderer` to render video tracks. A `TextureView` imple
 provided through `TextureViewRenderer`. Subscribed audio tracks are automatically played.
 
 ```kt
-class MainActivity : AppCompatActivity(), RoomListener {
+class MainActivity : AppCompatActivity() {
+
+    lateinit var room: Room
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ...
-        val url = "wss://your_host";
+
+        setContentView(R.layout.activity_main)
+
+        // Create Room object.
+        room = LiveKit.create(applicationContext)
+
+        // Setup the video renderer
+        room.initVideoRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
+
+        connectToRoom()
+    }
+
+    private fun connectToRoom() {
+
+        val url = "wss://your_host"
         val token = "your_token"
 
         lifecycleScope.launch {
-            // Create Room object.
-            val room = LiveKit.create(
-                applicationContext,
-                RoomOptions(),
-            )
-        
+
             // Setup event handling.
             launch {
                 room.events.collect { event ->
-                    when(event){
+                    when (event) {
                         is RoomEvent.TrackSubscribed -> onTrackSubscribed(event)
+                        else -> {}
                     }
                 }
             }
-            
+
             // Connect to server.
             room.connect(
                 url,
                 token,
-                ConnectOptions()
             )
-            
+
             // Turn on audio/video recording.
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
@@ -122,15 +133,15 @@ class MainActivity : AppCompatActivity(), RoomListener {
     }
 
     private fun onTrackSubscribed(event: RoomEvent.TrackSubscribed) {
-        if (event.track is VideoTrack) {
+        val track = event.track
+        if (track is VideoTrack) {
             attachVideo(track)
         }
     }
 
     private fun attachVideo(videoTrack: VideoTrack) {
-        // viewBinding.renderer is a `io.livekit.android.renderer.SurfaceViewRenderer` in your
-        // layout
-        videoTrack.addRenderer(viewBinding.renderer)
+        videoTrack.addRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
+        findViewById<View>(R.id.progress).visibility = View.GONE
     }
 }
 ```
