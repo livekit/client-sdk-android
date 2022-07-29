@@ -1,8 +1,10 @@
 package io.livekit.android.room
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.EventCollector
@@ -26,6 +28,8 @@ import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
+import org.robolectric.shadows.ShadowConnectivityManager
 import org.webrtc.EglBase
 
 @ExperimentalCoroutinesApi
@@ -108,8 +112,19 @@ class RoomTest {
         connect()
 
         val network = Mockito.mock(Network::class.java)
-        room.onLost(network)
-        room.onAvailable(network)
+
+        val connectivityManager = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val shadowConnectivityManager: ShadowConnectivityManager = Shadows.shadowOf(connectivityManager)
+
+        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+            callback.onLost(network)
+        }
+        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+            callback.onAvailable(network)
+        }
+
         Mockito.verify(rtcEngine).reconnect()
     }
 
