@@ -180,6 +180,9 @@ internal constructor(
                             createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
                         publishVideoTrack(track)
                     }
+                    else -> {
+                        LKLog.w { "Attempting to enable an unknown source, ignoring." }
+                    }
                 }
             }
         } else {
