@@ -13,6 +13,7 @@ fun ComponentActivity.requestNeededPermissions() {
         registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { grants ->
+            // Check if any permissions weren't granted.
             for (grant in grants.entries) {
                 if (!grant.value) {
                     Toast.makeText(
@@ -24,6 +25,7 @@ fun ComponentActivity.requestNeededPermissions() {
                 }
             }
         }
+
     val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
         .let { perms ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -32,12 +34,7 @@ fun ComponentActivity.requestNeededPermissions() {
                 perms
             }
         }
-        .filter {
-            ContextCompat.checkSelfPermission(
-                this,
-                it
-            ) == PackageManager.PERMISSION_DENIED
-        }
+        .filter { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_DENIED }
         .toTypedArray()
 
     if (neededPermissions.isNotEmpty()) {

@@ -823,7 +823,6 @@ constructor(
     }
 
     /**
-     * @suppress
      * // TODO(@dl): can this be moved out of Room/SDK?
      */
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
@@ -833,7 +832,6 @@ constructor(
     }
 
     /**
-     * @suppress
      * // TODO(@dl): can this be moved out of Room/SDK?
      */
     fun initVideoRenderer(viewRenderer: TextureViewRenderer) {
