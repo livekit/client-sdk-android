@@ -146,9 +146,14 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
+See
+the [basic sample app](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic/src/main/java/io/livekit/android/sample/basic/MainActivity.kt)
+for the full implementation.
+
 ### `@FlowObservable`
 
-Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes directly:
+Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes
+directly:
 
 ```kt
 coroutineScope.launch {
@@ -160,15 +165,21 @@ coroutineScope.launch {
 
 ## Sample App
 
-There are two sample apps with similar functionality:
+We have a basic quickstart sample
+app [here](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic), showing how to
+connect to a room, publish your device's audio/video, and display the video of one remote participant.
 
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample)
+There are two more full featured video conferencing sample apps:
+
+* [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
 * [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
 
-They both use the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt),
-which handles the `Room` connection and exposes the data needed for a basic video conferencing app.
+They both use
+the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt)
+, which handles the `Room` connection and exposes the data needed for a basic video conferencing
+app.
 
-The respective `ParticipantItem` class in each app is responsible for the displaying of each 
+The respective `ParticipantItem` class in each app is responsible for the displaying of each
 participant's UI.
 
 * [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
