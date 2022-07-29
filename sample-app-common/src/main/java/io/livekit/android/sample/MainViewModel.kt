@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.preference.PreferenceManager
+import io.livekit.android.sample.common.BuildConfig
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 

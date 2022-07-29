@@ -1,10 +1,15 @@
 # Android Kotlin SDK for LiveKit
 
-Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add video & audio capabilities to your Android apps.
+Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add
+video & audio capabilities to your Android apps.
 
 ## Docs
 
-Docs and guides at [https://docs.livekit.io](https://docs.livekit.io)
+Docs and guides at [https://docs.livekit.io](https://docs.livekit.io).
+
+API reference can be found
+at [https://docs.livekit.io/client-sdk-android/index.html](https://docs.livekit.io/client-sdk-android/index.html)
+.
 
 ## Installation
 
@@ -34,13 +39,6 @@ subprojects {
     }
 }
 ```
-
-## Sample App
-
-There are two sample apps with similar functionality:
-
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/master/sample-app-compose/src/main/java/io/livekit/android/composesample)
-* [Standard app](https://github.com/livekit/client-sdk-android/tree/master/sample-app)
 
 ## Usage
 
@@ -86,36 +84,47 @@ LiveKit uses `SurfaceViewRenderer` to render video tracks. A `TextureView` imple
 provided through `TextureViewRenderer`. Subscribed audio tracks are automatically played.
 
 ```kt
-class MainActivity : AppCompatActivity(), RoomListener {
+class MainActivity : AppCompatActivity() {
+
+    lateinit var room: Room
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ...
-        val url = "wss://your_host";
+
+        setContentView(R.layout.activity_main)
+
+        // Create Room object.
+        room = LiveKit.create(applicationContext)
+
+        // Setup the video renderer
+        room.initVideoRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
+
+        connectToRoom()
+    }
+
+    private fun connectToRoom() {
+
+        val url = "wss://your_host"
         val token = "your_token"
 
         lifecycleScope.launch {
-            // Create Room object.
-            val room = LiveKit.create(
-                applicationContext,
-                RoomOptions(),
-            )
-        
+
             // Setup event handling.
             launch {
                 room.events.collect { event ->
-                    when(event){
+                    when (event) {
                         is RoomEvent.TrackSubscribed -> onTrackSubscribed(event)
+                        else -> {}
                     }
                 }
             }
-            
+
             // Connect to server.
             room.connect(
                 url,
                 token,
-                ConnectOptions()
             )
-            
+
             // Turn on audio/video recording.
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
@@ -124,22 +133,27 @@ class MainActivity : AppCompatActivity(), RoomListener {
     }
 
     private fun onTrackSubscribed(event: RoomEvent.TrackSubscribed) {
-        if (event.track is VideoTrack) {
+        val track = event.track
+        if (track is VideoTrack) {
             attachVideo(track)
         }
     }
 
     private fun attachVideo(videoTrack: VideoTrack) {
-        // viewBinding.renderer is a `io.livekit.android.renderer.SurfaceViewRenderer` in your
-        // layout
-        videoTrack.addRenderer(viewBinding.renderer)
+        videoTrack.addRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
+        findViewById<View>(R.id.progress).visibility = View.GONE
     }
 }
 ```
 
+See
+the [basic sample app](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic/src/main/java/io/livekit/android/sample/basic/MainActivity.kt)
+for the full implementation.
+
 ### `@FlowObservable`
 
-Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes directly:
+Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes
+directly:
 
 ```kt
 coroutineScope.launch {
@@ -149,12 +163,33 @@ coroutineScope.launch {
 }
 ```
 
+## Sample App
+
+We have a basic quickstart sample
+app [here](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic), showing how to
+connect to a room, publish your device's audio/video, and display the video of one remote participant.
+
+There are two more full featured video conferencing sample apps:
+
+* [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
+* [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
+
+They both use
+the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt)
+, which handles the `Room` connection and exposes the data needed for a basic video conferencing
+app.
+
+The respective `ParticipantItem` class in each app is responsible for the displaying of each
+participant's UI.
+
+* [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
+* [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
+
 ## Dev Environment
 
-To develop the Android SDK or running the sample app, you'll need:
+To develop the Android SDK or running the sample app directly from this repo, you'll need:
 
 - Ensure the protocol submodule repo is initialized and updated with `git submodule update --init`
-- Install [Android Studio Arctic Fox 2020.3.1+](https://developer.android.com/studio)
 
 For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
 

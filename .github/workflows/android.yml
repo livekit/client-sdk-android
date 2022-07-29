@@ -36,7 +36,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew clean livekit-android-sdk:assembleRelease livekit-android-sdk:testRelease
+      run: ./gradlew clean assembleRelease livekit-android-sdk:testRelease
 
     - name: Import video test keys into gradle properties
       if: github.event_name == 'push'

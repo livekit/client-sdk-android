@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.*
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -217,7 +216,6 @@ class CallActivity : AppCompatActivity() {
                     ) {
                         Surface(
                             onClick = { viewModel.setMicEnabled(!micEnabled) },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -232,7 +230,6 @@ class CallActivity : AppCompatActivity() {
                         }
                         Surface(
                             onClick = { viewModel.setCameraEnabled(!videoEnabled) },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -247,7 +244,6 @@ class CallActivity : AppCompatActivity() {
                         }
                         Surface(
                             onClick = { viewModel.flipCamera() },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -266,7 +262,6 @@ class CallActivity : AppCompatActivity() {
                                     viewModel.stopScreenCapture()
                                 }
                             },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -284,7 +279,6 @@ class CallActivity : AppCompatActivity() {
                         var messageToSend by remember { mutableStateOf("") }
                         Surface(
                             onClick = { showMessageDialog = true },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -335,7 +329,6 @@ class CallActivity : AppCompatActivity() {
                         }
                         Surface(
                             onClick = { onExitClick() },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -358,7 +351,6 @@ class CallActivity : AppCompatActivity() {
                         var showAudioDeviceDialog by remember { mutableStateOf(false) }
                         Surface(
                             onClick = { showAudioDeviceDialog = true },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -380,7 +372,6 @@ class CallActivity : AppCompatActivity() {
                         }
                         Surface(
                             onClick = { viewModel.toggleSubscriptionPermissions() },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)
@@ -397,7 +388,6 @@ class CallActivity : AppCompatActivity() {
                         var showDebugDialog by remember { mutableStateOf(false) }
                         Surface(
                             onClick = { showDebugDialog = true },
-                            indication = rememberRipple(false),
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)

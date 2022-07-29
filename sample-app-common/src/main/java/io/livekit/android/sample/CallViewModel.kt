@@ -2,6 +2,7 @@ package io.livekit.android.sample
 
 import android.app.Application
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -57,6 +58,7 @@ class CallViewModel(
 
     private var localScreencastTrack: LocalScreencastVideoTrack? = null
 
+    // Controls
     private val mutableMicEnabled = MutableLiveData(true)
     val micEnabled = mutableMicEnabled.hide()
 
@@ -69,18 +71,22 @@ class CallViewModel(
     private val mutableScreencastEnabled = MutableLiveData(false)
     val screenshareEnabled = mutableScreencastEnabled.hide()
 
+    // Emits a string whenever a data message is received.
     private val mutableDataReceived = MutableSharedFlow<String>()
     val dataReceived = mutableDataReceived
 
+    // Whether other participants are allowed to subscribe to this participant's tracks.
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
     init {
         viewModelScope.launch {
+            // Collect any errors.
             launch {
                 error.collect { Timber.e(it) }
             }
 
+            // Handle any changes in speakers.
             launch {
                 combine(participants, activeSpeakers) { participants, speakers -> participants to speakers }
                     .collect { (participantsList, speakers) ->
@@ -93,6 +99,7 @@ class CallViewModel(
             }
 
             launch {
+                // Handle room events.
                 room.events.collect {
                     when (it) {
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
@@ -124,6 +131,7 @@ class CallViewModel(
             localParticipant.setCameraEnabled(true)
             mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
 
+            // Update the speaker
             handlePrimarySpeaker(emptyList(), emptyList(), room)
         } catch (e: Throwable) {
             mutableError.value = e
@@ -167,6 +175,10 @@ class CallViewModel(
         mutablePrimarySpeaker.value = speaker
     }
 
+    /**
+     * Start a screen capture with the result intent from
+     * [MediaProjectionManager.createScreenCaptureIntent]
+     */
     fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
         val localParticipant = room.localParticipant
         viewModelScope.launch {
@@ -243,6 +255,7 @@ class CallViewModel(
         room.localParticipant.setTrackSubscriptionPermissions(mutablePermissionAllowed.value)
     }
 
+    // Debug functions
     fun simulateMigration() {
         room.sendSimulateScenario(
             LivekitRtc.SimulateScenario.newBuilder()

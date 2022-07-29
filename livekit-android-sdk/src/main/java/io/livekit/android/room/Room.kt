@@ -45,7 +45,7 @@ constructor(
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
     val audioHandler: AudioHandler,
-) : RTCEngine.Listener, ParticipantListener, ConnectivityManager.NetworkCallback() {
+) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
     private val eventBus = BroadcastEventBus<RoomEvent>()
@@ -217,7 +217,7 @@ constructor(
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
-        cm.registerNetworkCallback(networkRequest, this)
+        cm.registerNetworkCallback(networkRequest, networkCallback)
 
         if (options.audio) {
             val audioTrack = localParticipant.createAudioTrack()
@@ -237,6 +237,9 @@ constructor(
         handleDisconnect()
     }
 
+    /**
+     * @suppress
+     */
     override fun onJoinResponse(response: LivekitRtc.JoinResponse) {
 
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
@@ -441,7 +444,7 @@ constructor(
 
         try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.unregisterNetworkCallback(this)
+            cm.unregisterNetworkCallback(networkCallback)
         } catch (e: IllegalArgumentException) {
             // do nothing, may happen on older versions if attempting to unregister twice.
         }
@@ -512,28 +515,28 @@ constructor(
     }
 
     //------------------------------------- NetworkCallback -------------------------------------//
-
-    /**
-     * @suppress
-     */
-    override fun onLost(network: Network) {
-        // lost connection, flip to reconnecting
-        hasLostConnectivity = true
-    }
-
-    /**
-     * @suppress
-     */
-    override fun onAvailable(network: Network) {
-        // only actually reconnect after connection is re-established
-        if (!hasLostConnectivity) {
-            return
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        /**
+         * @suppress
+         */
+        override fun onLost(network: Network) {
+            // lost connection, flip to reconnecting
+            hasLostConnectivity = true
         }
-        LKLog.i { "network connection available, reconnecting" }
-        reconnect()
-        hasLostConnectivity = false
-    }
 
+        /**
+         * @suppress
+         */
+        override fun onAvailable(network: Network) {
+            // only actually reconnect after connection is re-established
+            if (!hasLostConnectivity) {
+                return
+            }
+            LKLog.i { "network connection available, reconnecting" }
+            reconnect()
+            hasLostConnectivity = false
+        }
+    }
 
     //----------------------------------- RTCEngine.Listener ------------------------------------//
 
@@ -820,7 +823,6 @@ constructor(
     }
 
     /**
-     * @suppress
      * // TODO(@dl): can this be moved out of Room/SDK?
      */
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
@@ -830,7 +832,6 @@ constructor(
     }
 
     /**
-     * @suppress
      * // TODO(@dl): can this be moved out of Room/SDK?
      */
     fun initVideoRenderer(viewRenderer: TextureViewRenderer) {

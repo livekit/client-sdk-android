@@ -1,6 +1,9 @@
 package io.livekit.android.room
 
+import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Network
+import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.MockE2ETest
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.FlowCollector
@@ -23,6 +26,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowConnectivityManager
+import org.robolectric.shadows.ShadowNetworkInfo
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -259,8 +265,19 @@ class RoomMockE2ETest : MockE2ETest() {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         val network = Mockito.mock(Network::class.java)
-        room.onLost(network)
-        room.onAvailable(network)
+
+        val connectivityManager = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val shadowConnectivityManager: ShadowConnectivityManager = shadowOf(connectivityManager)
+
+        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+            callback.onLost(network)
+        }
+        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+            callback.onAvailable(network)
+        }
+
         val events = eventCollector.stopCollecting()
 
         Assert.assertEquals(1, events.size)
