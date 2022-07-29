@@ -45,8 +45,8 @@ nexusStaging {
 
 ext {
     androidSdk = [
-            compileVersion: 31,
-            targetVersion : 31,
+            compileVersion: 32,
+            targetVersion : 32,
             minVersion    : 21,
     ]
     versions = [
