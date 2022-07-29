@@ -17,11 +17,11 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import kotlinx.parcelize.Parcelize
 
-@OptIn(ExperimentalPagerApi::class)
 class CallActivity : AppCompatActivity() {
 
     private lateinit var viewModel1: CallViewModel
@@ -31,11 +31,13 @@ class CallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val viewModelProvider = ViewModelProvider(this, object : ViewModelProvider.KeyedFactory() {
-            override fun <T : ViewModel> create(key: String, modelClass: Class<T>): T {
+        val viewModelProvider = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+
                 val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
                     ?: throw NullPointerException("args is null!")
 
+                val key = extras[ViewModelProvider.NewInstanceFactory.VIEW_MODEL_KEY]
                 val token = if (key == VIEWMODEL_KEY1) args.token1 else args.token2
                 val showVideo = key == VIEWMODEL_KEY1
                 @Suppress("UNCHECKED_CAST")

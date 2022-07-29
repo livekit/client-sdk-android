@@ -49,7 +49,7 @@ android {
         kotlinCompilerExtensionVersion compose_compiler_version
     }
     kotlinOptions {
-        freeCompilerArgs = ["-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn"]
+        freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
         jvmTarget = java_version
     }
 }
