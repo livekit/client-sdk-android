@@ -69,14 +69,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToRoom() {
 
-
-        //val url = "wss://your_host"
-        //val token = "your_token"
-
-        val url = "ws://192.168.11.5:7880"
-        val token =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NjEzNTExODMsImlzcyI6IkFQSVNRdmdrYWJZdXFUQSIsIm5iZiI6MTY1ODc1OTE4Mywic3ViIjoicGhvbmUiLCJ2aWRlbyI6eyJyb29tIjoibXlyb29tIiwicm9vbUpvaW4iOnRydWV9fQ.TOPMBzqqr2TWHjadleFisY5C0_Zwaowj1EVS_7iVcRE"
-
+        val url = "wss://your_host"
+        val token = "your_token"
+        
         lifecycleScope.launch {
             // Create Room object.
             val room = LiveKit.create(applicationContext)
