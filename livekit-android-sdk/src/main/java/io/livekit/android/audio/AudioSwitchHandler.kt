@@ -57,7 +57,7 @@ constructor(private val context: Context) : AudioHandler {
     override fun start() {
         if (audioSwitch == null) {
             handler.removeCallbacksAndMessages(null)
-            handler.post {
+            handler.postAtFrontOfQueue {
                 val switch = AudioSwitch(
                     context = context,
                     loggingEnabled = loggingEnabled,
@@ -73,7 +73,7 @@ constructor(private val context: Context) : AudioHandler {
 
     override fun stop() {
         handler.removeCallbacksAndMessages(null)
-        handler.post {
+        handler.postAtFrontOfQueue {
             audioSwitch?.stop()
             audioSwitch = null
         }
@@ -86,7 +86,13 @@ constructor(private val context: Context) : AudioHandler {
         get() = audioSwitch?.availableAudioDevices ?: listOf()
 
     fun selectDevice(audioDevice: AudioDevice?) {
-        audioSwitch?.selectDevice(audioDevice)
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            audioSwitch?.selectDevice(audioDevice)
+        } else {
+            handler.post {
+                audioSwitch?.selectDevice(audioDevice)
+            }
+        }
     }
 
     companion object {
