@@ -48,8 +48,8 @@ class ParticipantItem(
             }
         }
         coroutineScope?.launch {
-            participant::isSpeaking.flow.collect { mIsSpeaking ->
-                if (mIsSpeaking) {
+            participant::isSpeaking.flow.collect { isSpeaking ->
+                if (isSpeaking) {
                     showFocus(viewBinding)
                 } else {
                     hideFocus(viewBinding)
