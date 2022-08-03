@@ -34,6 +34,10 @@ android {
 }
 
 dependencies {
+    // Sample-app-common contains the livekit-android-sdk dependency and others
+    // as well as classes common to both sample apps.
+    implementation project(":sample-app-common")
+
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation deps.coroutines.lib
@@ -50,7 +54,6 @@ dependencies {
     implementation "com.github.lisawray.groupie:groupie:${versions.groupie}"
     implementation "com.github.lisawray.groupie:groupie-viewbinding:${versions.groupie}"
     implementation deps.timber
-    implementation project(":sample-app-common")
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
