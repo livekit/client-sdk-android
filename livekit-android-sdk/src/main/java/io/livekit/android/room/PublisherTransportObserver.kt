@@ -21,7 +21,7 @@ class PublisherTransportObserver(
     }
 
     override fun onRenegotiationNeeded() {
-        engine.negotiate()
+        engine.negotiatePublisher()
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {

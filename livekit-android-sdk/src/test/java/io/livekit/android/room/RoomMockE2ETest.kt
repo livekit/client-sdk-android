@@ -28,7 +28,6 @@ import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowConnectivityManager
-import org.robolectric.shadows.ShadowNetworkInfo
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -340,6 +339,23 @@ class RoomMockE2ETest : MockE2ETest() {
             connectPeerConnection()
         }
         disconnectPeerConnection()
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(2, events.size)
+        assertTrue(events[0] is RoomEvent.Reconnecting)
+        assertTrue(events[1] is RoomEvent.Reconnected)
+    }
+
+    @Test
+    fun reconnectFromWebSocketFailure() = runTest {
+        connect()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        wsFactory.onOpen = {
+            wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+            connectPeerConnection()
+        }
+        wsFactory.ws.cancel()
         val events = eventCollector.stopCollecting()
 
         assertEquals(2, events.size)
