@@ -150,7 +150,7 @@ internal constructor(
 
         // create offer
         if (!this.isSubscriberPrimary) {
-            negotiate()
+            negotiatePublisher()
         }
         client.onReadyForResponses()
         return joinResponse
@@ -392,7 +392,7 @@ internal constructor(
                     // trigger publisher reconnect
                     // only restart publisher if it's needed
                     if (hasPublished) {
-                        negotiate()
+                        negotiatePublisher()
                     }
                 }
                 // wait until ICE connected
@@ -408,8 +408,9 @@ internal constructor(
                 }
 
                 while (SystemClock.elapsedRealtime() < endTime) {
-                    if (connectionState == ConnectionState.CONNECTED) {
+                    if (subscriber.peerConnection.connectionState().isConnected()) {
                         LKLog.v { "reconnected to ICE" }
+                        connectionState = ConnectionState.CONNECTED
                         break
                     }
                     delay(100)
@@ -442,7 +443,7 @@ internal constructor(
         }
     }
 
-    internal fun negotiate() {
+    internal fun negotiatePublisher() {
         if (!client.isConnected) {
             return
         }
@@ -481,7 +482,7 @@ internal constructor(
             publisher.peerConnection.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
         ) {
             // start negotiation
-            this.negotiate()
+            this.negotiatePublisher()
         }
 
 

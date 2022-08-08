@@ -62,6 +62,7 @@ constructor(
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
+    var connectionState: ConnectionState = ConnectionState.DISCONNECTED
 
     /**
      * @throws Exception if fails to connect.
