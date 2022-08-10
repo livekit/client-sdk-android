@@ -634,7 +634,13 @@ internal constructor(
     override fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
         LKLog.v { "received ice candidate from peer: $candidate, $target" }
         when (target) {
-            LivekitRtc.SignalTarget.PUBLISHER -> publisher.addIceCandidate(candidate)
+            LivekitRtc.SignalTarget.PUBLISHER -> {
+                if (_publisher != null) {
+                    publisher.addIceCandidate(candidate)
+                } else {
+                    LKLog.w { "received candidate for publisher when we don't have one. ignoring." }
+                }
+            }
             LivekitRtc.SignalTarget.SUBSCRIBER -> subscriber.addIceCandidate(candidate)
             else -> LKLog.i { "unknown ice candidate target?" }
         }
