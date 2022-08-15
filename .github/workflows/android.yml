@@ -130,7 +130,7 @@ jobs:
       if: github.event_name == 'push'
       uses: peter-evans/repository-dispatch@v2
       with:
-        token: ${{ secrets.REPO_ACCESS_TOKEN }}
+        token: ${{ secrets.E2E_DISPATCH_TOKEN }}
         repository: livekit/e2e-android
         event-type: client-sdk-android-push
         client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
