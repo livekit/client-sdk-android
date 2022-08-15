@@ -47,6 +47,10 @@ def getRepositoryPassword() {
     return hasProperty('nexusPassword') ? nexusPassword : ""
 }
 
+boolean getReleaseSigningEnabled() {
+    return hasProperty('RELEASE_SIGNING_ENABLED') ? RELEASE_SIGNING_ENABLED.toBoolean() : true
+}
+
 def configurePom(pom) {
     pom.name = POM_NAME
     pom.packaging = POM_PACKAGING
@@ -151,9 +155,11 @@ afterEvaluate { project ->
         configurePom(publication.pom)
     }
 
-    signing {
-        publishing.publications.all { publication ->
-            sign publication
+    if (getReleaseSigningEnabled()) {
+        signing {
+            publishing.publications.all { publication ->
+                sign publication
+            }
         }
     }
 }
