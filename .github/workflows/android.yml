@@ -125,3 +125,12 @@ jobs:
     - name: Publish snapshot
       if: github.event_name == 'push' && contains(steps.version_name.outputs.version_name,'SNAPSHOT')
       run: ./gradlew publish
+
+    - name: Repository Dispatch
+      if: github.event_name == 'push'
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.REPO_ACCESS_TOKEN }}
+        repository: livekit/e2e-android
+        event-type: client-sdk-android-push
+        client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
