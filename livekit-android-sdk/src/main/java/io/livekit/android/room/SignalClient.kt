@@ -465,7 +465,7 @@ constructor(
 
         if (!isConnected) {
             // Only handle joins if not connected.
-            if (response.join != null) {
+            if (response.hasJoin()) {
                 isConnected = true
                 startRequestQueue()
                 try {
