@@ -62,6 +62,16 @@ constructor(
         RECONNECTING;
     }
 
+    /**
+     * @suppress
+     */
+    enum class SimulateScenario {
+        SPEAKER_UPDATE,
+        NODE_FAILURE,
+        MIGRATION,
+        SERVER_LEAVE;
+    }
+
     @JvmInline
     value class Sid(val sid: String)
 
@@ -504,6 +514,23 @@ constructor(
      */
     fun sendSimulateScenario(scenario: LivekitRtc.SimulateScenario) {
         engine.client.sendSimulateScenario(scenario)
+    }
+
+    /**
+     * Sends a simulated scenario for the server to use.
+     *
+     * To be used for internal testing purposes only.
+     * @suppress
+     */
+    fun sendSimulateScenario(scenario: SimulateScenario) {
+        val builder = LivekitRtc.SimulateScenario.newBuilder()
+        when (scenario) {
+            SimulateScenario.SPEAKER_UPDATE -> builder.speakerUpdate = 5
+            SimulateScenario.NODE_FAILURE -> builder.nodeFailure = true
+            SimulateScenario.MIGRATION -> builder.migration = true
+            SimulateScenario.SERVER_LEAVE -> builder.serverLeave = true
+        }
+        sendSimulateScenario(builder.build())
     }
 
     /**
