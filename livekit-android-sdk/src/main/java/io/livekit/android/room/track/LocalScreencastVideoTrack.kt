@@ -1,6 +1,8 @@
 package io.livekit.android.room.track
 
+import android.Manifest
 import android.app.Notification
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjection
@@ -9,6 +11,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
+import io.livekit.android.room.track.screencapture.ScreenCaptureService
 import org.webrtc.*
 import java.util.*
 
@@ -46,14 +49,27 @@ constructor(
     }
 
     /**
-     * A foreground service is generally required prior to [startCapture]. This method starts up
-     * a helper foreground service that only serves to display a notification while capturing. This
-     * foreground service will stop upon the end of screen capture.
+     * A foreground service is generally required prior to [startCapture] for screen capture.
+     * This method starts up a helper foreground service that only serves to display a
+     * notification while capturing. This foreground service will automatically stop
+     * upon the end of screen capture.
      *
      * You may choose to use your own foreground service instead of this method, but it must be
-     * started prior to calling [startCapture].
+     * started prior to calling [startCapture] and kept running for the duration of the screen share.
      *
-     * @see [io.livekit.android.room.track.screencapture.ScreenCaptureService.start]
+     * **Notes:** If no notification is passed, a notification channel will be created and a default
+     * notification will be shown.
+     *
+     * Beginning with Android 13, the [Manifest.permission.POST_NOTIFICATIONS] runtime permission
+     * is required to show notifications. The foreground service will work without the permission,
+     * but you must add the permission to your AndroidManifest.xml and request the permission at runtime
+     * if you wish for your notification to be shown.
+     *
+     * @see [ScreenCaptureService.start]
+     *
+     * @param notificationId The identifier for this notification as per [NotificationManager.notify]; must not be 0.
+     *   If null, defaults to [ScreenCaptureService.DEFAULT_NOTIFICATION_ID].
+     * @param notification The notification to show. If null, a default notification will be shown.
      */
     suspend fun startForegroundService(notificationId: Int?, notification: Notification?) {
         serviceConnection.connect()
