@@ -28,7 +28,7 @@ import java.util.concurrent.CountDownLatch
 /**
  * Display the video stream on a TextureView.
  */
-class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink,
+open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink,
     RendererEvents, ViewVisibility.Notifier {
     // Cached resource name.
     private val resourceName: String
