@@ -6,7 +6,7 @@ import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
 import org.webrtc.SurfaceViewRenderer
 
-class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
+open class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
 
