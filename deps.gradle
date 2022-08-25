@@ -5,8 +5,8 @@ ext {
     java_version = JavaVersion.VERSION_1_8
     dokka_version = '1.5.0'
     androidSdk = [
-            compileVersion: 32,
-            targetVersion : 32,
+            compileVersion: 33,
+            targetVersion : 33,
             minVersion    : 21,
     ]
     versions = [

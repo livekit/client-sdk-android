@@ -27,7 +27,7 @@ open class ScreenCaptureService : Service() {
     }
 
     /**
-     * @param notificationId id of the notification to be used, or null for [DEFAULT_CHANNEL_ID]
+     * @param notificationId id of the notification to be used, or null for [DEFAULT_NOTIFICATION_ID]
      * @param notification notification to be used, or null for a default notification.
      */
     fun start(notificationId: Int?, notification: Notification?) {
