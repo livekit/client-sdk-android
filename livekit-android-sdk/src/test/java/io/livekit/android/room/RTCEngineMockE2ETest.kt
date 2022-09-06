@@ -51,7 +51,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         val oldWs = wsFactory.ws
         wsFactory.listener.onFailure(oldWs, Exception(), null)
-
+        testScheduler.advanceTimeBy(1000)
         val newWs = wsFactory.ws
         Assert.assertNotEquals(oldWs, newWs)
     }
@@ -63,6 +63,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
+        testScheduler.advanceTimeBy(1000)
 
         val newWs = wsFactory.ws
         Assert.assertNotEquals(oldWs, newWs)
@@ -75,6 +76,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         val pubPeerConnection = rtcEngine.publisher.peerConnection as MockPeerConnection
         pubPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
+        testScheduler.advanceTimeBy(1000)
 
         val newWs = wsFactory.ws
         Assert.assertNotEquals(oldWs, newWs)
@@ -88,6 +90,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.REFRESH_TOKEN.toOkioByteString())
         wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
 
+        testScheduler.advanceUntilIdle()
         val newToken = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_TOKEN)
         Assert.assertNotEquals(oldToken, newToken)
         Assert.assertEquals(SignalClientTest.REFRESH_TOKEN.refreshToken, newToken)
