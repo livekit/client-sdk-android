@@ -39,6 +39,8 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
         prepareForReconnect()
         disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()
@@ -71,6 +73,8 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
         prepareForReconnect()
         wsFactory.ws.cancel()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()
@@ -102,6 +106,8 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         connect()
         prepareForReconnect()
         disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()
@@ -153,5 +159,4 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         println(sentRequests)
         Assert.assertTrue(sentAddTrack)
     }
-
 }
