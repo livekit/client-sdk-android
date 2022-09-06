@@ -75,6 +75,7 @@ internal constructor(
             }
         }
 
+    internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
     private val reconnectingLock = Mutex()
     private var fullReconnectOnNext = false
@@ -353,7 +354,7 @@ internal constructor(
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
-                var startDelay = retries.toLong() * retries * 500
+                var startDelay = 100 + retries.toLong() * retries * 500
                 if (startDelay > 5000) {
                     startDelay = 5000
                 }
@@ -361,10 +362,15 @@ internal constructor(
                 LKLog.i { "Reconnecting to signal, attempt ${retries + 1}" }
                 delay(startDelay)
 
-                // full reconnect after first try.
-                val isFullReconnect = retries != 0 || forceFullReconnect
+                val isFullReconnect = when (reconnectType) {
+                    // full reconnect after first try.
+                    ReconnectType.DEFAULT -> retries != 0 || forceFullReconnect
+                    ReconnectType.FORCE_SOFT_RECONNECT -> false
+                    ReconnectType.FORCE_FULL_RECONNECT -> true
+                }
 
                 if (isFullReconnect) {
+                    LKLog.v { "Attempting full reconnect." }
                     try {
                         closeResources()
                         listener?.onFullReconnecting()
@@ -375,6 +381,7 @@ internal constructor(
                         continue
                     }
                 } else {
+                    LKLog.v { "Attempting soft reconnect." }
                     subscriber.prepareForIceRestart()
                     try {
                         client.reconnect(url, token)
@@ -783,4 +790,13 @@ internal constructor(
 
         client.sendSyncState(syncState)
     }
+}
+
+/**
+ * @suppress
+ */
+enum class ReconnectType {
+    DEFAULT,
+    FORCE_SOFT_RECONNECT,
+    FORCE_FULL_RECONNECT;
 }

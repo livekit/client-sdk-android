@@ -1,6 +1,7 @@
 package io.livekit.android
 
 import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.util.LoggingRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -10,8 +11,8 @@ import org.mockito.junit.MockitoJUnit
 @OptIn(ExperimentalCoroutinesApi::class)
 abstract class BaseTest {
     // Uncomment to enable logging in tests.
-    //@get:Rule
-    //var loggingRule = LoggingRule()
+    @get:Rule
+    var loggingRule = LoggingRule()
 
     @get:Rule
     var mockitoRule = MockitoJUnit.rule()

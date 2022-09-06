@@ -70,7 +70,6 @@ abstract class MockE2ETest : BaseTest() {
 
     fun disconnectPeerConnection() {
         subscriber = component.rtcEngine().subscriber
-        simulateMessageFromServer(SignalClientTest.OFFER)
         val subPeerConnection = subscriber.peerConnection as MockPeerConnection
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
     }

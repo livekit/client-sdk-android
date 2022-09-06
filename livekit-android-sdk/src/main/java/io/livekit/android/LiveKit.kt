@@ -43,6 +43,9 @@ class LiveKit {
         @JvmStatic
         var enableWebRTCLogging: Boolean = false
 
+        /**
+         * Create a Room object.
+         */
         fun create(
             appContext: Context,
             options: RoomOptions = RoomOptions(),
