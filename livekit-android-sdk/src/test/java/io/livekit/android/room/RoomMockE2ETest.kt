@@ -18,7 +18,6 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.junit.Assert
@@ -327,39 +326,5 @@ class RoomMockE2ETest : MockE2ETest() {
         room.disconnect()
         connect()
         Assert.assertEquals(room.state, Room.State.CONNECTED)
-    }
-
-    @Test
-    fun reconnectFromPeerConnectionDisconnect() = runTest {
-        connect()
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        wsFactory.onOpen = {
-            wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            connectPeerConnection()
-        }
-        disconnectPeerConnection()
-        val events = eventCollector.stopCollecting()
-
-        assertEquals(2, events.size)
-        assertTrue(events[0] is RoomEvent.Reconnecting)
-        assertTrue(events[1] is RoomEvent.Reconnected)
-    }
-
-    @Test
-    fun reconnectFromWebSocketFailure() = runTest {
-        connect()
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        wsFactory.onOpen = {
-            wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            connectPeerConnection()
-        }
-        wsFactory.ws.cancel()
-        val events = eventCollector.stopCollecting()
-
-        assertEquals(2, events.size)
-        assertTrue(events[0] is RoomEvent.Reconnecting)
-        assertTrue(events[1] is RoomEvent.Reconnected)
     }
 }

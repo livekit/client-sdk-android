@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -871,6 +872,16 @@ constructor(
         if (state == State.CONNECTED) {
             eventBus.postEvent(event)
         }
+    }
+
+    // Debug options
+
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    fun setReconnectionType(reconnectType: ReconnectType) {
+        engine.reconnectType = reconnectType
     }
 }
 
