@@ -43,7 +43,7 @@ internal constructor(
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    var republishes = emptyList<LocalTrackPublication>()
+    var republishes: List<LocalTrackPublication>? = null
     private val localTrackPublications
         get() = tracks.values
             .mapNotNull { it as? LocalTrackPublication }
@@ -524,7 +524,12 @@ internal constructor(
 
     fun prepareForFullReconnect() {
         val pubs = localTrackPublications.toList() // creates a copy, so is safe from the following removal.
-        republishes = pubs
+
+        // Only set the first time we start a full reconnect.
+        if (republishes == null) {
+            republishes = pubs
+        }
+
         tracks = tracks.toMutableMap().apply { clear() }
 
         for (publication in pubs) {
@@ -534,8 +539,9 @@ internal constructor(
     }
 
     suspend fun republishTracks() {
-        val publish = republishes.toList()
+        val publish = republishes?.toList() ?: emptyList()
         republishes = emptyList()
+
         for (pub in publish) {
             val track = pub.track ?: continue
             unpublishTrack(track, false)
