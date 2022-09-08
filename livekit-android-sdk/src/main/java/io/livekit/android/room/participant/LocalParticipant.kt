@@ -540,7 +540,7 @@ internal constructor(
 
     suspend fun republishTracks() {
         val publish = republishes?.toList() ?: emptyList()
-        republishes = emptyList()
+        republishes = null
 
         for (pub in publish) {
             val track = pub.track ?: continue
