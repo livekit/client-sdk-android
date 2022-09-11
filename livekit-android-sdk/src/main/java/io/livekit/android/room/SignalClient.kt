@@ -6,6 +6,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
+import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
@@ -42,6 +43,7 @@ constructor(
     private val okHttpClient: OkHttpClient,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
+    private val networkInfo: NetworkInfo,
 ) : WebSocketListener() {
     var isConnected = false
         private set
@@ -147,6 +149,7 @@ constructor(
         queryParams.add(CONNECT_QUERY_DEVICE_MODEL to clientInfo.deviceModel)
         queryParams.add(CONNECT_QUERY_OS to clientInfo.os)
         queryParams.add(CONNECT_QUERY_OS_VERSION to clientInfo.osVersion)
+        queryParams.add(CONNECT_QUERY_NETWORK_TYPE to networkInfo.getNetworkType().protoName)
 
         return queryParams.foldIndexed("") { index, acc, pair ->
             val separator = if(index == 0) "?" else "&"
@@ -604,6 +607,7 @@ constructor(
         const val CONNECT_QUERY_DEVICE_MODEL = "device_model"
         const val CONNECT_QUERY_OS = "os"
         const val CONNECT_QUERY_OS_VERSION = "os_version"
+        const val CONNECT_QUERY_NETWORK_TYPE = "network"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
