@@ -1,8 +1,12 @@
 package io.livekit.android.dagger
 
+import android.content.Context
 import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
+import dagger.Reusable
+import io.livekit.android.stats.AndroidNetworkInfo
+import io.livekit.android.stats.NetworkInfo
 import okhttp3.OkHttpClient
 import okhttp3.WebSocket
 import javax.inject.Named
@@ -23,5 +27,11 @@ object WebModule {
     @Provides
     fun websocketFactory(okHttpClient: OkHttpClient): WebSocket.Factory {
         return okHttpClient
+    }
+
+    @Provides
+    @Reusable
+    fun networkInfo(context: Context): NetworkInfo {
+        return AndroidNetworkInfo(context)
     }
 }

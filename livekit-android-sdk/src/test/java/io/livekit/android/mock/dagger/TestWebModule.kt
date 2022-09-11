@@ -2,7 +2,10 @@ package io.livekit.android.mock.dagger
 
 import dagger.Module
 import dagger.Provides
+import dagger.Reusable
 import io.livekit.android.mock.MockWebSocketFactory
+import io.livekit.android.stats.NetworkInfo
+import io.livekit.android.stats.NetworkType
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -34,5 +37,13 @@ object TestWebModule {
     @Singleton
     fun mockWebsocketFactory(): MockWebSocketFactory {
         return MockWebSocketFactory()
+    }
+
+    @Provides
+    @Reusable
+    fun networkInfo(): NetworkInfo {
+        return object : NetworkInfo {
+            override fun getNetworkType() = NetworkType.WIFI
+        }
     }
 }

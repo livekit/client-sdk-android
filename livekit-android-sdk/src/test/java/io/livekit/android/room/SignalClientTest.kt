@@ -3,6 +3,8 @@ package io.livekit.android.room
 import io.livekit.android.BaseTest
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.TestData
+import io.livekit.android.stats.NetworkInfo
+import io.livekit.android.stats.NetworkType
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +41,10 @@ class SignalClientTest : BaseTest() {
             wsFactory,
             Json,
             okHttpClient = okHttpClient,
-            ioDispatcher = coroutineRule.dispatcher
+            ioDispatcher = coroutineRule.dispatcher,
+            networkInfo = object : NetworkInfo {
+                override fun getNetworkType() = NetworkType.WIFI
+            }
         )
         client.listener = listener
     }
