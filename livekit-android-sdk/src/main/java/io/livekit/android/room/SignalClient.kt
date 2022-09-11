@@ -34,6 +34,7 @@ import javax.inject.Singleton
  * SignalClient to LiveKit WS servers
  * @suppress
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SignalClient
 @Inject
@@ -163,7 +164,6 @@ constructor(
      *
      * Should be called after resolving the join message.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun onReadyForResponses() {
         coroutineScope.launch {
             responseFlow.collect {
@@ -571,6 +571,8 @@ constructor(
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
+        requestFlow.resetReplayCache()
+        responseFlow.resetReplayCache()
         lastUrl = null
         lastOptions = null
         lastRoomOptions = null
