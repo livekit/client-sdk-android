@@ -100,7 +100,7 @@ constructor(
         roomOptions: RoomOptions
     ): Either<LivekitRtc.JoinResponse, Unit> {
         // Clean up any pre-existing connection.
-        close()
+        close(reason = "Starting new connection")
 
         val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
@@ -572,7 +572,8 @@ constructor(
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
-        requestFlow.resetReplayCache()
+        // TODO: support calling this from connect without wiping any queued requests.
+        //requestFlow.resetReplayCache()
         responseFlow.resetReplayCache()
         lastUrl = null
         lastOptions = null
