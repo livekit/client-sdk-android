@@ -294,7 +294,7 @@ internal constructor(
         client.sendMuteTrack(sid, muted)
     }
 
-    fun close() {
+    fun close(reason: String = "Normal Closure") {
         if (isClosed) {
             return
         }
@@ -307,10 +307,10 @@ internal constructor(
         reconnectingJob?.cancel()
         reconnectingJob = null
         coroutineScope.close()
-        closeResources()
+        closeResources(reason)
     }
 
-    private fun closeResources() {
+    private fun closeResources(reason: String) {
         connectionState = ConnectionState.DISCONNECTED
         _publisher?.close()
         _publisher = null
@@ -325,7 +325,7 @@ internal constructor(
         lossyDataChannelSub?.close()
         lossyDataChannelSub = null
         isSubscriberPrimary = false
-        client.close()
+        client.close(reason = reason)
     }
 
     /**
@@ -372,7 +372,7 @@ internal constructor(
                 if (isFullReconnect) {
                     LKLog.v { "Attempting full reconnect." }
                     try {
-                        closeResources()
+                        closeResources("Full Reconnecting")
                         listener?.onFullReconnecting()
                         joinImpl(url, token, connectOptions ?: ConnectOptions(), lastRoomOptions ?: RoomOptions())
                     } catch (e: Exception) {
@@ -437,7 +437,7 @@ internal constructor(
                 }
             }
 
-            close()
+            close("Failed reconnecting")
             listener?.onEngineDisconnected("failed reconnecting.")
         }
 

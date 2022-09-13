@@ -34,6 +34,7 @@ import javax.inject.Singleton
  * SignalClient to LiveKit WS servers
  * @suppress
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SignalClient
 @Inject
@@ -99,7 +100,7 @@ constructor(
         roomOptions: RoomOptions
     ): Either<LivekitRtc.JoinResponse, Unit> {
         // Clean up any pre-existing connection.
-        close()
+        close(reason = "Starting new connection")
 
         val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
@@ -163,7 +164,6 @@ constructor(
      *
      * Should be called after resolving the join message.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun onReadyForResponses() {
         coroutineScope.launch {
             responseFlow.collect {
@@ -561,6 +561,7 @@ constructor(
      * Can be reused afterwards.
      */
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
+        LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
         requestFlowJob = null
@@ -571,6 +572,9 @@ constructor(
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
+        // TODO: support calling this from connect without wiping any queued requests.
+        //requestFlow.resetReplayCache()
+        responseFlow.resetReplayCache()
         lastUrl = null
         lastOptions = null
         lastRoomOptions = null
