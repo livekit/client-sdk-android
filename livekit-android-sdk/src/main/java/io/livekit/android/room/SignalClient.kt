@@ -561,6 +561,7 @@ constructor(
      * Can be reused afterwards.
      */
     fun close(code: Int = 1000, reason: String = "Normal Closure") {
+        LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
         requestFlowJob = null
