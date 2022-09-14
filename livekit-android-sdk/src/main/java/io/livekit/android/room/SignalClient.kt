@@ -477,6 +477,9 @@ constructor(
                     LKLog.w(t) { "Thrown while trying to parse server version." }
                 }
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
+            } else if (response.hasLeave()) {
+                // Some reconnects may immediately send leave back without a join response first.
+                handleSignalResponse(response)
             } else {
                 LKLog.e { "Received response while not connected. $response" }
             }
