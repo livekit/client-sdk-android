@@ -555,7 +555,7 @@ constructor(
             null -> {
                 LKLog.v { "empty messageCase!" }
             }
-        }.safe()
+        }
     }
 
     /**
