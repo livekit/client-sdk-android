@@ -13,7 +13,7 @@ import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import okhttp3.*
-import org.junit.Assert
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
@@ -68,7 +68,6 @@ class SignalClientTest : BaseTest() {
 
     @Test
     fun joinAndResponse() = runTest {
-        println("dispatcher = ${this.coroutineContext}")
         val job = async {
             client.join(EXAMPLE_URL, "")
         }
@@ -76,8 +75,8 @@ class SignalClientTest : BaseTest() {
         connectWebsocketAndJoin()
 
         val response = job.await()
-        Assert.assertEquals(true, client.isConnected)
-        Assert.assertEquals(response, JOIN.join)
+        assertEquals(true, client.isConnected)
+        assertEquals(response, JOIN.join)
     }
 
     @Test
@@ -89,7 +88,7 @@ class SignalClientTest : BaseTest() {
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
 
         job.await()
-        Assert.assertEquals(true, client.isConnected)
+        assertEquals(true, client.isConnected)
     }
 
     @Test
@@ -106,7 +105,7 @@ class SignalClientTest : BaseTest() {
         client.onFailure(wsFactory.ws, Exception(), null)
         job.await()
 
-        Assert.assertTrue(failed)
+        assertTrue(failed)
     }
 
     @Test
@@ -165,12 +164,12 @@ class SignalClientTest : BaseTest() {
 
         val ws = wsFactory.ws
 
-        Assert.assertEquals(1, ws.sentRequests.size)
+        assertEquals(1, ws.sentRequests.size)
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
             .mergeFrom(ws.sentRequests[0].toPBByteString())
             .build()
 
-        Assert.assertTrue(sentRequest.hasMute())
+        assertTrue(sentRequest.hasMute())
     }
 
     @Test
@@ -184,12 +183,12 @@ class SignalClientTest : BaseTest() {
         job.await()
 
         val ws = wsFactory.ws
-        Assert.assertEquals(3, ws.sentRequests.size)
+        assertEquals(3, ws.sentRequests.size)
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
             .mergeFrom(ws.sentRequests[0].toPBByteString())
             .build()
 
-        Assert.assertTrue(sentRequest.hasMute())
+        assertTrue(sentRequest.hasMute())
     }
 
     @Test
@@ -205,16 +204,78 @@ class SignalClientTest : BaseTest() {
         val ws = wsFactory.ws
 
         // Wait until peer connection is connected to send requests.
-        Assert.assertEquals(0, ws.sentRequests.size)
+        assertEquals(0, ws.sentRequests.size)
 
         client.onPCConnected()
 
-        Assert.assertEquals(3, ws.sentRequests.size)
+        assertEquals(3, ws.sentRequests.size)
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
             .mergeFrom(ws.sentRequests[0].toPBByteString())
             .build()
 
-        Assert.assertTrue(sentRequest.hasMute())
+        assertTrue(sentRequest.hasMute())
+    }
+
+    @Test
+    fun pingTest() = runTest {
+
+        val joinResponseWithPing = with(JOIN.toBuilder()) {
+            join = with(join.toBuilder()) {
+                pingInterval = 10
+                pingTimeout = 20
+                build()
+            }
+            build()
+        }
+
+        val job = async {
+            client.join(EXAMPLE_URL, "")
+        }
+        client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        client.onMessage(wsFactory.ws, joinResponseWithPing.toOkioByteString())
+        job.await()
+        val originalWs = wsFactory.ws
+        assertFalse(originalWs.isClosed)
+
+        testScheduler.advanceTimeBy(15 * 1000)
+        assertTrue(originalWs.sentRequests.any { requestString ->
+            val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                .mergeFrom(requestString.toPBByteString())
+                .build()
+
+            return@any sentRequest.hasPing()
+        })
+
+        client.onMessage(wsFactory.ws, PONG.toOkioByteString())
+
+        testScheduler.advanceTimeBy(10 * 1000)
+        assertFalse(originalWs.isClosed)
+    }
+
+    @Test
+    fun pingTimeoutTest() = runTest {
+
+        val joinResponseWithPing = with(JOIN.toBuilder()) {
+            join = with(join.toBuilder()) {
+                pingInterval = 10
+                pingTimeout = 20
+                build()
+            }
+            build()
+        }
+
+        val job = async {
+            client.join(EXAMPLE_URL, "")
+        }
+        client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        client.onMessage(wsFactory.ws, joinResponseWithPing.toOkioByteString())
+        job.await()
+        val originalWs = wsFactory.ws
+        assertFalse(originalWs.isClosed)
+
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(originalWs.isClosed)
     }
 
     // mock data
@@ -373,6 +434,12 @@ class SignalClientTest : BaseTest() {
             refreshToken = "refresh_token"
             build()
         }
+
+        val PONG = with(LivekitRtc.SignalResponse.newBuilder()) {
+            pong = 1L
+            build()
+        }
+
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
             leave = with(LivekitRtc.LeaveRequest.newBuilder()) {
                 build()
