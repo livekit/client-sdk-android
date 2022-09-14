@@ -534,7 +534,7 @@ constructor(
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
                 val versionToIgnoreUpTo = Semver("0.15.1")
-                if (serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1 <= 0) {
+                if ((serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1) <= 0) {
                     return
                 }
                 listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
@@ -547,6 +547,9 @@ constructor(
             }
             LivekitRtc.SignalResponse.MessageCase.TRACK_UNPUBLISHED -> {
                 listener?.onLocalTrackUnpublished(response.trackUnpublished)
+            }
+            LivekitRtc.SignalResponse.MessageCase.PONG -> {
+                TODO("not implemented yet")
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
