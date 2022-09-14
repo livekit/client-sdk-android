@@ -11,7 +11,6 @@ import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
-import io.livekit.android.util.safe
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,6 +25,7 @@ import okio.ByteString.Companion.toByteString
 import org.webrtc.IceCandidate
 import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -64,6 +64,11 @@ constructor(
     private val requestFlow = MutableSharedFlow<LivekitRtc.SignalRequest>(Int.MAX_VALUE)
 
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
+
+    private var pingJob: Job? = null
+    private var pongJob: Job? = null
+    private var pingTimeoutDurationMillis: Long = 0
+    private var pingIntervalDurationMillis: Long = 0
 
     var connectionState: ConnectionState = ConnectionState.DISCONNECTED
 
@@ -205,6 +210,8 @@ constructor(
             isReconnecting = false
             isConnected = true
             joinContinuation?.resumeWith(Result.success(Either.Right(Unit)))
+            // Restart ping job with old settings.
+            startPingJob()
         }
         response.body?.close()
     }
@@ -259,19 +266,23 @@ constructor(
         }
 
         val wasConnected = isConnected
-        isConnected = false
 
         if (wasConnected) {
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
-                code = response?.code ?: 500
+                code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE
             )
         }
     }
 
     private fun handleWebSocketClose(reason: String, code: Int) {
         LKLog.v { "websocket closed" }
+        isConnected = false
         listener?.onClose(reason, code)
+        requestFlow.resetReplayCache()
+        responseFlow.resetReplayCache()
+        pingJob?.cancel()
+        pongJob?.cancel()
     }
 
     //------------------------------- End WebSocket Listener ------------------------------------//
@@ -471,6 +482,9 @@ constructor(
             if (response.hasJoin()) {
                 isConnected = true
                 startRequestQueue()
+                pingTimeoutDurationMillis = response.join.pingTimeout.toLong() * 1000
+                pingIntervalDurationMillis = response.join.pingInterval.toLong() * 1000
+                startPingJob()
                 try {
                     serverVersion = Semver(response.join.serverVersion)
                 } catch (t: Throwable) {
@@ -537,7 +551,7 @@ constructor(
             }
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
                 val versionToIgnoreUpTo = Semver("0.15.1")
-                if (serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1 <= 0) {
+                if ((serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1) <= 0) {
                     return
                 }
                 listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
@@ -551,11 +565,48 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.TRACK_UNPUBLISHED -> {
                 listener?.onLocalTrackUnpublished(response.trackUnpublished)
             }
+            LivekitRtc.SignalResponse.MessageCase.PONG -> {
+                resetPingTimeout()
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
             }
-        }.safe()
+        }
+    }
+
+    private fun startPingJob() {
+        if (pingJob == null && pingIntervalDurationMillis != 0L) {
+            pingJob = coroutineScope.launch {
+                while (true) {
+                    delay(pingIntervalDurationMillis)
+
+                    val pingTimestamp = Date().time
+                    val pingRequest = LivekitRtc.SignalRequest.newBuilder()
+                        .setPing(pingTimestamp)
+                        .build()
+                    LKLog.v { "Sending ping: $pingTimestamp" }
+                    sendRequest(pingRequest)
+                    startPingTimeout(pingTimestamp)
+                }
+            }
+        }
+    }
+
+    private fun startPingTimeout(timestamp: Long) {
+        if (pongJob != null) {
+            return
+        }
+        pongJob = coroutineScope.launch {
+            delay(pingTimeoutDurationMillis)
+            LKLog.d { "Ping timeout reached for ping sent at $timestamp." }
+            currentWs?.close(CLOSE_REASON_PING_TIMEOUT, "Ping timeout")
+        }
+    }
+
+    private fun resetPingTimeout() {
+        pongJob?.cancel()
+        pongJob = null
     }
 
     /**
@@ -563,14 +614,19 @@ constructor(
      *
      * Can be reused afterwards.
      */
-    fun close(code: Int = 1000, reason: String = "Normal Closure") {
+    fun close(code: Int = CLOSE_REASON_NORMAL_CLOSURE, reason: String = "Normal Closure") {
         LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
-        requestFlowJob = null
         if (::coroutineScope.isInitialized) {
             coroutineScope.close()
         }
+        requestFlowJob?.cancel()
+        requestFlowJob = null
+        pingJob?.cancel()
+        pingJob = null
+        pongJob?.cancel()
+        pongJob = null
         currentWs?.close(code, reason)
         currentWs = null
         joinContinuation?.cancel()
@@ -640,6 +696,9 @@ constructor(
 //            iceServer("stun:stun3.l.google.com:19302"),
 //            iceServer("stun:stun4.l.google.com:19302"),
         )
+        const val CLOSE_REASON_NORMAL_CLOSURE = 1000
+        const val CLOSE_REASON_PING_TIMEOUT = 3000
+        const val CLOSE_REASON_WEBSOCKET_FAILURE = 3500
     }
 }
 

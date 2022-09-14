@@ -9,6 +9,7 @@ import io.livekit.android.stats.AndroidNetworkInfo
 import io.livekit.android.stats.NetworkInfo
 import okhttp3.OkHttpClient
 import okhttp3.WebSocket
+import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -21,6 +22,10 @@ object WebModule {
         @Nullable
         okHttpClientOverride: OkHttpClient?
     ): OkHttpClient {
+        OkHttpClient.Builder()
+            .pingInterval(20, TimeUnit.SECONDS)
+            .build()
+
         return okHttpClientOverride ?: OkHttpClient()
     }
 
