@@ -23,7 +23,7 @@ object WebModule {
         okHttpClientOverride: OkHttpClient?
     ): OkHttpClient {
         OkHttpClient.Builder()
-            .pingInterval(30, TimeUnit.SECONDS)
+            .pingInterval(20, TimeUnit.SECONDS)
             .build()
 
         return okHttpClientOverride ?: OkHttpClient()
