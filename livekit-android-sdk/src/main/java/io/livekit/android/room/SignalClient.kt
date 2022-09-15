@@ -493,7 +493,7 @@ constructor(
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
-                handleSignalResponse(response)
+                handleSignalResponseImpl(response)
             } else {
                 LKLog.e { "Received response while not connected. $response" }
             }
