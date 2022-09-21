@@ -464,11 +464,12 @@ internal constructor(
     override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         super.updateFromInfo(info)
 
-        // detect tracks that have been muted on the server side, apply those changes
+        // detect tracks that have mute status mismatched on server
         for (ti in info.tracksList) {
             val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
-            if (ti.muted != publication.muted) {
-                publication.muted = ti.muted
+            val localMuted = publication.muted
+            if (ti.muted != localMuted) {
+                engine.updateMuteStatus(sid, localMuted)
             }
         }
     }
