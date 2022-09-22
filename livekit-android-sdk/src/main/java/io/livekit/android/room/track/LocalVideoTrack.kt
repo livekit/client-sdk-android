@@ -77,6 +77,60 @@ constructor(
         restartTrack(options.copy(deviceId = deviceId))
     }
 
+    /**
+     * Switch to a different camera. Only works if this track is backed by a camera capturer.
+     *
+     * If neither deviceId or position is provided, or the specified camera cannot be found,
+     * this will switch to the next camera, if one is available.
+     */
+    fun switchCamera(deviceId: String? = null, position: CameraPosition? = null) {
+
+        val cameraCapturer = capturer as? CameraVideoCapturer ?: run {
+            LKLog.w { "Attempting to switch camera on a non-camera video track!" }
+            return
+        }
+
+        var targetDeviceId: String? = null
+        val enumerator = createCameraEnumerator(context)
+        if (deviceId != null || position != null) {
+            targetDeviceId = enumerator.findCamera(deviceId, position, fallback = false)
+        }
+
+        if (targetDeviceId == null) {
+            val deviceNames = enumerator.deviceNames
+            if (deviceNames.size < 2) {
+                LKLog.w { "No available cameras to switch to!" }
+                return
+            }
+            val currentIndex = deviceNames.indexOf(options.deviceId)
+            targetDeviceId = deviceNames[(currentIndex + 1) % deviceNames.size]
+        }
+
+        val cameraSwitchHandler = object : CameraVideoCapturer.CameraSwitchHandler {
+            override fun onCameraSwitchDone(isFrontFacing: Boolean) {
+                val newOptions = options.copy(
+                    deviceId = targetDeviceId,
+                    position = enumerator.getCameraPosition(targetDeviceId)
+                )
+                options = newOptions
+            }
+
+            override fun onCameraSwitchError(errorDescription: String?) {
+                LKLog.w { "switching camera failed: $errorDescription" }
+            }
+
+        }
+        if (targetDeviceId == null) {
+            LKLog.w { "No target camera found!" }
+            return
+        } else {
+            cameraCapturer.switchCamera(cameraSwitchHandler, targetDeviceId)
+        }
+    }
+
+    /**
+     * Restart a track with new options.
+     */
     fun restartTrack(options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy()) {
         val newTrack = createTrack(
             peerConnectionFactory,
@@ -183,15 +237,20 @@ constructor(
             )
         }
 
+        private fun createCameraEnumerator(context: Context): CameraEnumerator {
+            return if (Camera2Enumerator.isSupported(context)) {
+                Camera2Enumerator(context)
+            } else {
+                Camera1Enumerator(true)
+            }
+        }
+
         private fun createVideoCapturer(
             context: Context,
             options: LocalVideoTrackOptions
         ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-            val pair = if (Camera2Enumerator.isSupported(context)) {
-                createCameraCapturer(context, Camera2Enumerator(context), options)
-            } else {
-                createCameraCapturer(context, Camera1Enumerator(true), options)
-            }
+            val cameraEnumerator = createCameraEnumerator(context)
+            val pair = createCameraCapturer(context, cameraEnumerator, options)
 
             if (pair == null) {
                 LKLog.d { "Failed to open camera" }
@@ -205,31 +264,8 @@ constructor(
             enumerator: CameraEnumerator,
             options: LocalVideoTrackOptions
         ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-            var targetDeviceName: String? = null
-            val targetVideoCapturer: VideoCapturer?
-
-            // Prioritize search by deviceId first
-            if (options.deviceId != null) {
-                targetDeviceName = enumerator.findCamera { deviceName -> deviceName == options.deviceId }
-            }
-
-            // Search by camera position
-            if (targetDeviceName == null && options.position != null) {
-                targetDeviceName = enumerator.findCamera { deviceName ->
-                    enumerator.getCameraPosition(deviceName) == options.position
-                }
-            }
-
-            // Fall back by choosing first available camera.
-            if (targetDeviceName == null) {
-                targetDeviceName = enumerator.findCamera { true }
-            }
-
-            if (targetDeviceName == null) {
-                return null
-            }
-
-            targetVideoCapturer = enumerator.createCapturer(targetDeviceName, null)
+            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position) ?: return null
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, null)
 
             // back fill any missing information
             val newOptions = options.copy(
@@ -267,7 +303,37 @@ constructor(
             return null
         }
 
-        fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
+        private fun CameraEnumerator.findCamera(
+            deviceId: String?,
+            position: CameraPosition?,
+            fallback: Boolean = true
+        ): String? {
+            var targetDeviceName: String? = null
+            // Prioritize search by deviceId first
+            if (deviceId != null) {
+                targetDeviceName = findCamera { deviceName -> deviceName == deviceId }
+            }
+
+            // Search by camera position
+            if (targetDeviceName == null && position != null) {
+                targetDeviceName = findCamera { deviceName ->
+                    getCameraPosition(deviceName) == position
+                }
+            }
+
+            // Fall back by choosing first available camera.
+            if (targetDeviceName == null && fallback) {
+                targetDeviceName = findCamera { true }
+            }
+
+            if (targetDeviceName == null) {
+                return null
+            }
+
+            return targetDeviceName
+        }
+
+        private fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
             for (deviceName in deviceNames) {
                 if (predicate(deviceName)) {
                     val videoCapturer = createCapturer(deviceName, null)
@@ -279,7 +345,10 @@ constructor(
             return null
         }
 
-        fun CameraEnumerator.getCameraPosition(deviceName: String): CameraPosition? {
+        private fun CameraEnumerator.getCameraPosition(deviceName: String?): CameraPosition? {
+            if (deviceName == null) {
+                return null
+            }
             if (isBackFacing(deviceName)) {
                 return CameraPosition.BACK
             } else if (isFrontFacing(deviceName)) {
