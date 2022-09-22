@@ -18,7 +18,10 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.LocalScreencastVideoTrack
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -108,7 +111,9 @@ class CallViewModel(
                             val message = it.data.toString(Charsets.UTF_8)
                             mutableDataReceived.emit("$identity: $message")
                         }
-                        else -> {}
+                        else -> {
+                            Timber.e { "Room event: $it" }
+                        }
                     }
                 }
             }
@@ -231,13 +236,13 @@ class CallViewModel(
             ?.track as? LocalVideoTrack
             ?: return
 
-        val newOptions = when (videoTrack.options.position) {
-            CameraPosition.FRONT -> LocalVideoTrackOptions(position = CameraPosition.BACK)
-            CameraPosition.BACK -> LocalVideoTrackOptions(position = CameraPosition.FRONT)
-            else -> LocalVideoTrackOptions()
+        val newPosition = when (videoTrack.options.position) {
+            CameraPosition.FRONT -> CameraPosition.BACK
+            CameraPosition.BACK -> CameraPosition.FRONT
+            else -> null
         }
 
-        videoTrack.restartTrack(newOptions)
+        videoTrack.switchCamera(position = newPosition)
     }
 
     fun dismissError() {
