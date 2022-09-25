@@ -88,12 +88,15 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
-    suspend fun reconnect(url: String, token: String) {
+    suspend fun reconnect(url: String, token: String, participantSid: String?) {
         connect(
             url,
             token,
             (lastOptions ?: ConnectOptions()).copy()
-                .apply { reconnect = true },
+                .apply {
+                    reconnect = true
+                    this.participantSid = participantSid
+                },
             lastRoomOptions ?: RoomOptions()
         )
     }
@@ -141,6 +144,9 @@ constructor(
 
         if (options.reconnect) {
             queryParams.add(CONNECT_QUERY_RECONNECT to 1.toString())
+            options.participantSid?.let { sid ->
+                queryParams.add(CONNECT_QUERY_PARTICIPANT_SID to sid)
+            }
         }
 
         val autoSubscribe = if (options.autoSubscribe) 1 else 0
@@ -671,6 +677,7 @@ constructor(
         const val CONNECT_QUERY_OS = "os"
         const val CONNECT_QUERY_OS_VERSION = "os_version"
         const val CONNECT_QUERY_NETWORK_TYPE = "network"
+        const val CONNECT_QUERY_PARTICIPANT_SID = "sid"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
