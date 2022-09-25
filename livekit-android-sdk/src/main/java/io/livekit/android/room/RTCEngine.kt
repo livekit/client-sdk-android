@@ -201,6 +201,14 @@ internal constructor(
                     PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
             }
 
+        if (joinResponse.hasClientConfiguration()) {
+            val clientConfig = joinResponse.clientConfiguration
+
+            if (clientConfig.forceRelay == LivekitModels.ClientConfigSetting.ENABLED) {
+                rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.RELAY
+            }
+        }
+
         _publisher?.close()
         _publisher = pctFactory.create(
             rtcConfig,
