@@ -7,7 +7,8 @@ private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
 }
 
 class MockPeerConnection(
-    val observer: PeerConnection.Observer?
+    val rtcConfig: RTCConfiguration,
+    val observer: Observer?
 ) : PeerConnection(MockNativePeerConnectionFactory()) {
 
     private var closed = false
