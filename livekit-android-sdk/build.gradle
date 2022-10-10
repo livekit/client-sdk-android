@@ -42,6 +42,11 @@ android {
         sourceCompatibility java_version
         targetCompatibility java_version
     }
+    packagingOptions {
+        // Exclude our protos from being included in the final aar.
+        exclude "**/*.proto"
+    }
+
     buildFeatures {
         compose true
     }
