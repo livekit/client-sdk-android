@@ -1,5 +1,6 @@
 package io.livekit.android.room.track
 
+import org.webrtc.CapturerObserver
 import org.webrtc.RtpParameters
 
 data class LocalVideoTrackOptions(
@@ -10,7 +11,13 @@ data class LocalVideoTrackOptions(
      */
     val deviceId: String? = null,
     val position: CameraPosition? = CameraPosition.FRONT,
-    val captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture
+    val captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture,
+
+    /**
+     * An optional factory to generate a [CapturerObserver] that will be registered
+     * to the video capturer for callbacks.
+     */
+    val capturerObserverFactory: (() -> CapturerObserver)? = null
 )
 
 data class VideoCaptureParameter(

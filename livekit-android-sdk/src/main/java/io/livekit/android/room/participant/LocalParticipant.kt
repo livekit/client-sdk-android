@@ -74,7 +74,7 @@ internal constructor(
             context = context,
             name = name,
             capturer = capturer,
-            options = LocalVideoTrackOptions(),
+            options = options,
             rootEglBase = eglBase,
             trackFactory = videoTrackFactory,
         )
@@ -90,12 +90,12 @@ internal constructor(
         options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
-            peerConnectionFactory,
-            context,
-            name,
-            options,
-            eglBase,
-            videoTrackFactory,
+            peerConnectionFactory = peerConnectionFactory,
+            context = context,
+            name = name,
+            options = options,
+            rootEglBase = eglBase,
+            trackFactory = videoTrackFactory,
         )
     }
 

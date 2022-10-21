@@ -11,6 +11,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.video.Camera1CapturerWithSize
 import io.livekit.android.room.track.video.Camera2CapturerWithSize
+import io.livekit.android.room.track.video.CapturerObserverDelegate
 import io.livekit.android.room.track.video.VideoCapturerWithSize
 import io.livekit.android.util.LKLog
 import org.webrtc.*
@@ -189,10 +190,12 @@ constructor(
             trackFactory: Factory
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(false)
+            val capturerObservers = listOfNotNull(source.capturerObserver, options.capturerObserverFactory?.invoke())
+
             capturer.initialize(
                 SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
                 context,
-                source.capturerObserver
+                CapturerObserverDelegate(capturerObservers)
             )
             val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
@@ -204,6 +207,7 @@ constructor(
                 rtcTrack = track
             )
         }
+
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
@@ -220,11 +224,12 @@ constructor(
             }
 
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
+            val capturerObservers = listOfNotNull(source.capturerObserver, options.capturerObserverFactory?.invoke())
             val (capturer, newOptions) = createVideoCapturer(context, options) ?: TODO()
             capturer.initialize(
                 SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
                 context,
-                source.capturerObserver
+                CapturerObserverDelegate(capturerObservers)
             )
             val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
