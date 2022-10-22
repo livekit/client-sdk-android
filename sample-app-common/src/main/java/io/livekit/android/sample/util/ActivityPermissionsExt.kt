@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
-fun ComponentActivity.requestNeededPermissions() {
+fun ComponentActivity.requestNeededPermissions(onPermissionsGranted: (() -> Unit)? = null) {
     val requestPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -23,6 +23,11 @@ fun ComponentActivity.requestNeededPermissions() {
                     )
                         .show()
                 }
+            }
+
+            // If all granted, notify if needed.
+            if (onPermissionsGranted != null && grants.all { it.value }) {
+                onPermissionsGranted()
             }
         }
 
@@ -39,5 +44,7 @@ fun ComponentActivity.requestNeededPermissions() {
 
     if (neededPermissions.isNotEmpty()) {
         requestPermissionLauncher.launch(neededPermissions)
+    } else {
+        onPermissionsGranted?.invoke()
     }
 }
