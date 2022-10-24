@@ -139,7 +139,7 @@ dependencies {
     testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"
     testImplementation 'androidx.test:core:1.4.0'
     testImplementation deps.coroutines.test
-    kaptTest 'com.google.dagger:dagger-compiler:2.38'
+    kaptTest "com.google.dagger:dagger-compiler:${versions.dagger}"
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }

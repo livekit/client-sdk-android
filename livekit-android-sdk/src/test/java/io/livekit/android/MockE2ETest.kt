@@ -32,7 +32,7 @@ abstract class MockE2ETest : BaseTest() {
     internal lateinit var subscriber: PeerConnectionTransport
 
     @Before
-    fun setup() {
+    fun mocksSetup() {
         context = ApplicationProvider.getApplicationContext()
         component = DaggerTestLiveKitComponent
             .factory()

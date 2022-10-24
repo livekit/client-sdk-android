@@ -18,85 +18,27 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+/**
+ * For tests that only target one reconnection type.
+ *
+ * Tests that cover all connection types should be put in [RoomReconnectionTypesMockE2ETest].
+ */
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class RoomReconnectionMockE2ETest : MockE2ETest() {
 
-    private fun prepareForReconnect(softReconnect: Boolean = false) {
+    private fun prepareForReconnect() {
         wsFactory.onOpen = {
             wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            if (!softReconnect) {
+            val softReconnectParam = wsFactory.request.url
+                .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+                ?.toIntOrNull()
+                ?: 0
+
+            if (softReconnectParam == 0) {
                 simulateMessageFromServer(SignalClientTest.JOIN)
             }
         }
-    }
-
-    @Test
-    fun reconnectFromPeerConnectionDisconnect() = runTest {
-        connect()
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
-        prepareForReconnect()
-        disconnectPeerConnection()
-        // Wait so that the reconnect job properly starts first.
-        testScheduler.advanceTimeBy(1000)
-        connectPeerConnection()
-
-        testScheduler.advanceUntilIdle()
-        val events = eventCollector.stopCollecting()
-        val states = stateCollector.stopCollecting()
-
-        assertIsClassList(
-            listOf(
-                RoomEvent.Reconnecting::class.java,
-                RoomEvent.Reconnected::class.java,
-            ),
-            events
-        )
-
-        assertEquals(
-            listOf(
-                Room.State.CONNECTED,
-                Room.State.RECONNECTING,
-                Room.State.CONNECTED,
-            ),
-            states
-        )
-    }
-
-    @Test
-    fun reconnectFromWebSocketFailure() = runTest {
-        connect()
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
-        prepareForReconnect()
-        wsFactory.ws.cancel()
-        // Wait so that the reconnect job properly starts first.
-        testScheduler.advanceTimeBy(1000)
-        connectPeerConnection()
-
-        testScheduler.advanceUntilIdle()
-        val events = eventCollector.stopCollecting()
-        val states = stateCollector.stopCollecting()
-
-        assertIsClassList(
-            listOf(
-                RoomEvent.Reconnecting::class.java,
-                RoomEvent.Reconnected::class.java,
-            ),
-            events
-        )
-
-        assertEquals(
-            listOf(
-                Room.State.CONNECTED,
-                Room.State.RECONNECTING,
-                Room.State.CONNECTED,
-            ),
-            states
-        )
     }
 
     @Test

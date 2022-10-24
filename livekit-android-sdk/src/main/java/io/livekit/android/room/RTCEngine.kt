@@ -324,10 +324,12 @@ internal constructor(
         reconnectingJob = null
         coroutineScope.close()
         closeResources(reason)
+        connectionState = ConnectionState.DISCONNECTED
     }
 
     private fun closeResources(reason: String) {
-        connectionState = ConnectionState.DISCONNECTED
+        publisherObserver.connectionChangeListener = null
+        subscriberObserver.connectionChangeListener = null
         _publisher?.close()
         _publisher = null
         _subscriber?.close()
