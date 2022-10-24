@@ -5,8 +5,10 @@ import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -94,5 +96,22 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val newToken = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_TOKEN)
         Assert.assertNotEquals(oldToken, newToken)
         Assert.assertEquals(SignalClientTest.REFRESH_TOKEN.refreshToken, newToken)
+    }
+
+    @Test
+    fun relayConfiguration() = runTest {
+        connect(with(SignalClientTest.JOIN.toBuilder()) {
+            join = with(join.toBuilder()) {
+                clientConfiguration = with(LivekitModels.ClientConfiguration.newBuilder()) {
+                    forceRelay = LivekitModels.ClientConfigSetting.ENABLED
+                    build()
+                }
+                build()
+            }
+            build()
+        })
+
+        val pubPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        assertEquals(PeerConnection.IceTransportsType.RELAY, pubPeerConnection.rtcConfig.iceTransportsType)
     }
 }
