@@ -82,7 +82,7 @@ class SignalClientTest : BaseTest() {
     @Test
     fun reconnect() = runTest {
         val job = async {
-            client.reconnect(EXAMPLE_URL, "")
+            client.reconnect(EXAMPLE_URL, "", "participant_sid")
         }
 
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
@@ -197,7 +197,7 @@ class SignalClientTest : BaseTest() {
         client.sendMuteTrack("sid", true)
         client.sendMuteTrack("sid", true)
 
-        val job = async { client.reconnect(EXAMPLE_URL, "") }
+        val job = async { client.reconnect(EXAMPLE_URL, "", "participant_sid") }
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         job.await()
 

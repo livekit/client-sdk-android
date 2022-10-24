@@ -25,4 +25,5 @@ data class ConnectOptions(
     val protocolVersion: ProtocolVersion = ProtocolVersion.v8
 ) {
     internal var reconnect: Boolean = false
+    internal var participantSid: String? = null
 }

@@ -30,7 +30,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     @Test
     fun iceSubscriberConnect() = runTest {
         connect()
-        Assert.assertEquals(
+        assertEquals(
             SignalClientTest.OFFER.offer.sdp,
             rtcEngine.subscriber.peerConnection.remoteDescription.description
         )
@@ -43,9 +43,9 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
         val localAnswer = subPeerConnection.localDescription ?: throw IllegalStateException("no answer was created.")
         Assert.assertTrue(sentRequest.hasAnswer())
-        Assert.assertEquals(localAnswer.description, sentRequest.answer.sdp)
-        Assert.assertEquals(localAnswer.type.canonicalForm(), sentRequest.answer.type)
-        Assert.assertEquals(ConnectionState.CONNECTED, rtcEngine.connectionState)
+        assertEquals(localAnswer.description, sentRequest.answer.sdp)
+        assertEquals(localAnswer.type.canonicalForm(), sentRequest.answer.type)
+        assertEquals(ConnectionState.CONNECTED, rtcEngine.connectionState)
     }
 
     @Test
@@ -95,7 +95,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         testScheduler.advanceUntilIdle()
         val newToken = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_TOKEN)
         Assert.assertNotEquals(oldToken, newToken)
-        Assert.assertEquals(SignalClientTest.REFRESH_TOKEN.refreshToken, newToken)
+        assertEquals(SignalClientTest.REFRESH_TOKEN.refreshToken, newToken)
     }
 
     @Test
@@ -113,5 +113,14 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         val pubPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
         assertEquals(PeerConnection.IceTransportsType.RELAY, pubPeerConnection.rtcConfig.iceTransportsType)
+    }
+
+    fun participantIdOnReconnect() = runTest {
+        connect()
+        wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
+
+        testScheduler.advanceUntilIdle()
+        val sid = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_PARTICIPANT_SID)
+        assertEquals(SignalClientTest.JOIN.join.participant.sid, sid)
     }
 }

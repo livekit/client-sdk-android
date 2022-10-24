@@ -86,6 +86,7 @@ internal constructor(
     private var sessionToken: String? = null
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
+    private var participantSid: String? = null
 
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
@@ -161,6 +162,12 @@ internal constructor(
         if (_publisher != null && _subscriber != null) {
             // already configured
             return
+        }
+
+        participantSid = if (joinResponse.hasParticipant()) {
+            joinResponse.participant.sid
+        } else {
+            null
         }
 
         // update ICE servers before creating PeerConnection
@@ -312,6 +319,7 @@ internal constructor(
         sessionToken = null
         connectOptions = null
         lastRoomOptions = null
+        participantSid = null
         reconnectingJob?.cancel()
         reconnectingJob = null
         coroutineScope.close()
@@ -392,7 +400,7 @@ internal constructor(
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber.prepareForIceRestart()
                     try {
-                        client.reconnect(url, token)
+                        client.reconnect(url, token, participantSid)
                         // no join response for regular reconnects
                         client.onReadyForResponses()
                     } catch (e: Exception) {
