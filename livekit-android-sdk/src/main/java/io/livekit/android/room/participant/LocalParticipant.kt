@@ -338,6 +338,10 @@ internal constructor(
             val lowPreset = presets[0]
 
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
+                if (scale < 1.0) {
+                    LKLog.w { "Discarding encoding with a scale < 1.0: $scale." }
+                    return
+                }
                 if (encodings.size >= EncodingUtils.VIDEO_RIDS.size) {
                     throw IllegalStateException("Attempting to add more encodings than we have rids for!")
                 }
