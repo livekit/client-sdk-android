@@ -874,6 +874,10 @@ constructor(
         }
     }
 
+    fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) = engine.getPublisherRTCStats(callback)
+
+    fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) = engine.getSubscriberRTCStats(callback)
+
     // Debug options
 
     /**
