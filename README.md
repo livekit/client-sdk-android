@@ -3,6 +3,21 @@
 Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add
 video & audio capabilities to your Android apps.
 
+Table of Contents
+=================
+
+   * [Docs](#docs)
+   * [Installation](#installation)
+   * [Usage](#usage)
+      * [Permissions](#permissions)
+      * [Publishing camera and microphone](#publishing-camera-and-microphone)
+      * [Sharing screen](#sharing-screen)
+      * [Rendering subscribed tracks](#rendering-subscribed-tracks)
+      * [@FlowObservable](#flowobservable)
+   * [Sample App](#sample-app)
+   * [Dev Environment](#dev-environment)
+      * [Optional (Dev convenience)](#optional-dev-convenience)
+      
 ## Docs
 
 Docs and guides at [https://docs.livekit.io](https://docs.livekit.io).
@@ -165,6 +180,8 @@ coroutineScope.launch {
 
 ## Sample App
 
+**Note**: If you wish to run the sample apps directly from this repo, please consult the [Dev Environment instructions](#dev-environment).
+
 We have a basic quickstart sample
 app [here](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic), showing how to
 connect to a room, publish your device's audio/video, and display the video of one remote participant.
@@ -189,7 +206,16 @@ participant's UI.
 
 To develop the Android SDK or running the sample app directly from this repo, you'll need:
 
-- Ensure the protocol submodule repo is initialized and updated with `git submodule update --init`
+- Clone the repo to your computer
+- Ensure the protocol submodule repo is initialized and updated
+
+```
+git clone https://github.com/livekit/client-sdk-android.git
+cd client-sdk-android
+git submodule update --init
+```
+
+----
 
 For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
 
