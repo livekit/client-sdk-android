@@ -27,6 +27,7 @@ import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
+import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -873,6 +874,22 @@ constructor(
             eventBus.postEvent(event)
         }
     }
+
+    /**
+     * Get stats for the publisher peer connection.
+     *
+     * @see getSubscriberRTCStats
+     * @see getFilteredStats
+     */
+    fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) = engine.getPublisherRTCStats(callback)
+
+    /**
+     * Get stats for the subscriber peer connection.
+     *
+     * @see getPublisherRTCStats
+     * @see getFilteredStats
+     */
+    fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) = engine.getSubscriberRTCStats(callback)
 
     // Debug options
 

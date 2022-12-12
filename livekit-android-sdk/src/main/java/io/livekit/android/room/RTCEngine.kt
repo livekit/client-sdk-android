@@ -808,6 +808,14 @@ internal constructor(
 
         client.sendSyncState(syncState)
     }
+
+    fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) {
+        _publisher?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+    }
+
+    fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) {
+        _subscriber?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+    }
 }
 
 /**
