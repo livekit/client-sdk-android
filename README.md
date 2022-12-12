@@ -3,6 +3,21 @@
 Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add
 video & audio capabilities to your Android apps.
 
+Table of Contents
+=================
+
+   * [Docs](#docs)
+   * [Installation](#installation)
+   * [Usage](#usage)
+      * [Permissions](#permissions)
+      * [Publishing camera and microphone](#publishing-camera-and-microphone)
+      * [Sharing screen](#sharing-screen)
+      * [Rendering subscribed tracks](#rendering-subscribed-tracks)
+      * [@FlowObservable](#flowobservable)
+   * [Sample App](#sample-app)
+   * [Dev Environment](#dev-environment)
+      * [Optional (Dev convenience)](#optional-dev-convenience)
+      
 ## Docs
 
 Docs and guides at [https://docs.livekit.io](https://docs.livekit.io).
