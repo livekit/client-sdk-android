@@ -568,6 +568,7 @@ internal constructor(
             if (track != null) {
                 track.stop()
                 unpublishTrack(track)
+                track.dispose()
             }
         }
     }

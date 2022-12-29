@@ -11,6 +11,7 @@ import io.livekit.android.events.EventCollector
 import io.livekit.android.events.EventListenable
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.memory.CloseableManager
 import io.livekit.android.mock.*
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -74,6 +75,7 @@ class RoomTest {
             defaultDispatcher = coroutineRule.dispatcher,
             ioDispatcher = coroutineRule.dispatcher,
             audioHandler = NoAudioHandler(),
+            closeableManager = CloseableManager()
         )
     }
 

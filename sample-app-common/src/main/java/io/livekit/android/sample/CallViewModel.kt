@@ -215,6 +215,7 @@ class CallViewModel(
     override fun onCleared() {
         super.onCleared()
         room.disconnect()
+        room.release()
     }
 
     fun setMicEnabled(enabled: Boolean) {
