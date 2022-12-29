@@ -50,7 +50,7 @@ constructor(
     private val ioDispatcher: CoroutineDispatcher,
     val audioHandler: AudioHandler,
     @Singleton
-    private val memoryManager: CloseableManager,
+    private val closeableManager: CloseableManager,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -260,7 +260,7 @@ constructor(
      * must be created.
      */
     fun release() {
-        memoryManager.close()
+        closeableManager.close()
     }
 
     /**
