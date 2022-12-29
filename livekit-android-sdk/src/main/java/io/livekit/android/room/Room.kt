@@ -20,6 +20,7 @@ import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
+import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
@@ -33,6 +34,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
 import javax.inject.Named
+import javax.inject.Singleton
 
 class Room
 @AssistedInject
@@ -47,6 +49,8 @@ constructor(
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
     val audioHandler: AudioHandler,
+    @Singleton
+    private val memoryManager: CloseableManager,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -247,6 +251,16 @@ constructor(
     fun disconnect() {
         engine.client.sendLeave()
         handleDisconnect()
+    }
+
+    /**
+     * Release all resources held by this object.
+     *
+     * Once called, this room object must not be used to connect to a server and a new one
+     * must be created.
+     */
+    fun release() {
+        memoryManager.close()
     }
 
     /**

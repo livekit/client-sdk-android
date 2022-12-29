@@ -6,6 +6,7 @@ import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
+import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.SimulcastVideoEncoderFactoryWrapper
@@ -108,8 +109,11 @@ object RTCModule {
 
     @Provides
     @Singleton
-    fun eglBase(): EglBase {
-        return EglBase.create()
+    fun eglBase(@Singleton memoryManager: CloseableManager): EglBase {
+        val eglBase = EglBase.create()
+        memoryManager.registerResource(eglBase) { eglBase.release() }
+
+        return eglBase
     }
 
     @Provides

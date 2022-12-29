@@ -5,6 +5,7 @@ import dagger.BindsInstance
 import dagger.Component
 import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
+import io.livekit.android.dagger.MemoryModule
 import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.room.RTCEngine
 import javax.inject.Singleton
@@ -17,6 +18,7 @@ import javax.inject.Singleton
         TestWebModule::class,
         TestAudioHandlerModule::class,
         JsonFormatModule::class,
+        MemoryModule::class,
     ]
 )
 internal interface TestLiveKitComponent : LiveKitComponent {
