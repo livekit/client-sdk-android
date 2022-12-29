@@ -15,7 +15,6 @@ import android.graphics.Matrix
 import android.graphics.SurfaceTexture
 import android.os.Looper
 import android.util.AttributeSet
-import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.TextureView
 import android.view.View
@@ -283,7 +282,7 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
     // TextureView.SurfaceTextureListener implementation
     override fun onSurfaceTextureAvailable(surface: SurfaceTexture, i: Int, i1: Int) {
         ThreadUtils.checkIsOnMainThread()
-        eglRenderer.createEglSurface(Surface(surfaceTexture))
+        eglRenderer.createEglSurface(surfaceTexture)
         surfaceHeight = 0
         surfaceWidth = surfaceHeight
         updateSurfaceSize()
