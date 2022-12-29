@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.video.Camera1CapturerWithSize
 import io.livekit.android.room.track.video.Camera2CapturerWithSize
@@ -56,6 +57,8 @@ constructor(
     private val sender: RtpSender?
         get() = transceiver?.sender
 
+    private val closeableManager = CloseableManager()
+
     open fun startCapture() {
         capturer.startCapture(
             options.captureParams.width,
@@ -71,6 +74,12 @@ constructor(
     override fun stop() {
         capturer.stopCapture()
         super.stop()
+    }
+
+    override fun dispose() {
+        super.dispose()
+        capturer.dispose()
+        closeableManager.close()
     }
 
     fun setDeviceId(deviceId: String) {
@@ -132,14 +141,6 @@ constructor(
      * Restart a track with new options.
      */
     fun restartTrack(options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy()) {
-        val newTrack = createTrack(
-            peerConnectionFactory,
-            context,
-            name,
-            options,
-            eglBase,
-            trackFactory
-        )
 
         val oldCapturer = capturer
         val oldSource = source
@@ -151,6 +152,18 @@ constructor(
 
         // sender owns rtcTrack, so it'll take care of disposing it.
         oldRtcTrack.setEnabled(false)
+
+        val oldCloseable = closeableManager.unregisterResource(oldRtcTrack)
+        oldCloseable?.close()
+
+        val newTrack = createTrack(
+            peerConnectionFactory,
+            context,
+            name,
+            options,
+            eglBase,
+            trackFactory
+        )
 
         // migrate video sinks to the new track
         for (sink in sinks) {
@@ -185,24 +198,28 @@ constructor(
             name: String,
             capturer: VideoCapturer,
             options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+
             rootEglBase: EglBase,
             trackFactory: Factory
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(false)
+            val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(
-                SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
+                surfaceTextureHelper,
                 context,
                 source.capturerObserver
             )
-            val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
+            val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
-            return trackFactory.create(
+            val track = trackFactory.create(
                 capturer = capturer,
                 source = source,
                 options = options,
                 name = name,
-                rtcTrack = track
+                rtcTrack = rtcTrack
             )
+            track.closeableManager.registerResource(rtcTrack) { surfaceTextureHelper.dispose() }
+            return track
         }
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
@@ -221,20 +238,25 @@ constructor(
 
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             val (capturer, newOptions) = createVideoCapturer(context, options) ?: TODO()
+            val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(
-                SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext),
+                surfaceTextureHelper,
                 context,
                 source.capturerObserver
             )
-            val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
+            val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
-            return trackFactory.create(
+            val track = trackFactory.create(
                 capturer = capturer,
                 source = source,
                 options = newOptions,
                 name = name,
-                rtcTrack = track
+                rtcTrack = rtcTrack
             )
+
+            track.closeableManager.registerResource(rtcTrack) { surfaceTextureHelper.dispose() }
+
+            return track
         }
 
         private fun createCameraEnumerator(context: Context): CameraEnumerator {
