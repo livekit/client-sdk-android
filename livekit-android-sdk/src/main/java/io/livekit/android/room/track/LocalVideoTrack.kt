@@ -9,6 +9,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.video.Camera1CapturerWithSize
 import io.livekit.android.room.track.video.Camera2CapturerWithSize
@@ -218,7 +219,11 @@ constructor(
                 name = name,
                 rtcTrack = rtcTrack
             )
-            track.closeableManager.registerResource(rtcTrack) { surfaceTextureHelper.dispose() }
+
+            track.closeableManager.registerResource(
+                rtcTrack,
+                SurfaceTextureHelperCloser(surfaceTextureHelper)
+            )
             return track
         }
         internal fun createTrack(
@@ -254,7 +259,10 @@ constructor(
                 rtcTrack = rtcTrack
             )
 
-            track.closeableManager.registerResource(rtcTrack) { surfaceTextureHelper.dispose() }
+            track.closeableManager.registerResource(
+                rtcTrack,
+                SurfaceTextureHelperCloser(surfaceTextureHelper)
+            )
 
             return track
         }
