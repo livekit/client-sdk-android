@@ -2,7 +2,6 @@ package io.livekit.android.sample.basic
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -98,14 +97,6 @@ class MainActivity : AppCompatActivity() {
 
         // Assemble the needed permissions to request
         val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-            .let { perms ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // Need BLUETOOTH_CONNECT permission on API S+ to output to bluetooth devices.
-                    perms + listOf(Manifest.permission.BLUETOOTH_CONNECT)
-                } else {
-                    perms
-                }
-            }
             .filter { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_DENIED }
             .toTypedArray()
 
