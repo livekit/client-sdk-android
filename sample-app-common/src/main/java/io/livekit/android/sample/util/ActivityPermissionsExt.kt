@@ -2,7 +2,6 @@ package io.livekit.android.sample.util
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,13 +31,6 @@ fun ComponentActivity.requestNeededPermissions(onPermissionsGranted: (() -> Unit
         }
 
     val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-        .let { perms ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                perms + listOf(Manifest.permission.BLUETOOTH_CONNECT)
-            } else {
-                perms
-            }
-        }
         .filter { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_DENIED }
         .toTypedArray()
 
