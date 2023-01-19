@@ -12,4 +12,8 @@
         android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
 
+    <application>
+        <service android:name="io.livekit.android.sample.service.ForegroundService" />
+    </application>
+
 </manifest>

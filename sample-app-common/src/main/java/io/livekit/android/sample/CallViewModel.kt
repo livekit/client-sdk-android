@@ -3,6 +3,7 @@ package io.livekit.android.sample
 import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -22,6 +23,7 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.flow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -118,6 +120,16 @@ class CallViewModel(
                 }
             }
             connectToRoom()
+        }
+
+
+        // Start a foreground service to keep the call from being interrupted if the
+        // app goes into the background.
+        val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            application.startForegroundService(foregroundServiceIntent)
+        } else {
+            application.startService(foregroundServiceIntent)
         }
     }
 
@@ -216,6 +228,11 @@ class CallViewModel(
         super.onCleared()
         room.disconnect()
         room.release()
+
+        // Clean up foreground service
+        val application = getApplication<Application>()
+        val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
+        application.stopService(foregroundServiceIntent)
     }
 
     fun setMicEnabled(enabled: Boolean) {
