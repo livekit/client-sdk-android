@@ -19,6 +19,7 @@ fun DebugMenuDialog(
     onDismissRequest: () -> Unit = {},
     simulateMigration: () -> Unit = {},
     fullReconnect: () -> Unit = {},
+    simulateNodeFailure: () -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
@@ -36,6 +37,12 @@ fun DebugMenuDialog(
                 onDismissRequest()
             }) {
                 Text("Simulate Migration")
+            }
+            Button(onClick = {
+                simulateNodeFailure()
+                onDismissRequest()
+            }) {
+                Text("Simulate Node Failure")
             }
             Button(onClick = {
                 fullReconnect()

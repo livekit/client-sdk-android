@@ -86,6 +86,7 @@ class CallActivity : AppCompatActivity() {
                 onExitClick = { finish() },
                 onSendMessage = { viewModel.sendData(it) },
                 onSimulateMigration = { viewModel.simulateMigration() },
+                onSimulateNodeFailure = { viewModel.simulateNodeFailure() },
                 fullReconnect = { viewModel.reconnect() },
             )
         }
@@ -136,6 +137,7 @@ class CallActivity : AppCompatActivity() {
         onSnackbarDismiss: () -> Unit = {},
         onSendMessage: (String) -> Unit = {},
         onSimulateMigration: () -> Unit = {},
+        onSimulateNodeFailure: () -> Unit = {},
         fullReconnect: () -> Unit = {},
     ) {
         AppTheme(darkTheme = true) {
@@ -403,6 +405,7 @@ class CallActivity : AppCompatActivity() {
                             DebugMenuDialog(
                                 onDismissRequest = { showDebugDialog = false },
                                 simulateMigration = { onSimulateMigration() },
+                                simulateNodeFailure = { onSimulateNodeFailure() },
                                 fullReconnect = { fullReconnect() },
                             )
                         }

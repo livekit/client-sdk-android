@@ -27,7 +27,6 @@ import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.flow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import livekit.LivekitRtc
 
 class CallViewModel(
     val url: String,
@@ -280,11 +279,11 @@ class CallViewModel(
 
     // Debug functions
     fun simulateMigration() {
-        room.sendSimulateScenario(
-            LivekitRtc.SimulateScenario.newBuilder()
-                .setMigration(true)
-                .build()
-        )
+        room.sendSimulateScenario(Room.SimulateScenario.MIGRATION)
+    }
+
+    fun simulateNodeFailure() {
+        room.sendSimulateScenario(Room.SimulateScenario.NODE_FAILURE)
     }
 
     fun reconnect() {
