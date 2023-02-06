@@ -74,7 +74,7 @@ internal constructor(
             context = context,
             name = name,
             capturer = capturer,
-            options = LocalVideoTrackOptions(),
+            options = options,
             rootEglBase = eglBase,
             trackFactory = videoTrackFactory,
         )
