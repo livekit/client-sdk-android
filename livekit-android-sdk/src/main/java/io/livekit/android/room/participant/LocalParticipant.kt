@@ -62,7 +62,10 @@ internal constructor(
     }
 
     /**
-     * Creates a video track, recording video through the supplied [capturer]
+     * Creates a video track, recording video through the supplied [capturer].
+     *
+     * This method will call [VideoCapturer.initialize] and handle the lifecycle of
+     * [SurfaceTextureHelper].
      */
     fun createVideoTrack(
         name: String = "",
