@@ -14,6 +14,7 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.renderer.SurfaceViewRenderer
 import io.livekit.android.room.Room
+import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import kotlinx.coroutines.launch
 
@@ -62,6 +63,15 @@ class MainActivity : AppCompatActivity() {
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
             localParticipant.setCameraEnabled(true)
+
+            // Attach video of remote participant if already available.
+            val remoteVideoTrack = room.remoteParticipants.values.firstOrNull()
+                ?.getTrackPublication(Track.Source.CAMERA)
+                ?.track as? VideoTrack
+
+            if (remoteVideoTrack != null) {
+                attachVideo(remoteVideoTrack)
+            }
         }
     }
 
