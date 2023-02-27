@@ -19,7 +19,7 @@ ext {
             junitJupiter      : "5.5.0",
             coroutines        : "1.6.0",
             lint              : "30.0.1",
-            protobuf          : "3.19.4",
+            protobuf          : "3.22.0",
     ]
     generated = [
             protoSrc: "$projectDir/protocol",
