@@ -164,7 +164,7 @@ constructor(
         queryParams.add(CONNECT_QUERY_NETWORK_TYPE to networkInfo.getNetworkType().protoName)
 
         return queryParams.foldIndexed("") { index, acc, pair ->
-            val separator = if(index == 0) "?" else "&"
+            val separator = if (index == 0) "?" else "&"
             acc + separator + "${pair.first}=${pair.second}"
         }
     }
@@ -573,6 +573,12 @@ constructor(
             }
             LivekitRtc.SignalResponse.MessageCase.PONG -> {
                 resetPingTimeout()
+            }
+            LivekitRtc.SignalResponse.MessageCase.PONG_RESP -> {
+                // TODO
+            }
+            LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
+                // TODO
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
