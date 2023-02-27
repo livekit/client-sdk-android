@@ -108,7 +108,7 @@ class CallViewModel(
                     when (it) {
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
                         is RoomEvent.DataReceived -> {
-                            val identity = it.participant.identity ?: ""
+                            val identity = it.participant?.identity ?: "server"
                             val message = it.data.toString(Charsets.UTF_8)
                             mutableDataReceived.emit("$identity: $message")
                         }
