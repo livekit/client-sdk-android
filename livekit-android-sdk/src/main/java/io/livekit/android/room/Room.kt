@@ -699,12 +699,12 @@ constructor(
      * @suppress
      */
     override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind) {
-        val participant = remoteParticipants[packet.participantSid] ?: return
+        val participant = remoteParticipants[packet.participantSid]
         val data = packet.payload.toByteArray()
 
         listener?.onDataReceived(data, participant, this)
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant), coroutineScope)
-        participant.onDataReceived(data)
+        participant?.onDataReceived(data)
     }
 
     /**
@@ -1027,7 +1027,7 @@ interface RoomListener {
     /**
      * Received data published by another participant
      */
-    fun onDataReceived(data: ByteArray, participant: RemoteParticipant, room: Room) {}
+    fun onDataReceived(data: ByteArray, participant: RemoteParticipant?, room: Room) {}
 
     /**
      * The connection quality for a participant has changed.
