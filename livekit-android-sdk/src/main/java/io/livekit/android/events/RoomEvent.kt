@@ -6,6 +6,7 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import livekit.LivekitModels
 
 sealed class RoomEvent(val room: Room) : Event() {
     /**
@@ -22,7 +23,7 @@ sealed class RoomEvent(val room: Room) : Event() {
     /**
      * Disconnected from room
      */
-    class Disconnected(room: Room, val error: Exception?) : RoomEvent(room)
+    class Disconnected(room: Room, val error: Exception?, val reason: DisconnectReason) : RoomEvent(room)
 
     /**
      * When a [RemoteParticipant] joins after the local participant. It will not emit events
@@ -168,4 +169,30 @@ sealed class RoomEvent(val room: Room) : Event() {
         val newPermissions: ParticipantPermission?,
         val oldPermissions: ParticipantPermission?,
     ) : RoomEvent(room)
+}
+
+enum class DisconnectReason {
+    UNKNOWN_REASON,
+    CLIENT_INITIATED,
+    DUPLICATE_IDENTITY,
+    SERVER_SHUTDOWN,
+    PARTICIPANT_REMOVED,
+    ROOM_DELETED,
+    STATE_MISMATCH,
+    JOIN_FAILURE;
+}
+
+fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
+    return when (this) {
+        LivekitModels.DisconnectReason.CLIENT_INITIATED -> DisconnectReason.CLIENT_INITIATED
+        LivekitModels.DisconnectReason.DUPLICATE_IDENTITY -> DisconnectReason.DUPLICATE_IDENTITY
+        LivekitModels.DisconnectReason.SERVER_SHUTDOWN -> DisconnectReason.SERVER_SHUTDOWN
+        LivekitModels.DisconnectReason.PARTICIPANT_REMOVED -> DisconnectReason.PARTICIPANT_REMOVED
+        LivekitModels.DisconnectReason.ROOM_DELETED -> DisconnectReason.ROOM_DELETED
+        LivekitModels.DisconnectReason.STATE_MISMATCH -> DisconnectReason.STATE_MISMATCH
+        LivekitModels.DisconnectReason.JOIN_FAILURE -> DisconnectReason.JOIN_FAILURE
+        LivekitModels.DisconnectReason.UNKNOWN_REASON,
+        LivekitModels.DisconnectReason.UNRECOGNIZED,
+        null -> DisconnectReason.UNKNOWN_REASON
+    }
 }

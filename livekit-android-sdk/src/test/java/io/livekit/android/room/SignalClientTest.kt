@@ -442,6 +442,7 @@ class SignalClientTest : BaseTest() {
 
         val LEAVE = with(LivekitRtc.SignalResponse.newBuilder()) {
             leave = with(LivekitRtc.LeaveRequest.newBuilder()) {
+                reason = LivekitModels.DisconnectReason.SERVER_SHUTDOWN
                 build()
             }
             build()
