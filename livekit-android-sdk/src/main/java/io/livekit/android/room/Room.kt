@@ -16,10 +16,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.events.BroadcastEventBus
-import io.livekit.android.events.ParticipantEvent
-import io.livekit.android.events.RoomEvent
-import io.livekit.android.events.collect
+import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.participant.*
@@ -250,7 +247,7 @@ constructor(
      */
     fun disconnect() {
         engine.client.sendLeave()
-        handleDisconnect()
+        handleDisconnect(DisconnectReason.CLIENT_INITIATED)
     }
 
     /**
@@ -463,7 +460,7 @@ constructor(
             .forEach { sid -> handleParticipantDisconnect(sid) }
     }
 
-    private fun handleDisconnect() {
+    private fun handleDisconnect(reason: DisconnectReason) {
         if (state == State.DISCONNECTED) {
             return
         }
@@ -485,7 +482,7 @@ constructor(
 
         // Ensure all observers see the disconnected before closing scope.
         runBlocking {
-            eventBus.postEvent(RoomEvent.Disconnected(this@Room, null), coroutineScope).join()
+            eventBus.postEvent(RoomEvent.Disconnected(this@Room, null, reason), coroutineScope).join()
         }
         coroutineScope.cancel()
     }
@@ -737,9 +734,9 @@ constructor(
     /**
      * @suppress
      */
-    override fun onEngineDisconnected(reason: String) {
+    override fun onEngineDisconnected(reason: DisconnectReason) {
         LKLog.v { "engine did disconnect: $reason" }
-        handleDisconnect()
+        handleDisconnect(reason)
     }
 
     /**

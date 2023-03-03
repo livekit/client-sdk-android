@@ -5,6 +5,8 @@ import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.events.DisconnectReason
+import io.livekit.android.events.convert
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.MediaConstraintKeys
@@ -456,7 +458,7 @@ internal constructor(
             }
 
             close("Failed reconnecting")
-            listener?.onEngineDisconnected("failed reconnecting.")
+            listener?.onEngineDisconnected(DisconnectReason.UNKNOWN_REASON)
         }
 
         reconnectingJob = job
@@ -566,7 +568,7 @@ internal constructor(
         fun onEngineConnected()
         fun onEngineReconnected()
         fun onEngineReconnecting()
-        fun onEngineDisconnected(reason: String)
+        fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: LivekitRtc.JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
@@ -722,7 +724,8 @@ internal constructor(
             fullReconnectOnNext = true
         } else {
             close()
-            listener?.onEngineDisconnected("server leave")
+            val disconnectReason = leave.reason.convert()
+            listener?.onEngineDisconnected(disconnectReason)
         }
     }
 

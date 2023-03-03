@@ -7,10 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
-import io.livekit.android.events.EventCollector
-import io.livekit.android.events.EventListenable
-import io.livekit.android.events.ParticipantEvent
-import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.mock.*
 import io.livekit.android.room.participant.LocalParticipant
@@ -135,11 +132,12 @@ class RoomTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        room.onEngineDisconnected("")
+        room.onEngineDisconnected(DisconnectReason.SERVER_SHUTDOWN)
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(DisconnectReason.SERVER_SHUTDOWN, (events[0] as RoomEvent.Disconnected).reason)
     }
 
     @Test
@@ -160,14 +158,14 @@ class RoomTest {
         )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        room.onEngineDisconnected("")
+        room.onEngineDisconnected(DisconnectReason.CLIENT_INITIATED)
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(4, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnsubscribed)
-        Assert.assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
-        Assert.assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
-        Assert.assertEquals(true, events[3] is RoomEvent.Disconnected)
+        assertEquals(4, events.size)
+        assertEquals(true, events[0] is RoomEvent.TrackUnsubscribed)
+        assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
+        assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
+        assertEquals(true, events[3] is RoomEvent.Disconnected)
         Assert.assertTrue(room.remoteParticipants.isEmpty())
     }
 }

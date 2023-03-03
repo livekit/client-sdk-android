@@ -5,9 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.MockE2ETest
-import io.livekit.android.events.EventCollector
-import io.livekit.android.events.FlowCollector
-import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.*
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.mock.MockMediaStream
 import io.livekit.android.mock.TestData
@@ -315,9 +313,33 @@ class RoomMockE2ETest : MockE2ETest() {
         room.disconnect()
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(2, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
-        Assert.assertEquals(true, events[1] is RoomEvent.Disconnected)
+        assertEquals(2, events.size)
+        assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
+        assertEquals(true, events[1] is RoomEvent.Disconnected)
+    }
+
+    @Test
+    fun serverDisconnectReason() = runTest {
+        connect()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.LEAVE.toOkioByteString())
+        val events = eventCollector.stopCollecting()
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(SignalClientTest.LEAVE.leave.reason.convert(), (events[0] as RoomEvent.Disconnected).reason)
+    }
+
+    @Test
+    fun clientDisconnectReason() = runTest {
+        connect()
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.disconnect()
+        val events = eventCollector.stopCollecting()
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(DisconnectReason.CLIENT_INITIATED, (events[0] as RoomEvent.Disconnected).reason)
     }
 
     @Test
