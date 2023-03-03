@@ -199,11 +199,12 @@ constructor(
             name: String,
             capturer: VideoCapturer,
             options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
-
             rootEglBase: EglBase,
-            trackFactory: Factory
+            trackFactory: Factory,
+            videoProcessor: VideoProcessor? = null,
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(false)
+            source.setVideoProcessor(videoProcessor)
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(
                 surfaceTextureHelper,
@@ -226,13 +227,15 @@ constructor(
             )
             return track
         }
+
         internal fun createTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
             name: String,
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
-            trackFactory: Factory
+            trackFactory: Factory,
+            videoProcessor: VideoProcessor? = null,
         ): LocalVideoTrack {
 
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) !=
@@ -242,6 +245,7 @@ constructor(
             }
 
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
+            source.setVideoProcessor(videoProcessor)
             val (capturer, newOptions) = createVideoCapturer(context, options) ?: TODO()
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(

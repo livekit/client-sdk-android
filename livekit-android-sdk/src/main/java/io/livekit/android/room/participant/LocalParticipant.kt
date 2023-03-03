@@ -71,6 +71,7 @@ internal constructor(
         name: String = "",
         capturer: VideoCapturer,
         options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+        videoProcessor: VideoProcessor? = null,
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory = peerConnectionFactory,
@@ -80,6 +81,7 @@ internal constructor(
             options = options,
             rootEglBase = eglBase,
             trackFactory = videoTrackFactory,
+            videoProcessor = videoProcessor,
         )
     }
 
@@ -91,6 +93,7 @@ internal constructor(
     fun createVideoTrack(
         name: String = "",
         options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+        videoProcessor: VideoProcessor? = null,
     ): LocalVideoTrack {
         return LocalVideoTrack.createTrack(
             peerConnectionFactory,
@@ -99,6 +102,7 @@ internal constructor(
             options,
             eglBase,
             videoTrackFactory,
+            videoProcessor = videoProcessor,
         )
     }
 
