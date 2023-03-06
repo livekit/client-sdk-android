@@ -8,7 +8,18 @@ data class ConnectOptions(
     /** Auto subscribe to room tracks upon connect, defaults to true */
     val autoSubscribe: Boolean = true,
 
+    /**
+     * A user-provided list of ice servers. This will be merged into
+     * the ice servers in [rtcConfig] if it is also provided.
+     */
     val iceServers: List<PeerConnection.IceServer>? = null,
+
+    /**
+     * A user-provided RTCConfiguration to override options.
+     *
+     * Note: LiveKit requires [PeerConnection.SdpSemantics.UNIFIED_PLAN]
+     * and a mutable list should be provided for iceServers constructor.
+     * */
     val rtcConfig: PeerConnection.RTCConfiguration? = null,
     /**
      * capture and publish audio track on connect, defaults to false
