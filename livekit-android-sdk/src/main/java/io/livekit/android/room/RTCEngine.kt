@@ -173,9 +173,7 @@ internal constructor(
         }
 
         // update ICE servers before creating PeerConnection
-        val iceServers = if (connectOptions?.iceServers != null) {
-            connectOptions.iceServers
-        } else {
+        val iceServers = run {
             val servers = mutableListOf<PeerConnection.IceServer>()
             for (serverInfo in joinResponse.iceServersList) {
                 val username = serverInfo.username ?: ""
@@ -197,10 +195,21 @@ internal constructor(
 
         // Setup peer connections
         val rtcConfig = connectOptions?.rtcConfig?.apply {
-            val mergedServers = this.iceServers.toMutableList()
-            iceServers.forEach { server ->
-                if (!mergedServers.contains(server)) {
-                    mergedServers.add(server)
+            val mergedServers = this.iceServers
+            if (connectOptions.iceServers != null) {
+                connectOptions.iceServers.forEach { server ->
+                    if (!mergedServers.contains(server)) {
+                        mergedServers.add(server)
+                    }
+                }
+            }
+
+            // Only use server-provided servers if user doesn't provide any.
+            if (mergedServers.isEmpty()) {
+                iceServers.forEach { server ->
+                    if (!mergedServers.contains(server)) {
+                        mergedServers.add(server)
+                    }
                 }
             }
         }
