@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
-import org.junit.Assert.assertEquals
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -128,7 +128,7 @@ class RoomTest {
     }
 
     @Test
-    fun onDisconnect() = runTest {
+    fun onServerLeave() = runTest {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -138,6 +138,32 @@ class RoomTest {
         assertEquals(1, events.size)
         assertEquals(true, events[0] is RoomEvent.Disconnected)
         assertEquals(DisconnectReason.SERVER_SHUTDOWN, (events[0] as RoomEvent.Disconnected).reason)
+
+        // Verify Room state
+        assertEquals(Room.State.DISCONNECTED, room.state)
+        assertNull(room.sid)
+        assertNull(room.metadata)
+        assertNull(room.name)
+    }
+
+    @Test
+    fun onDisconnect() = runTest {
+
+        connect()
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.disconnect()
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(DisconnectReason.CLIENT_INITIATED, (events[0] as RoomEvent.Disconnected).reason)
+
+        // Verify Room state
+        assertEquals(Room.State.DISCONNECTED, room.state)
+        assertNull(room.sid)
+        assertNull(room.metadata)
+        assertNull(room.name)
+
     }
 
     @Test

@@ -7,6 +7,7 @@ import io.livekit.android.room.track.TrackPublication
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import livekit.LivekitModels
+import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -115,6 +116,22 @@ class ParticipantTest {
         assertEquals(audioPublication, participant.tracks.values.first())
         assertEquals(1, participant.audioTracks.size)
         assertEquals(audioPublication, participant.audioTracks.first().first)
+    }
+
+    @Test
+    fun dispose() = runTest {
+        val audioPublication = TrackPublication(TRACK_INFO, null, participant)
+        participant.addTrackPublication(audioPublication)
+
+        participant.dispose()
+        assertEquals("", participant.sid)
+        Assert.assertNull(participant.name)
+        Assert.assertNull(participant.identity)
+        Assert.assertNull(participant.metadata)
+        Assert.assertNull(participant.permissions)
+        Assert.assertNull(participant.participantInfo)
+        Assert.assertFalse(participant.isSpeaking)
+        assertEquals(ConnectionQuality.UNKNOWN, participant.connectionQuality)
     }
 
     companion object {

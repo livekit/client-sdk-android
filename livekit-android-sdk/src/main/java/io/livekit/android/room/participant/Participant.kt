@@ -143,15 +143,19 @@ open class Participant(
 
     private fun Flow<Map<String, TrackPublication>>.trackUpdateFlow(): Flow<List<Pair<TrackPublication, Track?>>> {
         return flatMapLatest { videoTracks ->
-            combine(
-                videoTracks.values
-                    .map { trackPublication ->
-                        // Re-emit when track changes
-                        trackPublication::track.flow
-                            .map { trackPublication to trackPublication.track }
-                    }
-            ) { trackPubs ->
-                trackPubs.toList()
+            if (videoTracks.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    videoTracks.values
+                        .map { trackPublication ->
+                            // Re-emit when track changes
+                            trackPublication::track.flow
+                                .map { trackPublication to trackPublication.track }
+                        }
+                ) { trackPubs ->
+                    trackPubs.toList()
+                }
             }
         }
     }
@@ -309,6 +313,14 @@ open class Participant(
 
     internal open fun dispose() {
         scope.cancel()
+
+        sid = ""
+        name = null
+        identity = null
+        metadata = null
+        participantInfo = null
+        permissions = null
+        connectionQuality = ConnectionQuality.UNKNOWN
     }
 }
 
