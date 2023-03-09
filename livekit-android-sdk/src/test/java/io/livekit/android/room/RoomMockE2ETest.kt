@@ -16,6 +16,7 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import junit.framework.Assert.assertEquals
+import junit.framework.Assert.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.junit.Assert
@@ -290,8 +291,9 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.Disconnected)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.Disconnected)
+
     }
 
     @Test

@@ -458,6 +458,10 @@ constructor(
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
+
+        sid = null
+        metadata = null
+        name = null
     }
 
     private fun handleDisconnect(reason: DisconnectReason) {
