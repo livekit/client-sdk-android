@@ -2,11 +2,10 @@ package io.livekit.android.audio
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import com.twilio.audioswitch.AudioDevice
-import com.twilio.audioswitch.AudioDeviceChangeListener
-import com.twilio.audioswitch.AudioSwitch
+import com.twilio.audioswitch.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,7 +48,7 @@ constructor(private val context: Context) : AudioHandler {
      */
     var preferredDeviceList: List<Class<out AudioDevice>>? = null
 
-    private var audioSwitch: AudioSwitch? = null
+    private var audioSwitch: AbstractAudioSwitch? = null
 
     // AudioSwitch is not threadsafe, so all calls should be done on the main thread.
     private val handler = Handler(Looper.getMainLooper())
@@ -58,12 +57,22 @@ constructor(private val context: Context) : AudioHandler {
         if (audioSwitch == null) {
             handler.removeCallbacksAndMessages(null)
             handler.postAtFrontOfQueue {
-                val switch = AudioSwitch(
-                    context = context,
-                    loggingEnabled = loggingEnabled,
-                    audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
-                    preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
-                )
+                val switch =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        AudioSwitch(
+                            context = context,
+                            loggingEnabled = loggingEnabled,
+                            audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
+                        )
+                    } else {
+                        LegacyAudioSwitch(
+                            context = context,
+                            loggingEnabled = loggingEnabled,
+                            audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
+                        )
+                    }
                 audioSwitch = switch
                 switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
                 switch.activate()
