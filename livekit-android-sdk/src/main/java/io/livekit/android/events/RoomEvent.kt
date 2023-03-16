@@ -169,6 +169,11 @@ sealed class RoomEvent(val room: Room) : Event() {
         val newPermissions: ParticipantPermission?,
         val oldPermissions: ParticipantPermission?,
     ) : RoomEvent(room)
+
+    /**
+     * The recording of a room has started/stopped.
+     */
+    class RecordingStatusChanged(room: Room, isRecording: Boolean) : RoomEvent(room)
 }
 
 enum class DisconnectReason {

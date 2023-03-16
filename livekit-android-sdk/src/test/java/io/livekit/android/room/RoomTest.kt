@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.events.*
@@ -104,6 +105,28 @@ class RoomTest {
         assertEquals(roomInfo.name, room.name)
         assertEquals(Room.Sid(roomInfo.sid), room.sid)
         assertEquals(roomInfo.metadata, room.metadata)
+        assertEquals(roomInfo.activeRecording, room.isRecording)
+    }
+
+    @Test
+    fun roomUpdate() = runTest {
+        connect()
+        val update = SignalClientTest.ROOM_UPDATE.roomUpdate.room
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onRoomUpdate(update)
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(update.metadata, room.metadata)
+        assertEquals(update.activeRecording, room.isRecording)
+
+        assertIsClassList(
+            listOf(
+                RoomEvent.RoomMetadataChanged::class.java,
+                RoomEvent.RecordingStatusChanged::class.java,
+            ),
+            events
+        )
     }
 
     @Test
@@ -144,6 +167,7 @@ class RoomTest {
         assertNull(room.sid)
         assertNull(room.metadata)
         assertNull(room.name)
+        assertFalse(room.isRecording)
     }
 
     @Test
@@ -163,7 +187,7 @@ class RoomTest {
         assertNull(room.sid)
         assertNull(room.metadata)
         assertNull(room.name)
-
+        assertFalse(room.isRecording)
     }
 
     @Test
