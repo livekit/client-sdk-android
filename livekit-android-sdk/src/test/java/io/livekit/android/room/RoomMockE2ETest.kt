@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.MockE2ETest
+import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.events.*
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.mock.MockMediaStream
@@ -92,15 +93,25 @@ class RoomMockE2ETest : MockE2ETest() {
     fun roomUpdateTest() = runTest {
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val roomUpdate = SignalClientTest.ROOM_UPDATE
         wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.ROOM_UPDATE.toOkioByteString())
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(
-            SignalClientTest.ROOM_UPDATE.roomUpdate.room.metadata,
+        assertEquals(
+            roomUpdate.roomUpdate.room.metadata,
             room.metadata
         )
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.RoomMetadataChanged)
+        assertEquals(
+            roomUpdate.roomUpdate.room.activeRecording,
+            room.isRecording
+        )
+        assertIsClassList(
+            listOf(
+                RoomEvent.RoomMetadataChanged::class.java,
+                RoomEvent.RecordingStatusChanged::class.java,
+            ),
+            events
+        )
     }
 
     @Test

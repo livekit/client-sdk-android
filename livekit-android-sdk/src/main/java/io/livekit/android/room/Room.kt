@@ -108,6 +108,11 @@ constructor(
     var metadata: String? by flowDelegate(null)
         private set
 
+    @FlowObservable
+    @get:FlowObservable
+    var isRecording: Boolean by flowDelegate(false)
+        private set
+
     /**
      * Automatically manage quality of subscribed video tracks, subscribe to the
      * an appropriate resolution based on the size of the video elements that tracks
@@ -270,6 +275,11 @@ constructor(
         sid = Sid(response.room.sid)
         name = response.room.name
         metadata = response.room.metadata
+
+        if (response.room.activeRecording != isRecording) {
+            isRecording = response.room.activeRecording
+            eventBus.postEvent(RoomEvent.RecordingStatusChanged(this, isRecording), coroutineScope)
+        }
 
         if (!response.hasParticipant()) {
             listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
@@ -462,6 +472,7 @@ constructor(
         sid = null
         metadata = null
         name = null
+        isRecording = false
     }
 
     private fun handleDisconnect(reason: DisconnectReason) {
@@ -673,7 +684,16 @@ constructor(
         val oldMetadata = metadata
         metadata = update.metadata
 
-        eventBus.postEvent(RoomEvent.RoomMetadataChanged(this, metadata, oldMetadata), coroutineScope)
+        val oldIsRecording = isRecording
+        isRecording = update.activeRecording
+
+        if (oldMetadata != metadata) {
+            eventBus.postEvent(RoomEvent.RoomMetadataChanged(this, metadata, oldMetadata), coroutineScope)
+        }
+
+        if (oldIsRecording != isRecording) {
+            eventBus.postEvent(RoomEvent.RecordingStatusChanged(this, isRecording), coroutineScope)
+        }
     }
 
     /**

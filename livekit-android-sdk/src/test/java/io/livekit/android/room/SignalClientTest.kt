@@ -310,6 +310,7 @@ class SignalClientTest : BaseTest() {
             roomUpdate = with(LivekitRtc.RoomUpdate.newBuilder()) {
                 room = with(LivekitModels.Room.newBuilder()) {
                     metadata = "metadata"
+                    activeRecording = true
                     build()
                 }
                 build()
