@@ -39,6 +39,8 @@ class RoomReconnectionTypesMockE2ETest(
 
             if (softReconnectParam == 0) {
                 simulateMessageFromServer(SignalClientTest.JOIN)
+            } else {
+                simulateMessageFromServer(SignalClientTest.RECONNECT)
             }
         }
     }

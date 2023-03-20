@@ -17,9 +17,9 @@ data class ConnectOptions(
     /**
      * A user-provided RTCConfiguration to override options.
      *
-     * Note: LiveKit requires [PeerConnection.SdpSemantics.UNIFIED_PLAN]
-     * and a mutable list should be provided for iceServers constructor.
-     * */
+     * Note: LiveKit requires [PeerConnection.SdpSemantics.UNIFIED_PLAN] and
+     * [PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY].
+     */
     val rtcConfig: PeerConnection.RTCConfiguration? = null,
     /**
      * capture and publish audio track on connect, defaults to false
