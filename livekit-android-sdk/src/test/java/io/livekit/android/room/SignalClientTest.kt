@@ -11,7 +11,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
+import livekit.LivekitModels.ClientConfiguration
 import livekit.LivekitRtc
+import livekit.LivekitRtc.ICEServer
 import okhttp3.*
 import org.junit.Assert.*
 import org.junit.Before
@@ -86,6 +88,7 @@ class SignalClientTest : BaseTest() {
         }
 
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        client.onMessage(wsFactory.ws, RECONNECT.toOkioByteString())
 
         job.await()
         assertEquals(true, client.isConnected)
@@ -199,6 +202,7 @@ class SignalClientTest : BaseTest() {
 
         val job = async { client.reconnect(EXAMPLE_URL, "", "participant_sid") }
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        client.onMessage(wsFactory.ws, RECONNECT.toOkioByteString())
         job.await()
 
         val ws = wsFactory.ws
@@ -291,7 +295,30 @@ class SignalClientTest : BaseTest() {
                 }
                 participant = TestData.LOCAL_PARTICIPANT
                 subscriberPrimary = true
+                addIceServers(with(ICEServer.newBuilder()) {
+                    addUrls("stun:stun.join.com:19302")
+                    username = "username"
+                    credential = "credential"
+                    build()
+                })
                 serverVersion = "0.15.2"
+                build()
+            }
+            build()
+        }
+
+        val RECONNECT = with(LivekitRtc.SignalResponse.newBuilder()) {
+            reconnect = with(LivekitRtc.ReconnectResponse.newBuilder()) {
+                addIceServers(with(ICEServer.newBuilder()) {
+                    addUrls("stun:stun.reconnect.com:19302")
+                    username = "username"
+                    credential = "credential"
+                    build()
+                })
+                clientConfiguration = with(ClientConfiguration.newBuilder()) {
+                    forceRelay = LivekitModels.ClientConfigSetting.ENABLED
+                    build()
+                }
                 build()
             }
             build()

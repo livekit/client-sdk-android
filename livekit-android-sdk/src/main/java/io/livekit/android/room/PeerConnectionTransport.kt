@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.webrtc.*
+import org.webrtc.PeerConnection.RTCConfiguration
 import javax.inject.Named
 
 /**
@@ -135,6 +136,10 @@ constructor(
 
     fun close() {
         peerConnection.close()
+    }
+
+    fun updateRTCConfig(config: RTCConfiguration) {
+        peerConnection.setConfiguration(config)
     }
 
     @AssistedFactory

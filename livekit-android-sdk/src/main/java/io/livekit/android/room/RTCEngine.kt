@@ -15,6 +15,7 @@ import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.toProtoSessionDescription
@@ -22,7 +23,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import livekit.LivekitRtc.JoinResponse
+import livekit.LivekitRtc.ReconnectResponse
 import org.webrtc.*
+import org.webrtc.PeerConnection.RTCConfiguration
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -127,7 +131,7 @@ internal constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions
-    ): LivekitRtc.JoinResponse {
+    ): JoinResponse {
         coroutineScope.close()
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
@@ -142,7 +146,7 @@ internal constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions
-    ): LivekitRtc.JoinResponse {
+    ): JoinResponse {
         val joinResponse = client.join(url, token, options, roomOptions)
         listener?.onJoinResponse(joinResponse)
         isClosed = false
@@ -160,7 +164,7 @@ internal constructor(
         return joinResponse
     }
 
-    private fun configure(joinResponse: LivekitRtc.JoinResponse, connectOptions: ConnectOptions?) {
+    private fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
         if (_publisher != null && _subscriber != null) {
             // already configured
             return
@@ -172,60 +176,8 @@ internal constructor(
             null
         }
 
-        // update ICE servers before creating PeerConnection
-        val iceServers = run {
-            val servers = mutableListOf<PeerConnection.IceServer>()
-            for (serverInfo in joinResponse.iceServersList) {
-                val username = serverInfo.username ?: ""
-                val credential = serverInfo.credential ?: ""
-                servers.add(
-                    PeerConnection.IceServer
-                        .builder(serverInfo.urlsList)
-                        .setUsername(username)
-                        .setPassword(credential)
-                        .createIceServer()
-                )
-            }
-
-            if (servers.isEmpty()) {
-                servers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
-            }
-            servers
-        }
-
         // Setup peer connections
-        val rtcConfig = connectOptions?.rtcConfig?.apply {
-            val mergedServers = this.iceServers
-            if (connectOptions.iceServers != null) {
-                connectOptions.iceServers.forEach { server ->
-                    if (!mergedServers.contains(server)) {
-                        mergedServers.add(server)
-                    }
-                }
-            }
-
-            // Only use server-provided servers if user doesn't provide any.
-            if (mergedServers.isEmpty()) {
-                iceServers.forEach { server ->
-                    if (!mergedServers.contains(server)) {
-                        mergedServers.add(server)
-                    }
-                }
-            }
-        }
-            ?: PeerConnection.RTCConfiguration(iceServers).apply {
-                sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-                continualGatheringPolicy =
-                    PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-            }
-
-        if (joinResponse.hasClientConfiguration()) {
-            val clientConfig = joinResponse.clientConfiguration
-
-            if (clientConfig.forceRelay == LivekitModels.ClientConfigSetting.ENABLED) {
-                rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.RELAY
-            }
-        }
+        val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
 
         _publisher?.close()
         _publisher = pctFactory.create(
@@ -398,12 +350,13 @@ internal constructor(
                     ReconnectType.FORCE_FULL_RECONNECT -> true
                 }
 
+                val connectOptions = connectOptions ?: ConnectOptions()
                 if (isFullReconnect) {
                     LKLog.v { "Attempting full reconnect." }
                     try {
                         closeResources("Full Reconnecting")
                         listener?.onFullReconnecting()
-                        joinImpl(url, token, connectOptions ?: ConnectOptions(), lastRoomOptions ?: RoomOptions())
+                        joinImpl(url, token, connectOptions, lastRoomOptions ?: RoomOptions())
                     } catch (e: Exception) {
                         LKLog.w(e) { "Error during reconnection." }
                         // reconnect failed, retry.
@@ -413,8 +366,13 @@ internal constructor(
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber.prepareForIceRestart()
                     try {
-                        client.reconnect(url, token, participantSid)
-                        // no join response for regular reconnects
+                        val response = client.reconnect(url, token, participantSid)
+                        if (response is Either.Left) {
+                            val reconnectResponse = response.value
+                            val rtcConfig = makeRTCConfig(Either.Right(reconnectResponse), connectOptions)
+                            _subscriber?.updateRTCConfig(rtcConfig)
+                            _publisher?.updateRTCConfig(rtcConfig)
+                        }
                         client.onReadyForResponses()
                     } catch (e: Exception) {
                         LKLog.w(e) { "Error during reconnection." }
@@ -573,13 +531,87 @@ internal constructor(
         }
     }
 
+    private fun makeRTCConfig(
+        serverResponse: Either<JoinResponse, ReconnectResponse>,
+        connectOptions: ConnectOptions
+    ): RTCConfiguration {
+
+        // Convert protobuf ice servers
+        val serverIceServers = run {
+            val servers = mutableListOf<PeerConnection.IceServer>()
+            val responseServers = when (serverResponse) {
+                is Either.Left -> serverResponse.value.iceServersList
+                is Either.Right -> serverResponse.value.iceServersList
+            }
+            for (serverInfo in responseServers) {
+                servers.add(serverInfo.toWebrtc())
+            }
+
+            if (servers.isEmpty()) {
+                servers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
+            }
+            servers
+        }
+
+        val rtcConfig = connectOptions.rtcConfig?.copy()?.apply {
+            val mergedServers = iceServers.toMutableList()
+            if (connectOptions.iceServers != null) {
+                connectOptions.iceServers.forEach { server ->
+                    if (!mergedServers.contains(server)) {
+                        mergedServers.add(server)
+                    }
+                }
+            }
+
+            // Only use server-provided servers if user doesn't provide any.
+            if (mergedServers.isEmpty()) {
+                iceServers.forEach { server ->
+                    if (!mergedServers.contains(server)) {
+                        mergedServers.add(server)
+                    }
+                }
+            }
+
+            iceServers = mergedServers
+        }
+            ?: RTCConfiguration(serverIceServers).apply {
+                sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                continualGatheringPolicy =
+                    PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            }
+
+        val clientConfig = when (serverResponse) {
+            is Either.Left -> {
+                if (serverResponse.value.hasClientConfiguration()) {
+                    serverResponse.value.clientConfiguration
+                } else {
+                    null
+                }
+            }
+            is Either.Right -> {
+                if (serverResponse.value.hasClientConfiguration()) {
+                    serverResponse.value.clientConfiguration
+                } else {
+                    null
+                }
+            }
+        }
+        if (clientConfig != null) {
+            if (clientConfig.forceRelay == LivekitModels.ClientConfigSetting.ENABLED) {
+                rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.RELAY
+            }
+        }
+
+        return rtcConfig
+    }
+
     internal interface Listener {
         fun onEngineConnected()
         fun onEngineReconnected()
         fun onEngineReconnecting()
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
-        fun onJoinResponse(response: LivekitRtc.JoinResponse)
+        fun onJoinResponse(response: JoinResponse)
         fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -838,3 +870,10 @@ enum class ReconnectType {
     FORCE_SOFT_RECONNECT,
     FORCE_FULL_RECONNECT;
 }
+
+internal fun LivekitRtc.ICEServer.toWebrtc() = PeerConnection.IceServer.builder(urlsList)
+    .setUsername(username ?: "")
+    .setPassword(credential ?: "")
+    .setTlsAlpnProtocols(emptyList())
+    .setTlsEllipticCurves(emptyList())
+    .createIceServer()

@@ -7,7 +7,7 @@ private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
 }
 
 class MockPeerConnection(
-    val rtcConfig: RTCConfiguration,
+    var rtcConfig: RTCConfiguration,
     val observer: Observer?
 ) : PeerConnection(MockNativePeerConnectionFactory()) {
 
@@ -51,7 +51,8 @@ class MockPeerConnection(
     override fun setAudioRecording(recording: Boolean) {
     }
 
-    override fun setConfiguration(config: RTCConfiguration?): Boolean {
+    override fun setConfiguration(config: RTCConfiguration): Boolean {
+        this.rtcConfig = config
         return true
     }
 

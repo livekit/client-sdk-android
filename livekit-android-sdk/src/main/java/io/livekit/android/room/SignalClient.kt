@@ -19,6 +19,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import livekit.LivekitRtc.JoinResponse
+import livekit.LivekitRtc.ReconnectResponse
 import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
@@ -56,7 +58,12 @@ constructor(
     private var lastOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
 
-    private var joinContinuation: CancellableContinuation<Either<LivekitRtc.JoinResponse, Unit>>? = null
+    // join will always return a JoinResponse.
+    // reconnect will return a ReconnectResponse or a Unit if a different response was received.
+    private var joinContinuation: CancellableContinuation<
+            Either<
+                    JoinResponse,
+                    Either<ReconnectResponse, Unit>>>? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
     private val requestFlowJobLock = Object()
@@ -80,7 +87,7 @@ constructor(
         token: String,
         options: ConnectOptions = ConnectOptions(),
         roomOptions: RoomOptions = RoomOptions(),
-    ): LivekitRtc.JoinResponse {
+    ): JoinResponse {
         val joinResponse = connect(url, token, options, roomOptions)
         return (joinResponse as Either.Left).value
     }
@@ -88,8 +95,8 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
-    suspend fun reconnect(url: String, token: String, participantSid: String?) {
-        connect(
+    suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
+        val reconnectResponse = connect(
             url,
             token,
             (lastOptions ?: ConnectOptions()).copy()
@@ -99,14 +106,15 @@ constructor(
                 },
             lastRoomOptions ?: RoomOptions()
         )
+        return (reconnectResponse as Either.Right).value
     }
 
-    suspend fun connect(
+    private suspend fun connect(
         url: String,
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions
-    ): Either<LivekitRtc.JoinResponse, Unit> {
+    ): Either<JoinResponse, Either<ReconnectResponse, Unit>> {
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection")
 
@@ -210,18 +218,6 @@ constructor(
     }
 
     //--------------------------------- WebSocket Listener --------------------------------------//
-    override fun onOpen(webSocket: WebSocket, response: Response) {
-        if (isReconnecting) {
-            // no need to wait for join response on reconnection.
-            isReconnecting = false
-            isConnected = true
-            joinContinuation?.resumeWith(Result.success(Either.Right(Unit)))
-            // Restart ping job with old settings.
-            startPingJob()
-        }
-        response.body?.close()
-    }
-
     override fun onMessage(webSocket: WebSocket, text: String) {
         LKLog.w { "received JSON message, unsupported in this version." }
     }
@@ -484,7 +480,9 @@ constructor(
         LKLog.v { "response: $response" }
 
         if (!isConnected) {
-            // Only handle joins if not connected.
+            var shouldProcessMessage = false
+
+            // Only handle certain messages if not connected.
             if (response.hasJoin()) {
                 isConnected = true
                 startRequestQueue()
@@ -500,10 +498,28 @@ constructor(
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
                 handleSignalResponseImpl(response)
+            } else if (isReconnecting) {
+                // When reconnecting, any message received means signal reconnected.
+                // Newer servers will send a reconnect response first
+                isReconnecting = false
+                isConnected = true
+
+                // Restart ping job with old settings.
+                startPingJob()
+
+                if (response.hasReconnect()) {
+                    joinContinuation?.resumeWith(Result.success(Either.Right(Either.Left(response.reconnect))))
+                } else {
+                    joinContinuation?.resumeWith(Result.success(Either.Right(Either.Right(Unit))))
+                    // Non-reconnect response, handle normally
+                    shouldProcessMessage = true
+                }
             } else {
                 LKLog.e { "Received response while not connected. $response" }
             }
-            return
+            if (!shouldProcessMessage) {
+                return
+            }
         }
         responseFlow.tryEmit(response)
     }
@@ -715,6 +731,7 @@ constructor(
     }
 }
 
+@Suppress("EnumEntryName", "unused")
 enum class ProtocolVersion(val value: Int) {
     v1(1),
     v2(2),

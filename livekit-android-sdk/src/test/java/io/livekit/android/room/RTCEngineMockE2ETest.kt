@@ -28,6 +28,16 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun iceServersSetOnJoin() = runTest {
+        connect()
+        val sentIceServers = SignalClientTest.JOIN.join.iceServersList
+            .map { it.toWebrtc() }
+        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+
+        assertEquals(sentIceServers, subPeerConnection.rtcConfig.iceServers)
+    }
+
+    @Test
     fun iceSubscriberConnect() = runTest {
         connect()
         assertEquals(
@@ -111,8 +121,8 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             build()
         })
 
-        val pubPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
-        assertEquals(PeerConnection.IceTransportsType.RELAY, pubPeerConnection.rtcConfig.iceTransportsType)
+        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        assertEquals(PeerConnection.IceTransportsType.RELAY, subPeerConnection.rtcConfig.iceTransportsType)
     }
 
     fun participantIdOnReconnect() = runTest {

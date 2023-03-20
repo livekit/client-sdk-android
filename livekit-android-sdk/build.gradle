@@ -30,7 +30,15 @@ android {
     }
 
     sourceSets {
-        main.java.srcDirs += "${protobuf.generatedFilesBaseDir}/main/javalite"
+        main {
+            proto {
+                srcDir generated.protoSrc
+                exclude '*/*.proto' // only use top-level protos.
+            }
+            java {
+                srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
+            }
+        }
     }
 
     testOptions {
@@ -112,7 +120,6 @@ dokkaHtml {
 }
 
 dependencies {
-    protobuf files(generated.protoSrc)
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation deps.coroutines.lib
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0'
