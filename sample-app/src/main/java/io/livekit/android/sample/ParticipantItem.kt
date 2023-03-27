@@ -30,6 +30,7 @@ class ParticipantItem(
     override fun initializeViewBinding(view: View): ParticipantItemBinding {
         val binding = ParticipantItemBinding.bind(view)
         room.initVideoRenderer(binding.renderer)
+
         return binding
     }
 
@@ -168,17 +169,9 @@ private fun View.visibleOrInvisible(visible: Boolean) {
 }
 
 private fun showFocus(binding: ParticipantItemBinding) {
-    val border = GradientDrawable()
-    border.setColor(Color.BLUE)
-    border.setStroke(8, -0x1000000)
-    binding.root.setPadding(16,16,16,16)
-    binding.root.background = border
+    binding.speakingIndicator.visibility = View.VISIBLE
 }
 
 private fun hideFocus(binding: ParticipantItemBinding) {
-    val border = GradientDrawable()
-    border.setColor(Color.TRANSPARENT)
-    border.setStroke(0, -0x1000000)
-    binding.root.setPadding(0,0,0,0)
-    binding.root.background = border
+    binding.speakingIndicator.visibility = View.INVISIBLE
 }
