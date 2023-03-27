@@ -741,4 +741,5 @@ enum class ProtocolVersion(val value: Int) {
     v6(6),
     v7(7),
     v8(8),
+    v9(9),
 }
