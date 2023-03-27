@@ -35,6 +35,13 @@
             android:src="@drawable/wifi_strength_1"
             android:visibility="invisible"
             app:tint="#FF0000" />
+
+        <ImageView
+            android:id="@+id/speaking_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/speaker_indicator"
+            android:visibility="invisible" />
     </FrameLayout>
 
     <FrameLayout
