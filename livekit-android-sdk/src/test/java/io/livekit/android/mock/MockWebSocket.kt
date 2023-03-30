@@ -47,4 +47,8 @@ class MockWebSocket(
         mutableSentRequests.add(bytes)
         return !isClosed
     }
+
+    fun clearRequests() {
+        mutableSentRequests.clear()
+    }
 }

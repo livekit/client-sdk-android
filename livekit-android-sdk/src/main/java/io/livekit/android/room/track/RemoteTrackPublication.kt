@@ -53,6 +53,7 @@ class RemoteTrackPublication(
     private var disabled: Boolean = false
     private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
+    private var fps: Int? = null
 
     var subscriptionAllowed: Boolean = true
         internal set
@@ -128,10 +129,12 @@ class RemoteTrackPublication(
     }
 
     /**
-     * for tracks that support simulcasting, directly adjust subscribed quality
+     * For tracks that support simulcasting, directly adjust subscribed quality
      *
-     * this indicates the highest quality the client can accept. if network bandwidth does not
-     * allow, server will automatically reduce quality to optimize for uninterrupted video
+     * This indicates the highest quality the client can accept. If network bandwidth does not
+     * allow, server will automatically reduce quality to optimize for uninterrupted video.
+     *
+     * Will override previous calls to [setVideoDimensions].
      */
     fun setVideoQuality(quality: LivekitModels.VideoQuality) {
         if (isAutoManaged
@@ -148,6 +151,8 @@ class RemoteTrackPublication(
 
     /**
      * Update the dimensions that the server will use for determining the video quality to send down.
+     *
+     * Will override previous calls to [setVideoQuality].
      */
     fun setVideoDimensions(dimensions: Track.Dimensions) {
         if (isAutoManaged
@@ -160,6 +165,22 @@ class RemoteTrackPublication(
 
         videoQuality = null
         videoDimensions = dimensions
+        sendUpdateTrackSettings.invoke()
+    }
+
+    /**
+     * Update the fps that the server will use for determining the video quality to send down.
+     */
+    fun setVideoFps(fps: Int?) {
+        if (isAutoManaged
+            || !subscribed
+            || this.fps == fps
+            || track !is VideoTrack
+        ) {
+            return
+        }
+
+        this.fps = fps
         sendUpdateTrackSettings.invoke()
     }
 
@@ -194,7 +215,8 @@ class RemoteTrackPublication(
             sid,
             disabled,
             videoDimensions,
-            videoQuality
+            videoQuality,
+            fps
         )
     }
 

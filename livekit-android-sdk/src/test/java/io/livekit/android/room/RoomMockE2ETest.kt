@@ -17,7 +17,6 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.junit.Assert
@@ -137,9 +136,14 @@ class RoomMockE2ETest : MockE2ETest() {
         simulateMessageFromServer(SignalClientTest.PARTICIPANT_JOIN)
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(2, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.ParticipantConnected)
-        Assert.assertEquals(true, events[1] is RoomEvent.TrackPublished)
+        assertIsClassList(
+            listOf(
+                RoomEvent.ParticipantConnected::class.java,
+                RoomEvent.TrackPublished::class.java,
+                RoomEvent.TrackPublished::class.java,
+            ),
+            events
+        )
     }
 
     @Test
@@ -157,9 +161,14 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(2, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
-        Assert.assertEquals(true, events[1] is RoomEvent.ParticipantDisconnected)
+        assertIsClassList(
+            listOf(
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.ParticipantDisconnected::class.java,
+            ),
+            events
+        )
     }
 
     @Test

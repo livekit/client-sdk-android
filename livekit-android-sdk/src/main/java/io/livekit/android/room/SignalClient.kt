@@ -374,6 +374,7 @@ constructor(
         disabled: Boolean,
         videoDimensions: Track.Dimensions?,
         videoQuality: LivekitModels.VideoQuality?,
+        fps: Int?,
     ) {
         val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
             .addTrackSids(sid)
@@ -387,6 +388,10 @@ constructor(
                 } else {
                     // default to HIGH
                     quality = LivekitModels.VideoQuality.HIGH
+                }
+
+                if(fps != null){
+                    setFps(fps)
                 }
             }
 
