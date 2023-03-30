@@ -16,6 +16,12 @@ object TestData {
         build()
     }
 
+    val REMOTE_VIDEO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
+        sid = "remote_video_track_sid"
+        type = LivekitModels.TrackType.VIDEO
+        build()
+    }
+
     val LOCAL_PARTICIPANT = with(LivekitModels.ParticipantInfo.newBuilder()) {
         sid = "local_participant_sid"
         identity = "local_participant_identity"
@@ -44,6 +50,7 @@ object TestData {
             build()
         }
         addTracks(REMOTE_AUDIO_TRACK)
+        addTracks(REMOTE_VIDEO_TRACK)
         build()
     }
 

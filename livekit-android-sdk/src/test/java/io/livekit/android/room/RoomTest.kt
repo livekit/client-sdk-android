@@ -16,7 +16,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -211,11 +210,16 @@ class RoomTest {
         room.onEngineDisconnected(DisconnectReason.CLIENT_INITIATED)
         val events = eventCollector.stopCollecting()
 
-        assertEquals(4, events.size)
-        assertEquals(true, events[0] is RoomEvent.TrackUnsubscribed)
-        assertEquals(true, events[1] is RoomEvent.TrackUnpublished)
-        assertEquals(true, events[2] is RoomEvent.ParticipantDisconnected)
-        assertEquals(true, events[3] is RoomEvent.Disconnected)
-        Assert.assertTrue(room.remoteParticipants.isEmpty())
+        assertIsClassList(
+            listOf(
+                RoomEvent.TrackUnsubscribed::class.java,
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.ParticipantDisconnected::class.java,
+                RoomEvent.Disconnected::class.java
+            ),
+            events
+        )
+        assertTrue(room.remoteParticipants.isEmpty())
     }
 }
