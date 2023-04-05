@@ -414,6 +414,7 @@ class SignalClientTest : BaseTest() {
             update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
                 val participantMetadataChanged = TestData.REMOTE_PARTICIPANT.toBuilder()
                     .setMetadata("changed_metadata")
+                    .setName("changed_name")
                     .build()
 
                 addParticipants(participantMetadataChanged)

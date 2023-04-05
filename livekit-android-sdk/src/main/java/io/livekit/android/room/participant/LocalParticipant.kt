@@ -485,6 +485,16 @@ internal constructor(
         }
     }
 
+    fun setMetadata(metadata: String) {
+        this.metadata = metadata
+        this.engine.client.sendUpdateLocalMetadata(metadata, name)
+    }
+
+    fun setName(name: String) {
+        this.name = name
+        this.engine.client.sendUpdateLocalMetadata(metadata, name)
+    }
+
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = tracks[trackSid]
         pub?.muted = muted

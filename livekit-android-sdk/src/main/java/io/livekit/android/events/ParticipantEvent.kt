@@ -17,6 +17,11 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class MetadataChanged(participant: Participant, val prevMetadata: String?) : ParticipantEvent(participant)
 
     /**
+     * When a participant's display name is changed, fired for all participants
+     */
+    class NameChanged(participant: Participant, val name: String?) : ParticipantEvent(participant)
+
+    /**
      * Fired when the current participant's isSpeaking property changes. (including LocalParticipant)
      */
     class SpeakingChanged(participant: Participant, val isSpeaking: Boolean) : ParticipantEvent(participant)

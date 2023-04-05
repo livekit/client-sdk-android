@@ -390,7 +390,7 @@ constructor(
                     quality = LivekitModels.VideoQuality.HIGH
                 }
 
-                if(fps != null){
+                if (fps != null) {
                     setFps(fps)
                 }
             }
@@ -429,6 +429,18 @@ constructor(
 
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setSubscriptionPermission(update)
+            .build()
+
+        sendRequest(request)
+    }
+
+    fun sendUpdateLocalMetadata(metadata: String?, name: String?) {
+        val update = LivekitRtc.UpdateParticipantMetadata.newBuilder()
+            .setMetadata(metadata ?: "")
+            .setName(name ?: "")
+
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setUpdateMetadata(update)
             .build()
 
         sendRequest(request)
