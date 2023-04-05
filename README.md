@@ -2,8 +2,10 @@
 
 # Android Kotlin SDK for LiveKit
 
+<!--BEGIN_DESCRIPTION-->
 Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add
-video & audio capabilities to your Android apps. <!--BEGIN_DESCRIPTION--><!--END_DESCRIPTION-->
+video & audio capabilities to your Android apps.
+<!--END_DESCRIPTION-->
 
 Table of Contents
 =================
