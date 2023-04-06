@@ -485,13 +485,21 @@ internal constructor(
         }
     }
 
+    /**
+     * Sets and updates the metadata of the local participant.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * @param metadata
+     */
     fun setMetadata(metadata: String) {
-        this.metadata = metadata
         this.engine.client.sendUpdateLocalMetadata(metadata, name)
     }
 
+    /**
+     * Sets and updates the name of the local participant.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * @param name
+     */
     fun setName(name: String) {
-        this.name = name
         this.engine.client.sendUpdateLocalMetadata(metadata, name)
     }
 
