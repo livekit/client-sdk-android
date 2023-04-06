@@ -3,6 +3,7 @@ package io.livekit.android.room.participant
 import io.livekit.android.MockE2ETest
 import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.events.EventCollector
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.room.SignalClientTest
@@ -10,7 +11,6 @@ import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,15 +68,17 @@ class ParticipantMockE2ETest : MockE2ETest() {
             SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
         )
 
+        val remoteParticipant = room.remoteParticipants.values.first()
         val roomEventsCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantEventsCollector = EventCollector(remoteParticipant.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_METADATA_CHANGED.toOkioByteString()
+            SignalClientTest.REMOTE_PARTICIPANT_METADATA_CHANGED.toOkioByteString()
         )
         val roomEvents = roomEventsCollector.stopCollecting()
+        val participantEvents = participantEventsCollector.stopCollecting()
 
-        val remoteParticipant = room.remoteParticipants.values.first()
-        val updateData = SignalClientTest.PARTICIPANT_METADATA_CHANGED.update.getParticipants(0)
+        val updateData = SignalClientTest.REMOTE_PARTICIPANT_METADATA_CHANGED.update.getParticipants(0)
         assertEquals(updateData.metadata, remoteParticipant.metadata)
         assertEquals(updateData.name, remoteParticipant.name)
 
@@ -86,6 +88,14 @@ class ParticipantMockE2ETest : MockE2ETest() {
                 RoomEvent.ParticipantNameChanged::class.java,
             ),
             roomEvents
+        )
+
+        assertIsClassList(
+            listOf(
+                ParticipantEvent.MetadataChanged::class.java,
+                ParticipantEvent.NameChanged::class.java,
+            ),
+            participantEvents
         )
     }
 

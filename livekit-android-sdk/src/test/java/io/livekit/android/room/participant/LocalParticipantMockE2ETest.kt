@@ -58,25 +58,8 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         connect()
         val newName = "new_name"
         wsFactory.ws.clearRequests()
-        val roomEventsCollector = EventCollector(room.events, coroutineRule.scope)
-        val participantEventsCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
 
-        room.localParticipant.setName(newName)
-
-        val roomEvents = roomEventsCollector.stopCollecting()
-        val participantEvents = participantEventsCollector.stopCollecting()
-
-        assertEquals(newName, room.localParticipant.name)
-
-        assertIsClassList(
-            listOf(RoomEvent.ParticipantNameChanged::class.java),
-            roomEvents,
-        )
-
-        assertIsClassList(
-            listOf(ParticipantEvent.NameChanged::class.java),
-            participantEvents,
-        )
+        room.localParticipant.updateName(newName)
 
         val requestString = wsFactory.ws.sentRequests.first().toPBByteString()
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
@@ -92,25 +75,8 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         connect()
         val newMetadata = "new_metadata"
         wsFactory.ws.clearRequests()
-        val roomEventsCollector = EventCollector(room.events, coroutineRule.scope)
-        val participantEventsCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
 
-        room.localParticipant.setMetadata(newMetadata)
-
-        val roomEvents = roomEventsCollector.stopCollecting()
-        val participantEvents = participantEventsCollector.stopCollecting()
-
-        assertEquals(newMetadata, room.localParticipant.metadata)
-
-        assertIsClassList(
-            listOf(RoomEvent.ParticipantMetadataChanged::class.java),
-            roomEvents,
-        )
-
-        assertIsClassList(
-            listOf(ParticipantEvent.MetadataChanged::class.java),
-            participantEvents,
-        )
+        room.localParticipant.updateMetadata(newMetadata)
 
         val requestString = wsFactory.ws.sentRequests.first().toPBByteString()
         val sentRequest = LivekitRtc.SignalRequest.newBuilder()
@@ -119,5 +85,42 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateMetadata())
         assertEquals(newMetadata, sentRequest.updateMetadata.metadata)
+    }
+
+    @Test
+    fun participantMetadataChanged() = runTest {
+        connect()
+
+        val roomEventsCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantEventsCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            SignalClientTest.LOCAL_PARTICIPANT_METADATA_CHANGED.toOkioByteString()
+        )
+
+        val roomEvents = roomEventsCollector.stopCollecting()
+        val participantEvents = participantEventsCollector.stopCollecting()
+
+        val localParticipant = room.localParticipant
+        val updateData = SignalClientTest.REMOTE_PARTICIPANT_METADATA_CHANGED.update.getParticipants(0)
+        assertEquals(updateData.metadata, localParticipant.metadata)
+        assertEquals(updateData.name, localParticipant.name)
+
+        assertIsClassList(
+            listOf(
+                RoomEvent.ParticipantMetadataChanged::class.java,
+                RoomEvent.ParticipantNameChanged::class.java,
+            ),
+            roomEvents
+        )
+
+        assertIsClassList(
+            listOf(
+                ParticipantEvent.MetadataChanged::class.java,
+                ParticipantEvent.NameChanged::class.java,
+            ),
+            participantEvents
+        )
     }
 }
