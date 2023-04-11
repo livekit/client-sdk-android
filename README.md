@@ -1,7 +1,11 @@
+<!--BEGIN_BANNER_IMAGE--><!--END_BANNER_IMAGE-->
+
 # Android Kotlin SDK for LiveKit
 
+<!--BEGIN_DESCRIPTION-->
 Official Android Client SDK for [LiveKit](https://github.com/livekit/livekit-server). Easily add
 video & audio capabilities to your Android apps.
+<!--END_DESCRIPTION-->
 
 Table of Contents
 =================
@@ -227,3 +231,5 @@ protoc_platform=osx-x86_64
 
 1. Download webrtc sources from https://webrtc.googlesource.com/src
 2. Add sources to Android Studio by pointing at the `webrtc/sdk/android` folder.
+
+<!--BEGIN_REPO_NAV--><!--END_REPO_NAV-->
