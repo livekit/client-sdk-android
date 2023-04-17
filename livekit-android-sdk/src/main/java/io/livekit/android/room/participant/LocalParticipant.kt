@@ -443,12 +443,14 @@ internal constructor(
      * @param data payload to send
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
      * @param destination list of participant SIDs to deliver the payload, null to deliver to everyone
+     * @param topic the topic under which the message was published
      */
     @Suppress("unused")
     suspend fun publishData(
         data: ByteArray,
         reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
-        destination: List<String>? = null
+        destination: List<String>? = null,
+        topic: String? = null,
     ) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
@@ -458,11 +460,15 @@ internal constructor(
             DataPublishReliability.RELIABLE -> LivekitModels.DataPacket.Kind.RELIABLE
             DataPublishReliability.LOSSY -> LivekitModels.DataPacket.Kind.LOSSY
         }
-        val packetBuilder = LivekitModels.UserPacket.newBuilder()
-            .setPayload(ByteString.copyFrom(data))
-            .setParticipantSid(sid)
-        if (destination != null) {
-            packetBuilder.addAllDestinationSids(destination)
+        val packetBuilder = LivekitModels.UserPacket.newBuilder().apply {
+            payload = ByteString.copyFrom(data)
+            participantSid = sid
+            if (topic != null) {
+                setTopic(topic)
+            }
+            if (destination != null) {
+                addAllDestinationSids(destination)
+            }
         }
         val dataPacket = LivekitModels.DataPacket.newBuilder()
             .setUser(packetBuilder)

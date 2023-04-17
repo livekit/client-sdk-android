@@ -179,9 +179,9 @@ class RemoteParticipant(
     }
 
     // Internal methods just for posting events.
-    internal fun onDataReceived(data: ByteArray) {
+    internal fun onDataReceived(data: ByteArray, topic: String?) {
         listener?.onDataReceived(data, this)
-        eventBus.postEvent(ParticipantEvent.DataReceived(this, data), scope)
+        eventBus.postEvent(ParticipantEvent.DataReceived(this, data, topic), scope)
     }
 
     companion object {

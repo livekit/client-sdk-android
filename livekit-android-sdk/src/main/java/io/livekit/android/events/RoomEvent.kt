@@ -145,7 +145,8 @@ sealed class RoomEvent(val room: Room) : Event() {
      * @param data the published data
      * @param participant the participant if available
      */
-    class DataReceived(room: Room, val data: ByteArray, val participant: RemoteParticipant?) : RoomEvent(room)
+    class DataReceived(room: Room, val data: ByteArray, val participant: RemoteParticipant?, val topic: String?) :
+        RoomEvent(room)
 
     /**
      * The connection quality for a participant has changed.
