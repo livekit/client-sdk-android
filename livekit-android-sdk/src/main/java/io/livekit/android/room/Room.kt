@@ -722,10 +722,15 @@ constructor(
     override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind) {
         val participant = remoteParticipants[packet.participantSid]
         val data = packet.payload.toByteArray()
+        val topic = if (packet.hasTopic()) {
+            packet.topic
+        } else {
+            null
+        }
 
         listener?.onDataReceived(data, participant, this)
-        eventBus.postEvent(RoomEvent.DataReceived(this, data, participant), coroutineScope)
-        participant?.onDataReceived(data)
+        eventBus.postEvent(RoomEvent.DataReceived(this, data, participant, topic), coroutineScope)
+        participant?.onDataReceived(data, topic)
     }
 
     /**

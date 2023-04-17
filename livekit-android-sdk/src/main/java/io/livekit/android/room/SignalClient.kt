@@ -270,6 +270,8 @@ constructor(
         val wasConnected = isConnected
 
         if (wasConnected) {
+            // onClosing/onClosed will not be called after onFailure.
+            // Handle websocket closure here.
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE
@@ -390,7 +392,7 @@ constructor(
                     quality = LivekitModels.VideoQuality.HIGH
                 }
 
-                if(fps != null){
+                if (fps != null) {
                     setFps(fps)
                 }
             }
