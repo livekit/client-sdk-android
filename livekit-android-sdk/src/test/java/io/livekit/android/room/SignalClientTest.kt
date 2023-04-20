@@ -22,6 +22,8 @@ import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.times
 import org.webrtc.SessionDescription
 
 @ExperimentalCoroutinesApi
@@ -155,6 +157,29 @@ class SignalClientTest : BaseTest() {
 
         Mockito.verify(listener)
             .onClose(any(), any())
+    }
+
+    /**
+     * Ensure responses that come in before [SignalClient.onReadyForResponses] are queued.
+     */
+    @Test
+    fun queuedResponses() = runTest {
+
+        val inOrder = inOrder(listener)
+        val job = async {
+            client.join(EXAMPLE_URL, "")
+        }
+        connectWebsocketAndJoin()
+        job.await()
+
+        client.onMessage(wsFactory.ws, OFFER.toOkioByteString())
+        client.onMessage(wsFactory.ws, ROOM_UPDATE.toOkioByteString())
+        client.onMessage(wsFactory.ws, ROOM_UPDATE.toOkioByteString())
+
+        client.onReadyForResponses()
+
+        inOrder.verify(listener).onOffer(any())
+        inOrder.verify(listener, times(2)).onRoomUpdate(any())
     }
 
     @Test
