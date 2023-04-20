@@ -1,5 +1,6 @@
 package io.livekit.android.compose
 
+import android.graphics.Matrix
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -18,12 +19,20 @@ import io.livekit.android.room.track.video.ComposeVisibility
 fun VideoRenderer(
     room: Room,
     videoTrack: VideoTrack,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mirror: Boolean = false,
 ) {
 
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var view: TextureViewRenderer? by remember { mutableStateOf(null) }
+    var videoScale by remember { mutableStateOf(1f) }
+
+    videoScale = if (mirror) {
+        -1f
+    } else {
+        1f
+    }
 
     fun cleanupVideoTrack() {
         view?.let { boundVideoTrack?.removeRenderer(it) }
@@ -43,6 +52,11 @@ fun VideoRenderer(
         } else {
             videoTrack.addRenderer(view)
         }
+    }
+
+    DisposableEffect(view, videoScale) {
+        view?.scaleX = videoScale
+        onDispose { }
     }
 
     DisposableEffect(room, videoTrack) {
