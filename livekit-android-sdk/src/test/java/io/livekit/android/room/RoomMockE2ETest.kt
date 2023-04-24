@@ -187,26 +187,6 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun participantMetadataChanged() = runTest {
-        connect()
-
-        wsFactory.listener.onMessage(
-            wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
-        )
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        wsFactory.listener.onMessage(
-            wsFactory.ws,
-            SignalClientTest.PARTICIPANT_METADATA_CHANGED.toOkioByteString()
-        )
-        val events = eventCollector.stopCollecting()
-
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.ParticipantMetadataChanged)
-    }
-
-    @Test
     fun trackStreamStateChanged() = runTest {
         connect()
 

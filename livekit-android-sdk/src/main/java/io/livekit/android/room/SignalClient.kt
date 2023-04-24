@@ -436,6 +436,18 @@ constructor(
         sendRequest(request)
     }
 
+    fun sendUpdateLocalMetadata(metadata: String?, name: String?) {
+        val update = LivekitRtc.UpdateParticipantMetadata.newBuilder()
+            .setMetadata(metadata ?: "")
+            .setName(name ?: "")
+
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setUpdateMetadata(update)
+            .build()
+
+        sendRequest(request)
+    }
+
     fun sendSyncState(syncState: LivekitRtc.SyncState) {
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setSyncState(syncState)

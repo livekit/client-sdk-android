@@ -491,6 +491,26 @@ internal constructor(
         }
     }
 
+    /**
+     * Updates the metadata of the local participant.  Changes will not be reflected until the
+     * server responds confirming the update.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * @param metadata
+     */
+    fun updateMetadata(metadata: String) {
+        this.engine.client.sendUpdateLocalMetadata(metadata, name)
+    }
+
+    /**
+     * Updates the name of the local participant. Changes will not be reflected until the
+     * server responds confirming the update.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * @param name
+     */
+    fun updateName(name: String) {
+        this.engine.client.sendUpdateLocalMetadata(metadata, name)
+    }
+
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = tracks[trackSid]
         pub?.muted = muted

@@ -75,7 +75,12 @@ open class Participant(
 
     @FlowObservable
     @get:FlowObservable
-    var name by flowDelegate<String?>(null)
+    var name by flowDelegate<String?>(null) { newValue, oldValue ->
+        if (newValue != oldValue) {
+            eventBus.postEvent(ParticipantEvent.NameChanged(this, newValue), scope)
+        }
+    }
+        internal set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]

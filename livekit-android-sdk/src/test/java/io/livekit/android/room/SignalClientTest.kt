@@ -435,10 +435,24 @@ class SignalClientTest : BaseTest() {
             build()
         }
 
-        val PARTICIPANT_METADATA_CHANGED = with(LivekitRtc.SignalResponse.newBuilder()) {
+        val LOCAL_PARTICIPANT_METADATA_CHANGED = with(LivekitRtc.SignalResponse.newBuilder()) {
+            update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
+                val participantMetadataChanged = TestData.LOCAL_PARTICIPANT.toBuilder()
+                    .setMetadata("changed_metadata")
+                    .setName("changed_name")
+                    .build()
+
+                addParticipants(participantMetadataChanged)
+                build()
+            }
+            build()
+        }
+
+        val REMOTE_PARTICIPANT_METADATA_CHANGED = with(LivekitRtc.SignalResponse.newBuilder()) {
             update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
                 val participantMetadataChanged = TestData.REMOTE_PARTICIPANT.toBuilder()
                     .setMetadata("changed_metadata")
+                    .setName("changed_name")
                     .build()
 
                 addParticipants(participantMetadataChanged)

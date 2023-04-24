@@ -60,6 +60,12 @@ sealed class RoomEvent(val room: Room) : Event() {
         val prevMetadata: String?
     ) : RoomEvent(room)
 
+    class ParticipantNameChanged(
+        room: Room,
+        val participant: Participant,
+        val name: String?
+    ) : RoomEvent(room)
+
     /**
      * The participant was muted.
      *

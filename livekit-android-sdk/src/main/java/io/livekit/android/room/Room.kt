@@ -220,6 +220,15 @@ constructor(
                             )
                         )
                     }
+                    is ParticipantEvent.NameChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantNameChanged(
+                                this@Room,
+                                it.participant,
+                                it.name
+                            )
+                        )
+                    }
                     else -> {
                         /* do nothing */
                     }
@@ -368,6 +377,15 @@ constructor(
                                 this@Room,
                                 it.participant,
                                 it.prevMetadata
+                            )
+                        )
+                    }
+                    is ParticipantEvent.NameChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantNameChanged(
+                                this@Room,
+                                it.participant,
+                                it.name,
                             )
                         )
                     }
