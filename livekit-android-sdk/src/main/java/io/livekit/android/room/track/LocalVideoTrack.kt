@@ -5,17 +5,19 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraManager
 import androidx.core.content.ContextCompat
+import com.github.ajalt.timberkt.Timber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
-import io.livekit.android.room.track.video.Camera1CapturerWithSize
-import io.livekit.android.room.track.video.Camera2CapturerWithSize
-import io.livekit.android.room.track.video.VideoCapturerWithSize
+import io.livekit.android.room.track.video.*
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flowDelegate
 import org.webrtc.*
+import org.webrtc.CameraVideoCapturer.CameraEventsHandler
 import java.util.*
 
 
@@ -30,7 +32,7 @@ constructor(
     @Assisted private var capturer: VideoCapturer,
     @Assisted private var source: VideoSource,
     @Assisted name: String,
-    @Assisted var options: LocalVideoTrackOptions,
+    @Assisted options: LocalVideoTrackOptions,
     @Assisted rtcTrack: org.webrtc.VideoTrack,
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
@@ -41,6 +43,10 @@ constructor(
 
     override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
         internal set
+
+    @FlowObservable
+    @get:FlowObservable
+    var options: LocalVideoTrackOptions by flowDelegate(options)
 
     val dimensions: Dimensions
         get() {
@@ -116,13 +122,46 @@ constructor(
             targetDeviceId = deviceNames[(currentIndex + 1) % deviceNames.size]
         }
 
+        fun updateCameraOptions() {
+            val newOptions = options.copy(
+                deviceId = targetDeviceId,
+                position = enumerator.getCameraPosition(targetDeviceId)
+            )
+            options = newOptions
+        }
+
         val cameraSwitchHandler = object : CameraVideoCapturer.CameraSwitchHandler {
             override fun onCameraSwitchDone(isFrontFacing: Boolean) {
-                val newOptions = options.copy(
-                    deviceId = targetDeviceId,
-                    position = enumerator.getCameraPosition(targetDeviceId)
-                )
-                options = newOptions
+                // For cameras we control, wait until the first frame to ensure everything is okay.
+                if (cameraCapturer is CameraCapturerWithSize) {
+                    cameraCapturer.cameraEventsDispatchHandler
+                        .registerHandler(object : CameraEventsHandler {
+                            override fun onFirstFrameAvailable() {
+                                updateCameraOptions()
+                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                            }
+
+                            override fun onCameraError(p0: String?) {
+                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                            }
+
+                            override fun onCameraDisconnected() {
+                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                            }
+
+                            override fun onCameraFreezed(p0: String?) {
+                            }
+
+                            override fun onCameraOpening(p0: String?) {
+                            }
+
+                            override fun onCameraClosed() {
+                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                            }
+                        })
+                } else {
+                    updateCameraOptions()
+                }
             }
 
             override fun onCameraSwitchError(errorDescription: String?) {
@@ -154,6 +193,7 @@ constructor(
         // sender owns rtcTrack, so it'll take care of disposing it.
         oldRtcTrack.setEnabled(false)
 
+        // Close resources associated to the old track. new track resources is registered in createTrack.
         val oldCloseable = closeableManager.unregisterResource(oldRtcTrack)
         oldCloseable?.close()
 
@@ -298,8 +338,9 @@ constructor(
             enumerator: CameraEnumerator,
             options: LocalVideoTrackOptions
         ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
+            val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
             val targetDeviceName = enumerator.findCamera(options.deviceId, options.position) ?: return null
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, null)
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, cameraEventsDispatchHandler)
 
             // back fill any missing information
             val newOptions = options.copy(
@@ -310,7 +351,11 @@ constructor(
                 // Cache supported capture formats ahead of time to avoid future camera locks.
                 Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(newOptions.deviceId))
                 return Pair(
-                    Camera1CapturerWithSize(targetVideoCapturer, targetDeviceName),
+                    Camera1CapturerWithSize(
+                        targetVideoCapturer,
+                        targetDeviceName,
+                        cameraEventsDispatchHandler
+                    ),
                     newOptions
                 )
             }
@@ -320,7 +365,8 @@ constructor(
                     Camera2CapturerWithSize(
                         targetVideoCapturer,
                         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                        targetDeviceName
+                        targetDeviceName,
+                        cameraEventsDispatchHandler
                     ),
                     newOptions
                 )
@@ -370,10 +416,7 @@ constructor(
         private fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
             for (deviceName in deviceNames) {
                 if (predicate(deviceName)) {
-                    val videoCapturer = createCapturer(deviceName, null)
-                    if (videoCapturer != null) {
-                        return deviceName
-                    }
+                    return deviceName
                 }
             }
             return null

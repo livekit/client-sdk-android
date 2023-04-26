@@ -10,6 +10,8 @@ import androidx.compose.ui.res.painterResource
 import io.livekit.android.compose.VideoRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.util.flow
@@ -22,7 +24,6 @@ fun VideoItemTrackSelector(
     room: Room,
     participant: Participant,
     modifier: Modifier = Modifier,
-    mirror: Boolean = false,
 ) {
     val videoTrackMap by participant::videoTracks.flow.collectAsState(initial = emptyList())
     val videoPubs = videoTrackMap.filter { (pub) -> pub.subscribed }
@@ -35,12 +36,22 @@ fun VideoItemTrackSelector(
         ?: videoPubs.firstOrNull()
 
     val videoTrack = videoPub?.track as? VideoTrack
-    val videoMuted by
-    if (videoPub != null) {
-        videoPub::muted.flow.collectAsState()
-    } else {
-        remember(videoPub) {
-            derivedStateOf { false }
+    var videoMuted by remember { mutableStateOf(false) }
+    var cameraFacingFront by remember { mutableStateOf(false) }
+
+    // monitor muted state
+    LaunchedEffect(videoPub) {
+        if (videoPub != null) {
+            videoPub::muted.flow.collect { muted -> videoMuted = muted }
+        }
+    }
+
+    // monitor camera facing for local participant
+    LaunchedEffect(participant, videoTrack) {
+        if (room.localParticipant == participant && videoTrack as? LocalVideoTrack != null) {
+            videoTrack::options.flow.collect { options ->
+                cameraFacingFront = options.position == CameraPosition.FRONT
+            }
         }
     }
 
@@ -48,7 +59,7 @@ fun VideoItemTrackSelector(
         VideoRenderer(
             room = room,
             videoTrack = videoTrack,
-            mirror = mirror,
+            mirror = room.localParticipant == participant && cameraFacingFront,
             modifier = modifier
         )
     } else {

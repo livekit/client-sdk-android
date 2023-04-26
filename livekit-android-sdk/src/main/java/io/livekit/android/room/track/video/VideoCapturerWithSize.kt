@@ -13,10 +13,19 @@ internal interface VideoCapturerWithSize : VideoCapturer {
 /**
  * @suppress
  */
+
+internal abstract class CameraCapturerWithSize(
+    val cameraEventsDispatchHandler: CameraEventsDispatchHandler
+) : VideoCapturerWithSize
+
+/**
+ * @suppress
+ */
 internal class Camera1CapturerWithSize(
     private val capturer: Camera1Capturer,
-    private val deviceName: String?
-) : CameraVideoCapturer by capturer, VideoCapturerWithSize {
+    private val deviceName: String?,
+    cameraEventsDispatchHandler: CameraEventsDispatchHandler,
+) : CameraCapturerWithSize(cameraEventsDispatchHandler), CameraVideoCapturer by capturer {
     override fun findCaptureFormat(width: Int, height: Int): Size {
         val cameraId = Camera1Helper.getCameraId(deviceName)
         return Camera1Helper.findClosestCaptureFormat(cameraId, width, height)
@@ -29,8 +38,9 @@ internal class Camera1CapturerWithSize(
 internal class Camera2CapturerWithSize(
     private val capturer: Camera2Capturer,
     private val cameraManager: CameraManager,
-    private val deviceName: String?
-) : CameraVideoCapturer by capturer, VideoCapturerWithSize {
+    private val deviceName: String?,
+    cameraEventsDispatchHandler: CameraEventsDispatchHandler,
+) : CameraCapturerWithSize(cameraEventsDispatchHandler), CameraVideoCapturer by capturer {
     override fun findCaptureFormat(width: Int, height: Int): Size {
         return Camera2Helper.findClosestCaptureFormat(cameraManager, deviceName, width, height)
     }
