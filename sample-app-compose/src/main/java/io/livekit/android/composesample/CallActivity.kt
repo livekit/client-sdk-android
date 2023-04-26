@@ -69,7 +69,6 @@ class CallActivity : AppCompatActivity() {
             val activeSpeakers by viewModel.activeSpeakers.collectAsState(initial = emptyList())
             val micEnabled by viewModel.micEnabled.observeAsState(true)
             val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
-            val flipButtonEnabled by viewModel.flipButtonVideoEnabled.observeAsState(true)
             val screencastEnabled by viewModel.screenshareEnabled.observeAsState(false)
             val permissionAllowed by viewModel.permissionAllowed.collectAsState()
             Content(
@@ -79,7 +78,6 @@ class CallActivity : AppCompatActivity() {
                 activeSpeakers,
                 micEnabled,
                 videoEnabled,
-                flipButtonEnabled,
                 screencastEnabled,
                 audioSwitchHandler = viewModel.audioHandler,
                 permissionAllowed = permissionAllowed,
@@ -128,7 +126,6 @@ class CallActivity : AppCompatActivity() {
         activeSpeakers: List<Participant> = listOf(previewParticipant),
         micEnabled: Boolean = true,
         videoEnabled: Boolean = true,
-        flipButtonEnabled: Boolean = true,
         screencastEnabled: Boolean = false,
         permissionAllowed: Boolean = true,
         audioSwitchHandler: AudioSwitchHandler? = null,

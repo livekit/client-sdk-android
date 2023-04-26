@@ -69,9 +69,6 @@ class CallViewModel(
     private val mutableCameraEnabled = MutableLiveData(true)
     val cameraEnabled = mutableCameraEnabled.hide()
 
-    private val mutableFlipVideoButtonEnabled = MutableLiveData(true)
-    val flipButtonVideoEnabled = mutableFlipVideoButtonEnabled.hide()
-
     private val mutableScreencastEnabled = MutableLiveData(false)
     val screenshareEnabled = mutableScreencastEnabled.hide()
 
@@ -102,8 +99,8 @@ class CallViewModel(
                     }
             }
 
+            // Handle room events.
             launch {
-                // Handle room events.
                 room.events.collect {
                     when (it) {
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
@@ -118,6 +115,7 @@ class CallViewModel(
                     }
                 }
             }
+
             connectToRoom()
         }
 
