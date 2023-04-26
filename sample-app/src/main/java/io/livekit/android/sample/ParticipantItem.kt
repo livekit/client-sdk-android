@@ -1,8 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package io.livekit.android.sample
 
 
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.view.View
 import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
@@ -10,6 +10,8 @@ import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.ParticipantItemBinding
@@ -17,7 +19,6 @@ import io.livekit.android.util.flow
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ParticipantItem(
     private val room: Room,
     private val participant: Participant,
@@ -92,29 +93,34 @@ class ParticipantItem(
             }
 
         coroutineScope?.launch {
-            videoTrackPubFlow
-                .flatMapLatest { pub ->
-                    if (pub != null) {
-                        pub::track.flow
-                    } else {
-                        flowOf(null)
-                    }
-                }
-                .collectLatest { videoTrack ->
+            val videoTrackFlow = videoTrackPubFlow
+                .flatMapLatestOrNull { pub -> pub::track.flow }
+
+            // Configure video view with track
+            launch {
+                videoTrackFlow.collectLatest { videoTrack ->
                     setupVideoIfNeeded(videoTrack as? VideoTrack, viewBinding)
                 }
+            }
+
+            // For local participants, mirror camera if using front camera.
+            if (participant == room.localParticipant) {
+                launch {
+                    videoTrackFlow
+                        .flatMapLatestOrNull { track -> (track as LocalVideoTrack)::options.flow }
+                        .collectLatest { options ->
+                            viewBinding.renderer.setMirror(options?.position == CameraPosition.FRONT)
+                        }
+                }
+            }
         }
+
+        // Handle muted changes
         coroutineScope?.launch {
             videoTrackPubFlow
-                .flatMapLatest { pub ->
-                    if (pub != null) {
-                        pub::muted.flow
-                    } else {
-                        flowOf(true)
-                    }
-                }
+                .flatMapLatestOrNull { pub -> pub::muted.flow }
                 .collectLatest { muted ->
-                    viewBinding.renderer.visibleOrInvisible(!muted)
+                    viewBinding.renderer.visibleOrInvisible(!(muted ?: true))
                 }
         }
         val existingTrack = getVideoTrack()
@@ -174,4 +180,16 @@ private fun showFocus(binding: ParticipantItemBinding) {
 
 private fun hideFocus(binding: ParticipantItemBinding) {
     binding.speakingIndicator.visibility = View.INVISIBLE
+}
+
+private inline fun <T, R> Flow<T?>.flatMapLatestOrNull(
+    crossinline transform: suspend (value: T) -> Flow<R>
+): Flow<R?> {
+    return flatMapLatest {
+        if (it == null) {
+            flowOf(null)
+        } else {
+            transform(it)
+        }
+    }
 }
