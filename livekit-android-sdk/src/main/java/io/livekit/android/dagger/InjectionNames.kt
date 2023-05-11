@@ -22,6 +22,8 @@ object InjectionNames {
      */
     internal const val DISPATCHER_UNCONFINED = "dispatcher_unconfined"
 
+    internal const val SENDER = "sender"
+
     internal const val OPTIONS_VIDEO_HW_ACCEL = "options_video_hw_accel"
 
     // Overrides

@@ -141,7 +141,7 @@ dependencies {
     lintPublish project(':livekit-lint')
 
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.robolectric:robolectric:4.6'
+    testImplementation 'org.robolectric:robolectric:4.10.2'
     testImplementation 'org.mockito:mockito-core:4.0.0'
     testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"
     testImplementation 'androidx.test:core:1.4.0'

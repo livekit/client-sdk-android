@@ -10,7 +10,6 @@ import io.livekit.android.room.SignalClientTest
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,16 +25,12 @@ class ParticipantMockE2ETest : MockE2ETest() {
         connect()
 
         // publish track
-        val publishJob = launch {
-            room.localParticipant.publishAudioTrack(
-                LocalAudioTrack(
-                    "",
-                    MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-                )
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                "",
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
             )
-        }
-        simulateMessageFromServer(SignalClientTest.LOCAL_TRACK_PUBLISHED)
-        publishJob.join()
+        )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         // remote unpublish

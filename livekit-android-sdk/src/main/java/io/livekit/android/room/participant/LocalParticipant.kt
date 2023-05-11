@@ -7,6 +7,7 @@ import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.ConnectionState
@@ -19,6 +20,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
+import org.webrtc.RtpCapabilities.CodecCapability
 import javax.inject.Named
 import kotlin.math.max
 
@@ -36,6 +38,8 @@ internal constructor(
     private val defaultsManager: DefaultsManager,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     coroutineDispatcher: CoroutineDispatcher,
+    @Named(InjectionNames.SENDER)
+    private val capabilitiesGetter: CapabilitiesGetter,
 ) : Participant("", null, coroutineDispatcher) {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
@@ -303,7 +307,46 @@ internal constructor(
             return false
         }
 
-        // TODO: enable setting preferred codec
+
+        if (options is VideoTrackPublishOptions && options.videoCodec != null) {
+            val targetCodec = options.videoCodec.lowercase()
+            val capabilities = capabilitiesGetter(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO)
+            LKLog.v { "capabilities:" }
+            capabilities.codecs.forEach { codec ->
+                LKLog.v { "codec: ${codec.name}, ${codec.kind}, ${codec.mimeType}, ${codec.parameters}, ${codec.preferredPayloadType}" }
+            }
+
+            val matched = mutableListOf<CodecCapability>()
+            val partialMatched = mutableListOf<CodecCapability>()
+            val unmatched = mutableListOf<CodecCapability>()
+
+            for (codec in capabilities.codecs) {
+                val mimeType = codec.mimeType.lowercase()
+                if (mimeType == "audio/opus") {
+                    matched.add(codec)
+                    continue
+                }
+
+                if (mimeType != "video/$targetCodec") {
+                    unmatched.add(codec)
+                    continue
+                }
+                // for h264 codecs that have sdpFmtpLine available, use only if the
+                // profile-level-id is 42e01f for cross-browser compatibility
+                if (targetCodec == "h264") {
+                    if (codec.parameters["profile-level-id"] == "42e01f") {
+                        matched.add(codec)
+                    } else {
+                        partialMatched.add(codec)
+                    }
+                    continue
+                } else {
+                    matched.add(codec)
+                }
+            }
+            transceiver.setCodecPreferences(matched.plus(partialMatched).plus(unmatched))
+        }
+
 
         val publication = LocalTrackPublication(
             info = trackInfo,
@@ -620,9 +663,6 @@ internal constructor(
     interface Factory {
         fun create(dynacast: Boolean): LocalParticipant
     }
-
-    companion object {
-    }
 }
 
 internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishedResponse> {
@@ -643,18 +683,24 @@ interface TrackPublishOptions {
 abstract class BaseVideoTrackPublishOptions {
     abstract val videoEncoding: VideoEncoding?
     abstract val simulcast: Boolean
-    //val videoCodec: VideoCodec? = null,
+
+    /**
+     * The video codec to use if available.
+     */
+    abstract val videoCodec: String?
 }
 
 data class VideoTrackPublishDefaults(
     override val videoEncoding: VideoEncoding? = null,
-    override val simulcast: Boolean = true
+    override val simulcast: Boolean = true,
+    override val videoCodec: String? = null,
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
     override val name: String? = null,
     override val videoEncoding: VideoEncoding? = null,
-    override val simulcast: Boolean = true
+    override val simulcast: Boolean = true,
+    override val videoCodec: String? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
@@ -662,7 +708,8 @@ data class VideoTrackPublishOptions(
     ) : this(
         name,
         base.videoEncoding,
-        base.simulcast
+        base.simulcast,
+        base.videoCodec,
     )
 }
 
