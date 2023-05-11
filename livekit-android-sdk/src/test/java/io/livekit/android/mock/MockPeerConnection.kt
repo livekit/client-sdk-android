@@ -1,6 +1,21 @@
 package io.livekit.android.mock
 
-import org.webrtc.*
+import org.webrtc.DataChannel
+import org.webrtc.IceCandidate
+import org.webrtc.MediaConstraints
+import org.webrtc.MediaStream
+import org.webrtc.MediaStreamTrack
+import org.webrtc.NativePeerConnectionFactory
+import org.webrtc.PeerConnection
+import org.webrtc.RTCStatsCollectorCallback
+import org.webrtc.RTCStatsReport
+import org.webrtc.RtcCertificatePem
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
+import org.webrtc.RtpTransceiver
+import org.webrtc.SdpObserver
+import org.webrtc.SessionDescription
+import org.webrtc.StatsObserver
 
 private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
     override fun createNativePeerConnection(): Long = 0L
@@ -14,6 +29,8 @@ class MockPeerConnection(
     private var closed = false
     var localDesc: SessionDescription? = null
     var remoteDesc: SessionDescription? = null
+
+    private val transceivers = mutableListOf<RtpTransceiver>()
     override fun getLocalDescription(): SessionDescription? = localDesc
     override fun setLocalDescription(observer: SdpObserver?, sdp: SessionDescription?) {
         localDesc = sdp
@@ -85,7 +102,7 @@ class MockPeerConnection(
     }
 
     override fun getTransceivers(): List<RtpTransceiver> {
-        return emptyList()
+        return transceivers
     }
 
     override fun addTrack(track: MediaStreamTrack?): RtpSender {
@@ -100,15 +117,19 @@ class MockPeerConnection(
         return super.removeTrack(sender)
     }
 
-    override fun addTransceiver(track: MediaStreamTrack?): RtpTransceiver {
-        return super.addTransceiver(track)
+    override fun addTransceiver(track: MediaStreamTrack): RtpTransceiver {
+        val transceiver = MockRtpTransceiver.create(track, RtpTransceiver.RtpTransceiverInit())
+        transceivers.add(transceiver)
+        return transceiver
     }
 
     override fun addTransceiver(
         track: MediaStreamTrack,
         init: RtpTransceiver.RtpTransceiverInit?
     ): RtpTransceiver {
-        return MockRtpTransceiver.create(track, init ?: RtpTransceiver.RtpTransceiverInit())
+        val transceiver = MockRtpTransceiver.create(track, init ?: RtpTransceiver.RtpTransceiverInit())
+        transceivers.add(transceiver)
+        return transceiver
     }
 
     override fun addTransceiver(mediaType: MediaStreamTrack.MediaType?): RtpTransceiver {
@@ -177,6 +198,7 @@ class MockPeerConnection(
                     IceConnectionState.CHECKING -> PeerConnectionState.CONNECTING
                     IceConnectionState.CONNECTED,
                     IceConnectionState.COMPLETED -> PeerConnectionState.CONNECTED
+
                     IceConnectionState.DISCONNECTED -> PeerConnectionState.DISCONNECTED
                     IceConnectionState.FAILED -> PeerConnectionState.FAILED
                     IceConnectionState.CLOSED -> PeerConnectionState.CLOSED
@@ -216,6 +238,7 @@ class MockPeerConnection(
                     iceConnectionState = newState
                 }
             }
+
             IceConnectionState.FAILED,
             IceConnectionState.DISCONNECTED,
             IceConnectionState.CLOSED -> {

@@ -3,6 +3,7 @@ package io.livekit.android.mock.dagger
 import android.content.Context
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.mock.MockEglBase
 import org.webrtc.*
@@ -31,6 +32,14 @@ object TestRTCModule {
         WebRTCInitializer.initialize(appContext)
 
         return MockPeerConnectionFactory()
+    }
+
+    @Provides
+    @Named(InjectionNames.SENDER)
+    fun senderCapabilitiesGetter(peerConnectionFactory: PeerConnectionFactory): CapabilitiesGetter {
+        return { mediaType: MediaStreamTrack.MediaType ->
+            peerConnectionFactory.getRtpSenderCapabilities(mediaType)
+        }
     }
 
     @Provides

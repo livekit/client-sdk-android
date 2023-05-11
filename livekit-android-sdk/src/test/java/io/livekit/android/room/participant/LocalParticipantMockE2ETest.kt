@@ -6,17 +6,27 @@ import io.livekit.android.events.EventCollector
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockAudioStreamTrack
+import io.livekit.android.mock.MockEglBase
+import io.livekit.android.mock.MockVideoCapturer
+import io.livekit.android.mock.MockVideoStreamTrack
+import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.SignalClientTest
 import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import livekit.LivekitRtc
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito
+import org.mockito.Mockito.mock
+import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
+import org.webrtc.VideoSource
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -26,16 +36,12 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     fun disconnectCleansLocalParticipant() = runTest {
         connect()
 
-        val publishJob = launch {
-            room.localParticipant.publishAudioTrack(
-                LocalAudioTrack(
-                    "",
-                    MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-                )
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                "",
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
             )
-        }
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.LOCAL_TRACK_PUBLISHED.toOkioByteString())
-        publishJob.join()
+        )
 
         room.disconnect()
 
@@ -122,5 +128,56 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             ),
             participantEvents
         )
+    }
+
+    private fun createLocalTrack() = LocalVideoTrack(
+        capturer = MockVideoCapturer(),
+        source = mock(VideoSource::class.java),
+        name = "",
+        options = LocalVideoTrackOptions(
+            isScreencast = false,
+            deviceId = null,
+            position = null,
+            captureParams = VideoCaptureParameter(width = 0, height = 0, maxFps = 0)
+        ),
+        rtcTrack = MockVideoStreamTrack(),
+        peerConnectionFactory = component.peerConnectionFactory(),
+        context = context,
+        eglBase = MockEglBase(),
+        defaultsManager = DefaultsManager(),
+        trackFactory = mock(LocalVideoTrack.Factory::class.java)
+    )
+
+    @Test
+    fun publishSetCodecPreferencesH264() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(videoCodec = "h264")
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        val peerConnection = component.rtcEngine().publisher.peerConnection
+        val transceiver = peerConnection.transceivers.first()
+
+        Mockito.verify(transceiver).setCodecPreferences(argThat { codecs ->
+            val preferredCodec = codecs.first()
+            return@argThat preferredCodec.name.lowercase() == "h264" &&
+                    preferredCodec.parameters["profile-level-id"] == "42e01f"
+        })
+    }
+
+    @Test
+    fun publishSetCodecPreferencesVP8() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(videoCodec = "vp8")
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        val peerConnection = component.rtcEngine().publisher.peerConnection
+        val transceiver = peerConnection.transceivers.first()
+
+        Mockito.verify(transceiver).setCodecPreferences(argThat { codecs ->
+            val preferredCodec = codecs.first()
+            return@argThat preferredCodec.name.lowercase() == "vp8"
+        })
     }
 }

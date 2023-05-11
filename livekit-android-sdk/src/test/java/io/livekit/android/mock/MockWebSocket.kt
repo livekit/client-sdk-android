@@ -8,7 +8,8 @@ import okio.IOException
 
 class MockWebSocket(
     private val request: Request,
-    private val listener: WebSocketListener
+    private val listener: WebSocketListener,
+    private val onSend: ((ByteString) -> Unit)?
 ) : WebSocket {
 
     var isClosed = false
@@ -45,6 +46,7 @@ class MockWebSocket(
             return false
         }
         mutableSentRequests.add(bytes)
+        onSend?.invoke(bytes)
         return !isClosed
     }
 

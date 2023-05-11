@@ -300,16 +300,12 @@ class RoomMockE2ETest : MockE2ETest() {
     fun disconnectCleansLocalParticipant() = runTest {
         connect()
 
-        val publishJob = launch {
-            room.localParticipant.publishAudioTrack(
-                LocalAudioTrack(
-                    "",
-                    MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-                )
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                "",
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
             )
-        }
-        wsFactory.listener.onMessage(wsFactory.ws, SignalClientTest.LOCAL_TRACK_PUBLISHED.toOkioByteString())
-        publishJob.join()
+        )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         room.disconnect()

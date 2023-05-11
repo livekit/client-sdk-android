@@ -17,6 +17,7 @@ import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
+typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
 
 @Module
 object RTCModule {
@@ -190,6 +191,14 @@ object RTCModule {
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
             .createPeerConnectionFactory()
+    }
+
+    @Provides
+    @Named(InjectionNames.SENDER)
+    fun senderCapabilitiesGetter(peerConnectionFactory: PeerConnectionFactory): CapabilitiesGetter {
+        return { mediaType: MediaStreamTrack.MediaType ->
+            peerConnectionFactory.getRtpSenderCapabilities(mediaType)
+        }
     }
 
     @Provides

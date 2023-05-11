@@ -6,7 +6,6 @@ import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import livekit.LivekitRtc
 import org.junit.Assert
 import org.junit.Assert.assertEquals
@@ -91,16 +90,12 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         connect()
 
         // publish track
-        val publishJob = launch {
-            room.localParticipant.publishAudioTrack(
-                LocalAudioTrack(
-                    "",
-                    MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-                )
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                "",
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
             )
-        }
-        simulateMessageFromServer(SignalClientTest.LOCAL_TRACK_PUBLISHED)
-        publishJob.join()
+        )
 
         prepareForReconnect()
         disconnectPeerConnection()
