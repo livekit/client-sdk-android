@@ -668,15 +668,17 @@ constructor(
             }
 
             val isNewParticipant = !remoteParticipants.contains(participantSid)
-            val participant = getOrCreateRemoteParticipant(participantSid, info)
 
             if (info.state == LivekitModels.ParticipantInfo.State.DISCONNECTED) {
                 handleParticipantDisconnect(participantSid)
-            } else if (isNewParticipant) {
-                listener?.onParticipantConnected(this, participant)
-                eventBus.postEvent(RoomEvent.ParticipantConnected(this, participant), coroutineScope)
             } else {
-                participant.updateFromInfo(info)
+                val participant = getOrCreateRemoteParticipant(participantSid, info)
+                if (isNewParticipant) {
+                    listener?.onParticipantConnected(this, participant)
+                    eventBus.postEvent(RoomEvent.ParticipantConnected(this, participant), coroutineScope)
+                } else {
+                    participant.updateFromInfo(info)
+                }
             }
         }
     }
