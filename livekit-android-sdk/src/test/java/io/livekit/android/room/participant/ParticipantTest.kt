@@ -9,10 +9,14 @@ import kotlinx.coroutines.test.runTest
 import livekit.LivekitModels
 import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.util.Date
+import kotlin.math.abs
 
 @ExperimentalCoroutinesApi
 class ParticipantTest {
@@ -125,13 +129,25 @@ class ParticipantTest {
 
         participant.dispose()
         assertEquals("", participant.sid)
-        Assert.assertNull(participant.name)
-        Assert.assertNull(participant.identity)
-        Assert.assertNull(participant.metadata)
-        Assert.assertNull(participant.permissions)
-        Assert.assertNull(participant.participantInfo)
+        assertNull(participant.name)
+        assertNull(participant.identity)
+        assertNull(participant.metadata)
+        assertNull(participant.permissions)
+        assertNull(participant.participantInfo)
         Assert.assertFalse(participant.isSpeaking)
         assertEquals(ConnectionQuality.UNKNOWN, participant.connectionQuality)
+    }
+
+    @Test
+    fun speakingUpdatesLastSpokeAt() = runTest {
+        assertNull(participant.lastSpokeAt)
+
+        participant.isSpeaking = true
+
+        val lastSpokeAt = participant.lastSpokeAt
+        val timestamp = Date().time
+        assertNotNull(lastSpokeAt)
+        assertTrue(abs(lastSpokeAt!! - timestamp) < 1000)
     }
 
     companion object {

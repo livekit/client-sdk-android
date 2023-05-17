@@ -14,6 +14,7 @@ import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import livekit.LivekitModels
+import java.util.Date
 import javax.inject.Named
 
 open class Participant(
@@ -69,6 +70,9 @@ open class Participant(
             listener?.onSpeakingChanged(this)
             internalListener?.onSpeakingChanged(this)
             eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, newValue), scope)
+            if (newValue) {
+                lastSpokeAt = Date().time
+            }
         }
     }
         internal set
@@ -121,6 +125,20 @@ open class Participant(
     @FlowObservable
     @get:FlowObservable
     var connectionQuality by flowDelegate(ConnectionQuality.UNKNOWN)
+        internal set
+
+    /**
+     * Timestamp when participant joined room, in milliseconds
+     */
+    val joinedAt
+        get() = participantInfo?.joinedAt?.times(1000)
+
+    /**
+     * Timestamp when the participant last started speaking, in milliseconds
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var lastSpokeAt by flowDelegate<Long?>(null)
         internal set
 
     /**
