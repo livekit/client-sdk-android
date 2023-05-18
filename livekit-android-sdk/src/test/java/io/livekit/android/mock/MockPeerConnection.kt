@@ -5,6 +5,7 @@ import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
 import org.webrtc.MediaStreamTrack
+import org.webrtc.MockRtpTransceiver
 import org.webrtc.NativePeerConnectionFactory
 import org.webrtc.PeerConnection
 import org.webrtc.RTCStatsCollectorCallback

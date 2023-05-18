@@ -7,7 +7,6 @@ import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
-import livekit.LivekitModels
 import livekit.LivekitModels.VideoQuality
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
@@ -33,6 +32,7 @@ class RemoteTrackPublicationTest : MockE2ETest() {
         )
 
         room.onAddTrack(
+            MockRtpReceiver.create(),
             MockVideoStreamTrack(),
             arrayOf(
                 MockMediaStream(

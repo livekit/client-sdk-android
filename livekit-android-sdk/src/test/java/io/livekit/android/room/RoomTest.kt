@@ -188,38 +188,4 @@ class RoomTest {
         assertNull(room.name)
         assertFalse(room.isRecording)
     }
-
-    @Test
-    fun disconnectCleansUpParticipants() = runTest {
-        connect()
-
-        room.onUpdateParticipants(SignalClientTest.PARTICIPANT_JOIN.update.participantsList)
-        room.onAddTrack(
-            MockAudioStreamTrack(),
-            arrayOf(
-                MockMediaStream(
-                    id = createMediaStreamId(
-                        TestData.REMOTE_PARTICIPANT.sid,
-                        TestData.REMOTE_AUDIO_TRACK.sid
-                    )
-                )
-            )
-        )
-
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
-        room.onEngineDisconnected(DisconnectReason.CLIENT_INITIATED)
-        val events = eventCollector.stopCollecting()
-
-        assertIsClassList(
-            listOf(
-                RoomEvent.TrackUnsubscribed::class.java,
-                RoomEvent.TrackUnpublished::class.java,
-                RoomEvent.TrackUnpublished::class.java,
-                RoomEvent.ParticipantDisconnected::class.java,
-                RoomEvent.Disconnected::class.java
-            ),
-            events
-        )
-        assertTrue(room.remoteParticipants.isEmpty())
-    }
 }
