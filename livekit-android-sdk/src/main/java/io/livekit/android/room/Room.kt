@@ -25,6 +25,7 @@ import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
+import io.livekit.android.webrtc.createStatsGetter
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -202,6 +203,7 @@ constructor(
                             participant = it.participant,
                         )
                     )
+
                     is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
                         RoomEvent.ParticipantPermissionsChanged(
                             room = this@Room,
@@ -210,6 +212,7 @@ constructor(
                             oldPermissions = it.oldPermissions,
                         )
                     )
+
                     is ParticipantEvent.MetadataChanged -> {
                         listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
                         emitWhenConnected(
@@ -220,6 +223,7 @@ constructor(
                             )
                         )
                     }
+
                     is ParticipantEvent.NameChanged -> {
                         emitWhenConnected(
                             RoomEvent.ParticipantNameChanged(
@@ -229,6 +233,7 @@ constructor(
                             )
                         )
                     }
+
                     else -> {
                         /* do nothing */
                     }
@@ -355,6 +360,7 @@ constructor(
                             )
                         }
                     }
+
                     is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(
                         RoomEvent.TrackStreamStateChanged(
                             this@Room,
@@ -362,6 +368,7 @@ constructor(
                             it.streamState
                         )
                     )
+
                     is ParticipantEvent.TrackSubscriptionPermissionChanged -> eventBus.postEvent(
                         RoomEvent.TrackSubscriptionPermissionChanged(
                             this@Room,
@@ -370,6 +377,7 @@ constructor(
                             it.subscriptionAllowed
                         )
                     )
+
                     is ParticipantEvent.MetadataChanged -> {
                         listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
                         emitWhenConnected(
@@ -380,6 +388,7 @@ constructor(
                             )
                         )
                     }
+
                     is ParticipantEvent.NameChanged -> {
                         emitWhenConnected(
                             RoomEvent.ParticipantNameChanged(
@@ -389,6 +398,7 @@ constructor(
                             )
                         )
                     }
+
                     is ParticipantEvent.ParticipantPermissionsChanged -> eventBus.postEvent(
                         RoomEvent.ParticipantPermissionsChanged(
                             room = this@Room,
@@ -397,6 +407,7 @@ constructor(
                             oldPermissions = it.oldPermissions,
                         )
                     )
+
                     else -> {
                         /* do nothing */
                     }
@@ -641,7 +652,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>) {
+    override fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>) {
         if (streams.count() < 0) {
             LKLog.i { "add track with empty streams?" }
             return
@@ -652,7 +663,13 @@ constructor(
             trackSid = track.id()
         }
         val participant = getOrCreateRemoteParticipant(participantSid)
-        participant.addSubscribedMediaTrack(track, trackSid!!, adaptiveStream)
+        val statsGetter = createStatsGetter(engine.subscriber.peerConnection, receiver)
+        participant.addSubscribedMediaTrack(
+            track,
+            trackSid!!,
+            autoManageVideo = adaptiveStream,
+            statsGetter = statsGetter
+        )
     }
 
     /**

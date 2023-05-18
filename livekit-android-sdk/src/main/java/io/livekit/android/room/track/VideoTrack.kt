@@ -3,7 +3,7 @@ package io.livekit.android.room.track
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
-open class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
+abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {
     protected val sinks: MutableList<VideoSink> = ArrayList();
 

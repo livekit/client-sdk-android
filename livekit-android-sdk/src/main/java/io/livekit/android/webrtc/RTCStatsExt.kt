@@ -1,9 +1,15 @@
 package io.livekit.android.webrtc
 
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.MediaStreamTrack
+import org.webrtc.PeerConnection
 import org.webrtc.RTCStats
+import org.webrtc.RTCStatsCollectorCallback
 import org.webrtc.RTCStatsReport
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
+import kotlin.coroutines.resume
 
 /**
  * Returns an RTCStatsReport with all the relevant information pertaining to a track.
@@ -144,3 +150,23 @@ private fun getExtraStats(
     }
     return extraStats
 }
+
+typealias RTCStatsGetter = (RTCStatsCollectorCallback) -> Unit
+
+suspend fun RTCStatsGetter.getStats(): RTCStatsReport = suspendCancellableCoroutine { cont ->
+    val listener = RTCStatsCollectorCallback { report ->
+        cont.resume(report)
+    }
+    this.invoke(listener)
+}
+
+fun createStatsGetter(peerConnection: PeerConnection, sender: RtpSender): RTCStatsGetter =
+    { statsCallback: RTCStatsCollectorCallback ->
+        peerConnection.getStats(statsCallback, sender)
+    }
+
+fun createStatsGetter(peerConnection: PeerConnection, receiver: RtpReceiver): RTCStatsGetter =
+    { statsCallback: RTCStatsCollectorCallback ->
+        peerConnection.getStats(statsCallback, receiver)
+    }
+

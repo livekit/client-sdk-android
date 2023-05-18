@@ -25,7 +25,13 @@ import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.flow
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class CallViewModel(
@@ -109,6 +115,11 @@ class CallViewModel(
                             val message = it.data.toString(Charsets.UTF_8)
                             mutableDataReceived.emit("$identity: $message")
                         }
+
+                        is RoomEvent.TrackSubscribed -> {
+                            launch { collectTrackStats(it) }
+                        }
+
                         else -> {
                             Timber.e { "Room event: $it" }
                         }
@@ -128,6 +139,22 @@ class CallViewModel(
         } else {
             application.startService(foregroundServiceIntent)
         }
+    }
+
+    private suspend fun collectTrackStats(event: RoomEvent.TrackSubscribed) {
+        val pub = event.publication
+        while (true) {
+            delay(10000)
+            if (pub.subscribed) {
+                val statsReport = pub.track?.getRTCStats() ?: continue
+                Timber.e { "stats for ${pub.sid}:" }
+
+                for (entry in statsReport.statsMap) {
+                    Timber.e { "${entry.key} = ${entry.value}" }
+                }
+            }
+        }
+
     }
 
     private suspend fun connectToRoom() {
