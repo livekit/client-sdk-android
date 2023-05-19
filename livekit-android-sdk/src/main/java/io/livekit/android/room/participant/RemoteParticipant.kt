@@ -5,6 +5,7 @@ import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.*
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.RTCStatsGetter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -96,6 +97,7 @@ class RemoteParticipant(
     fun addSubscribedMediaTrack(
         mediaTrack: MediaStreamTrack,
         sid: String,
+        statsGetter: RTCStatsGetter,
         autoManageVideo: Boolean = false,
         triesLeft: Int = 20
     ) {
@@ -114,22 +116,25 @@ class RemoteParticipant(
             } else {
                 coroutineScope.launch {
                     delay(150)
-                    addSubscribedMediaTrack(mediaTrack, sid, autoManageVideo, triesLeft - 1)
+                    addSubscribedMediaTrack(mediaTrack, sid, statsGetter, autoManageVideo, triesLeft - 1)
                 }
             }
             return
         }
 
         val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> AudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
             KIND_VIDEO -> RemoteVideoTrack(
                 rtcTrack = mediaTrack as VideoTrack,
                 name = "",
                 autoManageVideo = autoManageVideo,
                 dispatcher = ioDispatcher
             )
+
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
         }
+
+        track.statsGetter = statsGetter
 
         publication.track = track
         publication.subscriptionAllowed = true

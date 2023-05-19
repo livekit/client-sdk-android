@@ -70,12 +70,14 @@ internal constructor(
                         listener?.onEngineReconnected()
                     }
                 }
+
                 ConnectionState.DISCONNECTED -> {
                     LKLog.d { "primary ICE disconnected" }
                     if (oldVal == ConnectionState.CONNECTED) {
                         reconnect()
                     }
                 }
+
                 else -> {
                 }
             }
@@ -588,6 +590,7 @@ internal constructor(
                     null
                 }
             }
+
             is Either.Right -> {
                 if (serverResponse.value.hasClientConfiguration()) {
                     serverResponse.value.clientConfiguration
@@ -612,7 +615,7 @@ internal constructor(
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: JoinResponse)
-        fun onAddTrack(track: MediaStreamTrack, streams: Array<out MediaStream>)
+        fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
@@ -654,6 +657,7 @@ internal constructor(
                 is Either.Left -> {
                     // do nothing.
                 }
+
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                 }
@@ -671,6 +675,7 @@ internal constructor(
                         LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                         return@launch
                     }
+
                     else -> {}
                 }
             }
@@ -691,6 +696,7 @@ internal constructor(
                         LKLog.e { "error setting local description for answer: ${outcome.value}" }
                         return@launch
                     }
+
                     else -> {}
                 }
             }
@@ -709,6 +715,7 @@ internal constructor(
                     LKLog.w { "received candidate for publisher when we don't have one. ignoring." }
                 }
             }
+
             LivekitRtc.SignalTarget.SUBSCRIBER -> subscriber.addIceCandidate(candidate)
             else -> LKLog.i { "unknown ice candidate target?" }
         }
@@ -814,9 +821,11 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.SPEAKER -> {
                 listener?.onActiveSpeakersUpdate(dp.speaker.speakersList)
             }
+
             LivekitModels.DataPacket.ValueCase.USER -> {
                 listener?.onUserPacket(dp.user, dp.kind)
             }
+
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null -> {
                 LKLog.v { "invalid value for data packet" }

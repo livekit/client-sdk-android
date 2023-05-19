@@ -9,6 +9,7 @@ import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.events.*
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.mock.MockMediaStream
+import io.livekit.android.mock.MockRtpReceiver
 import io.livekit.android.mock.TestData
 import io.livekit.android.mock.createMediaStreamId
 import io.livekit.android.room.participant.ConnectionQuality
@@ -198,7 +199,8 @@ class RoomMockE2ETest : MockE2ETest() {
         // We intentionally don't emit if the track isn't subscribed, so need to
         // add track.
         room.onAddTrack(
-            MockAudioStreamTrack(),
+            receiver = MockRtpReceiver.create(),
+            track = MockAudioStreamTrack(),
             arrayOf(
                 MockMediaStream(
                     id = createMediaStreamId(
@@ -231,6 +233,7 @@ class RoomMockE2ETest : MockE2ETest() {
             SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
         )
         room.onAddTrack(
+            MockRtpReceiver.create(),
             MockAudioStreamTrack(),
             arrayOf(
                 MockMediaStream(
@@ -314,6 +317,41 @@ class RoomMockE2ETest : MockE2ETest() {
         assertEquals(2, events.size)
         assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
         assertEquals(true, events[1] is RoomEvent.Disconnected)
+    }
+
+    @Test
+    fun disconnectCleansUpParticipants() = runTest {
+        connect()
+
+        room.onUpdateParticipants(SignalClientTest.PARTICIPANT_JOIN.update.participantsList)
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockAudioStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_AUDIO_TRACK.sid
+                    )
+                )
+            )
+        )
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onEngineDisconnected(DisconnectReason.CLIENT_INITIATED)
+        val events = eventCollector.stopCollecting()
+
+        assertIsClassList(
+            listOf(
+                RoomEvent.TrackUnsubscribed::class.java,
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.TrackUnpublished::class.java,
+                RoomEvent.ParticipantDisconnected::class.java,
+                RoomEvent.Disconnected::class.java
+            ),
+            events
+        )
+        Assert.assertTrue(room.remoteParticipants.isEmpty())
     }
 
     @Test

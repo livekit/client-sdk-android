@@ -16,6 +16,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.*
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.createStatsGetter
 import kotlinx.coroutines.CoroutineDispatcher
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -180,10 +181,12 @@ internal constructor(
                         track.startCapture()
                         publishVideoTrack(track)
                     }
+
                     Track.Source.MICROPHONE -> {
                         val track = createAudioTrack()
                         publishAudioTrack(track)
                     }
+
                     Track.Source.SCREEN_SHARE -> {
                         if (mediaProjectionPermissionResultData == null) {
                             throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
@@ -192,6 +195,7 @@ internal constructor(
                             createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
                         publishVideoTrack(track)
                     }
+
                     else -> {
                         LKLog.w { "Attempting to enable an unknown source, ignoring." }
                     }
@@ -307,6 +311,7 @@ internal constructor(
             return false
         }
 
+        track.statsGetter = createStatsGetter(engine.publisher.peerConnection, transceiver.sender)
 
         if (options is VideoTrackPublishOptions && options.videoCodec != null) {
             val targetCodec = options.videoCodec.lowercase()

@@ -3,11 +3,15 @@ package io.livekit.android.room.track
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.RTCStatsGetter
+import io.livekit.android.webrtc.getStats
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.MediaStreamTrack
+import org.webrtc.RTCStatsCollectorCallback
+import org.webrtc.RTCStatsReport
 
-open class Track(
+abstract class Track(
     name: String,
     kind: Kind,
     open val rtcTrack: MediaStreamTrack
@@ -27,6 +31,20 @@ open class Track(
         }
     }
         internal set
+
+    var statsGetter: RTCStatsGetter? = null
+
+    /**
+     * Return the [RTCStatsReport] for this track, or null if none is available.
+     */
+    suspend fun getRTCStats(): RTCStatsReport? = statsGetter?.getStats()
+
+    /**
+     * Calls the [callback] with the [RTCStatsReport] for this track, or null if none is available.
+     */
+    fun getRTCStats(callback: RTCStatsCollectorCallback) {
+        statsGetter?.invoke(callback) ?: callback.onStatsDelivered(null)
+    }
 
     enum class Kind(val value: String) {
         AUDIO("audio"),
