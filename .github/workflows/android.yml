@@ -49,6 +49,11 @@ jobs:
       run: ./gradlew clean livekit-android-sdk:jacocoTestReleaseUnitTestReport
       #run: ./gradlew clean assembleRelease livekit-android-sdk:jacocoTestReleaseUnitTestReport
 
+    - name: List everything
+      run: |
+        pwd
+        find .
+
     # generates coverage-report.md and publishes as checkrun
     - name: JaCoCo Code Coverage Report
       id: jacoco_reporter
