@@ -59,7 +59,7 @@ jobs:
       id: jacoco_reporter
       uses: PavanMudigonda/jacoco-reporter@v4.8
       with:
-        coverage_results_path: "livekit-android-sdk/build/jacoco/jacoco.xml"
+        coverage_results_path: "client-sdk-android/livekit-android-sdk/build/jacoco/jacoco.xml"
         coverage_report_name: Coverage
         coverage_report_title: JaCoCo
         github_token: ${{ secrets.GITHUB_TOKEN }}
