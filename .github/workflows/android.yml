@@ -55,9 +55,9 @@ jobs:
       with:
         coverage_results_path: livekit-android-sdk/build/jacoco/jacoco.xml
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        skip_check_run: false
+        skip_check_run: true
         fail_below_threshold: false
-        publish_only_summary: false
+        publish_only_summary: true
 
     # Publish Coverage Job Summary
     - name: Add Coverage Job Summary
