@@ -17,6 +17,9 @@ class RTCConfigurationTest : BaseTest() {
         newConfig::class.java
             .declaredFields
             .forEach { field ->
+                if (field.isSynthetic) {
+                    return@forEach
+                }
                 assertEquals("Failed on ${field.name}", field.get(originalConfig), field.get(newConfig))
             }
     }
@@ -53,7 +56,10 @@ class RTCConfigurationTest : BaseTest() {
                 if (field.name == "iceServers") {
                     return@forEach
                 }
-
+                // Ignore synthetic fields. Jacoco will create some that aren't relevant to this test.
+                if (field.isSynthetic) {
+                    return@forEach
+                }
                 val value = field.get(config)
                 val newValue = if (value == null) {
                     when (field.type) {
