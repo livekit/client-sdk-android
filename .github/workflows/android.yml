@@ -46,7 +46,30 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew clean assembleRelease livekit-android-sdk:testRelease
+      run: ./gradlew clean assembleRelease livekit-android-sdk:jacocoTestReleaseUnitTestReport
+
+    # generates coverage-report.md and publishes as checkrun
+    - name: JaCoCo Code Coverage Report
+      id: jacoco_reporter
+      uses: PavanMudigonda/jacoco-reporter@v4.8
+      with:
+        coverage_results_path: livekit-android-sdk/build/jacoco/jacoco.xml
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        skip_check_run: false
+        fail_below_threshold: false
+        publish_only_summary: false
+
+    # Publish Coverage Job Summary
+    - name: Add Coverage Job Summary
+      run: echo "${{ steps.jacoco_reporter.outputs.coverageSummary }}" >> $GITHUB_STEP_SUMMARY
+
+    # uploads the coverage-report.md artifact
+    - name: Upload Code Coverage Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: code-coverage-report-markdown
+        path: */coverage-results.md
+        retention-days: 7
 
     - name: Import video test keys into gradle properties
       if: github.event_name == 'push'
@@ -58,11 +81,11 @@ jobs:
         LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
         LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
         LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-      
+
     - name: Build video test app
       if: github.event_name == 'push'
       run: ./gradlew video-encode-decode-test:assembleDebug video-encode-decode-test:assembleDebugAndroidTest
-      
+
     - name: Video Encode Decode App upload and Set app id in environment variable.
       if: github.event_name == 'push'
       run: |
@@ -100,7 +123,7 @@ jobs:
       env:
         BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
         BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-        
+
     - name: Trigger BrowserStack tests
       if: github.event_name == 'push'
       run: |
@@ -109,7 +132,7 @@ jobs:
       env:
         BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
         BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-        
+
     - name: get version name
       if: github.event_name == 'push'
       run: echo "::set-output name=version_name::$(cat gradle.properties | grep VERSION_NAME | cut -d "=" -f2)"
