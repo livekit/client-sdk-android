@@ -5,6 +5,8 @@ plugins {
     id 'kotlin-kapt'
     id 'kotlinx-serialization'
     id 'com.google.protobuf'
+    id 'jacoco'
+    id 'com.dicedmelon.gradle.jacoco-android'
 }
 
 android {
@@ -86,6 +88,19 @@ protobuf {
             }
         }
     }
+}
+
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+tasks.withType(Test) {
+    jacoco.includeNoLocationClasses = true
+    jacoco.excludes = ['jdk.internal.*']
+}
+
+jacocoAndroidUnitTestReport {
+    excludes += ['livekit/**',]
 }
 
 dokkaHtml {
