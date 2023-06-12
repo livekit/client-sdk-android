@@ -84,10 +84,11 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
 
     private val handler = Handler(Looper.getMainLooper())
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-        handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({
-            recalculate()
-        }, 2000)
+        scheduleRecalculate()
+    }
+
+    private val scrollListener = ViewTreeObserver.OnScrollChangedListener {
+        scheduleRecalculate()
     }
 
     interface Notifier {
@@ -96,6 +97,7 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
 
     init {
         view.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+        view.viewTreeObserver.addOnScrollChangedListener(scrollListener)
         if (view is Notifier) {
             view.viewVisibility = this
         }
@@ -104,6 +106,13 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
     private val loc = IntArray(2)
     private val viewRect = Rect()
     private val windowRect = Rect()
+
+    private fun scheduleRecalculate() {
+        handler.removeCallbacksAndMessages(null)
+        handler.postDelayed({
+            recalculate()
+        }, 2000)
+    }
 
     fun recalculate() {
         var shouldNotify = false
@@ -154,6 +163,7 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
     override fun close() {
         super.close()
         handler.removeCallbacksAndMessages(null)
+        view.viewTreeObserver.removeOnScrollChangedListener(scrollListener)
         view.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
         if (view is Notifier && view.viewVisibility == this) {
             view.viewVisibility = null
