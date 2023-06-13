@@ -150,7 +150,7 @@ object RTCModule {
         videoDecoderFactoryOverride: VideoDecoderFactory?
     ): VideoDecoderFactory {
         return videoDecoderFactoryOverride ?: if (videoHwAccel) {
-            DefaultVideoDecoderFactory(eglContext)
+            WrappedVideoDecoderFactory(eglContext)
         } else {
             SoftwareVideoDecoderFactory()
         }
