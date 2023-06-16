@@ -8,11 +8,11 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.10"
+        classpath 'com.android.tools.build:gradle:8.0.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlin_version"
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:$dokka_version"
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.19'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.3'
         classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0"
         classpath 'com.dicedmelon.gradle:jacoco-android:0.1.5'
         classpath "com.diffplug.spotless:spotless-plugin-gradle:6.21.0"

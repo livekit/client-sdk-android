@@ -159,6 +159,7 @@ class MockPeerConnection(
         return super.addTransceiver(mediaType, init)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun getStats(observer: StatsObserver?, track: MediaStreamTrack?): Boolean {
         observer?.onComplete(emptyArray())
         return true

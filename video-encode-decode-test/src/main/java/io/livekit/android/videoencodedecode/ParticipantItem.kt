@@ -20,6 +20,7 @@ import io.livekit.android.composesample.ui.theme.NoVideoBackground
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.sample.common.R
 import io.livekit.android.util.flow
 
 /**

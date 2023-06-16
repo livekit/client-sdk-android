@@ -9,5 +9,6 @@ class SampleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         LiveKit.loggingLevel = LoggingLevel.VERBOSE
+        LiveKit.enableWebRTCLogging = true
     }
 }

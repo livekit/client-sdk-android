@@ -5,8 +5,9 @@ plugins {
 }
 
 android {
+    namespace "io.livekit.android.sample"
     compileSdkVersion androidSdk.compileVersion
-    buildToolsVersion "30.0.3"
+
     defaultConfig {
         applicationId "io.livekit.android"
         minSdkVersion androidSdk.minVersion

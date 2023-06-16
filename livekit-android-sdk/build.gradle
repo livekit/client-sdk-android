@@ -10,9 +10,8 @@ plugins {
 }
 
 android {
+    namespace 'io.livekit.android'
     compileSdkVersion androidSdk.compileVersion
-    buildToolsVersion "30.0.3"
-
 
     defaultConfig {
         minSdkVersion androidSdk.minVersion
@@ -58,10 +57,7 @@ android {
     }
 
     buildFeatures {
-        compose true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion compose_compiler_version
+        buildConfig = true
     }
     kotlinOptions {
         freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
@@ -142,10 +138,9 @@ dependencies {
     api 'io.github.webrtc-sdk:android:114.5735.05'
     api "com.squareup.okhttp3:okhttp:4.10.0"
     api 'com.github.davidliu:audioswitch:d18e3e31d427c27f1593030e024b370bf24480fd'
-    implementation "androidx.annotation:annotation:1.4.0"
+    implementation deps.androidx.annotation
     implementation "androidx.core:core:${versions.androidx_core}"
     implementation "com.google.protobuf:protobuf-javalite:${versions.protobuf}"
-    implementation "androidx.compose.ui:ui:$compose_version"
 
     implementation "com.google.dagger:dagger:${versions.dagger}"
     kapt "com.google.dagger:dagger-compiler:${versions.dagger}"
@@ -156,15 +151,15 @@ dependencies {
     lintChecks project(':livekit-lint')
     lintPublish project(':livekit-lint')
 
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.robolectric:robolectric:4.10.2'
-    testImplementation 'org.mockito:mockito-core:4.0.0'
-    testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"
-    testImplementation 'androidx.test:core:1.4.0'
+    testImplementation deps.junit
+    testImplementation deps.robolectric
+    testImplementation deps.mockito.core
+    testImplementation deps.mockito.kotlin
+    testImplementation deps.androidx_test.core
     testImplementation deps.coroutines.test
     kaptTest "com.google.dagger:dagger-compiler:${versions.dagger}"
-    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+    androidTestImplementation deps.androidx_test.junit
+    androidTestImplementation deps.espresso
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')

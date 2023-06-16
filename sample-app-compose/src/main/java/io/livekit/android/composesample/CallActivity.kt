@@ -31,6 +31,7 @@ import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.sample.CallViewModel
+import io.livekit.android.sample.common.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
@@ -281,7 +282,7 @@ class CallActivity : AppCompatActivity() {
                         var showMessageDialog by remember { mutableStateOf(false) }
                         var messageToSend by remember { mutableStateOf("") }
                         Surface(
-                            onClick = { showMessageDialog = true },
+                            onClick = { viewModel.sendTonsOfMessages() },
                             modifier = Modifier
                                 .size(controlSize)
                                 .padding(controlPadding)

@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    namespace 'io.livekit.android.composesample'
     compileSdkVersion androidSdk.compileVersion
 
     defaultConfig {
@@ -52,6 +53,7 @@ dependencies {
     // Sample-app-common contains the livekit-android-sdk dependency and others
     // as well as classes common to both sample apps.
     implementation project(":sample-app-common")
+    implementation project(":livekit-android-compose")
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"

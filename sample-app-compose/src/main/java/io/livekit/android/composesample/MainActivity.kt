@@ -38,7 +38,9 @@ import androidx.compose.ui.unit.dp
 import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.sample.MainViewModel
+import io.livekit.android.sample.common.R
 import io.livekit.android.sample.util.requestNeededPermissions
+
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {

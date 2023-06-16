@@ -21,10 +21,11 @@ final apiKey = getApiKey()
 final apiSecret = getApiSecret()
 
 android {
+    namespace "io.livekit.android.videoencodedecode"
     compileSdkVersion androidSdk.compileVersion
 
     defaultConfig {
-        applicationId "io.livekit.android.videoencodedecodetest"
+        applicationId "io.livekit.android.videoencodedecode"
         minSdkVersion androidSdk.minVersion
         targetSdkVersion androidSdk.targetVersion
         versionCode 1
@@ -60,7 +61,8 @@ android {
         freeCompilerArgs += '-opt-in=kotlin.RequiresOptIn'
     }
     buildFeatures {
-        compose true
+        buildConfig = true
+        compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion compose_compiler_version
@@ -93,6 +95,7 @@ dependencies {
     implementation deps.timber
     implementation project(":sample-app-common")
     implementation project(":livekit-android-sdk")
+    implementation project(":livekit-android-compose")
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'

@@ -15,13 +15,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import io.livekit.android.compose.ui.ComposeVisibility
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
-import io.livekit.android.room.track.video.ComposeVisibility
 import io.livekit.android.util.flow
 import kotlinx.coroutines.flow.*
 
@@ -137,7 +137,7 @@ fun VideoItemTrackSelector(
     } else {
         Box(modifier = modifier) {
             Icon(
-                painter = painterResource(id = R.drawable.outline_videocam_off_24),
+                painter = painterResource(id = io.livekit.android.sample.common.R.drawable.outline_videocam_off_24),
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.align(Alignment.Center)
