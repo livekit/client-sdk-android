@@ -38,19 +38,13 @@ constructor(keyProvider: KeyProvider)  {
                 is RoomEvent.TrackPublished -> {
                     var trackId = event.publication.sid;
                     var participantId = event.participant.sid;
-                    var rtpSender: RtpSender? = null
-
-                    when (event.publication.track!!) {
-                        is LocalAudioTrack -> rtpSender = (event.publication.track!! as LocalAudioTrack)?.sender
-                        is LocalVideoTrack -> rtpSender = (event.publication.track!! as LocalVideoTrack)?.sender
+                    var rtpSender: RtpSender? = when (event.publication.track!!) {
+                        is LocalAudioTrack -> (event.publication.track!! as LocalAudioTrack)?.sender
+                        is LocalVideoTrack -> (event.publication.track!! as LocalVideoTrack)?.sender
                         else -> {
                             throw IllegalArgumentException("unsupported track type")
                         }
-                    }
-
-                    if (rtpSender == null) {
-                        throw IllegalArgumentException("rtpSender is null")
-                    }
+                    } ?: throw IllegalArgumentException("rtpSender is null")
 
                     var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, event.publication.track!!.kind.name.toLowerCase());
                     frameCryptor.setObserver(object : FrameCryptor.Observer {
@@ -68,19 +62,13 @@ constructor(keyProvider: KeyProvider)  {
                     var trackId = event.publication.sid;
                     var participantId = event.participant.sid;
 
-                    var rtpReceiver: RtpReceiver? = null
-
-                    when (event.publication.track!!) {
-                        is RemoteAudioTrack -> rtpReceiver = (event.publication.track!! as RemoteAudioTrack).receiver
-                        is RemoteVideoTrack -> rtpReceiver = (event.publication.track!! as RemoteVideoTrack).receiver
+                    var rtpReceiver: RtpReceiver? = when (event.publication.track!!) {
+                        is RemoteAudioTrack -> (event.publication.track!! as RemoteAudioTrack).receiver
+                        is RemoteVideoTrack -> (event.publication.track!! as RemoteVideoTrack).receiver
                         else -> {
                             throw IllegalArgumentException("unsupported track type")
                         }
-                    }
-
-                    if (rtpReceiver == null) {
-                        throw IllegalArgumentException("rtpSender is null")
-                    }
+                    } ?: throw IllegalArgumentException("rtpSender is null")
 
                     var frameCryptor = addRtpReceiver(rtpReceiver!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
                     frameCryptor.setObserver(object : FrameCryptor.Observer {
