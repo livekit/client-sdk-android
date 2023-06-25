@@ -28,11 +28,6 @@ abstract class Track(
     var sid: String? = null
         internal set
 
-    var sender: RtpSender? = null
-        internal set
-
-    var receiver: RtpReceiver? = null
-        internal set
 
     var streamState: StreamState by flowDelegate(StreamState.PAUSED) { newValue, oldValue ->
         if (newValue != oldValue) {

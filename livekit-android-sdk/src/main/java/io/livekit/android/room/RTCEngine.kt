@@ -22,6 +22,7 @@ import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import livekit.LivekitModels
+import livekit.LivekitModels.Encryption
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -250,6 +251,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
+        encryptionType: Encryption.Type = Encryption.Type.NONE,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
@@ -259,7 +261,7 @@ internal constructor(
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, builder)
+            client.sendAddTrack(cid, name, kind, encryptionType, builder)
         }
     }
 

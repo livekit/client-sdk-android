@@ -1,15 +1,11 @@
 package io.livekit.android.e2ee
 
-enum class EncryptionType {
-    NONE,
-    GCM,
-    CUSTOM,
-}
+import livekit.LivekitModels.Encryption
 
 class E2EEOptions
 constructor(keyProvider: KeyProvider)  {
     var keyProvider: KeyProvider
-    var encryptionType: EncryptionType = EncryptionType.GCM
+    var encryptionType: Encryption.Type = Encryption.Type.NONE
     init {
         this.keyProvider = keyProvider
     }

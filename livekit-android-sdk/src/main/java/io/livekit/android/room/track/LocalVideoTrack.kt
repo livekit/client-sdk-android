@@ -61,7 +61,7 @@ constructor(
         }
 
     internal var transceiver: RtpTransceiver? = null
-    private val sender: RtpSender?
+    val sender: RtpSender?
         get() = transceiver?.sender
 
     private val closeableManager = CloseableManager()

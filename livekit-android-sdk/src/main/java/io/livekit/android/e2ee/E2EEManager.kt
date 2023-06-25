@@ -4,6 +4,10 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.*
+import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.RemoteAudioTrack
+import io.livekit.android.room.track.RemoteVideoTrack
 import org.webrtc.FrameCryptor
 import org.webrtc.FrameCryptor.FrameCryptionState
 import org.webrtc.FrameCryptorAlgorithm
@@ -23,7 +27,7 @@ constructor(keyProvider: KeyProvider)  {
         this.keyProvider = keyProvider
     }
 
-    suspend fun setup(room: Room) {
+    suspend fun setup(room: Room, emitEvent: (roomEvent: RoomEvent) -> Unit) {
         if (this.room != null) {
             // E2EEManager already setup, clean up first
             cleanUp();
@@ -34,11 +38,25 @@ constructor(keyProvider: KeyProvider)  {
                 is RoomEvent.TrackPublished -> {
                     var trackId = event.publication.sid;
                     var participantId = event.participant.sid;
-                    var frameCryptor = addRtpSender(event.publication.track!!.sender!!, participantId, trackId, event.publication.track!!.kind.name.toLowerCase());
+                    var rtpSender: RtpSender? = null
+
+                    when (event.publication.track!!) {
+                        is LocalAudioTrack -> rtpSender = (event.publication.track!! as LocalAudioTrack)?.sender
+                        is LocalVideoTrack -> rtpSender = (event.publication.track!! as LocalVideoTrack)?.sender
+                        else -> {
+                            throw IllegalArgumentException("unsupported track type")
+                        }
+                    }
+
+                    if (rtpSender == null) {
+                        throw IllegalArgumentException("rtpSender is null")
+                    }
+
+                    var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, event.publication.track!!.kind.name.toLowerCase());
                     frameCryptor.setObserver(object : FrameCryptor.Observer {
                         override fun onFrameCryptionStateChanged(trackId: String?, state: FrameCryptionState?) {
                             println("Sender::onFrameCryptionStateChanged: $trackId, state:  $state");
-                            room?.emitWhenConnected(
+                            emitEvent(
                                 RoomEvent.TrackE2EEStateEvent(
                                     room!!, event.publication.track!!,event.publication,
                                     event.participant,
@@ -49,11 +67,26 @@ constructor(keyProvider: KeyProvider)  {
                 is RoomEvent.TrackSubscribed -> {
                     var trackId = event.publication.sid;
                     var participantId = event.participant.sid;
-                    var frameCryptor = addRtpReceiver(event.publication.track!!.receiver!!, participantId, trackId, event.publication.track!!.kind.name.toLowerCase());
+
+                    var rtpReceiver: RtpReceiver? = null
+
+                    when (event.publication.track!!) {
+                        is RemoteAudioTrack -> rtpReceiver = (event.publication.track!! as RemoteAudioTrack).receiver
+                        is RemoteVideoTrack -> rtpReceiver = (event.publication.track!! as RemoteVideoTrack).receiver
+                        else -> {
+                            throw IllegalArgumentException("unsupported track type")
+                        }
+                    }
+
+                    if (rtpReceiver == null) {
+                        throw IllegalArgumentException("rtpSender is null")
+                    }
+
+                    var frameCryptor = addRtpReceiver(rtpReceiver!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
                     frameCryptor.setObserver(object : FrameCryptor.Observer {
                         override fun onFrameCryptionStateChanged(trackId: String?, state: FrameCryptionState?) {
                             println("Receiver::onFrameCryptionStateChanged: $trackId, state:  $state");
-                            room?.emitWhenConnected(
+                            emitEvent(
                                 RoomEvent.TrackE2EEStateEvent(
                                     room!!, event.publication.track!!,event.publication,
                                     event.participant,
@@ -110,7 +143,7 @@ constructor(keyProvider: KeyProvider)  {
         return frameCryptor;
     }
 
-    fun setEnabled(enabled: Boolean) {
+    fun enableE2EE(enabled: Boolean) {
         this.enabled = enabled;
         for (item in frameCryptors.entries) {
             var frameCryptor = item.value;

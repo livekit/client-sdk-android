@@ -18,6 +18,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
+import livekit.LivekitModels.Encryption
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -358,12 +359,14 @@ constructor(
         cid: String,
         name: String,
         type: LivekitModels.TrackType,
+        encryptionType: Encryption.Type,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ) {
         val addTrackRequest = builder
             .setCid(cid)
             .setName(name)
             .setType(type)
+            .setEncryption(encryptionType)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()
@@ -613,6 +616,9 @@ constructor(
                 // TODO
             }
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
+                // TODO
+            }
+            LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
                 // TODO
             }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,

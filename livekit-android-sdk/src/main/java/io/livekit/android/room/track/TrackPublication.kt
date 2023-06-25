@@ -23,6 +23,11 @@ open class TrackPublication(
     var kind: Track.Kind
         private set
 
+    open val encryptionType: LivekitModels.Encryption.Type
+        get() {
+            return trackInfo?.encryption ?: LivekitModels.Encryption.Type.NONE
+        }
+
     @FlowObservable
     @get:FlowObservable
     open var muted: Boolean by flowDelegate(false)

@@ -1,5 +1,6 @@
 package io.livekit.android
 
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
@@ -16,6 +17,11 @@ data class RoomOptions(
      * @see [Room.dynacast]
      */
     val dynacast: Boolean = false,
+
+    /**
+     * Options for end-to-end encryption.
+     */
+    var e2eeOptions: E2EEOptions? = null,
 
     val audioTrackCaptureDefaults: LocalAudioTrackOptions? = null,
     val videoTrackCaptureDefaults: LocalVideoTrackOptions? = null,
