@@ -965,7 +965,7 @@ constructor(
         viewRenderer.setEnableHardwareScaler(false /* enabled */)
     }
 
-    suspend private fun emitWhenConnected(event: RoomEvent) {
+    private suspend fun emitWhenConnected(event: RoomEvent) {
         if (state == State.CONNECTED) {
             eventBus.postEvent(event)
         }
