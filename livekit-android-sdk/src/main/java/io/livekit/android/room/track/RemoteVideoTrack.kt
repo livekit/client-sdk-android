@@ -20,6 +20,7 @@ class RemoteVideoTrack(
     val autoManageVideo: Boolean = false,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
+    receiver: RtpReceiver,
 ) : VideoTrack(name, rtcTrack) {
 
     private var coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
@@ -31,9 +32,11 @@ class RemoteVideoTrack(
     internal var lastDimensions: Dimensions = Dimensions(0, 0)
         private set
 
-    internal var transceiver: RtpTransceiver? = null
-    val receiver: RtpReceiver?
-        get() = transceiver?.receiver
+    internal var receiver: RtpReceiver
+
+    init {
+        this.receiver = receiver
+    }
 
     /**
      * If `autoManageVideo` is enabled, a VideoSinkVisibility should be passed, using

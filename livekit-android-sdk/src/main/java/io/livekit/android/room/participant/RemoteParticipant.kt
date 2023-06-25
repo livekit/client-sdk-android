@@ -126,12 +126,13 @@ class RemoteParticipant(
         }
 
         val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "", receiver = receiver)
             KIND_VIDEO -> RemoteVideoTrack(
                 rtcTrack = mediaTrack as VideoTrack,
                 name = "",
                 autoManageVideo = autoManageVideo,
-                dispatcher = ioDispatcher
+                dispatcher = ioDispatcher,
+                receiver = receiver
             )
 
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
@@ -143,14 +144,6 @@ class RemoteParticipant(
         publication.subscriptionAllowed = true
         track.name = publication.name
         track.sid = publication.sid
-
-        when (track) {
-            is RemoteAudioTrack -> track.receiver = receiver
-            is RemoteAudioTrack -> track.receiver = receiver
-            else -> {
-                throw IllegalArgumentException("unsupported track type")
-            }
-        }
 
         addTrackPublication(publication)
         track.start()
