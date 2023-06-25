@@ -18,9 +18,9 @@ import org.webrtc.RtpSender
 class E2EEManager
 constructor(keyProvider: KeyProvider)  {
     var room: Room? = null
-    var keyProvider: KeyProvider
+    private var keyProvider: KeyProvider
     var frameCryptors = mutableMapOf<String, FrameCryptor>()
-    var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
+    private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     var enabled: Boolean = false
 
     init {
@@ -46,41 +46,40 @@ constructor(keyProvider: KeyProvider)  {
                         }
                     } ?: throw IllegalArgumentException("rtpSender is null")
 
-                    var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, event.publication.track!!.kind.name.toLowerCase());
-                    frameCryptor.setObserver(object : FrameCryptor.Observer {
-                        override fun onFrameCryptionStateChanged(trackId: String?, state: FrameCryptionState?) {
-                            println("Sender::onFrameCryptionStateChanged: $trackId, state:  $state");
-                            emitEvent(
-                                RoomEvent.TrackE2EEStateEvent(
-                                    room!!, event.publication.track!!,event.publication,
-                                    event.participant,
-                                    state = e2eeStateFromFrameCryptoState(state)))
-                        }
-                    });
+                    var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
+                    frameCryptor.setObserver { trackId, state ->
+                        println("Sender::onFrameCryptionStateChanged: $trackId, state:  $state");
+                        emitEvent(
+                            RoomEvent.TrackE2EEStateEvent(
+                                room!!, event.publication.track!!, event.publication,
+                                event.participant,
+                                state = e2eeStateFromFrameCryptoState(state)
+                            )
+                        )
+                    };
                 }
                 is RoomEvent.TrackSubscribed -> {
                     var trackId = event.publication.sid;
                     var participantId = event.participant.sid;
-
                     var rtpReceiver: RtpReceiver? = when (event.publication.track!!) {
                         is RemoteAudioTrack -> (event.publication.track!! as RemoteAudioTrack).receiver
                         is RemoteVideoTrack -> (event.publication.track!! as RemoteVideoTrack).receiver
                         else -> {
                             throw IllegalArgumentException("unsupported track type")
                         }
-                    } ?: throw IllegalArgumentException("rtpSender is null")
+                    }
 
                     var frameCryptor = addRtpReceiver(rtpReceiver!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
-                    frameCryptor.setObserver(object : FrameCryptor.Observer {
-                        override fun onFrameCryptionStateChanged(trackId: String?, state: FrameCryptionState?) {
-                            println("Receiver::onFrameCryptionStateChanged: $trackId, state:  $state");
-                            emitEvent(
-                                RoomEvent.TrackE2EEStateEvent(
-                                    room!!, event.publication.track!!,event.publication,
-                                    event.participant,
-                                    state = e2eeStateFromFrameCryptoState(state)))
-                        }
-                    });
+                    frameCryptor.setObserver { trackId, state ->
+                        println("Receiver::onFrameCryptionStateChanged: $trackId, state:  $state");
+                        emitEvent(
+                            RoomEvent.TrackE2EEStateEvent(
+                                room!!, event.publication.track!!, event.publication,
+                                event.participant,
+                                state = e2eeStateFromFrameCryptoState(state)
+                            )
+                        )
+                    };
                 }
                 else -> {}
             }
