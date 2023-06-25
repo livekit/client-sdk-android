@@ -10,6 +10,8 @@ import livekit.LivekitRtc
 import org.webrtc.MediaStreamTrack
 import org.webrtc.RTCStatsCollectorCallback
 import org.webrtc.RTCStatsReport
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
 
 abstract class Track(
     name: String,
@@ -25,6 +27,13 @@ abstract class Track(
         internal set
     var sid: String? = null
         internal set
+
+    var sender: RtpSender? = null
+        internal set
+
+    var receiver: RtpReceiver? = null
+        internal set
+
     var streamState: StreamState by flowDelegate(StreamState.PAUSED) { newValue, oldValue ->
         if (newValue != oldValue) {
             eventBus.tryPostEvent(TrackEvent.StreamStateChanged(this, newValue))

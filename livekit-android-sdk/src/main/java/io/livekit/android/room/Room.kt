@@ -16,6 +16,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
@@ -112,6 +113,10 @@ constructor(
     @FlowObservable
     @get:FlowObservable
     var isRecording: Boolean by flowDelegate(false)
+        private set
+
+
+    var e2eeManager: E2EEManager? = null
         private set
 
     /**
@@ -946,7 +951,7 @@ constructor(
         viewRenderer.setEnableHardwareScaler(false /* enabled */)
     }
 
-    private suspend fun emitWhenConnected(event: RoomEvent) {
+    fun emitWhenConnected(event: RoomEvent) {
         if (state == State.CONNECTED) {
             eventBus.postEvent(event)
         }
