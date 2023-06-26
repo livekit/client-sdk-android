@@ -112,7 +112,7 @@ dokkaHtml {
 
                 // URL showing where the source code can be accessed through the web browser
                 remoteUrl.set(new URL(
-                        "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-sdk/src/main/java"))
+                    "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-sdk/src/main/java"))
                 // Suffix which is used to append the line number to the URL. Use #L for GitHub
                 remoteLineSuffix.set("#L")
             }
@@ -134,7 +134,7 @@ dependencies {
     //api fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation deps.coroutines.lib
-    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0'
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.serialization}"
     api 'io.github.webrtc-sdk:android:114.5735.05'
     api "com.squareup.okhttp3:okhttp:4.10.0"
     api 'com.github.davidliu:audioswitch:d18e3e31d427c27f1593030e024b370bf24480fd'
