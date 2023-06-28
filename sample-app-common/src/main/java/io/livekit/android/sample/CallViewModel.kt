@@ -13,6 +13,7 @@ import io.livekit.android.LiveKit
 import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioSwitchHandler
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
@@ -37,13 +38,32 @@ import kotlinx.coroutines.launch
 class CallViewModel(
     val url: String,
     val token: String,
+    e2ee: Boolean?,
+    e2eeKey: String?,
     application: Application
 ) : AndroidViewModel(application) {
 
+
     val audioHandler = AudioSwitchHandler(application)
+
+    var e2ee: Boolean = false;
+
+    var e2eeKey: String? = ""
+
+    private fun getE2EEOptions(): E2EEOptions? {
+        var e2eeOptions: E2EEOptions? = null
+        if(e2ee && e2eeKey != null) {
+            e2eeOptions = E2EEOptions()
+        }
+        e2eeOptions?.keyProvider?.setKey(e2eeKey!!, null, 0)
+        return e2eeOptions
+    }
+
+
+
     val room = LiveKit.create(
         appContext = application,
-        options = RoomOptions(adaptiveStream = true, dynacast = true),
+        options = RoomOptions(adaptiveStream = true, dynacast = true, e2eeOptions = getE2EEOptions()),
         overrides = LiveKitOverrides(
             audioHandler = audioHandler
         )
@@ -87,6 +107,8 @@ class CallViewModel(
     val permissionAllowed = mutablePermissionAllowed.hide()
 
     init {
+        this.e2ee = e2ee ?: false
+        this.e2eeKey = e2eeKey
         viewModelScope.launch {
             // Collect any errors.
             launch {
@@ -162,6 +184,7 @@ class CallViewModel(
             room.connect(
                 url = url,
                 token = token,
+                roomOptions = RoomOptions(e2eeOptions = getE2EEOptions())
             )
 
             // Create and publish audio/video tracks

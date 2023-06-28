@@ -11,7 +11,7 @@ constructor(var participantId: String, var keyIndex: Int, var key: String ) {
 }
 
  public interface KeyProvider {
-    fun setKey(key: String, participantId: String?, keyIndex: Int  = 0)
+    fun setKey(key: String, participantId: String?, keyIndex: Int?  = 0)
     fun ratchetKey(participantId: String, index: Int): ByteArray
 
     val rtcKeyProvider: FrameCryptorKeyProvider
@@ -28,21 +28,21 @@ constructor(ratchetSalt: String, uncryptedMagicBytes: String, ratchetWindowSize:
     var ratchetSalt: String
     var uncryptedMagicBytes: String
     var ratchetWindowSize: Int
-    override var enableSharedKey: Boolean = false
+    override var enableSharedKey: Boolean = true
     var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
-    override fun setKey(key: String, participantId: String?, keyIndex: Int) {
+    override fun setKey(key: String, participantId: String?, keyIndex: Int?) {
         if (enableSharedKey) {
             sharedKey = key.toByteArray();
             return;
         }
 
-        var keyInfo = KeyInfo("", keyIndex, key);
+        var keyInfo = KeyInfo("", keyIndex ?: 0, key);
 
         if (!keys.containsKey(keyInfo.participantId)) {
             keys[keyInfo.participantId] = mutableMapOf();
         }
         keys[keyInfo.participantId]!![keyInfo.keyIndex] = keyInfo.key;
-        rtcKeyProvider.setKey(participantId, keyIndex, key.toByteArray())
+        rtcKeyProvider.setKey(participantId, keyIndex?: 0, key.toByteArray())
     }
 
     override fun ratchetKey(participantId: String, index: Int): ByteArray {

@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
@@ -24,7 +25,8 @@ class CallActivity : AppCompatActivity() {
     val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-        CallViewModel(args.url, args.token, application)
+
+        CallViewModel(args.url, args.token, args.e2ee, args.e2eeKey, application)
     }
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
@@ -176,5 +178,5 @@ class CallActivity : AppCompatActivity() {
     }
 
     @Parcelize
-    data class BundleArgs(val url: String, val token: String) : Parcelable
+    data class BundleArgs(val url: String, val token: String, val e2ee: Boolean, val e2eeKey: String) : Parcelable
 }

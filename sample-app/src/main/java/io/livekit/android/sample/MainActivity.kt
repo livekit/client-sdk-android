@@ -34,7 +34,9 @@ class MainActivity : AppCompatActivity() {
                         CallActivity.KEY_ARGS,
                         CallActivity.BundleArgs(
                             url.editText?.text.toString(),
-                            token.editText?.text.toString()
+                            token.editText?.text.toString(),
+                            e2eeEnabled.isChecked,
+                            e2eeKey.editText?.text.toString()
                         )
                     )
                 }
@@ -46,6 +48,8 @@ class MainActivity : AppCompatActivity() {
 
                 viewModel.setSavedUrl(url.editText?.text?.toString() ?: "")
                 viewModel.setSavedToken(token.editText?.text?.toString() ?: "")
+                viewModel.setSavedE2EEOn(e2eeEnabled.isChecked)
+                viewModel.setSavedE2EEKey(e2eeKey.editText?.text?.toString() ?: "")
 
                 Toast.makeText(
                     this@MainActivity,
@@ -58,6 +62,8 @@ class MainActivity : AppCompatActivity() {
                 viewModel.reset()
                 url.editText?.text = SpannableStringBuilder(MainViewModel.URL)
                 token.editText?.text = SpannableStringBuilder(MainViewModel.TOKEN)
+                e2eeEnabled.isChecked = false
+                e2eeKey.editText?.text = SpannableStringBuilder("")
 
                 Toast.makeText(
                     this@MainActivity,

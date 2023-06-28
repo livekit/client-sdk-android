@@ -34,7 +34,6 @@ import livekit.LivekitRtc
 import org.webrtc.*
 import javax.inject.Named
 import javax.inject.Singleton
-import kotlin.coroutines.suspendCoroutine
 
 class Room
 @AssistedInject
@@ -203,13 +202,15 @@ constructor(
         coroutineScope.launch {
             localParticipant.events.collect {
                 when (it) {
-                    is ParticipantEvent.TrackPublished -> emitWhenConnected(
-                        RoomEvent.TrackPublished(
-                            room = this@Room,
-                            publication = it.publication,
-                            participant = it.participant,
+                    is ParticipantEvent.TrackPublished -> {
+                        emitWhenConnected(
+                            RoomEvent.TrackPublished(
+                                room = this@Room,
+                                publication = it.publication,
+                                participant = it.participant,
+                            )
                         )
-                    )
+                    }
 
                     is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
                         RoomEvent.ParticipantPermissionsChanged(
@@ -270,11 +271,11 @@ constructor(
 
         if (options.audio) {
             val audioTrack = localParticipant.createAudioTrack()
-            localParticipant.publishAudioTrack(audioTrack, e2eeOptions = roomOptions.e2eeOptions)
+            localParticipant.publishAudioTrack(audioTrack)
         }
         if (options.video) {
             val videoTrack = localParticipant.createVideoTrack()
-            localParticipant.publishVideoTrack(videoTrack, e2eeOptions = roomOptions.e2eeOptions)
+            localParticipant.publishVideoTrack(videoTrack)
         }
     }
 
@@ -910,6 +911,16 @@ constructor(
     /**
      * @suppress
      */
+    override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
+        listener?.onTrackPublished(publication, participant, this)
+        if(e2eeManager != null) {
+            e2eeManager!!.onTrackPublished(publication.track!!, publication, participant, this)
+        }
+        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
+    }
+    /**
+     * @suppress
+     */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
@@ -920,6 +931,9 @@ constructor(
      */
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
+        if(e2eeManager != null) {
+            e2eeManager!!.onTrackSubscribed(track, publication, participant, this)
+        }
         eventBus.postEvent(RoomEvent.TrackSubscribed(this, track, publication, participant), coroutineScope)
     }
 

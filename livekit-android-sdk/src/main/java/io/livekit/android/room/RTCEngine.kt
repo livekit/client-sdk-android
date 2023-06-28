@@ -5,6 +5,7 @@ import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
 import io.livekit.android.room.participant.ParticipantTrackPermission
@@ -251,17 +252,15 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
-        encryptionType: Encryption.Type = Encryption.Type.NONE,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
         }
-
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, encryptionType, builder)
+            client.sendAddTrack(cid, name, kind, builder)
         }
     }
 

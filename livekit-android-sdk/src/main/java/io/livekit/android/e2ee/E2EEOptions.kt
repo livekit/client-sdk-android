@@ -11,7 +11,7 @@ constructor(keyProvider: KeyProvider = BaseKeyProvider(
     defaultRatchetSalt,
     defaultMagicBytes,
     defaultRatchetWindowSize,
-    false,
+    true,
 ), encryptionType: Encryption.Type = Encryption.Type.GCM) {
     var keyProvider: KeyProvider
     var encryptionType: Encryption.Type = Encryption.Type.NONE

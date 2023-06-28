@@ -359,9 +359,9 @@ constructor(
         cid: String,
         name: String,
         type: LivekitModels.TrackType,
-        encryptionType: Encryption.Type,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ) {
+        var encryptionType = lastRoomOptions?.e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE
         val addTrackRequest = builder
             .setCid(cid)
             .setName(name)

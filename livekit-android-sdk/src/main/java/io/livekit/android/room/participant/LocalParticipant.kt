@@ -225,8 +225,7 @@ internal constructor(
             null,
             audioTrackPublishDefaults
         ),
-        publishListener: PublishListener? = null,
-        e2eeOptions: E2EEOptions? = null,
+        publishListener: PublishListener? = null
     ) {
         publishTrackImpl(
             track = track,
@@ -236,15 +235,13 @@ internal constructor(
                 source = LivekitModels.TrackSource.MICROPHONE
             },
             publishListener = publishListener,
-            e2eeOptions = e2eeOptions,
         )
     }
 
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
-        publishListener: PublishListener? = null,
-        e2eeOptions: E2EEOptions? = null,
+        publishListener: PublishListener? = null
     ) {
 
         val encodings = computeVideoEncodings(track.dimensions, options)
@@ -265,8 +262,7 @@ internal constructor(
                 addAllLayers(videoLayers)
             },
             encodings = encodings,
-            publishListener = publishListener,
-            e2eeOptions = e2eeOptions,
+            publishListener = publishListener
         )
     }
 
@@ -279,8 +275,7 @@ internal constructor(
         options: TrackPublishOptions,
         requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
-        publishListener: PublishListener? = null,
-        e2eeOptions: E2EEOptions? = null
+        publishListener: PublishListener? = null
     ): Boolean {
         if (localTrackPublications.any { it.track == track }) {
             publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
@@ -295,7 +290,6 @@ internal constructor(
             cid = cid,
             name = track.name,
             kind = track.kind.toProto(),
-            encryptionType = e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE,
             builder = builder
         )
         val transInit = RtpTransceiver.RtpTransceiverInit(

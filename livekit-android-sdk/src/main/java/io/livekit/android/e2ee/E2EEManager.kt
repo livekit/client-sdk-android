@@ -8,6 +8,9 @@ import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.RemoteVideoTrack
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackPublication
+import kotlinx.coroutines.CoroutineScope
 import org.webrtc.FrameCryptor
 import org.webrtc.FrameCryptor.FrameCryptionState
 import org.webrtc.FrameCryptorAlgorithm
@@ -21,7 +24,8 @@ constructor(keyProvider: KeyProvider)  {
     private var keyProvider: KeyProvider
     var frameCryptors = mutableMapOf<String, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
-    var enabled: Boolean = false
+    var enabled: Boolean = true
+    lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
 
     init {
         this.keyProvider = keyProvider
@@ -33,6 +37,8 @@ constructor(keyProvider: KeyProvider)  {
             cleanUp();
         }
         this.room = room
+        this.emitEvent = emitEvent
+        /*
         room.events.collect { event ->
             when (event) {
                 is RoomEvent.TrackPublished -> {
@@ -83,7 +89,54 @@ constructor(keyProvider: KeyProvider)  {
                 }
                 else -> {}
             }
+        }*/
+    }
+
+    public fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+        var trackId = publication.sid;
+        var participantId = participant.sid;
+        var rtpReceiver: RtpReceiver? = when (publication.track!!) {
+            is RemoteAudioTrack -> (publication.track!! as RemoteAudioTrack).receiver
+            is RemoteVideoTrack -> (publication.track!! as RemoteVideoTrack).receiver
+            else -> {
+                throw IllegalArgumentException("unsupported track type")
+            }
         }
+        var frameCryptor = addRtpReceiver(rtpReceiver!!, participantId, trackId, publication.track!!.kind.name.lowercase());
+        frameCryptor.setObserver { trackId, state ->
+            println("Receiver::onFrameCryptionStateChanged: $trackId, state:  $state");
+            emitEvent(
+                RoomEvent.TrackE2EEStateEvent(
+                    room!!, publication.track!!, publication,
+                    participant,
+                    state = e2eeStateFromFrameCryptoState(state)
+                )
+            )
+        };
+    }
+
+    public fun onTrackPublished(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+        var trackId = publication.sid;
+        var participantId = participant.sid;
+        var rtpSender: RtpSender? = when (publication.track!!) {
+            is LocalAudioTrack -> (publication.track!! as LocalAudioTrack)?.sender
+            is LocalVideoTrack -> (publication.track!! as LocalVideoTrack)?.sender
+            else -> {
+                throw IllegalArgumentException("unsupported track type")
+            }
+        } ?: throw IllegalArgumentException("rtpSender is null")
+
+        var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, publication.track!!.kind.name.lowercase());
+        frameCryptor.setObserver { trackId, state ->
+            println("Sender::onFrameCryptionStateChanged: $trackId, state:  $state");
+            emitEvent(
+                RoomEvent.TrackE2EEStateEvent(
+                    room!!, publication.track!!, publication,
+                    participant,
+                    state = e2eeStateFromFrameCryptoState(state)
+                )
+            )
+        };
     }
 
     private fun e2eeStateFromFrameCryptoState(state: FrameCryptionState?): E2EEState {
