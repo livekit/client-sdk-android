@@ -3,6 +3,7 @@ package io.livekit.android.room.track
 import io.livekit.android.BaseTest
 import io.livekit.android.events.EventCollector
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.mock.MockRtpReceiver
 import io.livekit.android.mock.MockVideoStreamTrack
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,7 +24,8 @@ class RemoteVideoTrackTest : BaseTest() {
             name = "track",
             rtcTrack = MockVideoStreamTrack(),
             autoManageVideo = true,
-            dispatcher = coroutineRule.dispatcher
+            dispatcher = coroutineRule.dispatcher,
+            receiver = MockRtpReceiver.create()
         )
     }
 
