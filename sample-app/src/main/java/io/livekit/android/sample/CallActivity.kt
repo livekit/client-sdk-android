@@ -25,8 +25,7 @@ class CallActivity : AppCompatActivity() {
     val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-
-        CallViewModel(args.url, args.token, args.e2ee, args.e2eeKey, application)
+        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey)
     }
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =

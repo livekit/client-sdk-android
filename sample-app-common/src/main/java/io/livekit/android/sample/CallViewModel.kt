@@ -38,9 +38,9 @@ import kotlinx.coroutines.launch
 class CallViewModel(
     val url: String,
     val token: String,
-    e2ee: Boolean?,
-    e2eeKey: String?,
-    application: Application
+    application: Application,
+    e2ee: Boolean? = false,
+    e2eeKey: String? = "",
 ) : AndroidViewModel(application) {
 
 
