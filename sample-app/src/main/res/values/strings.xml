@@ -3,7 +3,7 @@
     <string name="connect">Connect</string>
     <string name="token">Token</string>
     <string name="e2ee_key_str">E2EE Key</string>
-    <string name="e2ee_enabled_str">E2EE Key</string>
+    <string name="e2ee_enabled_str">Enable E2EE</string>
     <string name="url">URL</string>
     <string name="save_values">Save Values</string>
     <string name="reset_values">Reset Values</string>

@@ -25,9 +25,13 @@ class MainActivity : AppCompatActivity() {
 
         val urlString = viewModel.getSavedUrl()
         val tokenString = viewModel.getSavedToken()
+        val e2EEOn = viewModel.getE2EEOptionsOn()
+        val e2EEKey = viewModel.getSavedE2EEKey()
         binding.run {
             url.editText?.text = SpannableStringBuilder(urlString)
             token.editText?.text = SpannableStringBuilder(tokenString)
+            e2eeEnabled.isChecked = e2EEOn
+            e2eeKey.editText?.text = SpannableStringBuilder(e2EEKey)
             connectButton.setOnClickListener {
                 val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                     putExtra(
