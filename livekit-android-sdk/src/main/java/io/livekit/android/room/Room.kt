@@ -914,7 +914,7 @@ constructor(
     override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackPublished(publication, participant, this)
         if(e2eeManager != null) {
-            e2eeManager!!.onTrackPublished(publication.track!!, publication, participant, this)
+            e2eeManager!!.addPublishedTrack(publication.track!!, publication, participant, this)
         }
         eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
@@ -932,7 +932,7 @@ constructor(
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
         if(e2eeManager != null) {
-            e2eeManager!!.onTrackSubscribed(track, publication, participant, this)
+            e2eeManager!!.addSubscribedTrack(track, publication, participant, this)
         }
         eventBus.postEvent(RoomEvent.TrackSubscribed(this, track, publication, participant), coroutineScope)
     }

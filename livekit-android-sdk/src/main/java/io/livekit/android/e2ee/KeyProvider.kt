@@ -6,7 +6,7 @@ import org.webrtc.FrameCryptorKeyProvider
 class KeyInfo
 constructor(var participantId: String, var keyIndex: Int, var key: String ) {
     override fun toString(): String {
-        return "KeyInfo(participantId='$participantId', keyIndex=$keyIndex, key='$key')"
+        return "KeyInfo(participantId='$participantId', keyIndex=$keyIndex)"
     }
 }
 
@@ -30,6 +30,13 @@ constructor(ratchetSalt: String, uncryptedMagicBytes: String, ratchetWindowSize:
     var ratchetWindowSize: Int
     override var enableSharedKey: Boolean = true
     var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
+
+    /**
+     * Set a key for a participant
+     * @param key
+     * @param participantId
+     * @param keyIndex
+     */
     override fun setKey(key: String, participantId: String?, keyIndex: Int?) {
         if (enableSharedKey) {
             sharedKey = key.toByteArray();

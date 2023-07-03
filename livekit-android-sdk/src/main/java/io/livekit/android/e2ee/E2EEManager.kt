@@ -1,7 +1,6 @@
 package io.livekit.android.e2ee
 
 import io.livekit.android.events.RoomEvent
-import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.LocalAudioTrack
@@ -10,7 +9,6 @@ import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
-import kotlinx.coroutines.CoroutineScope
 import org.webrtc.FrameCryptor
 import org.webrtc.FrameCryptor.FrameCryptionState
 import org.webrtc.FrameCryptorAlgorithm
@@ -38,61 +36,31 @@ constructor(keyProvider: KeyProvider)  {
         }
         this.room = room
         this.emitEvent = emitEvent
-        /*
-        room.events.collect { event ->
-            when (event) {
-                is RoomEvent.TrackPublished -> {
-                    var trackId = event.publication.sid;
-                    var participantId = event.participant.sid;
-                    var rtpSender: RtpSender? = when (event.publication.track!!) {
-                        is LocalAudioTrack -> (event.publication.track!! as LocalAudioTrack)?.sender
-                        is LocalVideoTrack -> (event.publication.track!! as LocalVideoTrack)?.sender
-                        else -> {
-                            throw IllegalArgumentException("unsupported track type")
-                        }
-                    } ?: throw IllegalArgumentException("rtpSender is null")
-
-                    var frameCryptor = addRtpSender(rtpSender!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
-                    frameCryptor.setObserver { trackId, state ->
-                        println("Sender::onFrameCryptionStateChanged: $trackId, state:  $state");
-                        emitEvent(
-                            RoomEvent.TrackE2EEStateEvent(
-                                room!!, event.publication.track!!, event.publication,
-                                event.participant,
-                                state = e2eeStateFromFrameCryptoState(state)
-                            )
-                        )
-                    };
+        this.room?.localParticipant?.tracks?.forEach() { item ->
+            var participant = this.room!!.localParticipant;
+            var publication = item.value;
+            if (publication.track != null) {
+                var trackId = publication.sid;
+                if(!frameCryptors.keys.contains(trackId)) {
+                    addPublishedTrack(publication.track!!, publication, participant, room);
                 }
-                is RoomEvent.TrackSubscribed -> {
-                    var trackId = event.publication.sid;
-                    var participantId = event.participant.sid;
-                    var rtpReceiver: RtpReceiver? = when (event.publication.track!!) {
-                        is RemoteAudioTrack -> (event.publication.track!! as RemoteAudioTrack).receiver
-                        is RemoteVideoTrack -> (event.publication.track!! as RemoteVideoTrack).receiver
-                        else -> {
-                            throw IllegalArgumentException("unsupported track type")
-                        }
-                    }
-
-                    var frameCryptor = addRtpReceiver(rtpReceiver!!, participantId, trackId, event.publication.track!!.kind.name.lowercase());
-                    frameCryptor.setObserver { trackId, state ->
-                        println("Receiver::onFrameCryptionStateChanged: $trackId, state:  $state");
-                        emitEvent(
-                            RoomEvent.TrackE2EEStateEvent(
-                                room!!, event.publication.track!!, event.publication,
-                                event.participant,
-                                state = e2eeStateFromFrameCryptoState(state)
-                            )
-                        )
-                    };
-                }
-                else -> {}
             }
-        }*/
+        }
+        this.room?.remoteParticipants?.forEach() { item ->
+            var participant = item.value;
+            participant.tracks.forEach() { item ->
+                var publication = item.value;
+                if (publication.track != null) {
+                    var trackId = publication.sid;
+                    if(!frameCryptors.keys.contains(trackId)) {
+                        addSubscribedTrack(publication.track!!, publication, participant, room);
+                    }
+                }
+            }
+        }
     }
 
-    public fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+    public fun addSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         var trackId = publication.sid;
         var participantId = participant.sid;
         var rtpReceiver: RtpReceiver? = when (publication.track!!) {
@@ -115,7 +83,7 @@ constructor(keyProvider: KeyProvider)  {
         };
     }
 
-    public fun onTrackPublished(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+    public fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         var trackId = publication.sid;
         var participantId = participant.sid;
         var rtpSender: RtpSender? = when (publication.track!!) {
@@ -183,7 +151,11 @@ constructor(keyProvider: KeyProvider)  {
         return frameCryptor;
     }
 
-    fun enableE2EE(enabled: Boolean) {
+    /**
+     * Enable or disable E2EE
+     * @param enabled
+     */
+    public fun enableE2EE(enabled: Boolean) {
         this.enabled = enabled;
         for (item in frameCryptors.entries) {
             var frameCryptor = item.value;
@@ -196,6 +168,9 @@ constructor(keyProvider: KeyProvider)  {
         }
     }
 
+    /**
+     * Ratchet key for local participant
+     */
     fun ratchetKey() {
         for (participantId in frameCryptors.keys) {
             var newKey = keyProvider.rtcKeyProvider?.ratchetKey(participantId, 0);
