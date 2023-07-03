@@ -30,7 +30,7 @@ constructor(keyProvider: KeyProvider)  {
     }
 
     suspend fun setup(room: Room, emitEvent: (roomEvent: RoomEvent) -> Unit) {
-        if (this.room != null) {
+        if (this.room != room) {
             // E2EEManager already setup, clean up first
             cleanUp()
         }
@@ -41,10 +41,7 @@ constructor(keyProvider: KeyProvider)  {
             var participant = this.room!!.localParticipant
             var publication = item.value
             if (publication.track != null) {
-                var trackId = publication.sid
-                if(!frameCryptors.keys.contains(trackId)) {
-                    addPublishedTrack(publication.track!!, publication, participant, room)
-                }
+                addPublishedTrack(publication.track!!, publication, participant, room)
             }
         }
         this.room?.remoteParticipants?.forEach() { item ->
@@ -52,10 +49,7 @@ constructor(keyProvider: KeyProvider)  {
             participant.tracks.forEach() { item ->
                 var publication = item.value
                 if (publication.track != null) {
-                    var trackId = publication.sid
-                    if(!frameCryptors.keys.contains(trackId)) {
-                        addSubscribedTrack(publication.track!!, publication, participant, room)
-                    }
+                    addSubscribedTrack(publication.track!!, publication, participant, room)
                 }
             }
         }
