@@ -2,9 +2,9 @@ package io.livekit.android.e2ee
 
 import livekit.LivekitModels.Encryption
 
-var defaultRatchetSalt = "LKFrameEncryptionKey";
-var defaultMagicBytes = "LK-ROCKS";
-var defaultRatchetWindowSize = 16;
+var defaultRatchetSalt = "LKFrameEncryptionKey"
+var defaultMagicBytes = "LK-ROCKS"
+var defaultRatchetWindowSize = 16
 
 class E2EEOptions
 constructor(keyProvider: KeyProvider = BaseKeyProvider(

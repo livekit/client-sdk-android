@@ -39,16 +39,16 @@ constructor(ratchetSalt: String, uncryptedMagicBytes: String, ratchetWindowSize:
      */
     override fun setKey(key: String, participantId: String?, keyIndex: Int?) {
         if (enableSharedKey) {
-            sharedKey = key.toByteArray();
-            return;
+            sharedKey = key.toByteArray()
+            return
         }
 
-        var keyInfo = KeyInfo("", keyIndex ?: 0, key);
+        var keyInfo = KeyInfo("", keyIndex ?: 0, key)
 
         if (!keys.containsKey(keyInfo.participantId)) {
-            keys[keyInfo.participantId] = mutableMapOf();
+            keys[keyInfo.participantId] = mutableMapOf()
         }
-        keys[keyInfo.participantId]!![keyInfo.keyIndex] = keyInfo.key;
+        keys[keyInfo.participantId]!![keyInfo.keyIndex] = keyInfo.key
         rtcKeyProvider.setKey(participantId, keyIndex?: 0, key.toByteArray())
     }
 

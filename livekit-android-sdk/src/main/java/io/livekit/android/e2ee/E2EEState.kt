@@ -7,5 +7,5 @@ enum class E2EEState {
     MISSING_KEY, // missing key
     ENCRYPTION_FAILED, // encryption failed
     DECRYPTION_FAILED, // decryption failed
-    INTERNAL_ERROR; // internal error
+    INTERNAL_ERROR // internal error
 }
