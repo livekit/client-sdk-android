@@ -202,15 +202,13 @@ constructor(
         coroutineScope.launch {
             localParticipant.events.collect {
                 when (it) {
-                    is ParticipantEvent.TrackPublished -> {
-                        emitWhenConnected(
-                            RoomEvent.TrackPublished(
-                                room = this@Room,
-                                publication = it.publication,
-                                participant = it.participant,
-                            )
+                    is ParticipantEvent.TrackPublished -> emitWhenConnected(
+                        RoomEvent.TrackPublished(
+                            room = this@Room,
+                            publication = it.publication,
+                            participant = it.participant,
                         )
-                    }
+                    )
 
                     is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
                         RoomEvent.ParticipantPermissionsChanged(
