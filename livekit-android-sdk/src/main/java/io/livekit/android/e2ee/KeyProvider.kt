@@ -56,7 +56,7 @@ constructor(ratchetSalt: String, uncryptedMagicBytes: String, ratchetWindowSize:
         return rtcKeyProvider.ratchetKey(participantId, index)
     }
 
-    override lateinit var rtcKeyProvider: FrameCryptorKeyProvider
+    override val rtcKeyProvider: FrameCryptorKeyProvider
 
     init {
         this.ratchetSalt = ratchetSalt
