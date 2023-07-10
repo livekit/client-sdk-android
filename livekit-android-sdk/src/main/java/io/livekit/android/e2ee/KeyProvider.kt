@@ -1,5 +1,6 @@
 package io.livekit.android.e2ee
 
+import io.livekit.android.util.LKLog
 import org.webrtc.FrameCryptorFactory
 import org.webrtc.FrameCryptorKeyProvider
 
@@ -16,20 +17,16 @@ constructor(var participantId: String, var keyIndex: Int, var key: String ) {
 
     val rtcKeyProvider: FrameCryptorKeyProvider
 
-     var sharedKey: ByteArray?
+    var sharedKey: ByteArray?
 
-     var enableSharedKey: Boolean
+    var enableSharedKey: Boolean
 }
 
 class BaseKeyProvider
-constructor(private val ratchetSalt: String, private val uncryptedMagicBytes: String, private val ratchetWindowSize: Int, private val enableSharedKey: Boolean) :
+constructor(private var ratchetSalt: String, private var uncryptedMagicBytes: String, private var ratchetWindowSize: Int, override var enableSharedKey: Boolean = true) :
     KeyProvider {
     override var sharedKey: ByteArray? = null
-    var ratchetSalt: String
-    var uncryptedMagicBytes: String
-    var ratchetWindowSize: Int
-    override var enableSharedKey: Boolean = true
-    var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
+    private var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
 
     /**
      * Set a key for a participant
@@ -43,13 +40,18 @@ constructor(private val ratchetSalt: String, private val uncryptedMagicBytes: St
             return
         }
 
-        var keyInfo = KeyInfo("", keyIndex ?: 0, key)
+        if(participantId == null) {
+            LKLog.d{ "Please provide valid participantId for non-SharedKey mode." }
+            return
+        }
+
+        var keyInfo = KeyInfo(participantId, keyIndex ?: 0, key)
 
         if (!keys.containsKey(keyInfo.participantId)) {
             keys[keyInfo.participantId] = mutableMapOf()
         }
         keys[keyInfo.participantId]!![keyInfo.keyIndex] = keyInfo.key
-        rtcKeyProvider.setKey(participantId, keyIndex?: 0, key.toByteArray())
+        rtcKeyProvider.setKey(participantId, keyInfo.keyIndex, key.toByteArray())
     }
 
     override fun ratchetKey(participantId: String, index: Int): ByteArray {
