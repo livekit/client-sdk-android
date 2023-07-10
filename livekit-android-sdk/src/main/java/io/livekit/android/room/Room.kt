@@ -189,6 +189,7 @@ constructor(
             videoTrackCaptureDefaults = videoTrackCaptureDefaults,
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
+            e2eeOptions = null,
         )
 
     suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions(), roomOptions: RoomOptions = getCurrentRoomOptions()) {

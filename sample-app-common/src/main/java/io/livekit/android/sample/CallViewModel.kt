@@ -40,15 +40,9 @@ class CallViewModel(
     val token: String,
     application: Application,
     val e2ee: Boolean = false,
-    e2eeKey: String? = "",
+    val e2eeKey: String? = "",
 ) : AndroidViewModel(application) {
-
-
     val audioHandler = AudioSwitchHandler(application)
-
-    var e2ee: Boolean = false;
-
-    var e2eeKey: String? = ""
 
     private fun getE2EEOptions(): E2EEOptions? {
         var e2eeOptions: E2EEOptions? = null
@@ -107,8 +101,6 @@ class CallViewModel(
     val permissionAllowed = mutablePermissionAllowed.hide()
 
     init {
-        this.e2ee = e2ee ?: false
-        this.e2eeKey = e2eeKey
         viewModelScope.launch {
             // Collect any errors.
             launch {
