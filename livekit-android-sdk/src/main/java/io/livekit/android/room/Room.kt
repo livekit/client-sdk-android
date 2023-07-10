@@ -253,7 +253,7 @@ constructor(
         if(roomOptions.e2eeOptions != null) {
             e2eeManager = E2EEManager(roomOptions!!.e2eeOptions!!.keyProvider)
             e2eeManager!!.setup(this, {event ->
-                CoroutineScope(ioDispatcher).launch {
+                coroutineScope.launch {
                     emitWhenConnected(event)
                 }
             })
