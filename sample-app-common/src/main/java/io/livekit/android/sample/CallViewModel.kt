@@ -39,7 +39,7 @@ class CallViewModel(
     val url: String,
     val token: String,
     application: Application,
-    e2ee: Boolean? = false,
+    val e2ee: Boolean = false,
     e2eeKey: String? = "",
 ) : AndroidViewModel(application) {
 
