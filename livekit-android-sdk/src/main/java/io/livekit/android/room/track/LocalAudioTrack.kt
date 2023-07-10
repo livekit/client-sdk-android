@@ -26,7 +26,7 @@ class LocalAudioTrack(
         }
 
     internal var transceiver: RtpTransceiver? = null
-    val sender: RtpSender?
+    internal val sender: RtpSender?
         get() = transceiver?.sender
 
     companion object {
