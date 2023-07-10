@@ -22,7 +22,7 @@ constructor(var participantId: String, var keyIndex: Int, var key: String ) {
 }
 
 class BaseKeyProvider
-constructor(ratchetSalt: String, uncryptedMagicBytes: String, ratchetWindowSize: Int, enableSharedKey: Boolean) :
+constructor(private val ratchetSalt: String, private val uncryptedMagicBytes: String, private val ratchetWindowSize: Int, private val enableSharedKey: Boolean) :
     KeyProvider {
     override var sharedKey: ByteArray? = null
     var ratchetSalt: String
