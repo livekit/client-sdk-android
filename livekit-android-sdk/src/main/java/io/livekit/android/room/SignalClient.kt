@@ -549,10 +549,12 @@ constructor(
                 val sd = fromProtoSessionDescription(response.answer)
                 listener?.onAnswer(sd)
             }
+
             LivekitRtc.SignalResponse.MessageCase.OFFER -> {
                 val sd = fromProtoSessionDescription(response.offer)
                 listener?.onOffer(sd)
             }
+
             LivekitRtc.SignalResponse.MessageCase.TRICKLE -> {
                 val iceCandidateJson =
                     json.decodeFromString<IceCandidateJSON>(response.trickle.candidateInit)
@@ -563,33 +565,43 @@ constructor(
                 )
                 listener?.onTrickle(iceCandidate, response.trickle.target)
             }
+
             LivekitRtc.SignalResponse.MessageCase.UPDATE -> {
                 listener?.onParticipantUpdate(response.update.participantsList)
             }
+
             LivekitRtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
                 listener?.onLocalTrackPublished(response.trackPublished)
             }
+
             LivekitRtc.SignalResponse.MessageCase.SPEAKERS_CHANGED -> {
                 listener?.onSpeakersChanged(response.speakersChanged.speakersList)
             }
+
             LivekitRtc.SignalResponse.MessageCase.JOIN -> {
                 LKLog.d { "received unexpected extra join message?" }
             }
+
             LivekitRtc.SignalResponse.MessageCase.LEAVE -> {
                 listener?.onLeave(response.leave)
             }
+
             LivekitRtc.SignalResponse.MessageCase.MUTE -> {
                 listener?.onRemoteMuteChanged(response.mute.sid, response.mute.muted)
             }
+
             LivekitRtc.SignalResponse.MessageCase.ROOM_UPDATE -> {
                 listener?.onRoomUpdate(response.roomUpdate.room)
             }
+
             LivekitRtc.SignalResponse.MessageCase.CONNECTION_QUALITY -> {
                 listener?.onConnectionQuality(response.connectionQuality.updatesList)
             }
+
             LivekitRtc.SignalResponse.MessageCase.STREAM_STATE_UPDATE -> {
                 listener?.onStreamStateUpdate(response.streamStateUpdate.streamStatesList)
             }
+
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_QUALITY_UPDATE -> {
                 val versionToIgnoreUpTo = Semver("0.15.1")
                 if ((serverVersion?.compareTo(versionToIgnoreUpTo) ?: 1) <= 0) {
@@ -597,24 +609,31 @@ constructor(
                 }
                 listener?.onSubscribedQualityUpdate(response.subscribedQualityUpdate)
             }
+
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_PERMISSION_UPDATE -> {
                 listener?.onSubscriptionPermissionUpdate(response.subscriptionPermissionUpdate)
             }
+
             LivekitRtc.SignalResponse.MessageCase.REFRESH_TOKEN -> {
                 listener?.onRefreshToken(response.refreshToken)
             }
+
             LivekitRtc.SignalResponse.MessageCase.TRACK_UNPUBLISHED -> {
                 listener?.onLocalTrackUnpublished(response.trackUnpublished)
             }
+
             LivekitRtc.SignalResponse.MessageCase.PONG -> {
                 resetPingTimeout()
             }
+
             LivekitRtc.SignalResponse.MessageCase.PONG_RESP -> {
                 // TODO
             }
+
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
                 // TODO
             }
+
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null -> {
                 LKLog.v { "empty messageCase!" }
@@ -730,7 +749,8 @@ constructor(
             LivekitRtc.SignalRequest.MessageCase.TRICKLE,
             LivekitRtc.SignalRequest.MessageCase.OFFER,
             LivekitRtc.SignalRequest.MessageCase.ANSWER,
-            LivekitRtc.SignalRequest.MessageCase.SIMULATE
+            LivekitRtc.SignalRequest.MessageCase.SIMULATE,
+            LivekitRtc.SignalRequest.MessageCase.LEAVE,
         )
 
         private fun iceServer(url: String) =
