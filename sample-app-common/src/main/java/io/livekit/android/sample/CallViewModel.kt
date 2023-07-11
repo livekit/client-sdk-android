@@ -57,7 +57,7 @@ class CallViewModel(
 
     val room = LiveKit.create(
         appContext = application,
-        options = RoomOptions(adaptiveStream = true, dynacast = true, e2eeOptions = getE2EEOptions()),
+        options = RoomOptions(adaptiveStream = true, dynacast = true),
         overrides = LiveKitOverrides(
             audioHandler = audioHandler
         )
