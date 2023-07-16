@@ -1,6 +1,7 @@
 package io.livekit.android.audio
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -74,7 +75,54 @@ constructor(private val context: Context) : AudioHandler {
                         )
                     }
                 audioSwitch = switch
-                switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
+                switch.start { audioDevices: List<AudioDevice>, selectedAudioDevice: AudioDevice? ->
+
+                    // On >S, some devices don't properly use bluetooth mic if no audio tracks.
+                    // Using the new communication devices api fixes this.
+                    // TODO: Move into AudioSwitch itself
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        val commDevices = audioManager.availableCommunicationDevices
+
+                        val audioDeviceInfo = when (selectedAudioDevice) {
+                            is AudioDevice.BluetoothHeadset -> {
+                                commDevices.firstOrNull { info ->
+                                    info.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || info.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                                }
+                            }
+
+                            is AudioDevice.Earpiece -> {
+                                commDevices.firstOrNull { info ->
+                                    info.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                                }
+                            }
+
+                            is AudioDevice.Speakerphone -> {
+                                commDevices.firstOrNull { info ->
+                                    info.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                                }
+                            }
+
+                            is AudioDevice.WiredHeadset -> {
+                                commDevices.firstOrNull { info ->
+                                    info.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || info.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                                }
+                            }
+
+                            else -> {
+                                null
+                            }
+                        }
+
+                        if (audioDeviceInfo != null) {
+                            audioManager.setCommunicationDevice(audioDeviceInfo)
+                        } else {
+                            audioManager.clearCommunicationDevice()
+                        }
+                    }
+
+                    audioDeviceChangeListener?.invoke(audioDevices, selectedAudioDevice)
+                }
                 switch.activate()
             }
         }
