@@ -1,6 +1,7 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.Nullable
 import dagger.Module
@@ -103,6 +104,7 @@ object RTCModule {
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
+            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
 
         moduleCustomizer?.invoke(builder)
         return builder.createAudioDeviceModule()
