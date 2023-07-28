@@ -10,21 +10,20 @@
 
 <!--BEGIN_DESCRIPTION-->Use this SDK to add real-time video, audio and data features to your Android/Kotlin app. By connecting to a self- or cloud-hosted <a href="https://livekit.io/">LiveKit</a> server, you can quickly build applications like interactive live streaming or video calls with just a few lines of code.<!--END_DESCRIPTION-->
 
-Table of Contents
-=================
+# Table of Contents
 
-   * [Docs](#docs)
-   * [Installation](#installation)
-   * [Usage](#usage)
-      * [Permissions](#permissions)
-      * [Publishing camera and microphone](#publishing-camera-and-microphone)
-      * [Sharing screen](#sharing-screen)
-      * [Rendering subscribed tracks](#rendering-subscribed-tracks)
-      * [@FlowObservable](#flowobservable)
-   * [Sample App](#sample-app)
-   * [Dev Environment](#dev-environment)
-      * [Optional (Dev convenience)](#optional-dev-convenience)
-      
+- [Docs](#docs)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Permissions](#permissions)
+  - [Publishing camera and microphone](#publishing-camera-and-microphone)
+  - [Sharing screen](#sharing-screen)
+  - [Rendering subscribed tracks](#rendering-subscribed-tracks)
+  - [@FlowObservable](#flowobservable)
+- [Sample App](#sample-app)
+- [Dev Environment](#dev-environment)
+  - [Optional (Dev convenience)](#optional-dev-convenience)
+
 ## Docs
 
 Docs and guides at [https://docs.livekit.io](https://docs.livekit.io).
@@ -55,7 +54,7 @@ subprojects {
         mavenCentral()
         // ...
         maven { url 'https://jitpack.io' }
-        
+
         // For SNAPSHOT access
         // maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
     }
@@ -172,6 +171,35 @@ See
 the [basic sample app](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic/src/main/java/io/livekit/android/sample/basic/MainActivity.kt)
 for the full implementation.
 
+### Audio Management
+
+When publishing audio, you'll want request audio focus from AudioManager.
+
+```kotlin
+val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+with(audioManager) {
+    isSpeakerphoneOn = true
+    isMicrophoneMute = false
+    mode = AudioManager.MODE_IN_COMMUNICATION
+}
+val result = audioManager.requestAudioFocus(
+    focusChangeListener,
+    AudioManager.STREAM_VOICE_CALL,
+    AudioManager.AUDIOFOCUS_GAIN,
+)
+```
+
+and after you are done, reset
+
+```kotlin
+with(audioManager) {
+    isSpeakerphoneOn = false
+    isMicrophoneMute = true
+    abandonAudioFocus(focusChangeListener)
+    mode = AudioManager.MODE_NORMAL
+}
+```
+
 ### `@FlowObservable`
 
 Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes
@@ -195,8 +223,8 @@ connect to a room, publish your device's audio/video, and display the video of o
 
 There are two more full featured video conferencing sample apps:
 
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
-* [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
+- [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
+- [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
 
 They both use
 the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt)
@@ -206,8 +234,8 @@ app.
 The respective `ParticipantItem` class in each app is responsible for the displaying of each
 participant's UI.
 
-* [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
-* [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
+- [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
+- [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
 
 ## Dev Environment
 
@@ -222,7 +250,7 @@ cd client-sdk-android
 git submodule update --init
 ```
 
-----
+---
 
 For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
 
