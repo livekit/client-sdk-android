@@ -10,21 +10,21 @@
 
 <!--BEGIN_DESCRIPTION-->Use this SDK to add real-time video, audio and data features to your Android/Kotlin app. By connecting to a self- or cloud-hosted <a href="https://livekit.io/">LiveKit</a> server, you can quickly build applications like interactive live streaming or video calls with just a few lines of code.<!--END_DESCRIPTION-->
 
-Table of Contents
-=================
+# Table of Contents
 
-   * [Docs](#docs)
-   * [Installation](#installation)
-   * [Usage](#usage)
-      * [Permissions](#permissions)
-      * [Publishing camera and microphone](#publishing-camera-and-microphone)
-      * [Sharing screen](#sharing-screen)
-      * [Rendering subscribed tracks](#rendering-subscribed-tracks)
-      * [@FlowObservable](#flowobservable)
-   * [Sample App](#sample-app)
-   * [Dev Environment](#dev-environment)
-      * [Optional (Dev convenience)](#optional-dev-convenience)
-      
+- [Docs](#docs)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Permissions](#permissions)
+  - [Publishing camera and microphone](#publishing-camera-and-microphone)
+  - [Sharing screen](#sharing-screen)
+  - [Rendering subscribed tracks](#rendering-subscribed-tracks)
+  - [Audio modes](#audio-modes)
+  - [@FlowObservable](#flowobservable)
+- [Sample App](#sample-app)
+- [Dev Environment](#dev-environment)
+  - [Optional (Dev convenience)](#optional-dev-convenience)
+
 ## Docs
 
 Docs and guides at [https://docs.livekit.io](https://docs.livekit.io).
@@ -55,7 +55,7 @@ subprojects {
         mavenCentral()
         // ...
         maven { url 'https://jitpack.io' }
-        
+
         // For SNAPSHOT access
         // maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
     }
@@ -172,6 +172,24 @@ See
 the [basic sample app](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic/src/main/java/io/livekit/android/sample/basic/MainActivity.kt)
 for the full implementation.
 
+### Audio modes
+
+WebRTC utilizes an audio module to interface with the device's audio input and output. By default, the audio module is configured for two-way communications.
+
+If you are building a livestreaming or music app, you can make the following tweaks to improve playback quality:
+
+```kt
+WebRTCModuleOptions options = WebRTCModuleOptions.getInstance();
+AudioDeviceModule adm = JavaAudioDeviceModule.builder(this)
+    .setAudioAttributes(AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+        .build())
+    .setUseStereoOutput(true)
+    .build();
+options.audioDeviceModule = adm;
+```
+
 ### `@FlowObservable`
 
 Properties marked with `@FlowObservable` can be accessed as a Kotlin Flow to observe changes
@@ -195,8 +213,8 @@ connect to a room, publish your device's audio/video, and display the video of o
 
 There are two more full featured video conferencing sample apps:
 
-* [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
-* [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
+- [Compose app](https://github.com/livekit/client-sdk-android/tree/main/sample-app-compose/src/main/java/io/livekit/android/composesample)
+- [Standard app](https://github.com/livekit/client-sdk-android/tree/main/sample-app/src/main/java/io/livekit/android/sample)
 
 They both use
 the [`CallViewModel`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-common/src/main/java/io/livekit/android/sample/CallViewModel.kt)
@@ -206,8 +224,8 @@ app.
 The respective `ParticipantItem` class in each app is responsible for the displaying of each
 participant's UI.
 
-* [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
-* [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
+- [Compose `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app-compose/src/main/java/io/livekit/android/composesample/ParticipantItem.kt)
+- [Standard `ParticipantItem`](https://github.com/livekit/client-sdk-android/blob/main/sample-app/src/main/java/io/livekit/android/sample/ParticipantItem.kt)
 
 ## Dev Environment
 
@@ -222,7 +240,7 @@ cd client-sdk-android
 git submodule update --init
 ```
 
-----
+---
 
 For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
 
@@ -236,7 +254,9 @@ protoc_platform=osx-x86_64
 2. Add sources to Android Studio by pointing at the `webrtc/sdk/android` folder.
 
 <!--BEGIN_REPO_NAV-->
+
 <br/><table>
+
 <thead><tr><th colspan="2">LiveKit Ecosystem</th></tr></thead>
 <tbody>
 <tr><td>Client SDKs</td><td><a href="https://github.com/livekit/components-js">Components</a> · <a href="https://github.com/livekit/client-sdk-js">JavaScript</a> · <a href="https://github.com/livekit/client-sdk-swift">iOS/macOS</a> · <b>Android</b> · <a href="https://github.com/livekit/client-sdk-flutter">Flutter</a> · <a href="https://github.com/livekit/client-sdk-react-native">React Native</a> · <a href="https://github.com/livekit/client-sdk-rust">Rust</a> · <a href="https://github.com/livekit/client-sdk-python">Python</a> · <a href="https://github.com/livekit/client-sdk-unity-web">Unity (web)</a> · <a href="https://github.com/livekit/client-sdk-unity">Unity (beta)</a></td></tr><tr></tr>

@@ -1053,12 +1053,12 @@ interface RoomListener {
      * When a new track is published to room after the local participant has joined. It will
      * not fire for tracks that are already published
      */
-    fun onTrackPublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant, room: Room) {}
 
     /**
      * A [RemoteParticipant] has unpublished a track
      */
-    fun onTrackUnpublished(publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
+    fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant, room: Room) {}
 
     /**
      * When a new track is published to room after the local participant has joined.
