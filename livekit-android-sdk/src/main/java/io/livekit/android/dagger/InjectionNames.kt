@@ -16,6 +16,9 @@
 
 package io.livekit.android.dagger
 
+/**
+ * @suppress
+ */
 object InjectionNames {
 
     /**
@@ -41,6 +44,8 @@ object InjectionNames {
     internal const val SENDER = "sender"
 
     internal const val OPTIONS_VIDEO_HW_ACCEL = "options_video_hw_accel"
+
+    internal const val LIB_WEBRTC_INITIALIZATION = "lib_webrtc_initialization"
 
     // Overrides
     internal const val OVERRIDE_OKHTTP = "override_okhttp"

@@ -78,7 +78,6 @@ internal fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
     stableWritableConnectionPingIntervalMs = config.stableWritableConnectionPingIntervalMs
     disableIPv6OnWifi = config.disableIPv6OnWifi
     maxIPv6Networks = config.maxIPv6Networks
-    disableIpv6 = config.disableIpv6
     enableDscp = config.enableDscp
     enableCpuOveruseDetection = config.enableCpuOveruseDetection
     suspendBelowMinBitrate = config.suspendBelowMinBitrate

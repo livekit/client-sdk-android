@@ -37,8 +37,44 @@ import javax.inject.Singleton
 
 typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
 
+/**
+ * @suppress
+ */
 @Module
 object RTCModule {
+
+    /**
+     * Certain classes require libwebrtc to be initialized prior to use.
+     */
+    @Provides
+    @Singleton
+    @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+    fun libWebrtcInitialization(appContext: Context): LibWebrtcInitialization {
+        PeerConnectionFactory.initialize(
+            PeerConnectionFactory.InitializationOptions
+                .builder(appContext)
+                .setInjectableLogger({ s, severity, s2 ->
+                    if (!LiveKit.enableWebRTCLogging) {
+                        return@setInjectableLogger
+                    }
+
+                    val loggingLevel = when (severity) {
+                        Logging.Severity.LS_VERBOSE -> LoggingLevel.VERBOSE
+                        Logging.Severity.LS_INFO -> LoggingLevel.INFO
+                        Logging.Severity.LS_WARNING -> LoggingLevel.WARN
+                        Logging.Severity.LS_ERROR -> LoggingLevel.ERROR
+                        else -> LoggingLevel.OFF
+                    }
+
+                    LKLog.log(loggingLevel) {
+                        Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
+                    }
+                }, Logging.Severity.LS_VERBOSE)
+                .createInitializationOptions()
+        )
+        return LibWebrtcInitialization
+    }
+
     @Provides
     @Singleton
     @JvmSuppressWildcards
@@ -144,6 +180,9 @@ object RTCModule {
 
     @Provides
     fun videoEncoderFactory(
+        @Suppress("UNUSED_PARAMETER")
+        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+        webrtcInitialization: LibWebrtcInitialization,
         @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
         videoHwAccel: Boolean,
         eglContext: EglBase.Context,
@@ -164,6 +203,9 @@ object RTCModule {
 
     @Provides
     fun videoDecoderFactory(
+        @Suppress("UNUSED_PARAMETER")
+        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+        webrtcInitialization: LibWebrtcInitialization,
         @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
         videoHwAccel: Boolean,
         eglContext: EglBase.Context,
@@ -181,33 +223,13 @@ object RTCModule {
     @Provides
     @Singleton
     fun peerConnectionFactory(
-        appContext: Context,
+        @Suppress("UNUSED_PARAMETER")
+        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+        webrtcInitialization: LibWebrtcInitialization,
         audioDeviceModule: AudioDeviceModule,
         videoEncoderFactory: VideoEncoderFactory,
         videoDecoderFactory: VideoDecoderFactory,
     ): PeerConnectionFactory {
-        PeerConnectionFactory.initialize(
-            PeerConnectionFactory.InitializationOptions
-                .builder(appContext)
-                .setInjectableLogger({ s, severity, s2 ->
-                    if (!LiveKit.enableWebRTCLogging) {
-                        return@setInjectableLogger
-                    }
-
-                    val loggingLevel = when (severity) {
-                        Logging.Severity.LS_VERBOSE -> LoggingLevel.VERBOSE
-                        Logging.Severity.LS_INFO -> LoggingLevel.INFO
-                        Logging.Severity.LS_WARNING -> LoggingLevel.WARN
-                        Logging.Severity.LS_ERROR -> LoggingLevel.ERROR
-                        else -> LoggingLevel.OFF
-                    }
-
-                    LKLog.log(loggingLevel) {
-                        Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
-                    }
-                }, Logging.Severity.LS_VERBOSE)
-                .createInitializationOptions()
-        )
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
             .setVideoEncoderFactory(videoEncoderFactory)
@@ -227,3 +249,8 @@ object RTCModule {
     @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
     fun videoHwAccel() = true
 }
+
+/**
+ * @suppress
+ */
+object LibWebrtcInitialization

@@ -24,6 +24,9 @@ import io.livekit.android.LiveKitOverrides
 import javax.inject.Named
 
 @SuppressLint("KotlinNullnessAnnotation")
+/**
+ * @suppress
+ */
 @Module
 class OverridesModule(private val overrides: LiveKitOverrides) {
 

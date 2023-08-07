@@ -21,6 +21,9 @@ import dagger.Provides
 import dagger.Reusable
 import kotlinx.serialization.json.Json
 
+/**
+ * @suppress
+ */
 @Module
 object JsonFormatModule {
     @Provides
