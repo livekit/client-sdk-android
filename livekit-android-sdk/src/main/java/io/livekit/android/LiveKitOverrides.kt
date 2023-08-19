@@ -83,7 +83,7 @@ class AudioOptions(
 
 sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes, val audioStreamType: Int) {
     /**
-     * An audio type for general media usage.
+     * An audio type for general media playback usage (i.e. listener-only use cases).
      *
      * Audio routing is handled automatically by the system in normal media mode,
      * and bluetooth microphones may not work on some devices.
@@ -94,13 +94,13 @@ sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes,
         AudioManager.MODE_NORMAL,
         AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build(),
         AudioManager.STREAM_MUSIC
     )
 
     /**
-     * An audio type for voip calls.
+     * An audio type for calls (i.e. participanting in the call or publishing local microphone).
      *
      * Audio routing can be manually controlled.
      *
