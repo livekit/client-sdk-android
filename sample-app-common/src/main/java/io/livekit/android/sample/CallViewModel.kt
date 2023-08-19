@@ -10,7 +10,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
-import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.events.RoomEvent
@@ -40,14 +39,12 @@ class CallViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
-    val audioHandler = AudioSwitchHandler(application)
     val room = LiveKit.create(
         appContext = application,
         options = RoomOptions(adaptiveStream = true, dynacast = true),
-        overrides = LiveKitOverrides(
-            audioHandler = audioHandler
-        )
     )
+
+    val audioHandler = room.audioHandler as AudioSwitchHandler
 
     val participants = room::remoteParticipants.flow
         .map { remoteParticipants ->

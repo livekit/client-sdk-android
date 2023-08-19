@@ -16,23 +16,58 @@
 
 package io.livekit.android.dagger
 
-import androidx.annotation.Nullable
+import android.media.AudioAttributes
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.AudioType
+import io.livekit.android.audio.AudioFocusHandler
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioSwitchHandler
 import javax.inject.Named
 import javax.inject.Provider
+import javax.inject.Singleton
 
 @Module
 object AudioHandlerModule {
+
     @Provides
+    fun audioOutputType(
+        @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
+        audioOutputOverride: AudioType?,
+    ): AudioType {
+        return audioOutputOverride ?: AudioType.MediaAudioType()
+    }
+
+    @Provides
+    fun audioOutputAttributes(
+        audioType: AudioType
+    ): AudioAttributes {
+        return audioType.audioAttributes
+    }
+
+    @Provides
+    @Singleton
     fun audioHandler(
         audioSwitchHandler: Provider<AudioSwitchHandler>,
+        audioFocusHandler: Provider<AudioFocusHandler>,
         @Named(InjectionNames.OVERRIDE_AUDIO_HANDLER)
-        @Nullable
-        audioHandlerOverride: AudioHandler?
+        audioHandlerOverride: AudioHandler?,
+        audioOutputType: AudioType,
     ): AudioHandler {
-        return audioHandlerOverride ?: audioSwitchHandler.get()
+        return audioHandlerOverride ?: when (audioOutputType) {
+            is AudioType.CallAudioType -> {
+                audioSwitchHandler.get().apply {
+                    audioMode = audioOutputType.audioMode
+                    audioAttributeContentType = audioOutputType.audioAttributes.contentType
+                    audioAttributeUsageType = audioOutputType.audioAttributes.usage
+                    audioStreamType = audioOutputType.audioStreamType
+                }
+            }
+
+            is AudioType.MediaAudioType,
+            is AudioType.CustomAudioType -> {
+                audioFocusHandler.get()
+            }
+        }
     }
 }

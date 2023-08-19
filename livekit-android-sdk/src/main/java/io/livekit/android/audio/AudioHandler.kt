@@ -17,7 +17,7 @@
 package io.livekit.android.audio
 
 /**
- * Interface for handling android audio routing.
+ * Interface for handling android audio.
  */
 interface AudioHandler {
     /**
