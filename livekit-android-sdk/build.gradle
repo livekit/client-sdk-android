@@ -140,7 +140,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0'
     api 'io.github.webrtc-sdk:android:104.5112.10'
     api "com.squareup.okhttp3:okhttp:4.10.0"
-    api 'com.github.davidliu:audioswitch:8edf84ee46cdbc84c2b7725aa8f8d66363e19876'
+    api 'com.github.davidliu:audioswitch:1689af118f69dcd8c8dc95e5a711dd0a7a626e69'
     implementation "androidx.annotation:annotation:1.4.0"
     implementation "androidx.core:core:${versions.androidx_core}"
     implementation "com.google.protobuf:protobuf-javalite:${versions.protobuf}"

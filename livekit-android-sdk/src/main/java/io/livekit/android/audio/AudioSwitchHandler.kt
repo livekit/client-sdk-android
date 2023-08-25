@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.audio
 
 import android.content.Context
@@ -48,6 +64,20 @@ constructor(private val context: Context) : AudioHandler {
      */
     var preferredDeviceList: List<Class<out AudioDevice>>? = null
 
+    /**
+     * The audio mode to use while started.
+     *
+     * Defaults to [AudioManager.MODE_NORMAL].
+     */
+    var audioMode: Int = AudioManager.MODE_NORMAL
+
+    /**
+     * The audio focus mode to use while started.
+     *
+     * Defaults to [AudioManager.AUDIOFOCUS_GAIN].
+     */
+    var focusMode: Int = AudioManager.AUDIOFOCUS_GAIN
+
     private var audioSwitch: AbstractAudioSwitch? = null
 
     // AudioSwitch is not threadsafe, so all calls should be done on the main thread.
@@ -73,6 +103,8 @@ constructor(private val context: Context) : AudioHandler {
                             preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
                         )
                     }
+                switch.audioMode = audioMode
+                switch.focusMode = focusMode
                 audioSwitch = switch
                 switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
                 switch.activate()
