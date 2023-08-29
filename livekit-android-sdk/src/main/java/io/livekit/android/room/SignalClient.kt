@@ -34,6 +34,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
+import livekit.LivekitModels.Encryption
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -376,10 +377,12 @@ constructor(
         type: LivekitModels.TrackType,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
     ) {
+        var encryptionType = lastRoomOptions?.e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE
         val addTrackRequest = builder
             .setCid(cid)
             .setName(name)
             .setType(type)
+            .setEncryption(encryptionType)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()
@@ -647,6 +650,10 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
                 // TODO
             }
 
