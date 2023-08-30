@@ -32,20 +32,28 @@ internal object EncodingUtils {
 
     // Note: maintain order from smallest to biggest.
     private val PRESETS_16_9 = listOf(
-        VideoPreset169.QVGA,
-        VideoPreset169.VGA,
-        VideoPreset169.QHD,
-        VideoPreset169.HD,
-        VideoPreset169.FHD
+        VideoPreset169.H90,
+        VideoPreset169.H180,
+        VideoPreset169.H216,
+        VideoPreset169.H360,
+        VideoPreset169.H540,
+        VideoPreset169.H720,
+        VideoPreset169.H1080,
+        VideoPreset169.H1440,
+        VideoPreset169.H2160
     )
 
     // Note: maintain order from smallest to biggest.
     private val PRESETS_4_3 = listOf(
-        VideoPreset43.QVGA,
-        VideoPreset43.VGA,
-        VideoPreset43.QHD,
-        VideoPreset43.HD,
-        VideoPreset43.FHD
+        VideoPreset43.H120,
+        VideoPreset43.H180,
+        VideoPreset43.H240,
+        VideoPreset43.H360,
+        VideoPreset43.H480,
+        VideoPreset43.H540,
+        VideoPreset43.H720,
+        VideoPreset43.H1080,
+        VideoPreset43.H1440,
     )
 
     fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
