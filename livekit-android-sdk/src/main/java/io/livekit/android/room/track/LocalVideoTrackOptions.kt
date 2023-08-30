@@ -189,7 +189,7 @@ enum class VideoPreset43(
     H1440(
         VideoCaptureParameter(1920, 1440, 30),
         VideoEncoding(3_800_000, 30),
-    )
+    ),
 
     @Deprecated("QVGA is deprecated, use H120 instead")
     QVGA(
