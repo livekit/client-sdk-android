@@ -35,7 +35,7 @@ object AudioHandlerModule {
         @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
         audioOutputOverride: AudioType?,
     ): AudioType {
-        return audioOutputOverride ?: AudioType.MediaAudioType()
+        return audioOutputOverride ?: AudioType.CallAudioType()
     }
 
     @Provides

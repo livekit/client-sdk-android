@@ -100,7 +100,7 @@ sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes,
     )
 
     /**
-     * An audio type for calls (i.e. participanting in the call or publishing local microphone).
+     * An audio type for calls (i.e. participating in the call or publishing local microphone).
      *
      * Audio routing can be manually controlled.
      *
