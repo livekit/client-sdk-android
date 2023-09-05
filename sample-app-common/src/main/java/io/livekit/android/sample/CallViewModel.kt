@@ -12,6 +12,7 @@ import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioSwitchHandler
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
@@ -36,8 +37,19 @@ import kotlinx.coroutines.launch
 class CallViewModel(
     val url: String,
     val token: String,
-    application: Application
+    application: Application,
+    val e2ee: Boolean = false,
+    val e2eeKey: String? = "",
 ) : AndroidViewModel(application) {
+
+    private fun getE2EEOptions(): E2EEOptions? {
+        var e2eeOptions: E2EEOptions? = null
+        if(e2ee && e2eeKey != null) {
+            e2eeOptions = E2EEOptions()
+        }
+        e2eeOptions?.keyProvider?.setKey(e2eeKey!!, null, 0)
+        return e2eeOptions
+    }
 
     val room = LiveKit.create(
         appContext = application,
@@ -159,6 +171,7 @@ class CallViewModel(
             room.connect(
                 url = url,
                 token = token,
+                roomOptions = RoomOptions(e2eeOptions = getE2EEOptions())
             )
 
             // Create and publish audio/video tracks

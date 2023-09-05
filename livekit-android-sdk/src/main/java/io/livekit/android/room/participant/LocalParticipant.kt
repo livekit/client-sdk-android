@@ -25,6 +25,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager

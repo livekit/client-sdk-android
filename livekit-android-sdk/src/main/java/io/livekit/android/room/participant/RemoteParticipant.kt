@@ -30,6 +30,8 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.AudioTrack
 import org.webrtc.MediaStreamTrack
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpTransceiver
 import org.webrtc.VideoTrack
 
 class RemoteParticipant(
@@ -114,8 +116,9 @@ class RemoteParticipant(
         mediaTrack: MediaStreamTrack,
         sid: String,
         statsGetter: RTCStatsGetter,
+        receiver: RtpReceiver,
         autoManageVideo: Boolean = false,
-        triesLeft: Int = 20
+        triesLeft: Int = 20,
     ) {
         val publication = getTrackPublication(sid)
 
@@ -132,19 +135,20 @@ class RemoteParticipant(
             } else {
                 coroutineScope.launch {
                     delay(150)
-                    addSubscribedMediaTrack(mediaTrack, sid, statsGetter, autoManageVideo, triesLeft - 1)
+                    addSubscribedMediaTrack(mediaTrack, sid, statsGetter,receiver = receiver, autoManageVideo, triesLeft - 1)
                 }
             }
             return
         }
 
         val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "")
+            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "", receiver = receiver)
             KIND_VIDEO -> RemoteVideoTrack(
                 rtcTrack = mediaTrack as VideoTrack,
                 name = "",
                 autoManageVideo = autoManageVideo,
-                dispatcher = ioDispatcher
+                dispatcher = ioDispatcher,
+                receiver = receiver
             )
 
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
@@ -156,6 +160,7 @@ class RemoteParticipant(
         publication.subscriptionAllowed = true
         track.name = publication.name
         track.sid = publication.sid
+
         addTrackPublication(publication)
         track.start()
 

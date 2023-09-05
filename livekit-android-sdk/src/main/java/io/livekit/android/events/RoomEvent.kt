@@ -16,6 +16,7 @@
 
 package io.livekit.android.events
 
+import io.livekit.android.e2ee.E2EEState
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.LocalTrackPublication
@@ -197,6 +198,17 @@ sealed class RoomEvent(val room: Room) : Event() {
      * The recording of a room has started/stopped.
      */
     class RecordingStatusChanged(room: Room, isRecording: Boolean) : RoomEvent(room)
+
+    /**
+    * The E2EE state of a track has changed.
+    */
+    class TrackE2EEStateEvent(
+        room: Room,
+        val track: Track,
+        val publication: TrackPublication,
+        val participant: Participant,
+        var state: E2EEState
+    ) : RoomEvent(room)
 }
 
 enum class DisconnectReason {

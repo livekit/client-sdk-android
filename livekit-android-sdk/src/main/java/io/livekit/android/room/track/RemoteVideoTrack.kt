@@ -24,6 +24,8 @@ import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.*
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpTransceiver
 import org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max
@@ -34,6 +36,7 @@ class RemoteVideoTrack(
     val autoManageVideo: Boolean = false,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
+    receiver: RtpReceiver,
 ) : VideoTrack(name, rtcTrack) {
 
     private var coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
@@ -44,6 +47,12 @@ class RemoteVideoTrack(
         private set
     internal var lastDimensions: Dimensions = Dimensions(0, 0)
         private set
+
+    internal var receiver: RtpReceiver
+
+    init {
+        this.receiver = receiver
+    }
 
     /**
      * If `autoManageVideo` is enabled, a VideoSinkVisibility should be passed, using

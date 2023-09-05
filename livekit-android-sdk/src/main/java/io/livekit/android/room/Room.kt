@@ -32,6 +32,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
@@ -131,6 +132,11 @@ constructor(
         private set
 
     /**
+     *  end-to-end encryption manager
+     */
+    var e2eeManager: E2EEManager? = null
+
+    /**
      * Automatically manage quality of subscribed video tracks, subscribe to the
      * an appropriate resolution based on the size of the video elements that tracks
      * are attached to.
@@ -199,9 +205,10 @@ constructor(
             videoTrackCaptureDefaults = videoTrackCaptureDefaults,
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
+            e2eeOptions = null,
         )
 
-    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions(), roomOptions: RoomOptions = getCurrentRoomOptions()) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }
@@ -259,7 +266,17 @@ constructor(
 
         state = State.CONNECTING
         connectOptions = options
-        engine.join(url, token, options, getCurrentRoomOptions())
+
+        if(roomOptions.e2eeOptions != null) {
+            e2eeManager = E2EEManager(roomOptions!!.e2eeOptions!!.keyProvider)
+            e2eeManager!!.setup(this, {event ->
+                coroutineScope.launch {
+                    emitWhenConnected(event)
+                }
+            })
+        }
+
+        engine.join(url, token, options, roomOptions)
 
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
@@ -510,6 +527,7 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
+        e2eeManager?.cleanUp()
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet()  // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
@@ -684,7 +702,8 @@ constructor(
             track,
             trackSid!!,
             autoManageVideo = adaptiveStream,
-            statsGetter = statsGetter
+            statsGetter = statsGetter,
+            receiver = receiver
         )
     }
 
@@ -907,6 +926,16 @@ constructor(
     /**
      * @suppress
      */
+    override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
+        listener?.onTrackPublished(publication, participant, this)
+        if(e2eeManager != null) {
+            e2eeManager!!.addPublishedTrack(publication.track!!, publication, participant, this)
+        }
+        eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
+    }
+    /**
+     * @suppress
+     */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
@@ -917,6 +946,9 @@ constructor(
      */
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
         listener?.onTrackSubscribed(track, publication, participant, this)
+        if(e2eeManager != null) {
+            e2eeManager!!.addSubscribedTrack(track, publication, participant, this)
+        }
         eventBus.postEvent(RoomEvent.TrackSubscribed(this, track, publication, participant), coroutineScope)
     }
 
