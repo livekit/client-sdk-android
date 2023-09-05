@@ -15,6 +15,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
+import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.LiveKitOverrides
 import io.livekit.android.room.Room
@@ -26,7 +27,7 @@ import kotlinx.coroutines.launch
 import org.webrtc.EglBase
 import java.io.File
 import java.io.IOException
-import java.util.*
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
     lateinit var room: Room
@@ -40,12 +41,14 @@ class MainActivity : ComponentActivity() {
         room = LiveKit.create(
             appContext = applicationContext,
             overrides = LiveKitOverrides(
-                javaAudioDeviceModuleCustomizer = { builder ->
-                    // Receive audio samples
-                    builder.setSamplesReadyCallback { samples ->
-                        videoFileRenderer?.onWebRtcAudioRecordSamplesReady(samples)
+                audioOptions = AudioOptions(
+                    javaAudioDeviceModuleCustomizer = { builder ->
+                        // Receive audio samples
+                        builder.setSamplesReadyCallback { samples ->
+                            videoFileRenderer?.onWebRtcAudioRecordSamplesReady(samples)
+                        }
                     }
-                }
+                ),
             )
         )
 

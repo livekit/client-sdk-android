@@ -17,6 +17,7 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.Nullable
@@ -48,6 +49,7 @@ object RTCModule {
         @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
         @Nullable
         moduleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)?,
+        audioOutputAttributes: AudioAttributes,
         appContext: Context
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
@@ -113,6 +115,7 @@ object RTCModule {
         }
 
         val useHardwareAudioProcessing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
         val builder = JavaAudioDeviceModule.builder(appContext)
             .setUseHardwareAcousticEchoCanceler(useHardwareAudioProcessing)
             .setUseHardwareNoiseSuppressor(useHardwareAudioProcessing)
@@ -121,6 +124,7 @@ object RTCModule {
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
             .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+            .setAudioAttributes(audioOutputAttributes)
 
         moduleCustomizer?.invoke(builder)
         return builder.createAudioDeviceModule()

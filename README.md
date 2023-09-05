@@ -15,15 +15,15 @@
 - [Docs](#docs)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Permissions](#permissions)
-  - [Publishing camera and microphone](#publishing-camera-and-microphone)
-  - [Sharing screen](#sharing-screen)
-  - [Rendering subscribed tracks](#rendering-subscribed-tracks)
-  - [Audio modes](#audio-modes)
-  - [@FlowObservable](#flowobservable)
+    - [Permissions](#permissions)
+    - [Publishing camera and microphone](#publishing-camera-and-microphone)
+    - [Sharing screen](#sharing-screen)
+    - [Rendering subscribed tracks](#rendering-subscribed-tracks)
+    - [Audio modes](#audio-modes)
+    - [@FlowObservable](#flowobservable)
 - [Sample App](#sample-app)
 - [Dev Environment](#dev-environment)
-  - [Optional (Dev convenience)](#optional-dev-convenience)
+    - [Optional (Dev convenience)](#optional-dev-convenience)
 
 ## Docs
 
@@ -67,7 +67,9 @@ subprojects {
 ### Permissions
 
 LiveKit relies on the `RECORD_AUDIO` and `CAMERA` permissions to use the microphone and camera.
-These permission must be requested at runtime. Reference the [sample app](https://github.com/livekit/client-sdk-android/blob/4e76e36e0d9f895c718bd41809ab5ff6c57aabd4/sample-app-compose/src/main/java/io/livekit/android/composesample/MainActivity.kt#L134) for an example.
+These permission must be requested at runtime. Reference
+the [sample app](https://github.com/livekit/client-sdk-android/blob/4e76e36e0d9f895c718bd41809ab5ff6c57aabd4/sample-app-compose/src/main/java/io/livekit/android/composesample/MainActivity.kt#L134)
+for an example.
 
 ### Publishing camera and microphone
 
@@ -174,21 +176,26 @@ for the full implementation.
 
 ### Audio modes
 
-WebRTC utilizes an audio module to interface with the device's audio input and output. By default, the audio module is configured for two-way communications.
+By default, the audio is configured for two-way communications.
 
-If you are building a livestreaming or music app, you can make the following tweaks to improve playback quality:
+If you are building a livestreaming or media playback focus app, you can use the preset
+`MediaAudioType` when creating the `Room` object for better audio quality.
 
 ```kt
-WebRTCModuleOptions options = WebRTCModuleOptions.getInstance();
-AudioDeviceModule adm = JavaAudioDeviceModule.builder(this)
-    .setAudioAttributes(AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_MEDIA)
-        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-        .build())
-    .setUseStereoOutput(true)
-    .build();
-options.audioDeviceModule = adm;
+val room = LiveKit.create(
+    appContext = application,
+    overrides = LiveKitOverrides(
+        audioOptions = AudioOptions(
+            audioOutputType = AudioType.MediaAudioType()
+        )
+    )
+)
 ```
+
+Note: audio routing becomes automatically handled by the system and cannot be manually controlled.
+
+For more control over the specific audio attributes and modes, a `CustomAudioType` can be
+passed instead.
 
 ### `@FlowObservable`
 
@@ -205,11 +212,13 @@ coroutineScope.launch {
 
 ## Sample App
 
-**Note**: If you wish to run the sample apps directly from this repo, please consult the [Dev Environment instructions](#dev-environment).
+**Note**: If you wish to run the sample apps directly from this repo, please consult
+the [Dev Environment instructions](#dev-environment).
 
 We have a basic quickstart sample
 app [here](https://github.com/livekit/client-sdk-android/blob/main/sample-app-basic), showing how to
-connect to a room, publish your device's audio/video, and display the video of one remote participant.
+connect to a room, publish your device's audio/video, and display the video of one remote
+participant.
 
 There are two more full featured video conferencing sample apps:
 

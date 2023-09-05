@@ -16,12 +16,14 @@
 
 package io.livekit.android.dagger
 
+import android.annotation.SuppressLint
 import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKitOverrides
 import javax.inject.Named
 
+@SuppressLint("KotlinNullnessAnnotation")
 @Module
 class OverridesModule(private val overrides: LiveKitOverrides) {
 
@@ -33,12 +35,12 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE)
     @Nullable
-    fun audioDeviceModule() = overrides.audioDeviceModule
+    fun audioDeviceModule() = overrides.audioOptions?.audioDeviceModule
 
     @Provides
     @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
     @Nullable
-    fun javaAudioDeviceModuleCustomizer() = overrides.javaAudioDeviceModuleCustomizer
+    fun javaAudioDeviceModuleCustomizer() = overrides.audioOptions?.javaAudioDeviceModuleCustomizer
 
     @Provides
     @Named(InjectionNames.OVERRIDE_VIDEO_ENCODER_FACTORY)
@@ -53,6 +55,10 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_HANDLER)
     @Nullable
-    fun audioHandler() = overrides.audioHandler
+    fun audioHandler() = overrides.audioOptions?.audioHandler
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
+    fun audioOutputType() = overrides.audioOptions?.audioOutputType
 
 }

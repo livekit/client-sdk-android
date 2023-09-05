@@ -17,6 +17,7 @@
 package io.livekit.android.audio
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -65,11 +66,20 @@ constructor(private val context: Context) : AudioHandler {
     var preferredDeviceList: List<Class<out AudioDevice>>? = null
 
     /**
-     * The audio mode to use while started.
+     * When true, AudioSwitchHandler will request audio focus on start and abandon on stop.
      *
-     * Defaults to [AudioManager.MODE_NORMAL].
+     * Defaults to true.
      */
-    var audioMode: Int = AudioManager.MODE_NORMAL
+    var manageAudioFocus = true
+
+    /**
+     * The audio mode to use when requesting audio focus.
+     *
+     * Defaults to [AudioManager.MODE_IN_COMMUNICATION].
+     *
+     * Note: Manual audio routing may not work appropriately when using non-default values.
+     */
+    var audioMode: Int = AudioManager.MODE_IN_COMMUNICATION
 
     /**
      * The audio focus mode to use while started.
@@ -77,6 +87,43 @@ constructor(private val context: Context) : AudioHandler {
      * Defaults to [AudioManager.AUDIOFOCUS_GAIN].
      */
     var focusMode: Int = AudioManager.AUDIOFOCUS_GAIN
+
+    /**
+     * The audio stream type to use when requesting audio focus on pre-O devices.
+     *
+     * Defaults to [AudioManager.STREAM_VOICE_CALL].
+     *
+     * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
+     * to ensure that your values match between android versions.
+     *
+     * Note: Manual audio routing may not work appropriately when using non-default values.
+     */
+    var audioStreamType: Int = AudioManager.STREAM_VOICE_CALL
+
+    /**
+     * The audio attribute usage type to use when requesting audio focus on devices O and beyond.
+     *
+     * Defaults to [AudioAttributes.USAGE_VOICE_COMMUNICATION].
+     *
+     * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
+     * to ensure that your values match between android versions.
+     *
+     * Note: Manual audio routing may not work appropriately when using non-default values.
+     */
+    var audioAttributeUsageType: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION
+
+    /**
+     * The audio attribute content type to use when requesting audio focus on devices O and beyond.
+     *
+     * Defaults to [AudioAttributes.CONTENT_TYPE_SPEECH].
+     *
+     * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
+     * to ensure that your values match between android versions.
+     *
+     * Note: Manual audio routing may not work appropriately when using non-default values.
+     */
+    var audioAttributeContentType: Int = AudioAttributes.CONTENT_TYPE_SPEECH
+
 
     private var audioSwitch: AbstractAudioSwitch? = null
 
@@ -103,8 +150,13 @@ constructor(private val context: Context) : AudioHandler {
                             preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
                         )
                     }
+                switch.manageAudioFocus = manageAudioFocus
                 switch.audioMode = audioMode
                 switch.focusMode = focusMode
+                switch.audioStreamType = audioStreamType
+                switch.audioAttributeUsageType = audioAttributeUsageType
+                switch.audioAttributeContentType = audioAttributeContentType
+
                 audioSwitch = switch
                 switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
                 switch.activate()
