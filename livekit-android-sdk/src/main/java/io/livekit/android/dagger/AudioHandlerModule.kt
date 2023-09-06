@@ -20,7 +20,6 @@ import android.media.AudioAttributes
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.AudioType
-import io.livekit.android.audio.AudioFocusHandler
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioSwitchHandler
 import javax.inject.Named
@@ -49,25 +48,15 @@ object AudioHandlerModule {
     @Singleton
     fun audioHandler(
         audioSwitchHandler: Provider<AudioSwitchHandler>,
-        audioFocusHandler: Provider<AudioFocusHandler>,
         @Named(InjectionNames.OVERRIDE_AUDIO_HANDLER)
         audioHandlerOverride: AudioHandler?,
         audioOutputType: AudioType,
     ): AudioHandler {
-        return audioHandlerOverride ?: when (audioOutputType) {
-            is AudioType.CallAudioType -> {
-                audioSwitchHandler.get().apply {
-                    audioMode = audioOutputType.audioMode
-                    audioAttributeContentType = audioOutputType.audioAttributes.contentType
-                    audioAttributeUsageType = audioOutputType.audioAttributes.usage
-                    audioStreamType = audioOutputType.audioStreamType
-                }
-            }
-
-            is AudioType.MediaAudioType,
-            is AudioType.CustomAudioType -> {
-                audioFocusHandler.get()
-            }
+        return audioHandlerOverride ?: audioSwitchHandler.get().apply {
+            audioMode = audioOutputType.audioMode
+            audioAttributeContentType = audioOutputType.audioAttributes.contentType
+            audioAttributeUsageType = audioOutputType.audioAttributes.usage
+            audioStreamType = audioOutputType.audioStreamType
         }
     }
 }

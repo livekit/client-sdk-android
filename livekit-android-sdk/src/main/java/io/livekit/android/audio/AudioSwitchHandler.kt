@@ -35,6 +35,7 @@ import javax.inject.Singleton
 class AudioSwitchHandler
 @Inject
 constructor(private val context: Context) : AudioHandler {
+
     /**
      * Toggle whether logging is enabled for [AudioSwitch]. By default, this is set to false.
      */
@@ -124,6 +125,15 @@ constructor(private val context: Context) : AudioHandler {
      */
     var audioAttributeContentType: Int = AudioAttributes.CONTENT_TYPE_SPEECH
 
+    /**
+     * On certain Android devices, audio routing does not function properly and bluetooth microphones will not work
+     * unless audio mode is set to [AudioManager.MODE_IN_COMMUNICATION] or [AudioManager.MODE_IN_CALL].
+     *
+     * AudioSwitchHandler by default will not handle audio routing in those cases to avoid audio issues.
+     *
+     * If this set to true, AudioSwitchHandler will attempt to do audio routing, though behavior is undefined.
+     */
+    var forceHandleAudioRouting = false
 
     private var audioSwitch: AbstractAudioSwitch? = null
 
@@ -156,6 +166,7 @@ constructor(private val context: Context) : AudioHandler {
                 switch.audioStreamType = audioStreamType
                 switch.audioAttributeUsageType = audioAttributeUsageType
                 switch.audioAttributeContentType = audioAttributeContentType
+                switch.forceHandleAudioRouting = forceHandleAudioRouting
 
                 audioSwitch = switch
                 switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
