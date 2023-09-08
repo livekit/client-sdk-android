@@ -58,13 +58,16 @@ class AudioOptions(
      * This affects the audio routing and how the audio is handled. Default is [AudioType.CallAudioType].
      *
      * Note: if [audioHandler] is also passed, the values from [audioOutputType] will not be reflected in it,
-     * and must be set manually.
+     * and must be set yourself.
      */
     val audioOutputType: AudioType? = null,
     /**
      * Override the default [AudioHandler].
      *
-     * Use [NoAudioHandler] to turn off automatic audio handling.
+     * Default is [AudioSwitchHandler].
+     *
+     * Use [NoAudioHandler] to turn off automatic audio handling or
+     * [AudioFocusHandler] to get simple audio focus handling.
      */
     val audioHandler: AudioHandler? = null,
 
@@ -81,20 +84,22 @@ class AudioOptions(
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
 )
 
-sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes, val audioStreamType: Int) {
+sealed class AudioType(
+    val audioMode: Int,
+    val audioAttributes: AudioAttributes,
+    val audioStreamType: Int
+) {
     /**
      * An audio type for general media playback usage (i.e. listener-only use cases).
      *
      * Audio routing is handled automatically by the system in normal media mode,
      * and bluetooth microphones may not work on some devices.
-     *
-     * The default [AudioHandler] for this type is [AudioFocusHandler].
      */
     class MediaAudioType : AudioType(
         AudioManager.MODE_NORMAL,
         AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
             .build(),
         AudioManager.STREAM_MUSIC
     )
@@ -103,8 +108,6 @@ sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes,
      * An audio type for calls (i.e. participating in the call or publishing local microphone).
      *
      * Audio routing can be manually controlled.
-     *
-     * The default [AudioHandler] for this type is [AudioSwitchHandler].
      */
     class CallAudioType : AudioType(
         AudioManager.MODE_IN_COMMUNICATION,
@@ -117,8 +120,6 @@ sealed class AudioType(val audioMode: Int, val audioAttributes: AudioAttributes,
 
     /**
      * An audio type that takes in a user-defined [AudioAttributes] and audio stream type.
-     *
-     * The default [AudioHandler] for this type is [AudioFocusHandler].
      */
     class CustomAudioType(audioMode: Int, audioAttributes: AudioAttributes, audioStreamType: Int) :
         AudioType(audioMode, audioAttributes, audioStreamType)
