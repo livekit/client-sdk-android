@@ -7,11 +7,29 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Surface
+import androidx.compose.material.Switch
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -34,21 +52,27 @@ class MainActivity : ComponentActivity() {
             MainContent(
                 defaultUrl = viewModel.getSavedUrl(),
                 defaultToken = viewModel.getSavedToken(),
-                onConnect = { url, token ->
+                defaultE2eeKey = viewModel.getSavedE2EEKey(),
+                defaultE2eeOn = viewModel.getE2EEOptionsOn(),
+                onConnect = { url, token, e2eeKey, e2eeOn ->
                     val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                         putExtra(
                             CallActivity.KEY_ARGS,
                             CallActivity.BundleArgs(
                                 url,
-                                token
+                                token,
+                                e2eeKey,
+                                e2eeOn,
                             )
                         )
                     }
                     startActivity(intent)
                 },
-                onSave = { url, token ->
+                onSave = { url, token, e2eeKey, e2eeOn ->
                     viewModel.setSavedUrl(url)
                     viewModel.setSavedToken(token)
+                    viewModel.setSavedE2EEKey(e2eeKey)
+                    viewModel.setSavedE2EEOn(e2eeOn)
 
                     Toast.makeText(
                         this@MainActivity,
@@ -76,13 +100,17 @@ class MainActivity : ComponentActivity() {
     fun MainContent(
         defaultUrl: String = MainViewModel.URL,
         defaultToken: String = MainViewModel.TOKEN,
-        onConnect: (url: String, token: String) -> Unit = { _, _ -> },
-        onSave: (url: String, token: String) -> Unit = { _, _ -> },
+        defaultE2eeKey: String = MainViewModel.E2EE_KEY,
+        defaultE2eeOn: Boolean = false,
+        onConnect: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _ -> },
+        onSave: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _ -> },
         onReset: () -> Unit = {},
     ) {
         AppTheme {
             var url by remember { mutableStateOf(defaultUrl) }
             var token by remember { mutableStateOf(defaultToken) }
+            var e2eeKey by remember { mutableStateOf(defaultE2eeKey) }
+            var e2eeOn by remember { mutableStateOf(defaultE2eeOn) }
             val scrollState = rememberScrollState()
             // A surface container using the 'background' color from the theme
             Surface(
@@ -119,13 +147,38 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                         )
 
+                        if (e2eeOn) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            OutlinedTextField(
+                                value = e2eeKey,
+                                onValueChange = { e2eeKey = it },
+                                label = { Text("E2EE Key") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = e2eeOn
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = { onConnect(url, token) }) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Enable E2EE")
+                            Switch(
+                                checked = e2eeOn,
+                                onCheckedChange = { e2eeOn = it },
+                                modifier = Modifier.defaultMinSize(minHeight = 100.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(onClick = { onConnect(url, token, e2eeKey, e2eeOn) }) {
                             Text("Connect")
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = { onSave(url, token) }) {
+                        Button(onClick = { onSave(url, token, e2eeKey, e2eeOn) }) {
                             Text("Save Values")
                         }
 

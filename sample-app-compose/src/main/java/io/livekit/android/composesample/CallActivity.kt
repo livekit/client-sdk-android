@@ -40,7 +40,13 @@ class CallActivity : AppCompatActivity() {
     private val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-        CallViewModel(args.url, args.token, application)
+        CallViewModel(
+            url = args.url,
+            token = args.token,
+            e2ee = args.e2eeOn,
+            e2eeKey = args.e2eeKey,
+            application = application
+        )
     }
 
     private val screenCaptureIntentLauncher =
@@ -446,5 +452,10 @@ class CallActivity : AppCompatActivity() {
     }
 
     @Parcelize
-    data class BundleArgs(val url: String, val token: String) : Parcelable
+    data class BundleArgs(
+        val url: String,
+        val token: String,
+        val e2eeKey: String,
+        val e2eeOn: Boolean
+    ) : Parcelable
 }

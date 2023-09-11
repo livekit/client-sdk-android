@@ -44,7 +44,7 @@ class CallViewModel(
 
     private fun getE2EEOptions(): E2EEOptions? {
         var e2eeOptions: E2EEOptions? = null
-        if(e2ee && e2eeKey != null) {
+        if (e2ee && e2eeKey != null) {
             e2eeOptions = E2EEOptions()
         }
         e2eeOptions?.keyProvider?.setKey(e2eeKey!!, null, 0)

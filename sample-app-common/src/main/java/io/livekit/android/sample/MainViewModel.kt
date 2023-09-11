@@ -13,7 +13,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun getSavedUrl() = preferences.getString(PREFERENCES_KEY_URL, URL) as String
     fun getSavedToken() = preferences.getString(PREFERENCES_KEY_TOKEN, TOKEN) as String
     fun getE2EEOptionsOn() = preferences.getBoolean(PREFERENCES_KEY_E2EE_ON, false)
-    fun getSavedE2EEKey() = preferences.getString(PREFERENCES_KEY_E2EE_KEY, "12345678") as String
+    fun getSavedE2EEKey() = preferences.getString(PREFERENCES_KEY_E2EE_KEY, E2EE_KEY) as String
 
     fun setSavedUrl(url: String) {
         preferences.edit {
@@ -51,5 +51,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         const val URL = BuildConfig.DEFAULT_URL
         const val TOKEN = BuildConfig.DEFAULT_TOKEN
+        const val E2EE_KEY = "12345678"
     }
 }
