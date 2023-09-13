@@ -25,7 +25,6 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
@@ -243,6 +242,13 @@ internal constructor(
         ),
         publishListener: PublishListener? = null
     ) {
+        val encodings = listOf(
+            RtpParameters.Encoding(null, true, null).apply {
+                if (options.audioBitrate != null && options.audioBitrate > 0) {
+                    maxBitrateBps = options.audioBitrate
+                }
+            }
+        )
         publishTrackImpl(
             track = track,
             options = options,
@@ -250,6 +256,7 @@ internal constructor(
                 disableDtx = !options.dtx
                 source = LivekitModels.TrackSource.MICROPHONE
             },
+            encodings = encodings,
             publishListener = publishListener,
         )
     }
@@ -368,7 +375,6 @@ internal constructor(
             }
             transceiver.setCodecPreferences(matched.plus(partialMatched).plus(unmatched))
         }
-
 
         val publication = LocalTrackPublication(
             info = trackInfo,
@@ -741,7 +747,7 @@ abstract class BaseAudioTrackPublishOptions {
 }
 
 data class AudioTrackPublishDefaults(
-    override val audioBitrate: Int? = null,
+    override val audioBitrate: Int? = 20_000,
     override val dtx: Boolean = true
 ) : BaseAudioTrackPublishOptions()
 
