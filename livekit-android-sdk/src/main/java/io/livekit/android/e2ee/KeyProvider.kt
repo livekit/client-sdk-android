@@ -23,7 +23,13 @@ constructor(var participantId: String, var keyIndex: Int, var key: String ) {
 }
 
 class BaseKeyProvider
-constructor(private var ratchetSalt: String, private var uncryptedMagicBytes: String, private var ratchetWindowSize: Int, override var enableSharedKey: Boolean = true) :
+constructor(
+    private var ratchetSalt: String,
+    private var uncryptedMagicBytes: String,
+    private var ratchetWindowSize: Int,
+    override var enableSharedKey: Boolean = true,
+    private var failureTolerance:Int,
+) :
     KeyProvider {
     override var sharedKey: ByteArray? = null
     private var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
@@ -61,15 +67,12 @@ constructor(private var ratchetSalt: String, private var uncryptedMagicBytes: St
     override val rtcKeyProvider: FrameCryptorKeyProvider
 
     init {
-        this.ratchetSalt = ratchetSalt
-        this.uncryptedMagicBytes = uncryptedMagicBytes
-        this.ratchetWindowSize = ratchetWindowSize
-        this.enableSharedKey = enableSharedKey
         this.rtcKeyProvider = FrameCryptorFactory.createFrameCryptorKeyProvider(
             enableSharedKey,
             ratchetSalt.toByteArray(),
             ratchetWindowSize,
             uncryptedMagicBytes.toByteArray(),
+            failureTolerance
         )
     }
 }
