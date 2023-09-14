@@ -29,6 +29,9 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 
+/**
+ * @suppress
+ */
 @Module
 object WebModule {
     @Provides

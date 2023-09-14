@@ -178,11 +178,11 @@ suspend fun RTCStatsGetter.getStats(): RTCStatsReport = suspendCancellableCorout
 
 fun createStatsGetter(peerConnection: PeerConnection, sender: RtpSender): RTCStatsGetter =
     { statsCallback: RTCStatsCollectorCallback ->
-        peerConnection.getStats(statsCallback, sender)
+        peerConnection.getStats(sender, statsCallback)
     }
 
 fun createStatsGetter(peerConnection: PeerConnection, receiver: RtpReceiver): RTCStatsGetter =
     { statsCallback: RTCStatsCollectorCallback ->
-        peerConnection.getStats(statsCallback, receiver)
+        peerConnection.getStats(receiver, statsCallback)
     }
 
