@@ -32,7 +32,7 @@ subprojects {
     apply plugin: "com.diffplug.spotless"
     spotless {
         // optional: limit format enforcement to just the files changed by this feature branch
-        //ratchetFrom 'origin/main'
+        ratchetFrom 'origin/main'
 
         format 'misc', {
             // define the files to apply `misc` to
@@ -53,6 +53,15 @@ subprojects {
             // through git history (see "license" section below)
             licenseHeaderFile rootProject.file("LicenseHeaderFile.txt")
             removeUnusedImports()
+        }
+        kotlin {
+            target("**/*.kt", "**/*.kts")
+            targetExclude("$buildDir/**/*.kt")
+            ktlint("0.49.0")
+                .setEditorConfigPath("$rootDir/.editorconfig")
+            licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))
+                .named('license')
+            endWithNewline()
         }
     }
 }
@@ -75,8 +84,8 @@ afterEvaluate {
          "createRepository",
          "getStagingProfile",
          "releaseRepository"]
-                .forEach { taskName ->
-                    getTasksByName(taskName, false).forEach { task -> task.enabled = false }
-                }
+            .forEach { taskName ->
+                getTasksByName(taskName, false).forEach { task -> task.enabled = false }
+            }
     }
 }

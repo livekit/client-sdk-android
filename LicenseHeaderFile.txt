@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright $YEAR LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,3 @@
  * limitations under the License.
  */
 
-package io.livekit.android.dagger
-
-import dagger.Module
-import dagger.Provides
-import io.livekit.android.memory.CloseableManager
-import javax.inject.Singleton
-
-/**
- * @suppress
- */
-@Module
-object MemoryModule {
-
-    @Singleton
-    @Provides
-    fun closeableManager() = CloseableManager()
-}

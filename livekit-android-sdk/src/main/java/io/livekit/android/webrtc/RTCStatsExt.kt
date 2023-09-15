@@ -185,4 +185,3 @@ fun createStatsGetter(peerConnection: PeerConnection, receiver: RtpReceiver): RT
     { statsCallback: RTCStatsCollectorCallback ->
         peerConnection.getStats(receiver, statsCallback)
     }
-

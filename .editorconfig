@@ -1,0 +1,28 @@
+# https://editorconfig.org
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+max_line_length = 180
+
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{java,kt,kts,scala,rs,xml,kt.spec,kts.spec,gradle,md}]
+indent_size = 4
+
+[*.{kt,kts}]
+ktlint_code_style = ktlint_official
+
+ktlint_standard = enabled
+ktlint_standard_no-wildcard-imports = disabled
+
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = unset
+
+[*.yml]
+ij_yaml_spaces_within_brackets = false

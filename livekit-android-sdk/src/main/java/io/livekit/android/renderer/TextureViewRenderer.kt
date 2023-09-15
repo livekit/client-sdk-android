@@ -222,8 +222,8 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
             val height = Math.min(height, drawnFrameHeight)
             logD(
                 "updateSurfaceSize. Layout size: " + getWidth() + "x" + getHeight() + ", frame size: "
-                        + rotatedFrameWidth + "x" + rotatedFrameHeight + ", requested surface size: " + width
-                        + "x" + height + ", old surface size: " + surfaceWidth + "x" + surfaceHeight
+                    + rotatedFrameWidth + "x" + rotatedFrameHeight + ", requested surface size: " + width
+                    + "x" + height + ", old surface size: " + surfaceWidth + "x" + surfaceHeight
             )
             if (width != surfaceWidth || height != surfaceHeight) {
                 surfaceWidth = width
@@ -258,7 +258,7 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
         val yoff = (viewHeight - newHeight) / 2
         logD(
             "video=" + videoWidth + "x" + videoHeight + " view=" + viewWidth + "x" + viewHeight
-                    + " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff
+                + " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff
         )
         val txform = Matrix()
         getTransform(txform)

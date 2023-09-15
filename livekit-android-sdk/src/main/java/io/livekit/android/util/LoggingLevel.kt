@@ -39,4 +39,3 @@ enum class LoggingLevel {
         }
     }
 }
-
