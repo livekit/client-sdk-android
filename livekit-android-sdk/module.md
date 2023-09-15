@@ -16,5 +16,5 @@ Room is the primary class that manages the connection to the LiveKit Room. It ex
 
 # Package io.livekit.android.room.track
 
-`AudioTrack` and `VideoTrack` are the classes that represent the types of media streams that can be 
+`AudioTrack` and `VideoTrack` are the classes that represent the types of media streams that can be
 subscribed and published.
