@@ -45,14 +45,17 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build with Gradle
-      run: ./gradlew clean assembleRelease livekit-android-sdk:testRelease
+    - name: Gradle clean
+      run: ./gradlew clean
 
     - name: Spotless check
       if: github.event_name == 'pull_request'
       run: |
         git fetch origin main --depth 1
         ./gradlew spotlessCheck
+
+    - name: Build with Gradle
+      run: ./gradlew assembleRelease livekit-android-sdk:testRelease
 
       # TODO: Figure out appropriate place to run this. Takes ~3 mins, so pretty slow.
 #    # generates coverage-report.md and publishes as checkrun
