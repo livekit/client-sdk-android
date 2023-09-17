@@ -186,9 +186,9 @@ class MockPeerConnection(
 
         if ((localDesc?.type == null && remoteDesc?.type == null) ||
             (localDesc?.type == SessionDescription.Type.OFFER &&
-                    remoteDesc?.type == SessionDescription.Type.ANSWER) ||
+                remoteDesc?.type == SessionDescription.Type.ANSWER) ||
             (localDesc?.type == SessionDescription.Type.ANSWER &&
-                    remoteDesc?.type == SessionDescription.Type.OFFER)
+                remoteDesc?.type == SessionDescription.Type.OFFER)
         ) {
             return SignalingState.STABLE
         }

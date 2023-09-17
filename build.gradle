@@ -57,7 +57,7 @@ subprojects {
         kotlin {
             target("**/*.kt", "**/*.kts")
             targetExclude("$buildDir/**/*.kt")
-            ktlint("0.49.0")
+            ktlint("0.50.0")
                 .setEditorConfigPath("$rootDir/.editorconfig")
             licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))
                 .named('license')

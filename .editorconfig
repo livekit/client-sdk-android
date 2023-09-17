@@ -18,15 +18,17 @@ indent_size = 4
 ktlint_code_style = android_studio
 
 # default IntelliJ IDEA style, same as alphabetical, but with "java", "javax", "kotlin" and alias imports in the end of the imports list
-ij_kotlin_imports_layout=*,java.**,javax.**,kotlin.**,^
+ij_kotlin_imports_layout = *, java.**, javax.**, kotlin.**, ^
 
 ktlint_standard = enabled
 ktlint_standard_no-wildcard-imports = disabled
 
-ktlint_standard_trailing-comma-on-call-site = true
+ktlint_standard_trailing-comma-on-call-site = disabled
 ij_kotlin_allow_trailing_comma_on_call_site = true
-ktlint_standard_trailing-comma-on-declaration-site = true
+ktlint_standard_trailing-comma-on-declaration-site = disabled
 ij_kotlin_allow_trailing_comma = true
+
+ktlint_standard_wrapping = disabled
 
 [*.md]
 trim_trailing_whitespace = false
