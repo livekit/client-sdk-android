@@ -45,12 +45,12 @@ constructor(
     @Assisted private val listener: Listener?,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
-    connectionFactory: PeerConnectionFactory
+    connectionFactory: PeerConnectionFactory,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
     internal val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
         config,
-        pcObserver
+        pcObserver,
     ) ?: throw IllegalStateException("peer connection creation failed?")
     private val pendingCandidates = mutableListOf<IceCandidate>()
     private var restartingIce: Boolean = false
@@ -76,7 +76,6 @@ constructor(
     }
 
     suspend fun setRemoteDescription(sd: SessionDescription): Either<Unit, String?> {
-
         val result = peerConnection.setRemoteDescription(sd)
         if (result is Either.Left) {
             mutex.withLock {
@@ -145,7 +144,6 @@ constructor(
         listener?.onOffer(sdpOffer)
     }
 
-
     fun prepareForIceRestart() {
         restartingIce = true
     }
@@ -163,7 +161,7 @@ constructor(
         fun create(
             config: PeerConnection.RTCConfiguration,
             pcObserver: PeerConnection.Observer,
-            listener: Listener?
+            listener: Listener?,
         ): PeerConnectionTransport
     }
 }

@@ -67,7 +67,7 @@ open class ScreenCaptureService : Service() {
         val channel = NotificationChannel(
             DEFAULT_CHANNEL_ID,
             "Screen Capture",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_LOW,
         )
         val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         service.createNotificationChannel(channel)
@@ -81,7 +81,6 @@ open class ScreenCaptureService : Service() {
         }
         return false
     }
-
 
     inner class ScreenCaptureBinder : Binder() {
         val service: ScreenCaptureService

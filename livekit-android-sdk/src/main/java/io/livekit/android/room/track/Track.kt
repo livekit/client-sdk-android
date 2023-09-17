@@ -30,7 +30,7 @@ import org.webrtc.RTCStatsReport
 abstract class Track(
     name: String,
     kind: Kind,
-    open val rtcTrack: MediaStreamTrack
+    open val rtcTrack: MediaStreamTrack,
 ) {
     protected val eventBus = BroadcastEventBus<TrackEvent>()
     val events = eventBus.readOnly()
@@ -67,7 +67,8 @@ abstract class Track(
         VIDEO("video"),
 
         // unknown
-        UNRECOGNIZED("unrecognized");
+        UNRECOGNIZED("unrecognized"),
+        ;
 
         fun toProto(): LivekitModels.TrackType {
             return when (this) {
@@ -78,7 +79,7 @@ abstract class Track(
         }
 
         override fun toString(): String {
-            return value;
+            return value
         }
 
         companion object {
@@ -96,8 +97,8 @@ abstract class Track(
         CAMERA,
         MICROPHONE,
         SCREEN_SHARE,
-        UNKNOWN;
-
+        UNKNOWN,
+        ;
 
         fun toProto(): LivekitModels.TrackSource {
             return when (this) {
@@ -123,7 +124,8 @@ abstract class Track(
     enum class StreamState {
         ACTIVE,
         PAUSED,
-        UNKNOWN;
+        UNKNOWN,
+        ;
 
         fun toProto(): LivekitRtc.StreamState {
             return when (this) {
@@ -158,7 +160,6 @@ abstract class Track(
         rtcTrack.dispose()
     }
 }
-
 
 sealed class TrackException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {

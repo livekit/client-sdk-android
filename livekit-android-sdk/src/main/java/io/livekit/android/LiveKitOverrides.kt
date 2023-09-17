@@ -50,7 +50,6 @@ data class LiveKitOverrides(
     val audioOptions: AudioOptions? = null,
 )
 
-
 class AudioOptions(
     /**
      * Override the default output [AudioType].
@@ -87,7 +86,7 @@ class AudioOptions(
 sealed class AudioType(
     val audioMode: Int,
     val audioAttributes: AudioAttributes,
-    val audioStreamType: Int
+    val audioStreamType: Int,
 ) {
     /**
      * An audio type for general media playback usage (i.e. listener-only use cases).
@@ -101,7 +100,7 @@ sealed class AudioType(
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
             .build(),
-        AudioManager.STREAM_MUSIC
+        AudioManager.STREAM_MUSIC,
     )
 
     /**
@@ -115,7 +114,7 @@ sealed class AudioType(
             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build(),
-        AudioManager.STREAM_VOICE_CALL
+        AudioManager.STREAM_VOICE_CALL,
     )
 
     /**

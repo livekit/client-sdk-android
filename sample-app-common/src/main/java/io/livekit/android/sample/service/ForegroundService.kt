@@ -31,7 +31,7 @@ open class ForegroundService : Service() {
         startForeground(DEFAULT_NOTIFICATION_ID, actualNotification)
         return START_NOT_STICKY
     }
-    
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel() {
         val channel = NotificationChannel(

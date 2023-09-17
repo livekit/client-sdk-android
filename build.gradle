@@ -15,6 +15,7 @@ buildscript {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.19'
         classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0"
         classpath 'com.dicedmelon.gradle:jacoco-android:0.1.5'
+        classpath "com.diffplug.spotless:spotless-plugin-gradle:6.21.0"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -26,6 +27,41 @@ subprojects {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
+    }
+
+    apply plugin: "com.diffplug.spotless"
+    spotless {
+        // optional: limit format enforcement to just the files changed by this feature branch
+        ratchetFrom 'origin/main'
+
+        format 'misc', {
+            // define the files to apply `misc` to
+            target '*.gradle', '*.md', '.gitignore'
+
+            // define the steps to apply to those files
+            trimTrailingWhitespace()
+            indentWithSpaces()
+            endWithNewline()
+        }
+        java {
+            // apply a specific flavor of google-java-format
+            googleJavaFormat('1.17.0').aosp().reflowLongStrings()
+            // fix formatting of type annotations
+            formatAnnotations()
+            // make sure every file has the following copyright header.
+            // optionally, Spotless can set copyright years by digging
+            // through git history (see "license" section below)
+            licenseHeaderFile rootProject.file("LicenseHeaderFile.txt")
+            removeUnusedImports()
+        }
+        kotlin {
+            target("src/*/java/**/*.kt")
+            ktlint("0.50.0")
+                .setEditorConfigPath("$rootDir/.editorconfig")
+            licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))
+                .named('license')
+            endWithNewline()
+        }
     }
 }
 
@@ -47,8 +83,8 @@ afterEvaluate {
          "createRepository",
          "getStagingProfile",
          "releaseRepository"]
-                .forEach { taskName ->
-                    getTasksByName(taskName, false).forEach { task -> task.enabled = false }
-                }
+            .forEach { taskName ->
+                getTasksByName(taskName, false).forEach { task -> task.enabled = false }
+            }
     }
 }

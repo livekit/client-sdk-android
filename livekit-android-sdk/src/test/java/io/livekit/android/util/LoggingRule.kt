@@ -45,7 +45,6 @@ class LoggingRule : TestRule {
                 println(t.toString())
             }
         }
-
     }
 
     override fun apply(base: Statement, description: Description?) = object : Statement() {

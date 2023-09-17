@@ -7,8 +7,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
-import io.livekit.android.RoomOptions
 import io.livekit.android.LiveKitOverrides
+import io.livekit.android.RoomOptions
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
@@ -36,10 +36,10 @@ class CallViewModel(
             room::remoteParticipants.flow
                 .map { remoteParticipants ->
                     listOf<Participant>(room.localParticipant) +
-                            remoteParticipants
-                                .keys
-                                .sortedBy { it }
-                                .mapNotNull { remoteParticipants[it] }
+                        remoteParticipants
+                            .keys
+                            .sortedBy { it }
+                            .mapNotNull { remoteParticipants[it] }
                 }
         } else {
             flowOf(emptyList())
@@ -98,7 +98,6 @@ class CallViewModel(
                     localParticipant.publishVideoTrack(videoTrack)
                 }
                 mutableRoom.value = room
-
             } catch (e: Throwable) {
                 mutableError.value = e
             }

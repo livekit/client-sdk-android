@@ -35,7 +35,6 @@ fun VideoItem(
     videoTrack: VideoTrack,
     modifier: Modifier = Modifier
 ) {
-
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var videoView: TextureViewRenderer? by remember { mutableStateOf(null) }
@@ -112,6 +111,7 @@ fun VideoItem(
 }
 
 const val VIDEO_FRAME_INDICATOR = "frame_indicator"
+
 /**
  * This widget primarily serves as a way to observe changes in [videoTracks].
  */

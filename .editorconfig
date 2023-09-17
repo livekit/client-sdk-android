@@ -1,0 +1,39 @@
+# https://editorconfig.org
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+max_line_length = 180
+
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{java,kt,kts,scala,rs,xml,kt.spec,kts.spec,gradle,md}]
+indent_size = 4
+
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+
+# default IntelliJ IDEA style, same as alphabetical, but with "java", "javax", "kotlin" and alias imports in the end of the imports list
+ij_kotlin_imports_layout = *, java.**, javax.**, kotlin.**, ^
+
+ktlint_standard = enabled
+ktlint_standard_annotation = disabled
+ktlint_standard_no-wildcard-imports = disabled
+
+ktlint_standard_trailing-comma-on-call-site = disabled
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+ij_kotlin_allow_trailing_comma = true
+
+ktlint_standard_wrapping = disabled
+
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = unset
+
+[*.yml]
+ij_yaml_spaces_within_brackets = false

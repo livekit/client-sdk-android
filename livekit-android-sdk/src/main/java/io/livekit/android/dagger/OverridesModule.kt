@@ -63,5 +63,4 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
-
 }

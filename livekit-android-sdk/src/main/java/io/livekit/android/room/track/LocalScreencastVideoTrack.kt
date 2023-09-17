@@ -55,7 +55,7 @@ constructor(
     context,
     eglBase,
     defaultsManager,
-    videoTrackFactory
+    videoTrackFactory,
 ) {
 
     private val serviceConnection = ScreenCaptureConnection(context)
@@ -128,7 +128,7 @@ constructor(
             name: String,
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
-            screencastVideoTrackFactory: Factory
+            screencastVideoTrackFactory: Factory,
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             val callback = MediaProjectionCallback()
@@ -136,7 +136,7 @@ constructor(
             capturer.initialize(
                 SurfaceTextureHelper.create("ScreenVideoCaptureThread", rootEglBase.eglBaseContext),
                 context,
-                source.capturerObserver
+                source.capturerObserver,
             )
             val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
@@ -146,14 +146,13 @@ constructor(
                 options = options,
                 name = name,
                 rtcTrack = track,
-                mediaProjectionCallback = callback
+                mediaProjectionCallback = callback,
             )
         }
 
-
         private fun createScreenCapturer(
             resultData: Intent,
-            callback: MediaProjectionCallback
+            callback: MediaProjectionCallback,
         ): ScreenCapturerAndroid {
             return ScreenCapturerAndroid(resultData, callback)
         }

@@ -33,7 +33,6 @@ import org.mockito.Mockito
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemoteParticipantTest : BaseTest() {
 
-
     lateinit var signalClient: SignalClient
     lateinit var participant: RemoteParticipant
 
@@ -67,7 +66,6 @@ class RemoteParticipantTest : BaseTest() {
 
     @Test
     fun tracksFlow() = runTest {
-
         val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
             .addTracks(TRACK_INFO)
             .build()
@@ -83,7 +81,6 @@ class RemoteParticipantTest : BaseTest() {
 
     @Test
     fun audioTracksFlow() = runTest {
-
         val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
             .addTracks(TRACK_INFO)
             .build()
@@ -110,7 +107,6 @@ class RemoteParticipantTest : BaseTest() {
         assertNull(participant.getTrackPublication(TRACK_INFO.sid))
     }
 
-
     @Test
     fun unpublishTrackRemoves() {
         val newTrackInfo = LivekitModels.ParticipantInfo.newBuilder(INFO)
@@ -123,7 +119,6 @@ class RemoteParticipantTest : BaseTest() {
         assertEquals(0, participant.tracks.values.size)
         assertNull(participant.getTrackPublication(TRACK_INFO.sid))
     }
-
 
     companion object {
         val INFO = LivekitModels.ParticipantInfo.newBuilder()

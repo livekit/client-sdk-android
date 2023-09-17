@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright $YEAR LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,3 @@
  * limitations under the License.
  */
 
-package io.livekit.android.util
-
-import android.util.Log
-
-enum class LoggingLevel {
-    VERBOSE,
-    INFO,
-    DEBUG,
-    WARN,
-    ERROR,
-    WTF,
-    OFF,
-    ;
-
-    fun toAndroidLogPriority(): Int {
-        return when (this) {
-            VERBOSE -> Log.VERBOSE
-            INFO -> Log.INFO
-            DEBUG -> Log.DEBUG
-            WARN -> Log.WARN
-            ERROR -> Log.ERROR
-            WTF -> Log.ERROR
-            OFF -> 0
-        }
-    }
-}

@@ -38,7 +38,7 @@ internal class Camera2Helper {
             cameraManager: CameraManager,
             cameraId: String?,
             width: Int,
-            height: Int
+            height: Int,
         ): Size {
             val sizes = getSupportedFormats(cameraManager, cameraId)
                 ?.map { Size(it.width, it.height) }

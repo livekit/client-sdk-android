@@ -24,7 +24,7 @@ import org.webrtc.RtpTransceiver.RtpTransceiverDirection
 object MockRtpTransceiver {
     fun create(
         track: MediaStreamTrack,
-        init: RtpTransceiver.RtpTransceiverInit = RtpTransceiver.RtpTransceiverInit()
+        init: RtpTransceiver.RtpTransceiverInit = RtpTransceiver.RtpTransceiverInit(),
     ): RtpTransceiver {
         val mock = Mockito.mock(RtpTransceiver::class.java)
 

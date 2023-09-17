@@ -41,7 +41,7 @@ class RemoteVideoTrackTest : BaseTest() {
             rtcTrack = MockVideoStreamTrack(),
             autoManageVideo = true,
             dispatcher = coroutineRule.dispatcher,
-            receiver = MockRtpReceiver.create()
+            receiver = MockRtpReceiver.create(),
         )
     }
 
@@ -134,7 +134,7 @@ private class EmptyVideoSink : VideoSink {
 
 private class CustomVisibility(
     visible: Boolean = false,
-    size: Track.Dimensions = Track.Dimensions(0, 0)
+    size: Track.Dimensions = Track.Dimensions(0, 0),
 ) : VideoSinkVisibility() {
 
     var visible = visible
@@ -152,5 +152,4 @@ private class CustomVisibility(
     override fun isVisible() = visible
 
     override fun size() = size
-
 }

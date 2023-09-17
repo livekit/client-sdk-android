@@ -81,7 +81,6 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
 
     @Test
     fun softReconnectConfiguration() = runTest {
-
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
         connect()
         prepareForReconnect()
@@ -97,7 +96,6 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         val sentIceServers = SignalClientTest.RECONNECT.reconnect.iceServersList
             .map { server -> server.toWebrtc() }
         assertEquals(sentIceServers, rtcConfig.iceServers)
-
     }
 
     @Test
@@ -109,8 +107,8 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
                 "",
-                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-            )
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+            ),
         )
 
         prepareForReconnect()

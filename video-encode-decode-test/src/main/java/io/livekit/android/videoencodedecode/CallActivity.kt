@@ -18,7 +18,6 @@ import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
-import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import kotlinx.parcelize.Parcelize
 
@@ -33,7 +32,6 @@ class CallActivity : AppCompatActivity() {
 
         val viewModelProvider = ViewModelProvider(this, object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-
                 val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
                     ?: throw NullPointerException("args is null!")
 
@@ -87,7 +85,8 @@ class CallActivity : AppCompatActivity() {
                             bottom.linkTo(bottomConnectionItem.top)
                             width = Dimension.fillToConstraints
                             height = Dimension.fillToConstraints
-                        }) {
+                        }
+                ) {
                     ConnectionItem(viewModel = viewModel1)
                 }
 
@@ -104,7 +103,8 @@ class CallActivity : AppCompatActivity() {
                             bottom.linkTo(parent.bottom)
                             width = Dimension.fillToConstraints
                             height = Dimension.fillToConstraints
-                        }) {
+                        }
+                ) {
                     ConnectionItem(viewModel = viewModel2)
                 }
             }

@@ -32,13 +32,13 @@ import org.robolectric.ParameterizedRobolectricTestRunner
 @ExperimentalCoroutinesApi
 @RunWith(ParameterizedRobolectricTestRunner::class)
 class RoomReconnectionTypesMockE2ETest(
-    private val reconnectType: ReconnectType
+    private val reconnectType: ReconnectType,
 ) : MockE2ETest() {
 
     companion object {
+        // parameters are provided as arrays, allowing more than one parameter
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "Input: {0}")
-        // parameters are provided as arrays, allowing more than one parameter
         fun params() = listOf(
             ReconnectType.FORCE_SOFT_RECONNECT,
             ReconnectType.FORCE_FULL_RECONNECT,
@@ -87,7 +87,7 @@ class RoomReconnectionTypesMockE2ETest(
                 RoomEvent.Reconnecting::class.java,
                 RoomEvent.Reconnected::class.java,
             ),
-            events
+            events,
         )
 
         assertEquals(
@@ -96,7 +96,7 @@ class RoomReconnectionTypesMockE2ETest(
                 Room.State.RECONNECTING,
                 Room.State.CONNECTED,
             ),
-            states
+            states,
         )
     }
 
@@ -121,7 +121,7 @@ class RoomReconnectionTypesMockE2ETest(
                 RoomEvent.Reconnecting::class.java,
                 RoomEvent.Reconnected::class.java,
             ),
-            events
+            events,
         )
 
         assertEquals(
@@ -130,7 +130,7 @@ class RoomReconnectionTypesMockE2ETest(
                 Room.State.RECONNECTING,
                 Room.State.CONNECTED,
             ),
-            states
+            states,
         )
     }
 }

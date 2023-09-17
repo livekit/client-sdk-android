@@ -64,7 +64,7 @@ class SignalClientTest : BaseTest() {
             ioDispatcher = coroutineRule.dispatcher,
             networkInfo = object : NetworkInfo {
                 override fun getNetworkType() = NetworkType.WIFI
-            }
+            },
         )
         client.listener = listener
     }
@@ -180,7 +180,6 @@ class SignalClientTest : BaseTest() {
      */
     @Test
     fun queuedResponses() = runTest {
-
         val inOrder = inOrder(listener)
         val job = async {
             client.join(EXAMPLE_URL, "")
@@ -263,7 +262,6 @@ class SignalClientTest : BaseTest() {
 
     @Test
     fun pingTest() = runTest {
-
         val joinResponseWithPing = with(JOIN.toBuilder()) {
             join = with(join.toBuilder()) {
                 pingInterval = 10
@@ -283,13 +281,15 @@ class SignalClientTest : BaseTest() {
         assertFalse(originalWs.isClosed)
 
         testScheduler.advanceTimeBy(15 * 1000)
-        assertTrue(originalWs.sentRequests.any { requestString ->
-            val sentRequest = LivekitRtc.SignalRequest.newBuilder()
-                .mergeFrom(requestString.toPBByteString())
-                .build()
+        assertTrue(
+            originalWs.sentRequests.any { requestString ->
+                val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
 
-            return@any sentRequest.hasPing()
-        })
+                return@any sentRequest.hasPing()
+            },
+        )
 
         client.onMessage(wsFactory.ws, PONG.toOkioByteString())
 
@@ -299,7 +299,6 @@ class SignalClientTest : BaseTest() {
 
     @Test
     fun pingTimeoutTest() = runTest {
-
         val joinResponseWithPing = with(JOIN.toBuilder()) {
             join = with(join.toBuilder()) {
                 pingInterval = 10
@@ -336,12 +335,14 @@ class SignalClientTest : BaseTest() {
                 }
                 participant = TestData.LOCAL_PARTICIPANT
                 subscriberPrimary = true
-                addIceServers(with(ICEServer.newBuilder()) {
-                    addUrls("stun:stun.join.com:19302")
-                    username = "username"
-                    credential = "credential"
-                    build()
-                })
+                addIceServers(
+                    with(ICEServer.newBuilder()) {
+                        addUrls("stun:stun.join.com:19302")
+                        username = "username"
+                        credential = "credential"
+                        build()
+                    },
+                )
                 serverVersion = "0.15.2"
                 build()
             }
@@ -350,12 +351,14 @@ class SignalClientTest : BaseTest() {
 
         val RECONNECT = with(LivekitRtc.SignalResponse.newBuilder()) {
             reconnect = with(LivekitRtc.ReconnectResponse.newBuilder()) {
-                addIceServers(with(ICEServer.newBuilder()) {
-                    addUrls("stun:stun.reconnect.com:19302")
-                    username = "username"
-                    credential = "credential"
-                    build()
-                })
+                addIceServers(
+                    with(ICEServer.newBuilder()) {
+                        addUrls("stun:stun.reconnect.com:19302")
+                        username = "username"
+                        credential = "credential"
+                        build()
+                    },
+                )
                 clientConfiguration = with(ClientConfiguration.newBuilder()) {
                     forceRelay = LivekitModels.ClientConfigSetting.ENABLED
                     build()
@@ -414,9 +417,9 @@ class SignalClientTest : BaseTest() {
                                 .setCanPublishData(false)
                                 .setHidden(false)
                                 .setRecorder(false)
-                                .build()
+                                .build(),
                         )
-                        .build()
+                        .build(),
                 )
                 build()
             }
@@ -477,14 +480,15 @@ class SignalClientTest : BaseTest() {
             build()
         }
 
-
         val CONNECTION_QUALITY = with(LivekitRtc.SignalResponse.newBuilder()) {
             connectionQuality = with(LivekitRtc.ConnectionQualityUpdate.newBuilder()) {
-                addUpdates(with(LivekitRtc.ConnectionQualityInfo.newBuilder()) {
-                    participantSid = JOIN.join.participant.sid
-                    quality = LivekitModels.ConnectionQuality.EXCELLENT
-                    build()
-                })
+                addUpdates(
+                    with(LivekitRtc.ConnectionQualityInfo.newBuilder()) {
+                        participantSid = JOIN.join.participant.sid
+                        quality = LivekitModels.ConnectionQuality.EXCELLENT
+                        build()
+                    },
+                )
                 build()
             }
             build()
@@ -492,12 +496,14 @@ class SignalClientTest : BaseTest() {
 
         val STREAM_STATE_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
             streamStateUpdate = with(LivekitRtc.StreamStateUpdate.newBuilder()) {
-                addStreamStates(with(LivekitRtc.StreamStateInfo.newBuilder()) {
-                    participantSid = TestData.REMOTE_PARTICIPANT.sid
-                    trackSid = TestData.REMOTE_AUDIO_TRACK.sid
-                    state = LivekitRtc.StreamState.ACTIVE
-                    build()
-                })
+                addStreamStates(
+                    with(LivekitRtc.StreamStateInfo.newBuilder()) {
+                        participantSid = TestData.REMOTE_PARTICIPANT.sid
+                        trackSid = TestData.REMOTE_AUDIO_TRACK.sid
+                        state = LivekitRtc.StreamState.ACTIVE
+                        build()
+                    },
+                )
                 build()
             }
             build()

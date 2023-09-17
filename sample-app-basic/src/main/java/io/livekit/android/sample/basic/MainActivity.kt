@@ -37,12 +37,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectToRoom() {
-
         val url = "wss://your_host"
         val token = "your_token"
 
         lifecycleScope.launch {
-
             // Setup event handling.
             launch {
                 room.events.collect { event ->

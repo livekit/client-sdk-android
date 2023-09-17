@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.e2ee
 
 import io.livekit.android.events.RoomEvent
@@ -18,7 +34,7 @@ import org.webrtc.RtpReceiver
 import org.webrtc.RtpSender
 
 class E2EEManager
-constructor(keyProvider: KeyProvider)  {
+constructor(keyProvider: KeyProvider) {
     private var room: Room? = null
     private var keyProvider: KeyProvider
     private var frameCryptors = mutableMapOf<String, FrameCryptor>()
@@ -70,10 +86,12 @@ constructor(keyProvider: KeyProvider)  {
             LKLog.i { "Receiver::onFrameCryptionStateChanged: $trackId, state:  $state" }
             emitEvent(
                 RoomEvent.TrackE2EEStateEvent(
-                    room!!, publication.track!!, publication,
+                    room!!,
+                    publication.track!!,
+                    publication,
                     participant,
-                    state = e2eeStateFromFrameCryptoState(state)
-                )
+                    state = e2eeStateFromFrameCryptoState(state),
+                ),
             )
         }
     }
@@ -94,10 +112,12 @@ constructor(keyProvider: KeyProvider)  {
             LKLog.i { "Sender::onFrameCryptionStateChanged: $trackId, state:  $state" }
             emitEvent(
                 RoomEvent.TrackE2EEStateEvent(
-                    room!!, publication.track!!, publication,
+                    room!!,
+                    publication.track!!,
+                    publication,
                     participant,
-                    state = e2eeStateFromFrameCryptoState(state)
-                )
+                    state = e2eeStateFromFrameCryptoState(state),
+                ),
             )
         }
     }
@@ -111,18 +131,22 @@ constructor(keyProvider: KeyProvider)  {
             FrameCryptionState.ENCRYPTIONFAILED -> E2EEState.ENCRYPTION_FAILED
             FrameCryptionState.DECRYPTIONFAILED -> E2EEState.DECRYPTION_FAILED
             FrameCryptionState.INTERNALERROR -> E2EEState.INTERNAL_ERROR
-            else -> { E2EEState.INTERNAL_ERROR}
+            else -> { E2EEState.INTERNAL_ERROR }
         }
     }
 
-    private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String , kind: String): FrameCryptor {
+    private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String, kind: String): FrameCryptor {
         var pid = "$kind-sender-$participantId-$trackId"
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
-            sender, pid, algorithm, keyProvider.rtcKeyProvider)
+            sender,
+            pid,
+            algorithm,
+            keyProvider.rtcKeyProvider,
+        )
 
         frameCryptors[trackId] = frameCryptor
         frameCryptor.setEnabled(enabled)
-        if(keyProvider.enableSharedKey) {
+        if (keyProvider.enableSharedKey) {
             keyProvider.rtcKeyProvider?.setKey(pid, 0, keyProvider?.sharedKey)
             frameCryptor.setKeyIndex(0)
         }
@@ -133,12 +157,16 @@ constructor(keyProvider: KeyProvider)  {
     private fun addRtpReceiver(receiver: RtpReceiver, participantId: String, trackId: String, kind: String): FrameCryptor {
         var pid = "$kind-receiver-$participantId-$trackId"
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
-            receiver, pid, algorithm, keyProvider.rtcKeyProvider)
+            receiver,
+            pid,
+            algorithm,
+            keyProvider.rtcKeyProvider,
+        )
 
         frameCryptors[trackId] = frameCryptor
         frameCryptor.setEnabled(enabled)
 
-        if(keyProvider.enableSharedKey) {
+        if (keyProvider.enableSharedKey) {
             keyProvider.rtcKeyProvider?.setKey(pid, 0, keyProvider?.sharedKey)
             frameCryptor.setKeyIndex(0)
         }
@@ -156,7 +184,7 @@ constructor(keyProvider: KeyProvider)  {
             var frameCryptor = item.value
             var participantId = item.key
             frameCryptor.setEnabled(enabled)
-            if(keyProvider.enableSharedKey) {
+            if (keyProvider.enableSharedKey) {
                 keyProvider.rtcKeyProvider?.setKey(participantId, 0, keyProvider?.sharedKey)
                 frameCryptor.setKeyIndex(0)
             }
@@ -169,11 +197,11 @@ constructor(keyProvider: KeyProvider)  {
     fun ratchetKey() {
         for (participantId in frameCryptors.keys) {
             var newKey = keyProvider.rtcKeyProvider?.ratchetKey(participantId, 0)
-            LKLog.d{ "ratchetKey: newKey: $newKey" }
+            LKLog.d { "ratchetKey: newKey: $newKey" }
         }
     }
 
-    fun cleanUp()  {
+    fun cleanUp() {
         for (frameCryptor in frameCryptors.values) {
             frameCryptor.dispose()
         }

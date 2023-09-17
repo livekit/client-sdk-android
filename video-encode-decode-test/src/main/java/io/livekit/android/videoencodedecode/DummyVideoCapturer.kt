@@ -51,7 +51,6 @@ class DummyVideoCapturer(@ColorInt var color: Int) : VideoCapturer {
     }
 
     private fun createFrame(): VideoFrame {
-
         val captureTimeNs = TimeUnit.MILLISECONDS.toNanos(SystemClock.elapsedRealtime())
 
         val buffer = JavaI420Buffer.allocate(this.frameWidth, this.frameHeight)

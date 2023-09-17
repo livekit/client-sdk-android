@@ -27,7 +27,7 @@ import javax.inject.Named
 @Module
 class TestCoroutinesModule(
     @OptIn(ExperimentalCoroutinesApi::class)
-    val coroutineDispatcher: CoroutineDispatcher = TestCoroutineDispatcher()
+    val coroutineDispatcher: CoroutineDispatcher = TestCoroutineDispatcher(),
 ) {
 
     @Provides

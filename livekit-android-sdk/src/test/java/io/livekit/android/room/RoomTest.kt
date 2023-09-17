@@ -88,7 +88,7 @@ class RoomTest {
             defaultDispatcher = coroutineRule.dispatcher,
             ioDispatcher = coroutineRule.dispatcher,
             audioHandler = NoAudioHandler(),
-            closeableManager = CloseableManager()
+            closeableManager = CloseableManager(),
         )
     }
 
@@ -99,7 +99,6 @@ class RoomTest {
                     room.onJoinResponse(SignalClientTest.JOIN.join)
                     SignalClientTest.JOIN.join
                 }
-
         }
         rtcEngine.stub {
             onBlocking { rtcEngine.client }
@@ -140,7 +139,7 @@ class RoomTest {
                 RoomEvent.RoomMetadataChanged::class.java,
                 RoomEvent.RecordingStatusChanged::class.java,
             ),
-            events
+            events,
         )
     }
 
@@ -187,7 +186,6 @@ class RoomTest {
 
     @Test
     fun onDisconnect() = runTest {
-
         connect()
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         room.disconnect()

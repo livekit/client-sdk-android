@@ -45,6 +45,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ""
         const val TOKEN2 =
             ""
-
     }
 }

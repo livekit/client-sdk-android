@@ -16,5 +16,4 @@
 
 package io.livekit.android.room.util
 
-class EncodingUtilsTest {
-}
+class EncodingUtilsTest

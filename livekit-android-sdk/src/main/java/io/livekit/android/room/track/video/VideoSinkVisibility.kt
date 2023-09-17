@@ -55,8 +55,8 @@ class ComposeVisibility : VideoSinkVisibility() {
     private var lastSize = size()
     override fun isVisible(): Boolean {
         return (coordinates?.isAttached == true &&
-                coordinates?.size?.width != 0 &&
-                coordinates?.size?.height != 0)
+            coordinates?.size?.width != 0 &&
+            coordinates?.size?.height != 0)
     }
 
     override fun size(): Track.Dimensions {

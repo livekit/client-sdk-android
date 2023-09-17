@@ -31,7 +31,6 @@ import livekit.LivekitRtc
 import org.webrtc.AudioTrack
 import org.webrtc.MediaStreamTrack
 import org.webrtc.RtpReceiver
-import org.webrtc.RtpTransceiver
 import org.webrtc.VideoTrack
 
 class RemoteParticipant(
@@ -135,7 +134,7 @@ class RemoteParticipant(
             } else {
                 coroutineScope.launch {
                     delay(150)
-                    addSubscribedMediaTrack(mediaTrack, sid, statsGetter,receiver = receiver, autoManageVideo, triesLeft - 1)
+                    addSubscribedMediaTrack(mediaTrack, sid, statsGetter, receiver = receiver, autoManageVideo, triesLeft - 1)
                 }
             }
             return

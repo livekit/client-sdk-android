@@ -21,7 +21,7 @@ import org.webrtc.VideoTrack
 
 abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {
-    protected val sinks: MutableList<VideoSink> = ArrayList();
+    protected val sinks: MutableList<VideoSink> = ArrayList()
 
     var enabled: Boolean
         get() = rtcTrack.enabled()

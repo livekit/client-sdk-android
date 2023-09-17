@@ -31,7 +31,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.webrtc.PeerConnection
 
-
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class RTCEngineMockE2ETest : MockE2ETest() {
@@ -58,7 +57,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         assertEquals(
             SignalClientTest.OFFER.offer.sdp,
-            rtcEngine.subscriber.peerConnection.remoteDescription.description
+            rtcEngine.subscriber.peerConnection.remoteDescription.description,
         )
 
         val ws = wsFactory.ws
@@ -126,16 +125,18 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
     @Test
     fun relayConfiguration() = runTest {
-        connect(with(SignalClientTest.JOIN.toBuilder()) {
-            join = with(join.toBuilder()) {
-                clientConfiguration = with(LivekitModels.ClientConfiguration.newBuilder()) {
-                    forceRelay = LivekitModels.ClientConfigSetting.ENABLED
+        connect(
+            with(SignalClientTest.JOIN.toBuilder()) {
+                join = with(join.toBuilder()) {
+                    clientConfiguration = with(LivekitModels.ClientConfiguration.newBuilder()) {
+                        forceRelay = LivekitModels.ClientConfigSetting.ENABLED
+                        build()
+                    }
                     build()
                 }
                 build()
-            }
-            build()
-        })
+            },
+        )
 
         val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
         assertEquals(PeerConnection.IceTransportsType.RELAY, subPeerConnection.rtcConfig.iceTransportsType)

@@ -245,7 +245,6 @@ fun flowAccess(): TestFile {
 }
 
 fun stateFlow(): TestFile {
-
     return kotlin(
         """
         package kotlinx.coroutines.flow

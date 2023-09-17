@@ -98,8 +98,8 @@ fun RTCStatsReport.getFilteredStats(trackIdentifier: String): RTCStatsReport {
             codecIds,
             localCandidateId,
             remoteCandidateId,
-            statsMap
-        )
+            statsMap,
+        ),
     )
     val filteredStatsMap: MutableMap<String, RTCStats> = HashMap()
     for (stats in filteredStats) {
@@ -119,7 +119,6 @@ private fun getTrackStats(trackIdentifier: String, statsMap: Map<String, RTCStat
     }
     return null
 }
-
 
 private fun getStreamStats(trackId: String, statsMap: Map<String, RTCStats>): RTCStats? {
     for (stats in statsMap.values) {
@@ -141,7 +140,7 @@ private fun getExtraStats(
     codecIds: Set<String?>,
     localCandidateId: String?,
     remoteCandidateId: String?,
-    statsMap: Map<String, RTCStats>
+    statsMap: Map<String, RTCStats>,
 ): Set<RTCStats> {
     val extraStats: MutableSet<RTCStats> = HashSet()
     for (stats in statsMap.values) {
@@ -185,4 +184,3 @@ fun createStatsGetter(peerConnection: PeerConnection, receiver: RtpReceiver): RT
     { statsCallback: RTCStatsCollectorCallback ->
         peerConnection.getStats(receiver, statsCallback)
     }
-

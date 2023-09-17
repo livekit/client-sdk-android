@@ -1,19 +1,13 @@
 package io.livekit.android.sample
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import io.livekit.android.sample.databinding.MainActivityBinding
 import io.livekit.android.sample.util.requestNeededPermissions
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -49,7 +43,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             saveButton.setOnClickListener {
-
                 viewModel.setSavedUrl(url.editText?.text?.toString() ?: "")
                 viewModel.setSavedToken(token.editText?.text?.toString() ?: "")
                 viewModel.setSavedE2EEOn(e2eeEnabled.isChecked)

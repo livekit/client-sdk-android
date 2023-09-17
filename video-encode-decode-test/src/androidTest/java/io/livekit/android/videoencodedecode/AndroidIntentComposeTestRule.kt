@@ -13,7 +13,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
  *
  * @param intentFactory A lambda that provides a Context that can used to create an intent. A intent needs to be returned.
  */
-inline fun <A: ComponentActivity> createAndroidIntentComposeRule(intentFactory: (context: Context) -> Intent) : AndroidComposeTestRule<ActivityScenarioRule<A>, A> {
+inline fun <A : ComponentActivity> createAndroidIntentComposeRule(intentFactory: (context: Context) -> Intent): AndroidComposeTestRule<ActivityScenarioRule<A>, A> {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val intent = intentFactory(context)
 

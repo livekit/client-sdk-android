@@ -122,6 +122,5 @@ class LiveKit {
             room.connect(url, token, connectOptions)
             return room
         }
-
     }
 }

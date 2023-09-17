@@ -32,13 +32,13 @@ internal class Camera1Helper {
         fun findClosestCaptureFormat(
             cameraId: Int,
             width: Int,
-            height: Int
+            height: Int,
         ): Size {
             return CameraEnumerationAndroid.getClosestSupportedSize(
                 getSupportedFormats(cameraId)
                     .map { Size(it.width, it.height) },
                 width,
-                height
+                height,
             )
         }
     }

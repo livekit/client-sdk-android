@@ -26,7 +26,6 @@ import org.webrtc.*
 import javax.inject.Named
 import javax.inject.Singleton
 
-
 @Module
 object TestRTCModule {
 
@@ -39,11 +38,10 @@ object TestRTCModule {
     @Provides
     fun eglContext(eglBase: EglBase): EglBase.Context = eglBase.eglBaseContext
 
-
     @Provides
     @Singleton
     fun peerConnectionFactory(
-        appContext: Context
+        appContext: Context,
     ): PeerConnectionFactory {
         WebRTCInitializer.initialize(appContext)
 

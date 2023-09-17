@@ -40,7 +40,7 @@ private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
 
 class MockPeerConnection(
     var rtcConfig: RTCConfiguration,
-    val observer: Observer?
+    val observer: Observer?,
 ) : PeerConnection(MockNativePeerConnectionFactory()) {
 
     private var closed = false
@@ -77,7 +77,6 @@ class MockPeerConnection(
         val sdp = SessionDescription(SessionDescription.Type.ANSWER, "local_answer")
         observer?.onCreateSuccess(sdp)
     }
-
 
     override fun setAudioPlayout(playout: Boolean) {
     }
@@ -142,7 +141,7 @@ class MockPeerConnection(
 
     override fun addTransceiver(
         track: MediaStreamTrack,
-        init: RtpTransceiver.RtpTransceiverInit?
+        init: RtpTransceiver.RtpTransceiverInit?,
     ): RtpTransceiver {
         val transceiver = MockRtpTransceiver.create(track, init ?: RtpTransceiver.RtpTransceiverInit())
         transceivers.add(transceiver)
@@ -155,7 +154,7 @@ class MockPeerConnection(
 
     override fun addTransceiver(
         mediaType: MediaStreamTrack.MediaType?,
-        init: RtpTransceiver.RtpTransceiverInit?
+        init: RtpTransceiver.RtpTransceiverInit?,
     ): RtpTransceiver {
         return super.addTransceiver(mediaType, init)
     }
@@ -187,9 +186,9 @@ class MockPeerConnection(
 
         if ((localDesc?.type == null && remoteDesc?.type == null) ||
             (localDesc?.type == SessionDescription.Type.OFFER &&
-                    remoteDesc?.type == SessionDescription.Type.ANSWER) ||
+                remoteDesc?.type == SessionDescription.Type.ANSWER) ||
             (localDesc?.type == SessionDescription.Type.ANSWER &&
-                    remoteDesc?.type == SessionDescription.Type.OFFER)
+                remoteDesc?.type == SessionDescription.Type.OFFER)
         ) {
             return SignalingState.STABLE
         }

@@ -62,7 +62,7 @@ sealed class RoomEvent(val room: Room) : Event() {
     class RoomMetadataChanged(
         room: Room,
         val newMetadata: String?,
-        val prevMetadata: String?
+        val prevMetadata: String?,
     ) : RoomEvent(room)
 
     // Participant callbacks
@@ -74,13 +74,13 @@ sealed class RoomEvent(val room: Room) : Event() {
     class ParticipantMetadataChanged(
         room: Room,
         val participant: Participant,
-        val prevMetadata: String?
+        val prevMetadata: String?,
     ) : RoomEvent(room)
 
     class ParticipantNameChanged(
         room: Room,
         val participant: Participant,
-        val name: String?
+        val name: String?,
     ) : RoomEvent(room)
 
     /**
@@ -119,7 +119,7 @@ sealed class RoomEvent(val room: Room) : Event() {
         room: Room,
         val track: Track,
         val publication: TrackPublication,
-        val participant: RemoteParticipant
+        val participant: RemoteParticipant,
     ) : RoomEvent(room)
 
     /**
@@ -129,7 +129,7 @@ sealed class RoomEvent(val room: Room) : Event() {
         room: Room,
         val sid: String,
         val exception: Exception,
-        val participant: RemoteParticipant
+        val participant: RemoteParticipant,
     ) : RoomEvent(room)
 
     /**
@@ -140,7 +140,7 @@ sealed class RoomEvent(val room: Room) : Event() {
         room: Room,
         val track: Track,
         val publications: TrackPublication,
-        val participant: RemoteParticipant
+        val participant: RemoteParticipant,
     ) : RoomEvent(room)
 
     /**
@@ -149,7 +149,7 @@ sealed class RoomEvent(val room: Room) : Event() {
     class TrackStreamStateChanged(
         room: Room,
         val trackPublication: TrackPublication,
-        val streamState: Track.StreamState
+        val streamState: Track.StreamState,
     ) : RoomEvent(room)
 
     /**
@@ -159,7 +159,7 @@ sealed class RoomEvent(val room: Room) : Event() {
         room: Room,
         val participant: RemoteParticipant,
         val trackPublication: RemoteTrackPublication,
-        val subscriptionAllowed: Boolean
+        val subscriptionAllowed: Boolean,
     ) : RoomEvent(room)
 
     /**
@@ -200,14 +200,14 @@ sealed class RoomEvent(val room: Room) : Event() {
     class RecordingStatusChanged(room: Room, isRecording: Boolean) : RoomEvent(room)
 
     /**
-    * The E2EE state of a track has changed.
-    */
+     * The E2EE state of a track has changed.
+     */
     class TrackE2EEStateEvent(
         room: Room,
         val track: Track,
         val publication: TrackPublication,
         val participant: Participant,
-        var state: E2EEState
+        var state: E2EEState,
     ) : RoomEvent(room)
 }
 
@@ -219,7 +219,7 @@ enum class DisconnectReason {
     PARTICIPANT_REMOVED,
     ROOM_DELETED,
     STATE_MISMATCH,
-    JOIN_FAILURE;
+    JOIN_FAILURE,
 }
 
 fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
@@ -233,6 +233,7 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.JOIN_FAILURE -> DisconnectReason.JOIN_FAILURE
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
-        null -> DisconnectReason.UNKNOWN_REASON
+        null,
+        -> DisconnectReason.UNKNOWN_REASON
     }
 }

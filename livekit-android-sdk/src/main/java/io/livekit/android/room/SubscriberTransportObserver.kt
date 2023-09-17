@@ -96,5 +96,4 @@ class SubscriberTransportObserver(
 
     override fun onRenegotiationNeeded() {
     }
-
 }

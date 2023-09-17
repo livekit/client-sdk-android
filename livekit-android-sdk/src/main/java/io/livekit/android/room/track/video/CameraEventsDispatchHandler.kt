@@ -77,5 +77,4 @@ internal class CameraEventsDispatchHandler : CameraEventsHandler {
             handler.onCameraClosed()
         }
     }
-
 }

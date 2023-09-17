@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty0
 
-
 /**
  * A little circuitous but the way this works is:
  * 1. [delegateRequested] set to true indicates that [delegate] should be filled.
@@ -74,7 +73,7 @@ annotation class FlowObservable
 internal class MutableStateFlowDelegate<T>
 internal constructor(
     private val flow: MutableStateFlow<T>,
-    private val onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
+    private val onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null,
 ) : MutableStateFlow<T> by flow {
 
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
@@ -94,7 +93,7 @@ internal constructor(
 @FlowObservable
 internal class StateFlowDelegate<T>
 internal constructor(
-    private val flow: StateFlow<T>
+    private val flow: StateFlow<T>,
 ) : StateFlow<T> by flow {
 
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
@@ -107,13 +106,13 @@ internal constructor(
 
 internal fun <T> flowDelegate(
     initialValue: T,
-    onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null
+    onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null,
 ): MutableStateFlowDelegate<T> {
     return MutableStateFlowDelegate(MutableStateFlow(initialValue), onSetValue)
 }
 
 internal fun <T> flowDelegate(
-    stateFlow: StateFlow<T>
+    stateFlow: StateFlow<T>,
 ): StateFlowDelegate<T> {
     return StateFlowDelegate(stateFlow)
 }

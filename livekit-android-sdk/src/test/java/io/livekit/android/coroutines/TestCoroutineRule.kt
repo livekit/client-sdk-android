@@ -41,7 +41,7 @@ class TestCoroutineRule : TestRule {
             dispatcher.scheduler.advanceUntilIdle() // run the remaining tasks
             Assert.assertEquals(
                 timeAfterTest,
-                dispatcher.scheduler.currentTime
+                dispatcher.scheduler.currentTime,
             ) // will fail if there were tasks scheduled at a later moment
             Dispatchers.resetMain()
         }

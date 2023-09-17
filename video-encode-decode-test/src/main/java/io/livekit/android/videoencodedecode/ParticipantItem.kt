@@ -32,7 +32,6 @@ fun ParticipantItem(
     modifier: Modifier = Modifier,
     isSpeaking: Boolean,
 ) {
-
     val identity by participant::identity.flow.collectAsState()
     val videoTracks by participant::videoTracks.flow.collectAsState()
     val audioTracks by participant::audioTracks.flow.collectAsState()

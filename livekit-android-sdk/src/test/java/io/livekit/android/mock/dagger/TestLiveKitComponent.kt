@@ -35,7 +35,7 @@ import javax.inject.Singleton
         TestAudioHandlerModule::class,
         JsonFormatModule::class,
         MemoryModule::class,
-    ]
+    ],
 )
 internal interface TestLiveKitComponent : LiveKitComponent {
 
@@ -47,7 +47,7 @@ internal interface TestLiveKitComponent : LiveKitComponent {
     interface Factory {
         fun create(
             @BindsInstance appContext: Context,
-            coroutinesModule: TestCoroutinesModule = TestCoroutinesModule()
+            coroutinesModule: TestCoroutinesModule = TestCoroutinesModule(),
         ): TestLiveKitComponent
     }
 }

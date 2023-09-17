@@ -21,7 +21,7 @@ import android.view.Surface
 import org.webrtc.EglBase
 
 class MockEglBase(
-    private val eglContext: EglBase.Context = EglBase.Context { 0 }
+    private val eglContext: EglBase.Context = EglBase.Context { 0 },
 ) : EglBase {
 
     override fun createSurface(p0: Surface?) {}

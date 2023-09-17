@@ -39,7 +39,7 @@ object WebModule {
     fun okHttpClient(
         @Named(InjectionNames.OVERRIDE_OKHTTP)
         @Nullable
-        okHttpClientOverride: OkHttpClient?
+        okHttpClientOverride: OkHttpClient?,
     ): OkHttpClient {
         OkHttpClient.Builder()
             .pingInterval(20, TimeUnit.SECONDS)

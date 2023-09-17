@@ -40,7 +40,7 @@ internal object EncodingUtils {
         VideoPreset169.H720,
         VideoPreset169.H1080,
         VideoPreset169.H1440,
-        VideoPreset169.H2160
+        VideoPreset169.H2160,
     )
 
     // Note: maintain order from smallest to biggest.
@@ -82,7 +82,7 @@ internal object EncodingUtils {
     fun videoLayersFromEncodings(
         trackWidth: Int,
         trackHeight: Int,
-        encodings: List<RtpParameters.Encoding>
+        encodings: List<RtpParameters.Encoding>,
     ): List<LivekitModels.VideoLayer> {
         return if (encodings.isEmpty()) {
             listOf(
@@ -92,7 +92,7 @@ internal object EncodingUtils {
                     quality = LivekitModels.VideoQuality.HIGH
                     bitrate = 0
                     ssrc = 0
-                }.build()
+                }.build(),
             )
         } else {
             encodings.map { encoding ->
