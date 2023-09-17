@@ -23,12 +23,16 @@ import org.webrtc.*
 import org.webrtc.RendererCommon.*
 import java.util.concurrent.CountDownLatch
 
-
 /**
  * Display the video stream on a TextureView.
  */
-open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureView.SurfaceTextureListener, VideoSink,
-    RendererEvents, ViewVisibility.Notifier {
+open class TextureViewRenderer :
+    TextureView,
+    SurfaceHolder.Callback,
+    TextureView.SurfaceTextureListener,
+    VideoSink,
+    RendererEvents,
+    ViewVisibility.Notifier {
     // Cached resource name.
     private val resourceName: String
     private val videoLayoutMeasure = VideoLayoutMeasure()
@@ -68,6 +72,7 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
      * `drawer`. It is allowed to call init() to reinitialize the renderer after a previous
      * init()/release() cycle.
      */
+
     /**
      * Initialize this class, sharing resources with `sharedContext`. It is allowed to call init() to
      * reinitialize the renderer after a previous init()/release() cycle.
@@ -75,14 +80,15 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
     @JvmOverloads
     fun init(
         sharedContext: EglBase.Context?,
-        rendererEvents: RendererEvents?, configAttributes: IntArray? = EglBase.CONFIG_PLAIN,
-        drawer: GlDrawer? = GlRectDrawer()
+        rendererEvents: RendererEvents?,
+        configAttributes: IntArray? = EglBase.CONFIG_PLAIN,
+        drawer: GlDrawer? = GlRectDrawer(),
     ) {
         ThreadUtils.checkIsOnMainThread()
         this.rendererEvents = rendererEvents
         rotatedFrameWidth = 0
         rotatedFrameHeight = 0
-        eglRenderer.init(sharedContext, this /* rendererEvents */, configAttributes, drawer)
+        eglRenderer.init(sharedContext, this, configAttributes, drawer)
     }
 
     /**
@@ -105,7 +111,9 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
      * @param drawer   Custom drawer to use for this frame listener.
      */
     fun addFrameListener(
-        listener: EglRenderer.FrameListener?, scale: Float, drawerParam: GlDrawer?
+        listener: EglRenderer.FrameListener?,
+        scale: Float,
+        drawerParam: GlDrawer?,
     ) {
         eglRenderer.addFrameListener(listener, scale, drawerParam)
     }
@@ -155,12 +163,12 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
 
     fun setScalingType(
         scalingTypeMatchOrientation: ScalingType?,
-        scalingTypeMismatchOrientation: ScalingType?
+        scalingTypeMismatchOrientation: ScalingType?,
     ) {
         ThreadUtils.checkIsOnMainThread()
         videoLayoutMeasure.setScalingType(
             scalingTypeMatchOrientation,
-            scalingTypeMismatchOrientation
+            scalingTypeMismatchOrientation,
         )
         requestLayout()
     }
@@ -221,14 +229,14 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
             val width = Math.min(width, drawnFrameWidth)
             val height = Math.min(height, drawnFrameHeight)
             logD(
-                "updateSurfaceSize. Layout size: " + getWidth() + "x" + getHeight() + ", frame size: "
-                    + rotatedFrameWidth + "x" + rotatedFrameHeight + ", requested surface size: " + width
-                    + "x" + height + ", old surface size: " + surfaceWidth + "x" + surfaceHeight
+                "updateSurfaceSize. Layout size: " + getWidth() + "x" + getHeight() + ", frame size: " +
+                    rotatedFrameWidth + "x" + rotatedFrameHeight + ", requested surface size: " + width +
+                    "x" + height + ", old surface size: " + surfaceWidth + "x" + surfaceHeight,
             )
             if (width != surfaceWidth || height != surfaceHeight) {
                 surfaceWidth = width
                 surfaceHeight = height
-                adjustAspectRatio(surfaceWidth, surfaceHeight);
+                adjustAspectRatio(surfaceWidth, surfaceHeight)
             }
         } else {
             surfaceHeight = 0
@@ -257,8 +265,8 @@ open class TextureViewRenderer : TextureView, SurfaceHolder.Callback, TextureVie
         val xoff = (viewWidth - newWidth) / 2
         val yoff = (viewHeight - newHeight) / 2
         logD(
-            "video=" + videoWidth + "x" + videoHeight + " view=" + viewWidth + "x" + viewHeight
-                + " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff
+            "video=" + videoWidth + "x" + videoHeight + " view=" + viewWidth + "x" + viewHeight +
+                " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff,
         )
         val txform = Matrix()
         getTransform(txform)

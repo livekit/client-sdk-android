@@ -127,9 +127,9 @@ open class Participant(
                 ParticipantEvent.ParticipantPermissionsChanged(
                     this,
                     newPermissions,
-                    oldPermissions
+                    oldPermissions,
                 ),
-                scope
+                scope,
             )
         }
     }
@@ -191,7 +191,7 @@ open class Participant(
                             // Re-emit when track changes
                             trackPublication::track.flow
                                 .map { trackPublication to trackPublication.track }
-                        }
+                        },
                 ) { trackPubs ->
                     trackPubs.toList()
                 }
@@ -208,7 +208,7 @@ open class Participant(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
             .trackUpdateFlow()
-            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList())
+            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList()),
     )
 
     /**
@@ -220,7 +220,7 @@ open class Participant(
         stateFlow = ::tracks.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.VIDEO } }
             .trackUpdateFlow()
-            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList())
+            .stateIn(delegateScope, SharingStarted.Eagerly, emptyList()),
     )
 
     /**
@@ -340,7 +340,7 @@ open class Participant(
         val trackPublication = tracks[trackEvent.track.sid] ?: return
         eventBus.postEvent(
             ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState),
-            scope
+            scope,
         )
     }
 
@@ -392,7 +392,6 @@ interface ParticipantListener {
      */
     fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {}
 
-
     // local participants
     /**
      * When a new track is published by the local participant.
@@ -428,7 +427,7 @@ interface ParticipantListener {
     fun onTrackSubscriptionFailed(
         sid: String,
         exception: Exception,
-        participant: RemoteParticipant
+        participant: RemoteParticipant,
     ) {
     }
 
@@ -439,7 +438,7 @@ interface ParticipantListener {
     fun onTrackUnsubscribed(
         track: Track,
         publication: RemoteTrackPublication,
-        participant: RemoteParticipant
+        participant: RemoteParticipant,
     ) {
     }
 
@@ -453,7 +452,8 @@ enum class ConnectionQuality {
     EXCELLENT,
     GOOD,
     POOR,
-    UNKNOWN;
+    UNKNOWN,
+    ;
 
     companion object {
         fun fromProto(proto: LivekitModels.ConnectionQuality): ConnectionQuality {

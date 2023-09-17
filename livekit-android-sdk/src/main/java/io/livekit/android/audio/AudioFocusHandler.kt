@@ -106,7 +106,7 @@ constructor(context: Context) : AudioHandler {
                 AudioAttributes.Builder()
                     .setUsage(audioAttributeUsageType)
                     .setContentType(audioAttributeContentType)
-                    .build()
+                    .build(),
             )
             .build()
     }

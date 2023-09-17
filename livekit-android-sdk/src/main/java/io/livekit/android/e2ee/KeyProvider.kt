@@ -21,14 +21,14 @@ import org.webrtc.FrameCryptorFactory
 import org.webrtc.FrameCryptorKeyProvider
 
 class KeyInfo
-constructor(var participantId: String, var keyIndex: Int, var key: String ) {
+constructor(var participantId: String, var keyIndex: Int, var key: String) {
     override fun toString(): String {
         return "KeyInfo(participantId='$participantId', keyIndex=$keyIndex)"
     }
 }
 
- public interface KeyProvider {
-    fun setKey(key: String, participantId: String?, keyIndex: Int?  = 0)
+public interface KeyProvider {
+    fun setKey(key: String, participantId: String?, keyIndex: Int? = 0)
     fun ratchetKey(participantId: String, index: Int): ByteArray
 
     val rtcKeyProvider: FrameCryptorKeyProvider
@@ -44,7 +44,7 @@ constructor(
     private var uncryptedMagicBytes: String,
     private var ratchetWindowSize: Int,
     override var enableSharedKey: Boolean = true,
-    private var failureTolerance:Int,
+    private var failureTolerance: Int,
 ) :
     KeyProvider {
     override var sharedKey: ByteArray? = null
@@ -62,8 +62,8 @@ constructor(
             return
         }
 
-        if(participantId == null) {
-            LKLog.d{ "Please provide valid participantId for non-SharedKey mode." }
+        if (participantId == null) {
+            LKLog.d { "Please provide valid participantId for non-SharedKey mode." }
             return
         }
 
@@ -88,7 +88,7 @@ constructor(
             ratchetSalt.toByteArray(),
             ratchetWindowSize,
             uncryptedMagicBytes.toByteArray(),
-            failureTolerance
+            failureTolerance,
         )
     }
 }

@@ -144,7 +144,7 @@ internal constructor(
             name,
             LocalVideoTrackOptions(isScreencast = true),
             eglBase,
-            screencastVideoTrackFactory
+            screencastVideoTrackFactory,
         )
     }
 
@@ -171,7 +171,7 @@ internal constructor(
      */
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
-        mediaProjectionPermissionResultData: Intent? = null
+        mediaProjectionPermissionResultData: Intent? = null,
     ) {
         setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, mediaProjectionPermissionResultData)
     }
@@ -179,7 +179,7 @@ internal constructor(
     private suspend fun setTrackEnabled(
         source: Track.Source,
         enabled: Boolean,
-        mediaProjectionPermissionResultData: Intent? = null
+        mediaProjectionPermissionResultData: Intent? = null,
 
     ) {
         val pub = getTrackPublication(source)
@@ -238,16 +238,16 @@ internal constructor(
         track: LocalAudioTrack,
         options: AudioTrackPublishOptions = AudioTrackPublishOptions(
             null,
-            audioTrackPublishDefaults
+            audioTrackPublishDefaults,
         ),
-        publishListener: PublishListener? = null
+        publishListener: PublishListener? = null,
     ) {
         val encodings = listOf(
             RtpParameters.Encoding(null, true, null).apply {
                 if (options.audioBitrate != null && options.audioBitrate > 0) {
                     maxBitrateBps = options.audioBitrate
                 }
-            }
+            },
         )
         publishTrackImpl(
             track = track,
@@ -264,9 +264,8 @@ internal constructor(
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
-        publishListener: PublishListener? = null
+        publishListener: PublishListener? = null,
     ) {
-
         val encodings = computeVideoEncodings(track.dimensions, options)
         val videoLayers =
             EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings)
@@ -285,10 +284,9 @@ internal constructor(
                 addAllLayers(videoLayers)
             },
             encodings = encodings,
-            publishListener = publishListener
+            publishListener = publishListener,
         )
     }
-
 
     /**
      * @return true if the track publish was successful.
@@ -298,7 +296,7 @@ internal constructor(
         options: TrackPublishOptions,
         requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
-        publishListener: PublishListener? = null
+        publishListener: PublishListener? = null,
     ): Boolean {
         if (localTrackPublications.any { it.track == track }) {
             publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
@@ -313,12 +311,12 @@ internal constructor(
             cid = cid,
             name = track.name,
             kind = track.kind.toProto(),
-            builder = builder
+            builder = builder,
         )
         val transInit = RtpTransceiver.RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
             listOf(this.sid),
-            encodings
+            encodings,
         )
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
@@ -393,7 +391,7 @@ internal constructor(
 
     private fun computeVideoEncodings(
         dimensions: Track.Dimensions,
-        options: VideoTrackPublishOptions
+        options: VideoTrackPublishOptions,
     ): List<RtpParameters.Encoding> {
         val (width, height) = dimensions
         var encoding = options.videoEncoding
@@ -410,7 +408,6 @@ internal constructor(
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
         if (simulcast) {
-
             val presets = EncodingUtils.presetsForResolution(width, height)
             val midPreset = presets[1]
             val lowPreset = presets[0]
@@ -456,7 +453,6 @@ internal constructor(
         return encodings
     }
 
-
     /**
      * Control who can subscribe to LocalParticipant's published tracks.
      *
@@ -476,7 +472,7 @@ internal constructor(
      */
     fun setTrackSubscriptionPermissions(
         allParticipantsAllowed: Boolean,
-        participantTrackPermissions: List<ParticipantTrackPermission> = emptyList()
+        participantTrackPermissions: List<ParticipantTrackPermission> = emptyList(),
     ) {
         engine.updateSubscriptionPermissions(allParticipantsAllowed, participantTrackPermissions)
     }
@@ -605,7 +601,7 @@ internal constructor(
         for (quality in qualities) {
             val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
             val encoding = encodings.firstOrNull { it.rid == rid }
-            // use low quality layer settings for non-simulcasted streams
+                // use low quality layer settings for non-simulcasted streams
                 ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
                 ?: continue
             if (encoding.active != quality.enabled) {
@@ -732,7 +728,7 @@ data class VideoTrackPublishOptions(
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
-        base: BaseVideoTrackPublishOptions
+        base: BaseVideoTrackPublishOptions,
     ) : this(
         name,
         base.videoEncoding,
@@ -748,21 +744,21 @@ abstract class BaseAudioTrackPublishOptions {
 
 data class AudioTrackPublishDefaults(
     override val audioBitrate: Int? = 20_000,
-    override val dtx: Boolean = true
+    override val dtx: Boolean = true,
 ) : BaseAudioTrackPublishOptions()
 
 data class AudioTrackPublishOptions(
     override val name: String? = null,
     override val audioBitrate: Int? = null,
-    override val dtx: Boolean = true
+    override val dtx: Boolean = true,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
-        base: BaseAudioTrackPublishOptions
+        base: BaseAudioTrackPublishOptions,
     ) : this(
         name,
         base.audioBitrate,
-        base.dtx
+        base.dtx,
     )
 }
 
@@ -785,7 +781,7 @@ data class ParticipantTrackPermission(
     /**
      * The list of track ids that the target participant can subscribe to.
      */
-    val allowedTrackSids: List<String> = emptyList()
+    val allowedTrackSids: List<String> = emptyList(),
 ) {
     init {
         if (participantIdentity == null && participantSid == null) {
@@ -806,11 +802,11 @@ data class ParticipantTrackPermission(
 sealed class PublishRecord() {
     data class AudioTrackPublishRecord(
         val track: LocalAudioTrack,
-        val options: AudioTrackPublishOptions
+        val options: AudioTrackPublishOptions,
     )
 
     data class VideoTrackPublishRecord(
         val track: LocalVideoTrack,
-        val options: VideoTrackPublishOptions
+        val options: VideoTrackPublishOptions,
     )
 }

@@ -25,7 +25,8 @@ enum class LoggingLevel {
     WARN,
     ERROR,
     WTF,
-    OFF;
+    OFF,
+    ;
 
     fun toAndroidLogPriority(): Int {
         return when (this) {

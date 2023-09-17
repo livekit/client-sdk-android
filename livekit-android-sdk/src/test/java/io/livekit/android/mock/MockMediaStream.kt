@@ -21,7 +21,7 @@ import org.webrtc.MediaStream
 import org.webrtc.VideoTrack
 
 fun createMediaStreamId(participantSid: String, trackSid: String) =
-    "${participantSid}|${trackSid}"
+    "$participantSid|$trackSid"
 
 class MockMediaStream(private val id: String = "id") : MediaStream(1L) {
 

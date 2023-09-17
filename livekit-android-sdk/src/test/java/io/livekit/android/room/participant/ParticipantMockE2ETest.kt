@@ -31,7 +31,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class ParticipantMockE2ETest : MockE2ETest() {
@@ -44,8 +43,8 @@ class ParticipantMockE2ETest : MockE2ETest() {
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
                 "",
-                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-            )
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+            ),
         )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -76,7 +75,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
 
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString(),
         )
 
         val remoteParticipant = room.remoteParticipants.values.first()
@@ -84,7 +83,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
         val participantEventsCollector = EventCollector(remoteParticipant.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.REMOTE_PARTICIPANT_METADATA_CHANGED.toOkioByteString()
+            SignalClientTest.REMOTE_PARTICIPANT_METADATA_CHANGED.toOkioByteString(),
         )
         val roomEvents = roomEventsCollector.stopCollecting()
         val participantEvents = participantEventsCollector.stopCollecting()
@@ -98,7 +97,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
                 RoomEvent.ParticipantMetadataChanged::class.java,
                 RoomEvent.ParticipantNameChanged::class.java,
             ),
-            roomEvents
+            roomEvents,
         )
 
         assertIsClassList(
@@ -106,8 +105,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
                 ParticipantEvent.MetadataChanged::class.java,
                 ParticipantEvent.NameChanged::class.java,
             ),
-            participantEvents
+            participantEvents,
         )
     }
-
 }

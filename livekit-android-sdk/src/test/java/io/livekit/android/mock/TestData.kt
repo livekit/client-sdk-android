@@ -75,7 +75,6 @@ object TestData {
         build()
     }
 
-
     val REMOTE_SPEAKER_INFO = with(LivekitModels.SpeakerInfo.newBuilder()) {
         sid = REMOTE_PARTICIPANT.sid
         level = 1.0f

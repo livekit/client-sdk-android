@@ -27,7 +27,7 @@ object DeviceManager {
 
     enum class Kind {
         // Only camera input currently, audio input/output only has one option atm.
-        CAMERA;
+        CAMERA,
     }
 
     private val defaultDevices = mutableMapOf<Kind, String>()
@@ -44,19 +44,22 @@ object DeviceManager {
 
         hasSetupListeners = true
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cameraManager.registerAvailabilityCallback(object : CameraManager.AvailabilityCallback() {
-            override fun onCameraAvailable(cameraId: String) {
-                notifyListeners(Kind.CAMERA)
-            }
+        cameraManager.registerAvailabilityCallback(
+            object : CameraManager.AvailabilityCallback() {
+                override fun onCameraAvailable(cameraId: String) {
+                    notifyListeners(Kind.CAMERA)
+                }
 
-            override fun onCameraUnavailable(cameraId: String) {
-                notifyListeners(Kind.CAMERA)
-            }
+                override fun onCameraUnavailable(cameraId: String) {
+                    notifyListeners(Kind.CAMERA)
+                }
 
-            override fun onCameraAccessPrioritiesChanged() {
-                notifyListeners(Kind.CAMERA)
-            }
-        }, Handler(Looper.getMainLooper()))
+                override fun onCameraAccessPrioritiesChanged() {
+                    notifyListeners(Kind.CAMERA)
+                }
+            },
+            Handler(Looper.getMainLooper()),
+        )
     }
 
     fun getDefaultDevice(kind: Kind): String? {
@@ -89,7 +92,7 @@ object DeviceManager {
 
     fun registerOnDeviceAvailabilityChange(
         kind: Kind,
-        listener: OnDeviceAvailabilityChangeListener
+        listener: OnDeviceAvailabilityChangeListener,
     ) {
         if (listeners[kind] == null) {
             listeners[kind] = mutableListOf()
@@ -99,7 +102,7 @@ object DeviceManager {
 
     fun unregisterOnDeviceAvailabilityChange(
         kind: Kind,
-        listener: OnDeviceAvailabilityChangeListener
+        listener: OnDeviceAvailabilityChangeListener,
     ) {
         listeners[kind]?.remove(listener)
     }

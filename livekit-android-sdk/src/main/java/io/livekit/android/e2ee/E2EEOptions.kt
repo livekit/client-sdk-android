@@ -31,7 +31,8 @@ constructor(
         defaultRatchetWindowSize,
         true,
         defaultFaultTolerance,
-    ), encryptionType: Encryption.Type = Encryption.Type.GCM
+    ),
+    encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
     var keyProvider: KeyProvider
     var encryptionType: Encryption.Type = Encryption.Type.NONE

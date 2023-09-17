@@ -16,5 +16,4 @@
 
 package io.livekit.android.room
 
-class RTCEngineTest {
-}
+class RTCEngineTest

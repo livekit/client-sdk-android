@@ -31,7 +31,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 class RemoteTrackPublicationTest : MockE2ETest() {
@@ -44,7 +43,7 @@ class RemoteTrackPublicationTest : MockE2ETest() {
 
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString(),
         )
 
         room.onAddTrack(
@@ -54,10 +53,10 @@ class RemoteTrackPublicationTest : MockE2ETest() {
                 MockMediaStream(
                     id = createMediaStreamId(
                         TestData.REMOTE_PARTICIPANT.sid,
-                        TestData.REMOTE_VIDEO_TRACK.sid
-                    )
-                )
-            )
+                        TestData.REMOTE_VIDEO_TRACK.sid,
+                    ),
+                ),
+            ),
         )
 
         advanceUntilIdle()

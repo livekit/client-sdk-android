@@ -32,5 +32,4 @@ object JsonFormatModule {
         Json {
             ignoreUnknownKeys = true
         }
-
 }

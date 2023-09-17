@@ -41,7 +41,6 @@ internal class LKLog {
     companion object {
         var loggingLevel = OFF
 
-
         /** Log a verbose exception and a message that will be evaluated lazily when the message is printed */
         @JvmStatic
         inline fun v(t: Throwable? = null, message: () -> String) =

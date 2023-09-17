@@ -55,8 +55,8 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
                 "",
-                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-            )
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+            ),
         )
 
         room.disconnect()
@@ -118,7 +118,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.LOCAL_PARTICIPANT_METADATA_CHANGED.toOkioByteString()
+            SignalClientTest.LOCAL_PARTICIPANT_METADATA_CHANGED.toOkioByteString(),
         )
 
         val roomEvents = roomEventsCollector.stopCollecting()
@@ -134,7 +134,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
                 RoomEvent.ParticipantMetadataChanged::class.java,
                 RoomEvent.ParticipantNameChanged::class.java,
             ),
-            roomEvents
+            roomEvents,
         )
 
         assertIsClassList(
@@ -142,7 +142,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
                 ParticipantEvent.MetadataChanged::class.java,
                 ParticipantEvent.NameChanged::class.java,
             ),
-            participantEvents
+            participantEvents,
         )
     }
 
@@ -154,14 +154,14 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             isScreencast = false,
             deviceId = null,
             position = null,
-            captureParams = VideoCaptureParameter(width = 0, height = 0, maxFps = 0)
+            captureParams = VideoCaptureParameter(width = 0, height = 0, maxFps = 0),
         ),
         rtcTrack = MockVideoStreamTrack(),
         peerConnectionFactory = component.peerConnectionFactory(),
         context = context,
         eglBase = MockEglBase(),
         defaultsManager = DefaultsManager(),
-        trackFactory = mock(LocalVideoTrack.Factory::class.java)
+        trackFactory = mock(LocalVideoTrack.Factory::class.java),
     )
 
     @Test
@@ -174,11 +174,13 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         val peerConnection = component.rtcEngine().publisher.peerConnection
         val transceiver = peerConnection.transceivers.first()
 
-        Mockito.verify(transceiver).setCodecPreferences(argThat { codecs ->
-            val preferredCodec = codecs.first()
-            return@argThat preferredCodec.name.lowercase() == "h264" &&
+        Mockito.verify(transceiver).setCodecPreferences(
+            argThat { codecs ->
+                val preferredCodec = codecs.first()
+                return@argThat preferredCodec.name.lowercase() == "h264" &&
                     preferredCodec.parameters["profile-level-id"] == "42e01f"
-        })
+            },
+        )
     }
 
     @Test
@@ -191,9 +193,11 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         val peerConnection = component.rtcEngine().publisher.peerConnection
         val transceiver = peerConnection.transceivers.first()
 
-        Mockito.verify(transceiver).setCodecPreferences(argThat { codecs ->
-            val preferredCodec = codecs.first()
-            return@argThat preferredCodec.name.lowercase() == "vp8"
-        })
+        Mockito.verify(transceiver).setCodecPreferences(
+            argThat { codecs ->
+                val preferredCodec = codecs.first()
+                return@argThat preferredCodec.name.lowercase() == "vp8"
+            },
+        )
     }
 }

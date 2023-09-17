@@ -153,10 +153,10 @@ class RemoteTrackPublication(
      * Will override previous calls to [setVideoDimensions].
      */
     fun setVideoQuality(quality: LivekitModels.VideoQuality) {
-        if (isAutoManaged
-            || !subscribed
-            || quality == videoQuality
-            || track !is VideoTrack
+        if (isAutoManaged ||
+            !subscribed ||
+            quality == videoQuality ||
+            track !is VideoTrack
         ) {
             return
         }
@@ -171,10 +171,10 @@ class RemoteTrackPublication(
      * Will override previous calls to [setVideoQuality].
      */
     fun setVideoDimensions(dimensions: Track.Dimensions) {
-        if (isAutoManaged
-            || !subscribed
-            || videoDimensions == dimensions
-            || track !is VideoTrack
+        if (isAutoManaged ||
+            !subscribed ||
+            videoDimensions == dimensions ||
+            track !is VideoTrack
         ) {
             return
         }
@@ -188,10 +188,10 @@ class RemoteTrackPublication(
      * Update the fps that the server will use for determining the video quality to send down.
      */
     fun setVideoFps(fps: Int?) {
-        if (isAutoManaged
-            || !subscribed
-            || this.fps == fps
-            || track !is VideoTrack
+        if (isAutoManaged ||
+            !subscribed ||
+            this.fps == fps ||
+            track !is VideoTrack
         ) {
             return
         }
@@ -232,7 +232,7 @@ class RemoteTrackPublication(
             disabled,
             videoDimensions,
             videoQuality,
-            fps
+            fps,
         )
     }
 
@@ -250,6 +250,6 @@ class RemoteTrackPublication(
         /**
          * Not subscribed.
          */
-        UNSUBSCRIBED
+        UNSUBSCRIBED,
     }
 }

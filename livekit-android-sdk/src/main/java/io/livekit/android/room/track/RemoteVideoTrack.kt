@@ -25,7 +25,6 @@ import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.*
 import org.webrtc.RtpReceiver
-import org.webrtc.RtpTransceiver
 import org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max

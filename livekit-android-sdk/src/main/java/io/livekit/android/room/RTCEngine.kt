@@ -21,7 +21,6 @@ import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
 import io.livekit.android.room.participant.ParticipantTrackPermission
@@ -39,7 +38,6 @@ import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import livekit.LivekitModels
-import livekit.LivekitModels.Encryption
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -150,7 +148,7 @@ internal constructor(
         url: String,
         token: String,
         options: ConnectOptions,
-        roomOptions: RoomOptions
+        roomOptions: RoomOptions,
     ): JoinResponse {
         coroutineScope.close()
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
@@ -165,7 +163,7 @@ internal constructor(
         url: String,
         token: String,
         options: ConnectOptions,
-        roomOptions: RoomOptions
+        roomOptions: RoomOptions,
     ): JoinResponse {
         val joinResponse = client.join(url, token, options, roomOptions)
         listener?.onJoinResponse(joinResponse)
@@ -248,7 +246,7 @@ internal constructor(
         reliableInit.ordered = true
         reliableDataChannel = publisher.peerConnection.createDataChannel(
             RELIABLE_DATA_CHANNEL_LABEL,
-            reliableInit
+            reliableInit,
         )
         reliableDataChannel!!.registerObserver(this)
         val lossyInit = DataChannel.Init()
@@ -256,7 +254,7 @@ internal constructor(
         lossyInit.maxRetransmits = 0
         lossyDataChannel = publisher.peerConnection.createDataChannel(
             LOSSY_DATA_CHANNEL_LABEL,
-            lossyInit
+            lossyInit,
         )
         lossyDataChannel!!.registerObserver(this)
     }
@@ -268,7 +266,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
-        builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder()
+        builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
             throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
@@ -282,7 +280,7 @@ internal constructor(
 
     fun updateSubscriptionPermissions(
         allParticipants: Boolean,
-        participantTrackPermissions: List<ParticipantTrackPermission>
+        participantTrackPermissions: List<ParticipantTrackPermission>,
     ) {
         client.sendUpdateSubscriptionPermissions(allParticipants, participantTrackPermissions)
     }
@@ -348,7 +346,6 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         val job = coroutineScope.launch {
-
             connectionState = ConnectionState.RECONNECTING
             listener?.onEngineReconnecting()
 
@@ -498,7 +495,6 @@ internal constructor(
             this.negotiatePublisher()
         }
 
-
         val targetChannel = dataChannelForKind(kind) ?: throw IllegalArgumentException("Unknown data packet kind!")
         if (targetChannel.state() == DataChannel.State.OPEN) {
             return
@@ -529,21 +525,21 @@ internal constructor(
                 add(
                     MediaConstraints.KeyValuePair(
                         MediaConstraintKeys.OFFER_TO_RECV_AUDIO,
-                        MediaConstraintKeys.FALSE
-                    )
+                        MediaConstraintKeys.FALSE,
+                    ),
                 )
                 add(
                     MediaConstraints.KeyValuePair(
                         MediaConstraintKeys.OFFER_TO_RECV_VIDEO,
-                        MediaConstraintKeys.FALSE
-                    )
+                        MediaConstraintKeys.FALSE,
+                    ),
                 )
                 if (connectionState == ConnectionState.RECONNECTING) {
                     add(
                         MediaConstraints.KeyValuePair(
                             MediaConstraintKeys.ICE_RESTART,
-                            MediaConstraintKeys.TRUE
-                        )
+                            MediaConstraintKeys.TRUE,
+                        ),
                     )
                 }
             }
@@ -552,9 +548,8 @@ internal constructor(
 
     private fun makeRTCConfig(
         serverResponse: Either<JoinResponse, ReconnectResponse>,
-        connectOptions: ConnectOptions
+        connectOptions: ConnectOptions,
     ): RTCConfiguration {
-
         // Convert protobuf ice servers
         val serverIceServers = run {
             val servers = mutableListOf<PeerConnection.IceServer>()
@@ -664,7 +659,7 @@ internal constructor(
         }
     }
 
-    //---------------------------------- SignalClient.Listener --------------------------------------//
+    // ---------------------------------- SignalClient.Listener --------------------------------------//
 
     override fun onAnswer(sessionDescription: SessionDescription) {
         LKLog.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
@@ -686,8 +681,10 @@ internal constructor(
         LKLog.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
         coroutineScope.launch {
             run<Unit> {
-                when (val outcome =
-                    subscriber.setRemoteDescription(sessionDescription)) {
+                when (
+                    val outcome =
+                        subscriber.setRemoteDescription(sessionDescription)
+                ) {
                     is Either.Right -> {
                         LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                         return@launch
@@ -821,7 +818,7 @@ internal constructor(
         listener?.onLocalTrackUnpublished(trackUnpublished)
     }
 
-    //--------------------------------- DataChannel.Observer ------------------------------------//
+    // --------------------------------- DataChannel.Observer ------------------------------------//
 
     override fun onBufferedAmountChange(previousAmount: Long) {
     }
@@ -844,7 +841,8 @@ internal constructor(
             }
 
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
-            null -> {
+            null,
+            -> {
                 LKLog.v { "invalid value for data packet" }
             }
         }
@@ -852,7 +850,7 @@ internal constructor(
 
     fun sendSyncState(
         subscription: LivekitRtc.UpdateSubscription,
-        publishedTracks: List<LivekitRtc.TrackPublishedResponse>
+        publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
         val answer = subscriber.peerConnection.localDescription?.toProtoSessionDescription()
 
@@ -894,7 +892,7 @@ internal constructor(
 enum class ReconnectType {
     DEFAULT,
     FORCE_SOFT_RECONNECT,
-    FORCE_FULL_RECONNECT;
+    FORCE_FULL_RECONNECT,
 }
 
 internal fun LivekitRtc.ICEServer.toWebrtc() = PeerConnection.IceServer.builder(urlsList)

@@ -29,7 +29,7 @@ object InjectionNames {
     /**
      * @see [kotlinx.coroutines.Dispatchers.IO]
      */
-    internal const val DISPATCHER_IO = "dispatcher_io";
+    internal const val DISPATCHER_IO = "dispatcher_io"
 
     /**
      * @see [kotlinx.coroutines.Dispatchers.Main]

@@ -25,7 +25,7 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
         rtcConfig: PeerConnection.RTCConfiguration,
         constraints: MediaConstraints?,
         observer: PeerConnection.Observer?,
-        sslCertificateVerifier: SSLCertificateVerifier?
+        sslCertificateVerifier: SSLCertificateVerifier?,
     ): PeerConnection {
         return MockPeerConnection(rtcConfig, observer)
     }
@@ -64,7 +64,7 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
                     parameters = mapOf("profile-level-id" to "42e01f")
                 },
             ),
-            emptyList()
+            emptyList(),
         )
     }
 }

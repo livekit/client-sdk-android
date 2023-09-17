@@ -16,8 +16,6 @@
 
 package io.livekit.android.room.util
 
-import io.livekit.android.room.participant.Participant
-import io.livekit.android.room.track.Track
 import org.webrtc.DataChannel
 
 fun DataChannel.unpackedTrackLabel(): Triple<String, String, String> {
@@ -35,6 +33,6 @@ fun DataChannel.unpackedTrackLabel(): Triple<String, String, String> {
         trackSid = ""
         name = ""
     }
-    
+
     return Triple(participantSid, trackSid, name)
 }

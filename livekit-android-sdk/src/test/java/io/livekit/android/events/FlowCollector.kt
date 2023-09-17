@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 open class FlowCollector<T>(
     private val flow: Flow<T>,
-    coroutineScope: CoroutineScope
+    coroutineScope: CoroutineScope,
 ) {
     private val signal = MutableStateFlow<Unit?>(null)
     private val collectEventsDeferred = coroutineScope.async {
@@ -40,5 +40,4 @@ open class FlowCollector<T>(
         signal.compareAndSet(null, Unit)
         return collectEventsDeferred.await()
     }
-
 }

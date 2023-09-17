@@ -35,7 +35,7 @@ import javax.inject.Singleton
         OverridesModule::class,
         AudioHandlerModule::class,
         MemoryModule::class,
-    ]
+    ],
 )
 internal interface LiveKitComponent {
 
@@ -49,7 +49,7 @@ internal interface LiveKitComponent {
     interface Factory {
         fun create(
             @BindsInstance appContext: Context,
-            overridesModule: OverridesModule
+            overridesModule: OverridesModule,
         ): LiveKitComponent
     }
 }
@@ -60,6 +60,6 @@ internal fun LiveKitComponent.Factory.create(
 ): LiveKitComponent {
     return create(
         appContext = context,
-        overridesModule = OverridesModule(overrides)
+        overridesModule = OverridesModule(overrides),
     )
 }

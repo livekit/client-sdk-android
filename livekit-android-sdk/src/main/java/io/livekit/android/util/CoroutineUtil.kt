@@ -21,7 +21,7 @@ import kotlinx.coroutines.*
 fun <T, R> debounce(
     waitMs: Long = 300L,
     coroutineScope: CoroutineScope,
-    destinationFunction: suspend (T) -> R
+    destinationFunction: suspend (T) -> R,
 ): (T) -> Unit {
     var debounceJob: Deferred<R>? = null
     return { param: T ->

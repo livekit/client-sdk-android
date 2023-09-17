@@ -42,7 +42,7 @@ object AudioHandlerModule {
 
     @Provides
     fun audioOutputAttributes(
-        audioType: AudioType
+        audioType: AudioType,
     ): AudioAttributes {
         return audioType.audioAttributes
     }

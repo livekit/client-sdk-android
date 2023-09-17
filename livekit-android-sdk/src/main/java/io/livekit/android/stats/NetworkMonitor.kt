@@ -30,7 +30,6 @@ internal class NetworkMonitor(private val context: Context) {
         coroutineContext = SupervisorJob() + Dispatchers.IO
         scope = CoroutineScope(coroutineContext)
         scope.launch {
-
             val uid = context.packageManager.getApplicationInfo(context.packageName, 0).uid
 
             var prevTxBytes = TrafficStats.getUidTxBytes(uid)

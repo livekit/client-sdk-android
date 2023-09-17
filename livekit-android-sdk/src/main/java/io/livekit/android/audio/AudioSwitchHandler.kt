@@ -150,14 +150,14 @@ constructor(private val context: Context) : AudioHandler {
                             context = context,
                             loggingEnabled = loggingEnabled,
                             audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
-                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
                         )
                     } else {
                         LegacyAudioSwitch(
                             context = context,
                             loggingEnabled = loggingEnabled,
                             audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
-                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
                         )
                     }
                 switch.manageAudioFocus = manageAudioFocus
@@ -214,7 +214,7 @@ constructor(private val context: Context) : AudioHandler {
                 AudioDevice.BluetoothHeadset::class.java,
                 AudioDevice.WiredHeadset::class.java,
                 AudioDevice.Earpiece::class.java,
-                AudioDevice.Speakerphone::class.java
+                AudioDevice.Speakerphone::class.java,
             )
         }
     }

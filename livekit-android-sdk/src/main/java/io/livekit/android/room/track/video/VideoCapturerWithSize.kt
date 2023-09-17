@@ -31,7 +31,7 @@ internal interface VideoCapturerWithSize : VideoCapturer {
  */
 
 internal abstract class CameraCapturerWithSize(
-    val cameraEventsDispatchHandler: CameraEventsDispatchHandler
+    val cameraEventsDispatchHandler: CameraEventsDispatchHandler,
 ) : VideoCapturerWithSize
 
 /**

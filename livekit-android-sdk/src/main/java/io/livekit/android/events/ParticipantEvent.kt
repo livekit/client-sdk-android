@@ -58,7 +58,6 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
      */
     class TrackUnmuted(participant: Participant, val publication: TrackPublication) : ParticipantEvent(participant)
 
-
     // local participants
     /**
      * When a new track is published by the local participant.
@@ -113,7 +112,7 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class TrackUnsubscribed(
         override val participant: RemoteParticipant,
         val track: Track,
-        val publication: RemoteTrackPublication
+        val publication: RemoteTrackPublication,
     ) : ParticipantEvent(participant)
 
     /**
@@ -122,7 +121,7 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class DataReceived(
         override val participant: RemoteParticipant,
         val data: ByteArray,
-        val topic: String?
+        val topic: String?,
     ) : ParticipantEvent(participant)
 
     /**
@@ -131,9 +130,8 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class TrackStreamStateChanged(
         override val participant: Participant,
         val trackPublication: TrackPublication,
-        val streamState: Track.StreamState
+        val streamState: Track.StreamState,
     ) : ParticipantEvent(participant)
-
 
     /**
      * A remote track's subscription permissions have changed.
@@ -141,7 +139,7 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class TrackSubscriptionPermissionChanged(
         override val participant: RemoteParticipant,
         val trackPublication: RemoteTrackPublication,
-        val subscriptionAllowed: Boolean
+        val subscriptionAllowed: Boolean,
     ) : ParticipantEvent(participant)
 
     /**

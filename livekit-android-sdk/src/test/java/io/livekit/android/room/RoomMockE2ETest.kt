@@ -85,7 +85,6 @@ class RoomMockE2ETest : MockE2ETest() {
 
     @Test
     fun connectFailureProperlyContinues() = runTest {
-
         var didThrowException = false
         val job = coroutineRule.scope.launch {
             try {
@@ -115,18 +114,18 @@ class RoomMockE2ETest : MockE2ETest() {
 
         assertEquals(
             roomUpdate.roomUpdate.room.metadata,
-            room.metadata
+            room.metadata,
         )
         assertEquals(
             roomUpdate.roomUpdate.room.activeRecording,
-            room.isRecording
+            room.isRecording,
         )
         assertIsClassList(
             listOf(
                 RoomEvent.RoomMetadataChanged::class.java,
                 RoomEvent.RecordingStatusChanged::class.java,
             ),
-            events
+            events,
         )
     }
 
@@ -136,7 +135,7 @@ class RoomMockE2ETest : MockE2ETest() {
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.CONNECTION_QUALITY.toOkioByteString()
+            SignalClientTest.CONNECTION_QUALITY.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
@@ -159,7 +158,7 @@ class RoomMockE2ETest : MockE2ETest() {
                 RoomEvent.TrackPublished::class.java,
                 RoomEvent.TrackPublished::class.java,
             ),
-            events
+            events,
         )
     }
 
@@ -168,13 +167,13 @@ class RoomMockE2ETest : MockE2ETest() {
         connect()
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString(),
         )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_DISCONNECT.toOkioByteString()
+            SignalClientTest.PARTICIPANT_DISCONNECT.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
@@ -184,7 +183,7 @@ class RoomMockE2ETest : MockE2ETest() {
                 RoomEvent.TrackUnpublished::class.java,
                 RoomEvent.ParticipantDisconnected::class.java,
             ),
-            events
+            events,
         )
     }
 
@@ -195,7 +194,7 @@ class RoomMockE2ETest : MockE2ETest() {
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.ACTIVE_SPEAKER_UPDATE.toOkioByteString()
+            SignalClientTest.ACTIVE_SPEAKER_UPDATE.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
@@ -209,7 +208,7 @@ class RoomMockE2ETest : MockE2ETest() {
 
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString(),
         )
 
         // We intentionally don't emit if the track isn't subscribed, so need to
@@ -221,15 +220,15 @@ class RoomMockE2ETest : MockE2ETest() {
                 MockMediaStream(
                     id = createMediaStreamId(
                         TestData.REMOTE_PARTICIPANT.sid,
-                        TestData.REMOTE_AUDIO_TRACK.sid
-                    )
-                )
-            )
+                        TestData.REMOTE_AUDIO_TRACK.sid,
+                    ),
+                ),
+            ),
         )
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.STREAM_STATE_UPDATE.toOkioByteString()
+            SignalClientTest.STREAM_STATE_UPDATE.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
@@ -246,7 +245,7 @@ class RoomMockE2ETest : MockE2ETest() {
 
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString()
+            SignalClientTest.PARTICIPANT_JOIN.toOkioByteString(),
         )
         room.onAddTrack(
             MockRtpReceiver.create(),
@@ -255,15 +254,15 @@ class RoomMockE2ETest : MockE2ETest() {
                 MockMediaStream(
                     id = createMediaStreamId(
                         TestData.REMOTE_PARTICIPANT.sid,
-                        TestData.REMOTE_AUDIO_TRACK.sid
-                    )
-                )
-            )
+                        TestData.REMOTE_AUDIO_TRACK.sid,
+                    ),
+                ),
+            ),
         )
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.SUBSCRIPTION_PERMISSION_UPDATE.toOkioByteString()
+            SignalClientTest.SUBSCRIPTION_PERMISSION_UPDATE.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
@@ -306,13 +305,12 @@ class RoomMockE2ETest : MockE2ETest() {
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         wsFactory.listener.onMessage(
             wsFactory.ws,
-            SignalClientTest.LEAVE.toOkioByteString()
+            SignalClientTest.LEAVE.toOkioByteString(),
         )
         val events = eventCollector.stopCollecting()
 
         assertEquals(1, events.size)
         assertEquals(true, events[0] is RoomEvent.Disconnected)
-
     }
 
     @Test
@@ -322,8 +320,8 @@ class RoomMockE2ETest : MockE2ETest() {
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
                 "",
-                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid)
-            )
+                MockAudioStreamTrack(id = SignalClientTest.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+            ),
         )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -347,10 +345,10 @@ class RoomMockE2ETest : MockE2ETest() {
                 MockMediaStream(
                     id = createMediaStreamId(
                         TestData.REMOTE_PARTICIPANT.sid,
-                        TestData.REMOTE_AUDIO_TRACK.sid
-                    )
-                )
-            )
+                        TestData.REMOTE_AUDIO_TRACK.sid,
+                    ),
+                ),
+            ),
         )
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
@@ -363,9 +361,9 @@ class RoomMockE2ETest : MockE2ETest() {
                 RoomEvent.TrackUnpublished::class.java,
                 RoomEvent.TrackUnpublished::class.java,
                 RoomEvent.ParticipantDisconnected::class.java,
-                RoomEvent.Disconnected::class.java
+                RoomEvent.Disconnected::class.java,
             ),
-            events
+            events,
         )
         Assert.assertTrue(room.remoteParticipants.isEmpty())
     }

@@ -23,21 +23,21 @@ class ParticipantTrackPermissionTest {
     fun requireSidOrIdentity() {
         ParticipantTrackPermission(
             participantIdentity = null,
-            participantSid = null
+            participantSid = null,
         )
     }
 
     @Test
     fun sidConstructionDoesntThrow() {
         ParticipantTrackPermission(
-            participantSid = "sid"
+            participantSid = "sid",
         )
     }
 
     @Test
     fun identyConstructionDoesntThrow() {
         ParticipantTrackPermission(
-            participantIdentity = "identity"
+            participantIdentity = "identity",
         )
     }
 }

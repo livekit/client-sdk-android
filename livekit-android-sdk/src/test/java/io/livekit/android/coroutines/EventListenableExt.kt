@@ -45,8 +45,7 @@ fun <T> Flow<T>.takeUntilSignal(signal: Flow<Unit?>): Flow<T> = flow {
                 emit(it)
             }
         }
-
     } catch (e: CancellationException) {
-        //ignore
+        // ignore
     }
 }
