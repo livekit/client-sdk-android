@@ -24,7 +24,7 @@ abstract class VideoTest {
 
     private fun createToken(name: String) = Jwts.builder()
         .setIssuer(API_KEY)
-        .setExpiration(Date(System.currentTimeMillis() + 1000 * 60 * 60 /* 1hour */))
+        .setExpiration(Date(System.currentTimeMillis() + 1000 * 60 * 60))
         .setNotBefore(Date(0))
         .setSubject(name)
         .setId(name)
@@ -56,5 +56,4 @@ abstract class VideoTest {
             composeTestRule.onAllNodesWithTag(VIDEO_FRAME_INDICATOR).fetchSemanticsNodes(false, "").isNotEmpty()
         }
     }
-
 }

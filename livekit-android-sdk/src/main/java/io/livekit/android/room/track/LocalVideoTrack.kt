@@ -21,7 +21,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraManager
 import androidx.core.content.ContextCompat
-import com.github.ajalt.timberkt.Timber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -35,7 +34,6 @@ import io.livekit.android.util.flowDelegate
 import org.webrtc.*
 import org.webrtc.CameraVideoCapturer.CameraEventsHandler
 import java.util.*
-
 
 /**
  * A representation of a local video track (generally input coming from camera or screen).
@@ -116,7 +114,6 @@ constructor(
      * this will switch to the next camera, if one is available.
      */
     fun switchCamera(deviceId: String? = null, position: CameraPosition? = null) {
-
         val cameraCapturer = capturer as? CameraVideoCapturer ?: run {
             LKLog.w { "Attempting to switch camera on a non-camera video track!" }
             return
@@ -183,7 +180,6 @@ constructor(
             override fun onCameraSwitchError(errorDescription: String?) {
                 LKLog.w { "switching camera failed: $errorDescription" }
             }
-
         }
         if (targetDeviceId == null) {
             LKLog.w { "No target camera found!" }
@@ -197,7 +193,6 @@ constructor(
      * Restart a track with new options.
      */
     fun restartTrack(options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy()) {
-
         val oldCapturer = capturer
         val oldSource = source
         val oldRtcTrack = rtcTrack
@@ -293,7 +288,6 @@ constructor(
             trackFactory: Factory,
             videoProcessor: VideoProcessor? = null,
         ): LocalVideoTrack {
-
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) !=
                 PackageManager.PERMISSION_GRANTED
             ) {
@@ -450,5 +444,4 @@ constructor(
             return null
         }
     }
-
 }

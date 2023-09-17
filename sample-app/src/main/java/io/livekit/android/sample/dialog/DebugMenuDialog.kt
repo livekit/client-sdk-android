@@ -6,7 +6,6 @@ import android.app.AlertDialog
 import android.widget.ArrayAdapter
 import io.livekit.android.sample.CallViewModel
 
-
 fun Activity.showDebugMenuDialog(callViewModel: CallViewModel) {
     val builder = with(AlertDialog.Builder(this)) {
         setTitle("Debug Menu")

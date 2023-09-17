@@ -11,7 +11,6 @@ import io.livekit.android.room.participant.Participant
  */
 @Composable
 fun ConnectionItem(viewModel: CallViewModel) {
-
     val room by viewModel.room.collectAsState()
     val participants by viewModel.participants.collectAsState(initial = emptyList())
     if (room != null) {

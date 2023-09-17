@@ -1,4 +1,5 @@
 @file:Suppress("UnstableApiUsage") // We know that Lint API's aren't final.
+
 package io.livekit.lint
 
 import com.android.tools.lint.client.api.UElementHandler
@@ -36,8 +37,8 @@ class MediaTrackEqualsDetector : Detector(), SourceCodeScanner {
                 ?.get(0)
                 ?.getExpressionType()
                 ?: return
-            if (left is PsiClassType && right is PsiClassType
-                && (left.canonicalText == MEDIA_STREAM_TRACK || right.canonicalText == MEDIA_STREAM_TRACK)
+            if (left is PsiClassType && right is PsiClassType &&
+                (left.canonicalText == MEDIA_STREAM_TRACK || right.canonicalText == MEDIA_STREAM_TRACK)
             ) {
                 val message = DEFAULT_MSG
                 val location = context.getLocation(node)
@@ -52,8 +53,8 @@ class MediaTrackEqualsDetector : Detector(), SourceCodeScanner {
         ) {
             val left = node.leftOperand.getExpressionType() ?: return
             val right = node.rightOperand.getExpressionType() ?: return
-            if (left is PsiClassType && right is PsiClassType
-                && (left.canonicalText == MEDIA_STREAM_TRACK || right.canonicalText == MEDIA_STREAM_TRACK)
+            if (left is PsiClassType && right is PsiClassType &&
+                (left.canonicalText == MEDIA_STREAM_TRACK || right.canonicalText == MEDIA_STREAM_TRACK)
             ) {
                 val message = DEFAULT_MSG
                 val location = node.operatorIdentifier?.let {

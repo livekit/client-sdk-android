@@ -61,10 +61,10 @@ class CallViewModel(
     val participants = room::remoteParticipants.flow
         .map { remoteParticipants ->
             listOf<Participant>(room.localParticipant) +
-                    remoteParticipants
-                        .keys
-                        .sortedBy { it }
-                        .mapNotNull { remoteParticipants[it] }
+                remoteParticipants
+                    .keys
+                    .sortedBy { it }
+                    .mapNotNull { remoteParticipants[it] }
         }
 
     private val mutableError = MutableStateFlow<Throwable?>(null)
@@ -139,7 +139,6 @@ class CallViewModel(
             connectToRoom()
         }
 
-
         // Start a foreground service to keep the call from being interrupted if the
         // app goes into the background.
         val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
@@ -163,7 +162,6 @@ class CallViewModel(
                 }
             }
         }
-
     }
 
     private suspend fun connectToRoom() {
@@ -190,7 +188,6 @@ class CallViewModel(
     }
 
     private fun handlePrimarySpeaker(participantsList: List<Participant>, speakers: List<Participant>, room: Room?) {
-
         var speaker = mutablePrimarySpeaker.value
 
         // If speaker is local participant (due to defaults),

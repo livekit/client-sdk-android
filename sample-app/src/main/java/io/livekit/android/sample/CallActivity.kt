@@ -13,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
@@ -42,7 +41,7 @@ class CallActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding = CallActivityBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
@@ -80,16 +79,22 @@ class CallActivity : AppCompatActivity() {
         viewModel.cameraEnabled.observe(this) { enabled ->
             binding.camera.setOnClickListener { viewModel.setCameraEnabled(!enabled) }
             binding.camera.setImageResource(
-                if (enabled) R.drawable.outline_videocam_24
-                else R.drawable.outline_videocam_off_24
+                if (enabled) {
+                    R.drawable.outline_videocam_24
+                } else {
+                    R.drawable.outline_videocam_off_24
+                }
             )
             binding.flipCamera.isEnabled = enabled
         }
         viewModel.micEnabled.observe(this) { enabled ->
             binding.mic.setOnClickListener { viewModel.setMicEnabled(!enabled) }
             binding.mic.setImageResource(
-                if (enabled) R.drawable.outline_mic_24
-                else R.drawable.outline_mic_off_24
+                if (enabled) {
+                    R.drawable.outline_mic_24
+                } else {
+                    R.drawable.outline_mic_off_24
+                }
             )
         }
 
@@ -103,8 +108,11 @@ class CallActivity : AppCompatActivity() {
                 }
             }
             binding.screenShare.setImageResource(
-                if (enabled) R.drawable.baseline_cast_connected_24
-                else R.drawable.baseline_cast_24
+                if (enabled) {
+                    R.drawable.baseline_cast_connected_24
+                } else {
+                    R.drawable.baseline_cast_24
+                }
             )
         }
 

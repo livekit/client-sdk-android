@@ -55,8 +55,7 @@ subprojects {
             removeUnusedImports()
         }
         kotlin {
-            target("**/*.kt", "**/*.kts")
-            targetExclude("$buildDir/**/*.kt")
+            target("src/*/java/**/*.kt")
             ktlint("0.50.0")
                 .setEditorConfigPath("$rootDir/.editorconfig")
             licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))

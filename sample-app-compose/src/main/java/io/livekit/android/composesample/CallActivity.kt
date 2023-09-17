@@ -61,11 +61,10 @@ class CallActivity : AppCompatActivity() {
             viewModel.startScreenCapture(data)
         }
 
-
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Setup compose view.
         setContent {
@@ -211,7 +210,6 @@ class CallActivity : AppCompatActivity() {
                     verticalArrangement = Arrangement.SpaceEvenly,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-
                     val controlSize = 40.dp
                     val controlPadding = 4.dp
                     Row(

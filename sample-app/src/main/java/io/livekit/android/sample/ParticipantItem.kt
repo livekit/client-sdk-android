@@ -2,7 +2,6 @@
 
 package io.livekit.android.sample
 
-
 import android.view.View
 import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
@@ -42,7 +41,6 @@ class ParticipantItem(
     }
 
     override fun bind(viewBinding: ParticipantItemBinding, position: Int) {
-
         ensureCoroutineScope()
         coroutineScope?.launch {
             participant::identity.flow.collect { identity ->
@@ -152,10 +150,11 @@ class ParticipantItem(
     }
 
     override fun getLayout(): Int =
-        if (speakerView)
+        if (speakerView) {
             R.layout.speaker_view
-        else
+        } else {
             R.layout.participant_item
+        }
 }
 
 private fun View.visibleOrGone(visible: Boolean) {

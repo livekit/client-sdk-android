@@ -176,5 +176,4 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(neededPermissions)
         }
     }
-
 }

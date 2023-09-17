@@ -78,12 +78,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun connectToRoom() {
-
         val url = "wss://www.example.com"
         val token = ""
 
         lifecycleScope.launch {
-
             // Connect to server.
             room.connect(
                 url,
@@ -124,4 +122,3 @@ class MainActivity : ComponentActivity() {
         connected.value = false
     }
 }
-

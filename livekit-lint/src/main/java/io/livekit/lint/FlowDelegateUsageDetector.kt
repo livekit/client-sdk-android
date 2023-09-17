@@ -32,7 +32,6 @@ import org.jetbrains.uast.tryResolve
 class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
 
     override fun visitReference(context: JavaContext, reference: UReferenceExpression, referenced: PsiElement) {
-
         // Check if we're actually trying to access the flow delegate
         val referencedMethod = referenced as? PsiMethod ?: return
         if (referenced.name != GET_FLOW || referencedMethod.containingClass?.qualifiedName != FLOW_DELEGATE) {
@@ -55,7 +54,7 @@ class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
             }
             is PsiField -> {
                 val receiverClass = (receiver.type as? PsiClassType)?.resolve()
-                println("${receiverClass},  ${receiverClass?.annotations?.fold("") { total, next -> "$total, ${next.text}" }}")
+                println("$receiverClass,  ${receiverClass?.annotations?.fold("") { total, next -> "$total, ${next.text}" }}")
                 receiverClass?.hasAnnotation(FLOW_OBSERVABLE_ANNOTATION) ?: false
             }
             else -> {
@@ -73,7 +72,6 @@ class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
     override fun getApplicableReferenceNames(): List<String>? =
         listOf("flow")
 
-
     companion object {
 
         // The name of the method for the flow accessor
@@ -85,7 +83,9 @@ class FlowDelegateUsageDetector : Detector(), SourceCodeScanner {
         private const val FLOW_OBSERVABLE_ANNOTATION = "io.livekit.android.util.FlowObservable"
 
         private const val DEFAULT_MSG =
-            "Incorrect flow property usage: Only properties marked with the @FlowObservable annotation can be observed using `io.livekit.android.util.flow`. Improper usage will result in a NullPointerException."
+            "Incorrect flow property usage: Only properties marked with the @FlowObservable " +
+                "annotation can be observed using `io.livekit.android.util.flow`. " +
+                "Improper usage will result in a NullPointerException."
 
         private val IMPLEMENTATION =
             Implementation(FlowDelegateUsageDetector::class.java, Scope.JAVA_FILE_SCOPE)
