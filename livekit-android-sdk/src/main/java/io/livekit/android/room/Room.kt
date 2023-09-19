@@ -942,7 +942,7 @@ constructor(
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication, participant, this)
-        if (e2eeManager != null) {
+        e2eeManager?.let { e2eeManager ->
             e2eeManager!!.removePublishedTrack(publication.track!!, publication, participant, this)
         }
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
