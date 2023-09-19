@@ -980,7 +980,7 @@ constructor(
         participant: RemoteParticipant,
     ) {
         listener?.onTrackUnsubscribed(track, publication, participant, this)
-        if (e2eeManager != null) {
+        e2eeManager?.let { e2eeManager ->
             e2eeManager!!.removeSubscribedTrack(track, publication, participant, this)
         }
         eventBus.postEvent(RoomEvent.TrackUnsubscribed(this, track, publication, participant), coroutineScope)
