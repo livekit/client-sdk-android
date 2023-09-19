@@ -207,7 +207,7 @@ constructor(keyProvider: KeyProvider) {
      * Ratchet key for local participant
      */
     fun ratchetKey() {
-        var newKey = keyProvider.ratchetSharedKey();
+        var newKey = keyProvider.ratchetSharedKey()
         LKLog.d { "ratchetSharedKey: newKey: $newKey" }
     }
 

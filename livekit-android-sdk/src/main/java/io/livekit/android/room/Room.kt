@@ -322,7 +322,7 @@ constructor(
         name = response.room.name
         metadata = response.room.metadata
 
-        if(e2eeManager != null && !response.sifTrailer.isEmpty) {
+        if (e2eeManager != null && !response.sifTrailer.isEmpty) {
             e2eeManager!!.keyProvider().setSifTrailer(response.sifTrailer.toByteArray())
         }
 
