@@ -102,7 +102,7 @@ constructor(keyProvider: KeyProvider) {
         for (item in frameCryptors.entries) {
             var key = item.key
             var frameCryptor = item.value
-            if (key[publication.sid] == participant.identity) {
+            if (key.first == participant.sid) {
                 frameCryptor.isEnabled = false
                 frameCryptor.dispose()
                 frameCryptors.remove(item.key)
@@ -139,7 +139,7 @@ constructor(keyProvider: KeyProvider) {
         for (item in frameCryptors.entries) {
             var key = item.key
             var frameCryptor = item.value
-            if (key[publication.sid] == participant.identity) {
+            if (key.first == participant.sid) {
                 frameCryptor.isEnabled = false
                 frameCryptor.dispose()
                 frameCryptors.remove(item.key)
@@ -170,8 +170,6 @@ constructor(keyProvider: KeyProvider) {
         )
 
         frameCryptors[trackId to participantId] = frameCryptor
-            put(trackId, participantId)
-        }] = frameCryptor
         frameCryptor.setEnabled(enabled)
         return frameCryptor
     }
@@ -185,8 +183,6 @@ constructor(keyProvider: KeyProvider) {
         )
 
         frameCryptors[trackId to participantId] = frameCryptor
-            put(trackId, participantId)
-        }] = frameCryptor
         frameCryptor.setEnabled(enabled)
         return frameCryptor
     }
