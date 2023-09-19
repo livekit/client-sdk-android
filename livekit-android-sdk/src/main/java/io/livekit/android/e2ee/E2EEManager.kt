@@ -37,7 +37,7 @@ class E2EEManager
 constructor(keyProvider: KeyProvider) {
     private var room: Room? = null
     private var keyProvider: KeyProvider
-    private var frameCryptors = mutableMapOf<Map<String, String>, FrameCryptor>()
+    private var frameCryptors = mutableMapOf<Pair<String, String>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
     var enabled: Boolean = false
