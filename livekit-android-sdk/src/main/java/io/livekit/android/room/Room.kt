@@ -322,6 +322,10 @@ constructor(
         name = response.room.name
         metadata = response.room.metadata
 
+        if(e2eeManager != null && !response.sifTrailer.isEmpty) {
+            e2eeManager!!.keyProvider().setSifTrailer(response.sifTrailer.toByteArray())
+        }
+
         if (response.room.activeRecording != isRecording) {
             isRecording = response.room.activeRecording
             eventBus.postEvent(RoomEvent.RecordingStatusChanged(this, isRecording), coroutineScope)
@@ -938,6 +942,9 @@ constructor(
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         listener?.onTrackUnpublished(publication, participant, this)
+        if (e2eeManager != null) {
+            e2eeManager!!.removePublishedTrack(publication.track!!, publication, participant, this)
+        }
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
@@ -973,6 +980,9 @@ constructor(
         participant: RemoteParticipant,
     ) {
         listener?.onTrackUnsubscribed(track, publication, participant, this)
+        if (e2eeManager != null) {
+            e2eeManager!!.removeSubscribedTrack(track, publication, participant, this)
+        }
         eventBus.postEvent(RoomEvent.TrackUnsubscribed(this, track, publication, participant), coroutineScope)
     }
 

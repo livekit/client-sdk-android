@@ -47,7 +47,7 @@ class CallViewModel(
         if (e2ee && e2eeKey != null) {
             e2eeOptions = E2EEOptions()
         }
-        e2eeOptions?.keyProvider?.setKey(e2eeKey!!, null, 0)
+        e2eeOptions?.keyProvider?.setSharedKey(e2eeKey!!)
         return e2eeOptions
     }
 
