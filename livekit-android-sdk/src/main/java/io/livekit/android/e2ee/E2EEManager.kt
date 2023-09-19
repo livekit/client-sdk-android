@@ -169,7 +169,7 @@ constructor(keyProvider: KeyProvider) {
             keyProvider.rtcKeyProvider,
         )
 
-        frameCryptors[HashMap<String, String>().apply {
+        frameCryptors[trackId to participantId] = frameCryptor
             put(trackId, participantId)
         }] = frameCryptor
         frameCryptor.setEnabled(enabled)
