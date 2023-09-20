@@ -16,9 +16,13 @@
 
 package io.livekit.android.e2ee
 
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.Room
-import io.livekit.android.room.participant.*
+import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.RemoteAudioTrack
@@ -30,19 +34,27 @@ import org.webrtc.FrameCryptor
 import org.webrtc.FrameCryptor.FrameCryptionState
 import org.webrtc.FrameCryptorAlgorithm
 import org.webrtc.FrameCryptorFactory
+import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.RtpSender
 
 class E2EEManager
-constructor(keyProvider: KeyProvider) {
+@AssistedInject
+constructor(
+    @Assisted keyProvider: KeyProvider,
+    peerConnectionFactory: PeerConnectionFactory,
+) {
     private var room: Room? = null
     private var keyProvider: KeyProvider
+    private var peerConnectionFactory: PeerConnectionFactory
     private var frameCryptors = mutableMapOf<Pair<String, String>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
     var enabled: Boolean = false
+
     init {
         this.keyProvider = keyProvider
+        this.peerConnectionFactory = peerConnectionFactory
     }
 
     public fun keyProvider(): KeyProvider {
@@ -153,12 +165,13 @@ constructor(keyProvider: KeyProvider) {
             FrameCryptionState.ENCRYPTIONFAILED -> E2EEState.ENCRYPTION_FAILED
             FrameCryptionState.DECRYPTIONFAILED -> E2EEState.DECRYPTION_FAILED
             FrameCryptionState.INTERNALERROR -> E2EEState.INTERNAL_ERROR
-            else -> { E2EEState.INTERNAL_ERROR }
+            else -> E2EEState.INTERNAL_ERROR
         }
     }
 
     private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
+            peerConnectionFactory,
             sender,
             participantId,
             algorithm,
@@ -172,6 +185,7 @@ constructor(keyProvider: KeyProvider) {
 
     private fun addRtpReceiver(receiver: RtpReceiver, participantId: String, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
+            peerConnectionFactory,
             receiver,
             participantId,
             algorithm,
@@ -208,5 +222,12 @@ constructor(keyProvider: KeyProvider) {
             frameCryptor.dispose()
         }
         frameCryptors.clear()
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            @Assisted keyProvider: KeyProvider,
+        ): E2EEManager
     }
 }

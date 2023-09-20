@@ -24,6 +24,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.coroutines.TestCoroutineRule
+import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.mock.*
@@ -61,6 +62,9 @@ class RoomTest {
     @Mock
     lateinit var rtcEngine: RTCEngine
 
+    @Mock
+    lateinit var e2EEManagerFactory: E2EEManager.Factory
+
     var eglBase: EglBase = MockEglBase()
 
     val localParticipantFactory = object : LocalParticipant.Factory {
@@ -89,6 +93,7 @@ class RoomTest {
             ioDispatcher = coroutineRule.dispatcher,
             audioHandler = NoAudioHandler(),
             closeableManager = CloseableManager(),
+            e2EEManagerFactory = e2EEManagerFactory,
         )
     }
 

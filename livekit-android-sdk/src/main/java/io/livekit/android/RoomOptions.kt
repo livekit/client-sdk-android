@@ -37,7 +37,7 @@ data class RoomOptions(
     /**
      * Options for end-to-end encryption.
      */
-    var e2eeOptions: E2EEOptions? = null,
+    val e2eeOptions: E2EEOptions? = null,
 
     val audioTrackCaptureDefaults: LocalAudioTrackOptions? = null,
     val videoTrackCaptureDefaults: LocalVideoTrackOptions? = null,
