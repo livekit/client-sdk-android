@@ -46,6 +46,7 @@ constructor(
 ) {
     private var room: Room? = null
     private var keyProvider: KeyProvider
+    private var peerConnectionFactory: PeerConnectionFactory
     private var frameCryptors = mutableMapOf<Pair<String, String>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
@@ -53,6 +54,7 @@ constructor(
 
     init {
         this.keyProvider = keyProvider
+        this.peerConnectionFactory = peerConnectionFactory
     }
 
     public fun keyProvider(): KeyProvider {
@@ -169,6 +171,7 @@ constructor(
 
     private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
+            peerConnectionFactory,
             sender,
             participantId,
             algorithm,
@@ -182,6 +185,7 @@ constructor(
 
     private fun addRtpReceiver(receiver: RtpReceiver, participantId: String, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
+            peerConnectionFactory,
             receiver,
             participantId,
             algorithm,
