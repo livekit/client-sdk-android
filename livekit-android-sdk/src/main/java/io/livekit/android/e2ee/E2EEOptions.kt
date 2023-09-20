@@ -21,7 +21,7 @@ import livekit.LivekitModels.Encryption
 var defaultRatchetSalt = "LKFrameEncryptionKey"
 var defaultMagicBytes = "LK-ROCKS"
 var defaultRatchetWindowSize = 0
-var defaultFaultTolerance = 6
+var defaultFaultTolerance = -1
 
 class E2EEOptions
 constructor(
