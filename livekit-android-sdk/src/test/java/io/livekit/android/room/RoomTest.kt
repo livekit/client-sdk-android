@@ -61,6 +61,7 @@ class RoomTest {
 
     @Mock
     lateinit var rtcEngine: RTCEngine
+
     @Mock
     lateinit var e2EEManagerFactory: E2EEManager.Factory
 
