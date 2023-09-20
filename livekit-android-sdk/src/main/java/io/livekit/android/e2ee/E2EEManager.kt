@@ -101,8 +101,10 @@ constructor(keyProvider: KeyProvider) {
     public fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         for (item in frameCryptors.entries) {
             var key = item.key
-            var frameCryptor = item.value
-            if (key.first == participant.sid) {
+            var trackId = publication.sid
+            var participantId = participant.identity;
+            if (key.first == trackId && key.second == participantId) {
+                var frameCryptor = item.value
                 frameCryptor.isEnabled = false
                 frameCryptor.dispose()
                 frameCryptors.remove(item.key)
@@ -138,8 +140,10 @@ constructor(keyProvider: KeyProvider) {
     public fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         for (item in frameCryptors.entries) {
             var key = item.key
-            var frameCryptor = item.value
-            if (key.first == participant.sid) {
+            var trackId = publication.sid
+            var participantId = participant.identity;
+            if (key.first == trackId && key.second == participantId) {
+                var frameCryptor = item.value
                 frameCryptor.isEnabled = false
                 frameCryptor.dispose()
                 frameCryptors.remove(item.key)
