@@ -66,6 +66,7 @@ constructor(
     val audioHandler: AudioHandler,
     @Singleton
     private val closeableManager: CloseableManager,
+    private val e2EEManagerFactory: E2EEManager.Factory,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -268,12 +269,13 @@ constructor(
         connectOptions = options
 
         if (roomOptions.e2eeOptions != null) {
-            e2eeManager = E2EEManager(roomOptions!!.e2eeOptions!!.keyProvider)
-            e2eeManager!!.setup(this, { event ->
-                coroutineScope.launch {
-                    emitWhenConnected(event)
+            e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
+                setup(this@Room) { event ->
+                    coroutineScope.launch {
+                        emitWhenConnected(event)
+                    }
                 }
-            })
+            }
         }
 
         engine.join(url, token, options, roomOptions)
@@ -531,6 +533,7 @@ constructor(
      */
     private fun cleanupRoom() {
         e2eeManager?.cleanUp()
+        e2eeManager = null
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
