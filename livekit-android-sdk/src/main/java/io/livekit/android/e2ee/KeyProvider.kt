@@ -28,12 +28,15 @@ constructor(var participantId: String, var keyIndex: Int, var key: String) {
 }
 
 public interface KeyProvider {
+    fun setSharedKey(key: String, keyIndex: Int? = 0): Boolean
+    fun ratchetSharedKey(keyIndex: Int? = 0): ByteArray
+    fun exportSharedKey(keyIndex: Int? = 0): ByteArray
     fun setKey(key: String, participantId: String?, keyIndex: Int? = 0)
-    fun ratchetKey(participantId: String, index: Int): ByteArray
+    fun ratchetKey(participantId: String, keyIndex: Int? = 0): ByteArray
+    fun exportKey(participantId: String, keyIndex: Int? = 0): ByteArray
+    fun setSifTrailer(trailer: ByteArray)
 
     val rtcKeyProvider: FrameCryptorKeyProvider
-
-    var sharedKey: ByteArray?
 
     var enableSharedKey: Boolean
 }
@@ -47,8 +50,18 @@ constructor(
     private var failureTolerance: Int,
 ) :
     KeyProvider {
-    override var sharedKey: ByteArray? = null
     private var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
+    override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
+        return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
+    }
+
+    override fun ratchetSharedKey(keyIndex: Int?): ByteArray {
+        return rtcKeyProvider.ratchetSharedKey(keyIndex ?: 0)
+    }
+
+    override fun exportSharedKey(keyIndex: Int?): ByteArray {
+        return rtcKeyProvider.exportSharedKey(keyIndex ?: 0)
+    }
 
     /**
      * Set a key for a participant
@@ -58,7 +71,6 @@ constructor(
      */
     override fun setKey(key: String, participantId: String?, keyIndex: Int?) {
         if (enableSharedKey) {
-            sharedKey = key.toByteArray()
             return
         }
 
@@ -76,8 +88,16 @@ constructor(
         rtcKeyProvider.setKey(participantId, keyInfo.keyIndex, key.toByteArray())
     }
 
-    override fun ratchetKey(participantId: String, index: Int): ByteArray {
-        return rtcKeyProvider.ratchetKey(participantId, index)
+    override fun ratchetKey(participantId: String, keyIndex: Int?): ByteArray {
+        return rtcKeyProvider.ratchetKey(participantId, keyIndex ?: 0)
+    }
+
+    override fun exportKey(participantId: String, keyIndex: Int?): ByteArray {
+        return rtcKeyProvider.exportKey(participantId, keyIndex ?: 0)
+    }
+
+    override fun setSifTrailer(trailer: ByteArray) {
+        rtcKeyProvider.setSifTrailer(trailer)
     }
 
     override val rtcKeyProvider: FrameCryptorKeyProvider
