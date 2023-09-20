@@ -102,7 +102,7 @@ constructor(keyProvider: KeyProvider) {
         for (item in frameCryptors.entries) {
             var key = item.key
             var trackId = publication.sid
-            var participantId = participant.identity;
+            var participantId = participant.identity
             if (key.first == trackId && key.second == participantId) {
                 var frameCryptor = item.value
                 frameCryptor.isEnabled = false
@@ -141,7 +141,7 @@ constructor(keyProvider: KeyProvider) {
         for (item in frameCryptors.entries) {
             var key = item.key
             var trackId = publication.sid
-            var participantId = participant.identity;
+            var participantId = participant.identity
             if (key.first == trackId && key.second == participantId) {
                 var frameCryptor = item.value
                 frameCryptor.isEnabled = false
