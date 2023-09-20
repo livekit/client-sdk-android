@@ -99,17 +99,13 @@ constructor(keyProvider: KeyProvider) {
     }
 
     public fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
-        for (item in frameCryptors.entries) {
-            var key = item.key
-            var trackId = publication.sid
-            var participantId = participant.identity
-            if (key.first == trackId && key.second == participantId) {
-                var frameCryptor = item.value
-                frameCryptor.isEnabled = false
-                frameCryptor.dispose()
-                frameCryptors.remove(item.key)
-                return
-            }
+        var trackId = publication.sid
+        var participantId = participant.identity
+        var frameCryptor = frameCryptors.get(trackId to participantId)
+        if (frameCryptor != null) {
+            frameCryptor.isEnabled = false
+            frameCryptor.dispose()
+            frameCryptors.remove(trackId to participantId)
         }
     }
 
@@ -138,17 +134,13 @@ constructor(keyProvider: KeyProvider) {
     }
 
     public fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
-        for (item in frameCryptors.entries) {
-            var key = item.key
-            var trackId = publication.sid
-            var participantId = participant.identity
-            if (key.first == trackId && key.second == participantId) {
-                var frameCryptor = item.value
-                frameCryptor.isEnabled = false
-                frameCryptor.dispose()
-                frameCryptors.remove(item.key)
-                return
-            }
+        var trackId = publication.sid
+        var participantId = participant.identity
+        var frameCryptor = frameCryptors.get(trackId to participantId)
+        if (frameCryptor != null) {
+            frameCryptor.isEnabled = false
+            frameCryptor.dispose()
+            frameCryptors.remove(trackId to participantId)
         }
     }
 
