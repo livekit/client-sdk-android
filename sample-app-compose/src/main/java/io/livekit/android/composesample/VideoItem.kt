@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import io.livekit.android.compose.ui.VideoRenderer
+import io.livekit.android.composesample.ui.VideoRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.track.CameraPosition
@@ -67,7 +67,7 @@ fun VideoItemTrackSelector(
             room = room,
             videoTrack = videoTrack,
             mirror = room.localParticipant == participant && cameraFacingFront,
-            modifier = modifier
+            modifier = modifier,
         )
     } else {
         Box(modifier = modifier) {
@@ -75,7 +75,7 @@ fun VideoItemTrackSelector(
                 painter = painterResource(id = R.drawable.outline_videocam_off_24),
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
         }
     }

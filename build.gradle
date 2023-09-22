@@ -72,7 +72,7 @@ task clean(type: Delete) {
 nexusStaging {
     serverUrl = "https://s01.oss.sonatype.org/service/local/"
     packageGroup = GROUP
-    stagingProfileId = "16b57cbf143daa"
+    stagingProfileId = STAGING_PROFILE_ID
 }
 
 afterEvaluate {

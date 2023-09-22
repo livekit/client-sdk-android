@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
@@ -29,7 +30,7 @@ class CallActivity : AppCompatActivity() {
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
+            ActivityResultContracts.StartActivityForResult(),
         ) { result ->
             val resultCode = result.resultCode
             val data = result.data
@@ -83,7 +84,7 @@ class CallActivity : AppCompatActivity() {
                     R.drawable.outline_videocam_24
                 } else {
                     R.drawable.outline_videocam_off_24
-                }
+                },
             )
             binding.flipCamera.isEnabled = enabled
         }
@@ -94,7 +95,7 @@ class CallActivity : AppCompatActivity() {
                     R.drawable.outline_mic_24
                 } else {
                     R.drawable.outline_mic_off_24
-                }
+                },
             )
         }
 
@@ -112,7 +113,7 @@ class CallActivity : AppCompatActivity() {
                     R.drawable.baseline_cast_connected_24
                 } else {
                     R.drawable.baseline_cast_24
-                }
+                },
             )
         }
 

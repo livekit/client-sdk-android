@@ -6,7 +6,7 @@ plugins {
     id 'kotlinx-serialization'
     id 'com.google.protobuf'
     id 'jacoco'
-    id 'com.dicedmelon.gradle.jacoco-android'
+    id("com.mxalbert.gradle.jacoco-android") version "0.2.1"
 }
 
 android {
@@ -63,6 +63,14 @@ android {
         freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
         jvmTarget = java_version
     }
+
+    publishing {
+        singleVariant("release") {
+            withJavadocJar()
+            withSourcesJar()
+        }
+    }
+
 }
 
 protobuf {
@@ -96,7 +104,7 @@ tasks.withType(Test) {
 }
 
 jacocoAndroidUnitTestReport {
-    excludes += ['livekit/**',]
+    excludes.add('livekit/**')
 }
 
 dokkaHtml {

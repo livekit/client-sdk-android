@@ -131,13 +131,13 @@ afterEvaluate { project ->
         }
     }
 
-    artifacts {
-        if (project.getPlugins().hasPlugin('com.android.application') ||
-                project.getPlugins().hasPlugin('com.android.library')) {
-            archives androidSourcesJar
-            archives androidJavadocsJar
-        }
-    }
+//    artifacts {
+//        if (project.getPlugins().hasPlugin('com.android.application') ||
+//                project.getPlugins().hasPlugin('com.android.library')) {
+//            archives androidSourcesJar
+//            archives androidJavadocsJar
+//        }
+//    }
 
     android.libraryVariants.all { variant ->
         tasks.androidJavadocs.doFirst {
@@ -149,8 +149,8 @@ afterEvaluate { project ->
         publication.groupId = GROUP
         publication.version = VERSION_NAME
 
-        publication.artifact androidSourcesJar
-        publication.artifact androidJavadocsJar
+//        publication.artifact androidSourcesJar
+//        publication.artifact androidJavadocsJar
 
         configurePom(publication.pom)
     }
