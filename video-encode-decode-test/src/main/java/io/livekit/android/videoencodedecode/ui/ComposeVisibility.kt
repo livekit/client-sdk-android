@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.livekit.android.videoencodedecode.ui;
+package io.livekit.android.videoencodedecode.ui
 
 import androidx.compose.ui.layout.LayoutCoordinates
 import io.livekit.android.room.track.Track

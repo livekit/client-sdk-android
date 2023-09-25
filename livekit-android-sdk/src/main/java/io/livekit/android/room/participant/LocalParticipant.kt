@@ -320,7 +320,6 @@ internal constructor(
         )
         val transceiver = engine.publisher.peerConnection.addTransceiver(track.rtcTrack, transInit)
 
-
         when (track) {
             is LocalVideoTrack -> track.transceiver = transceiver
             is LocalAudioTrack -> track.transceiver = transceiver
