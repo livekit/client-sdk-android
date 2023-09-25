@@ -15,6 +15,7 @@ final url = getDefaultUrl()
 final token = getDefaultToken()
 
 android {
+    namespace "io.livekit.android.sample.common"
     compileSdk androidSdk.compileVersion
 
     defaultConfig {
@@ -39,12 +40,15 @@ android {
             buildConfigField "String", "DEFAULT_TOKEN", "\"$token\""
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility java_version
+        targetCompatibility java_version
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = java_version
     }
 }
 

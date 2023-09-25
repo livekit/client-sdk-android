@@ -1,8 +1,9 @@
 ext {
-    compose_version = '1.2.1'
-    compose_compiler_version = '1.3.0'
-    kotlin_version = '1.7.10'
-    java_version = JavaVersion.VERSION_1_8
+    android_build_tools_version = '8.0.2'
+    compose_version = '1.4.2'
+    compose_compiler_version = '1.4.6'
+    kotlin_version = '1.8.20'
+    java_version = JavaVersion.VERSION_17
     dokka_version = '1.5.0'
     androidSdk = [
             compileVersion: 33,
@@ -10,21 +11,27 @@ ext {
             minVersion    : 21,
     ]
     versions = [
-            androidx_core     : "1.8.0",
+            androidx_core     : "1.10.1",
             androidx_lifecycle: "2.5.1",
             autoService       : '1.0.1',
-            dagger            : "2.43",
+            coroutines        : "1.6.0",
+            dagger            : "2.46",
             groupie           : "2.9.0",
             junit             : "4.13.2",
             junitJupiter      : "5.5.0",
-            coroutines        : "1.6.0",
             lint              : "30.0.1",
+            serialization     : "1.5.0",
             protobuf          : "3.22.0",
     ]
     generated = [
             protoSrc: "$projectDir/protocol",
     ]
     deps = [
+            androidx          : [
+                    'annotation'              : 'androidx.annotation:annotation:1.6.0',
+                    'activity_compose'        : 'androidx.activity:activity-compose:1.7.1',
+                    'constraintlayout_compose': "androidx.constraintlayout:constraintlayout-compose:1.0.1",
+            ],
             auto              : [
                     'service'           : "com.google.auto.service:auto-service:${versions.autoService}",
                     'serviceAnnotations': "com.google.auto.service:auto-service-annotations:${versions.autoService}",
@@ -33,7 +40,11 @@ ext {
                     "lib" : "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}",
                     "test": "org.jetbrains.kotlinx:kotlinx-coroutines-test: ${versions.coroutines}",
             ],
+            compose           : [
+                    "bom": "androidx.compose:compose-bom:2023.04.01",
+            ],
             timber            : "com.github.ajalt:timberkt:1.5.1",
+
             // lint
             lint              : "com.android.tools.lint:lint:${versions.lint}",
             lintApi           : "com.android.tools.lint:lint-api:${versions.lint}",
@@ -41,9 +52,20 @@ ext {
             lintTests         : "com.android.tools.lint:lint-tests:${versions.lint}",
 
             // tests
+            androidx_test     : [
+                    "core" : 'androidx.test:core:1.5.0',
+                    "junit": "androidx.test.ext:junit:1.1.5",
+            ],
+            espresso          : 'androidx.test.espresso:espresso-core:3.5.1',
             junit             : "junit:junit:${versions.junit}",
             junitJupiterApi   : "org.junit.jupiter:junit-jupiter-api:${versions.junitJupiter}",
             junitJupiterEngine: "org.junit.jupiter:junit-jupiter-engine:${versions.junitJupiter}",
+            mockito           : [
+                    "core"  : 'org.mockito:mockito-core:4.0.0',
+                    "kotlin": "org.mockito.kotlin:mockito-kotlin:4.0.0",
+            ],
+            robolectric       : 'org.robolectric:robolectric:4.10.2',
+
     ]
     annotations = [
     ]

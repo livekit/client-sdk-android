@@ -14,17 +14,32 @@
  * limitations under the License.
  */
 
-package io.livekit.android.compose
+package io.livekit.android.composesample.ui
 
-import androidx.compose.runtime.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.currentCompositeKeyHash
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.VideoTrack
-import io.livekit.android.room.track.video.ComposeVisibility
+import org.webrtc.RendererCommon
+
+enum class ScaleType {
+    FitInside,
+    Fill,
+}
 
 /**
  * Widget for displaying a VideoTrack. Handles the Compose <-> AndroidView interop needed to use
@@ -33,10 +48,21 @@ import io.livekit.android.room.track.video.ComposeVisibility
 @Composable
 fun VideoRenderer(
     room: Room,
-    videoTrack: VideoTrack,
+    videoTrack: VideoTrack?,
     modifier: Modifier = Modifier,
     mirror: Boolean = false,
+    scaleType: ScaleType = ScaleType.Fill,
 ) {
+    // Show a black box for preview.
+    if (LocalView.current.isInEditMode) {
+        Box(
+            modifier = Modifier
+                .background(Color.Black)
+                .then(modifier)
+        )
+        return
+    }
+
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var view: TextureViewRenderer? by remember { mutableStateOf(null) }
@@ -46,7 +72,7 @@ fun VideoRenderer(
         boundVideoTrack = null
     }
 
-    fun setupVideoIfNeeded(videoTrack: VideoTrack, view: TextureViewRenderer) {
+    fun setupVideoIfNeeded(videoTrack: VideoTrack?, view: TextureViewRenderer) {
         if (boundVideoTrack == videoTrack) {
             return
         }
@@ -54,10 +80,12 @@ fun VideoRenderer(
         cleanupVideoTrack()
 
         boundVideoTrack = videoTrack
-        if (videoTrack is RemoteVideoTrack) {
-            videoTrack.addRenderer(view, videoSinkVisibility)
-        } else {
-            videoTrack.addRenderer(view)
+        if (videoTrack != null) {
+            if (videoTrack is RemoteVideoTrack) {
+                videoTrack.addRenderer(view, videoSinkVisibility)
+            } else {
+                videoTrack.addRenderer(view)
+            }
         }
     }
 
@@ -85,6 +113,15 @@ fun VideoRenderer(
                 room.initVideoRenderer(this)
                 setupVideoIfNeeded(videoTrack, this)
 
+                when (scaleType) {
+                    ScaleType.FitInside -> {
+                        this.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+                    }
+
+                    ScaleType.Fill -> {
+                        this.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+                    }
+                }
                 view = this
             }
         },

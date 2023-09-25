@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    namespace 'io.livekit.android.composesample'
     compileSdkVersion androidSdk.compileVersion
 
     defaultConfig {

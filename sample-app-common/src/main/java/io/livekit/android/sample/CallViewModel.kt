@@ -111,6 +111,8 @@ class CallViewModel(
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
+    var messagesReceived = 0
+
     init {
         viewModelScope.launch {
             // Collect any errors.
@@ -137,14 +139,9 @@ class CallViewModel(
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
                         is RoomEvent.DataReceived -> {
                             val identity = it.participant?.identity ?: "server"
-                            val message = it.data.toString(Charsets.UTF_8)
-                            mutableDataReceived.emit("$identity: $message")
+                            messagesReceived++
+                            Timber.e { "message received from $identity, count $messagesReceived" }
                         }
-
-                        is RoomEvent.TrackSubscribed -> {
-                            launch { collectTrackStats(it) }
-                        }
-
                         else -> {
                             Timber.e { "Room event: $it" }
                         }

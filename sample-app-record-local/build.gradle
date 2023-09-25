@@ -4,12 +4,14 @@ plugins {
 }
 
 android {
-    compileSdk 32
+    namespace 'io.livekit.android.sample.record'
+    compileSdk androidSdk.compileVersion
+
 
     defaultConfig {
         applicationId "io.livekit.android.sample.record"
-        minSdk 21
-        targetSdk 32
+        minSdk androidSdk.minVersion
+        targetSdk androidSdk.targetVersion
         versionCode 1
         versionName "1.0"
 
@@ -26,11 +28,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility java_version
+        targetCompatibility java_version
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = java_version
     }
     buildFeatures {
         compose true

@@ -22,10 +22,9 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewTreeObserver
 import androidx.annotation.CallSuper
-import androidx.compose.ui.layout.LayoutCoordinates
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.video.ViewVisibility.Notifier
-import java.util.*
+import java.util.Observable
 
 abstract class VideoSinkVisibility : Observable() {
     abstract fun isVisible(): Boolean
@@ -48,46 +47,6 @@ abstract class VideoSinkVisibility : Observable() {
     }
 }
 
-class ComposeVisibility : VideoSinkVisibility() {
-    private var coordinates: LayoutCoordinates? = null
-
-    private var lastVisible = isVisible()
-    private var lastSize = size()
-    override fun isVisible(): Boolean {
-        return (coordinates?.isAttached == true &&
-            coordinates?.size?.width != 0 &&
-            coordinates?.size?.height != 0)
-    }
-
-    override fun size(): Track.Dimensions {
-        val width = coordinates?.size?.width ?: 0
-        val height = coordinates?.size?.height ?: 0
-        return Track.Dimensions(width, height)
-    }
-
-    // Note, LayoutCoordinates are mutable and may be reused.
-    fun onGloballyPositioned(layoutCoordinates: LayoutCoordinates) {
-        coordinates = layoutCoordinates
-        val visible = isVisible()
-        val size = size()
-
-        if (lastVisible != visible || lastSize != size) {
-            notifyChanged()
-        }
-
-        lastVisible = visible
-        lastSize = size
-    }
-
-    fun onDispose() {
-        if (coordinates == null) {
-            return
-        }
-        coordinates = null
-        notifyChanged()
-    }
-}
-
 /**
  * A [VideoSinkVisibility] for views. If using a custom view other than the sdk provided renderers,
  * you must implement [Notifier], override [View.onVisibilityChanged] and call through to [recalculate], or
@@ -102,7 +61,6 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
         scheduleRecalculate()
     }
-
     private val scrollListener = ViewTreeObserver.OnScrollChangedListener {
         scheduleRecalculate()
     }
