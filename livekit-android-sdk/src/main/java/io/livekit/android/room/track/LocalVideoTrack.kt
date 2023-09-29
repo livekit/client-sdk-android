@@ -19,7 +19,6 @@ package io.livekit.android.room.track
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.hardware.camera2.CameraManager
 import androidx.core.content.ContextCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -323,6 +322,5 @@ constructor(
 
             return track
         }
-
     }
 }
