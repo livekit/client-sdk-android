@@ -28,6 +28,9 @@ import io.livekit.android.memory.CloseableManager
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.video.*
+import io.livekit.android.room.track.video.CameraCapturerUtils.createCameraEnumerator
+import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
+import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
@@ -296,7 +299,7 @@ constructor(
 
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             source.setVideoProcessor(videoProcessor)
-            val (capturer, newOptions) = createVideoCapturer(context, options) ?: TODO()
+            val (capturer, newOptions) = CameraCapturerUtils.createCameraCapturer(context, options) ?: TODO()
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(
                 surfaceTextureHelper,
@@ -321,127 +324,5 @@ constructor(
             return track
         }
 
-        private fun createCameraEnumerator(context: Context): CameraEnumerator {
-            return if (Camera2Enumerator.isSupported(context)) {
-                Camera2Enumerator(context)
-            } else {
-                Camera1Enumerator(true)
-            }
-        }
-
-        private fun createVideoCapturer(
-            context: Context,
-            options: LocalVideoTrackOptions
-        ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-            val cameraEnumerator = createCameraEnumerator(context)
-            val pair = createCameraCapturer(context, cameraEnumerator, options)
-
-            if (pair == null) {
-                LKLog.d { "Failed to open camera" }
-                return null
-            }
-            return pair
-        }
-
-        private fun createCameraCapturer(
-            context: Context,
-            enumerator: CameraEnumerator,
-            options: LocalVideoTrackOptions
-        ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-            val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
-            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position) ?: return null
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, cameraEventsDispatchHandler)
-
-            // back fill any missing information
-            val newOptions = options.copy(
-                deviceId = targetDeviceName,
-                position = enumerator.getCameraPosition(targetDeviceName)
-            )
-            if (targetVideoCapturer is Camera1Capturer) {
-                // Cache supported capture formats ahead of time to avoid future camera locks.
-                Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(newOptions.deviceId))
-                return Pair(
-                    Camera1CapturerWithSize(
-                        targetVideoCapturer,
-                        targetDeviceName,
-                        cameraEventsDispatchHandler
-                    ),
-                    newOptions
-                )
-            }
-
-            if (targetVideoCapturer is Camera2Capturer) {
-                return Pair(
-                    Camera2CapturerWithSize(
-                        targetVideoCapturer,
-                        context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                        targetDeviceName,
-                        cameraEventsDispatchHandler
-                    ),
-                    newOptions
-                )
-            }
-
-            LKLog.w { "unknown CameraCapturer class: ${targetVideoCapturer.javaClass.canonicalName}. Reported dimensions may be inaccurate." }
-            if (targetVideoCapturer != null) {
-                return Pair(
-                    targetVideoCapturer,
-                    newOptions
-                )
-            }
-
-            return null
-        }
-
-        private fun CameraEnumerator.findCamera(
-            deviceId: String?,
-            position: CameraPosition?,
-            fallback: Boolean = true
-        ): String? {
-            var targetDeviceName: String? = null
-            // Prioritize search by deviceId first
-            if (deviceId != null) {
-                targetDeviceName = findCamera { deviceName -> deviceName == deviceId }
-            }
-
-            // Search by camera position
-            if (targetDeviceName == null && position != null) {
-                targetDeviceName = findCamera { deviceName ->
-                    getCameraPosition(deviceName) == position
-                }
-            }
-
-            // Fall back by choosing first available camera.
-            if (targetDeviceName == null && fallback) {
-                targetDeviceName = findCamera { true }
-            }
-
-            if (targetDeviceName == null) {
-                return null
-            }
-
-            return targetDeviceName
-        }
-
-        private fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
-            for (deviceName in deviceNames) {
-                if (predicate(deviceName)) {
-                    return deviceName
-                }
-            }
-            return null
-        }
-
-        private fun CameraEnumerator.getCameraPosition(deviceName: String?): CameraPosition? {
-            if (deviceName == null) {
-                return null
-            }
-            if (isBackFacing(deviceName)) {
-                return CameraPosition.BACK
-            } else if (isFrontFacing(deviceName)) {
-                return CameraPosition.FRONT
-            }
-            return null
-        }
     }
 }
