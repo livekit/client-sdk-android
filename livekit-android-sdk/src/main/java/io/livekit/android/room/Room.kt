@@ -279,7 +279,6 @@ constructor(
         }
 
         engine.join(url, token, options, roomOptions)
-
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -669,6 +668,7 @@ constructor(
      */
     override fun onEngineConnected() {
         state = State.CONNECTED
+        eventBus.postEvent(RoomEvent.Connected(this), coroutineScope)
     }
 
     /**

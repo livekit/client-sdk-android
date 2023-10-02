@@ -18,7 +18,11 @@ package io.livekit.android.events
 
 import io.livekit.android.e2ee.E2EEState
 import io.livekit.android.room.Room
-import io.livekit.android.room.participant.*
+import io.livekit.android.room.participant.ConnectionQuality
+import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.ParticipantPermission
+import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
@@ -26,6 +30,12 @@ import io.livekit.android.room.track.TrackPublication
 import livekit.LivekitModels
 
 sealed class RoomEvent(val room: Room) : Event() {
+
+    /**
+     * Connected to Room
+     */
+    class Connected(room: Room) : RoomEvent(room)
+
     /**
      * A network change has been detected and LiveKit attempts to reconnect to the room
      * When reconnect attempts succeed, the room state will be kept, including tracks that are subscribed/published
