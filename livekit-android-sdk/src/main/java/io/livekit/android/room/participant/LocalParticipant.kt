@@ -254,6 +254,7 @@ internal constructor(
             options = options,
             requestConfig = {
                 disableDtx = !options.dtx
+                disableRed = !options.red
                 source = LivekitModels.TrackSource.MICROPHONE
             },
             encodings = encodings,
@@ -739,18 +740,29 @@ data class VideoTrackPublishOptions(
 
 abstract class BaseAudioTrackPublishOptions {
     abstract val audioBitrate: Int?
+
+    /**
+     * dtx (Discontinuous Transmission of audio), enabled by default for mono tracks.
+     */
     abstract val dtx: Boolean
+
+    /**
+     * red (Redundant Audio Data), enabled by default for mono tracks.
+     */
+    abstract val red: Boolean
 }
 
 data class AudioTrackPublishDefaults(
     override val audioBitrate: Int? = 20_000,
     override val dtx: Boolean = true,
+    override val red: Boolean = true,
 ) : BaseAudioTrackPublishOptions()
 
 data class AudioTrackPublishOptions(
     override val name: String? = null,
     override val audioBitrate: Int? = null,
     override val dtx: Boolean = true,
+    override val red: Boolean = true,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
