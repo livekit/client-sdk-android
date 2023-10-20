@@ -19,6 +19,10 @@ package io.livekit.android.room
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.github.ggarber.sdpparser.SdpExt
+import io.github.ggarber.sdpparser.SdpFmtp
+import io.github.ggarber.sdpparser.SdpMedia
+import io.github.ggarber.sdpparser.SdpParser
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.util.*
 import io.livekit.android.util.Either
@@ -40,7 +44,7 @@ import javax.inject.Named
 internal class PeerConnectionTransport
 @AssistedInject
 constructor(
-    @Assisted config: PeerConnection.RTCConfiguration,
+    @Assisted config: RTCConfiguration,
     @Assisted pcObserver: PeerConnection.Observer,
     @Assisted private val listener: Listener?,
     @Named(InjectionNames.DISPATCHER_IO)
@@ -139,9 +143,83 @@ constructor(
             }
         }
 
+        // munge sdp
+        val sdpDescription = SdpParser.parse(sdpOffer.description)
+
+        val mediaDescs = sdpDescription.media
+        for (media in mediaDescs) {
+            LKLog.e { media.toString() }
+            if (media.mline?.type == "audio") {
+                //TODO
+            } else if (media.mline?.type == "video") {
+                ensureVideoDDExtensionForSVC(media)
+                ensureCodecBitrates(media, trackBitrates = TODO())
+            }
+
+        }
+
+
         LKLog.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
+
+        setMungedSdp(sdpOffer, sdpDescription.write())
         peerConnection.setLocalDescription(sdpOffer)
         listener?.onOffer(sdpOffer)
+    }
+
+    private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false) {
+        val mungedSdp = SessionDescription(sdp.type, mungedDescription)
+
+        val mungedResult = if (remote) {
+            peerConnection.setRemoteDescription(mungedSdp)
+        } else {
+            peerConnection.setLocalDescription(mungedSdp)
+        }
+
+
+        val mungedErrorMessage = when (mungedResult) {
+            is Either.Left -> {
+                // munged sdp set successfully.
+                return
+            }
+
+            is Either.Right -> {
+                if (mungedResult.value.isNullOrBlank()) {
+                    "unknown sdp error"
+                } else {
+                    mungedResult.value
+                }
+            }
+        }
+
+        // munged sdp setting failed
+        LKLog.w {
+            "setting munged sdp for " +
+                "${if (remote) "remote" else "local"} description," +
+                "${mungedSdp.type} type failed, falling back to unmodified."
+        }
+        LKLog.w { "error: $mungedErrorMessage" }
+
+        val result = if (remote) {
+            peerConnection.setRemoteDescription(mungedSdp)
+        } else {
+            peerConnection.setLocalDescription(mungedSdp)
+        }
+
+        if (result is Either.Right) {
+            val errorMessage = if (result.value.isNullOrBlank()) {
+                "unknown sdp error"
+            } else {
+                result.value
+            }
+
+            // sdp setting failed
+            LKLog.w {
+                "setting original sdp for " +
+                    "${if (remote) "remote" else "local"} description," +
+                    "${sdp.type} type failed!"
+            }
+            LKLog.w { "error: $errorMessage" }
+        }
     }
 
     fun prepareForIceRestart() {
@@ -159,9 +237,124 @@ constructor(
     @AssistedFactory
     interface Factory {
         fun create(
-            config: PeerConnection.RTCConfiguration,
+            config: RTCConfiguration,
             pcObserver: PeerConnection.Observer,
             listener: Listener?,
         ): PeerConnectionTransport
     }
 }
+
+private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
+
+internal fun ensureVideoDDExtensionForSVC(mediaDesc: SdpMedia) {
+    LKLog.e { mediaDesc.toString() }
+
+    val codec = mediaDesc.rtp.firstOrNull()?.codec ?: return
+    if (!isSVCCodec(codec)) {
+        return
+    }
+
+    var maxId = 0L
+
+    val ddFound = mediaDesc.ext.any { ext ->
+        if (ext.uri == DD_EXTENSION_URI) {
+            return@any true
+        }
+        if (ext.value > maxId) {
+            maxId = ext.value
+        }
+        false
+    }
+
+    // Not found, add manually
+    if (!ddFound) {
+        mediaDesc.ext.add(
+            SdpExt(
+                value = maxId + 1,
+                uri = DD_EXTENSION_URI,
+                config = null,
+                direction = null,
+                encryptUri = null,
+            ),
+        )
+    }
+}
+
+/* The svc codec (av1/vp9) would use a very low bitrate at the begining and
+increase slowly by the bandwidth estimator until it reach the target bitrate. The
+process commonly cost more than 10 seconds cause subscriber will get blur video at
+the first few seconds. So we use a 70% of target bitrate here as the start bitrate to
+eliminate this issue.
+*/
+private const val startBitrateForSVC = 0.7;
+
+internal fun ensureCodecBitrates(
+    media: SdpMedia,
+    trackBitrates: List<TrackBitrateInfo>,
+) {
+    val msid = media.msid?.value ?: return
+    for (trackBr in trackBitrates) {
+        if (!msid.contains(trackBr.cid)) {
+            continue
+        }
+
+        val rtp = media.rtp
+            .firstOrNull { rtp -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
+            ?: continue
+        val codecPayload = rtp.payload
+
+        var fmtpFound = false
+        var replaceFmtp: SdpFmtp? = null
+        var replaceFmtpWith: SdpFmtp? = null
+        for (fmtp in media.fmtp) {
+            if (fmtp.payload == codecPayload) {
+                fmtpFound = true
+                var newFmtp = fmtp
+                if (!fmtp.config.contains("x-google-start-bitrate")) {
+                    newFmtp = newFmtp.copy(
+                        config = "${newFmtp.config};x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC}",
+                    )
+                }
+                if (!fmtp.config.contains("x-google-max-bitrate")) {
+                    newFmtp = newFmtp.copy(
+                        config = "${newFmtp.config};x-google-max-bitrate=${trackBr.maxBitrate}",
+                    )
+                }
+                if (fmtp != newFmtp) {
+                    replaceFmtp = fmtp
+                    replaceFmtpWith = newFmtp
+                    break
+                }
+            }
+        }
+
+        if (fmtpFound) {
+            if (replaceFmtp != null && replaceFmtpWith != null) {
+                val index = media.fmtp.indexOf(replaceFmtp)
+                if (media.fmtp.remove(replaceFmtp)) {
+                    media.fmtp.add(index, replaceFmtpWith)
+                }
+            }
+        } else {
+            media.fmtp.add(
+                SdpFmtp(
+                    payload = codecPayload,
+                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC};" +
+                        "x-google-max-bitrate=${trackBr.maxBitrate}",
+                ),
+            )
+        }
+    }
+}
+
+internal fun isSVCCodec(codec: String): Boolean {
+    return "av1".equals(codec, ignoreCase = true) ||
+        "vp9".equals(codec, ignoreCase = true)
+}
+
+internal data class TrackBitrateInfo(
+    val cid: String,
+    val transceiver: RtpTransceiver,
+    val codec: String,
+    val maxBitrate: Long,
+)
