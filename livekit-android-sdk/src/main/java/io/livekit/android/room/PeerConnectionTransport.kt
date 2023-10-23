@@ -63,6 +63,8 @@ constructor(
 
     private val mutex = Mutex()
 
+    private var trackBitrates = mutableMapOf<Any, TrackBitrateInfo>()
+
     interface Listener {
         fun onOffer(sd: SessionDescription)
     }
@@ -153,22 +155,20 @@ constructor(
                 //TODO
             } else if (media.mline?.type == "video") {
                 ensureVideoDDExtensionForSVC(media)
-                ensureCodecBitrates(media, trackBitrates = TODO())
+                ensureCodecBitrates(media, trackBitrates = trackBitrates)
             }
 
         }
 
-
-        LKLog.v { "sdp offer = $sdpOffer, description: ${sdpOffer.description}, type: ${sdpOffer.type}" }
-
         setMungedSdp(sdpOffer, sdpDescription.write())
-        peerConnection.setLocalDescription(sdpOffer)
-        listener?.onOffer(sdpOffer)
+        listener.onOffer(sdpOffer)
     }
 
     private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false) {
         val mungedSdp = SessionDescription(sdp.type, mungedDescription)
 
+        LKLog.e { "sdp type: ${sdp.type}\ndescription:\n${sdp.description}" }
+        LKLog.e { "munged sdp type: ${mungedSdp.type}\ndescription:\n${mungedSdp.description}" }
         val mungedResult = if (remote) {
             peerConnection.setRemoteDescription(mungedSdp)
         } else {
@@ -194,15 +194,15 @@ constructor(
         // munged sdp setting failed
         LKLog.w {
             "setting munged sdp for " +
-                "${if (remote) "remote" else "local"} description," +
+                "${if (remote) "remote" else "local"} description, " +
                 "${mungedSdp.type} type failed, falling back to unmodified."
         }
         LKLog.w { "error: $mungedErrorMessage" }
 
         val result = if (remote) {
-            peerConnection.setRemoteDescription(mungedSdp)
+            peerConnection.setRemoteDescription(sdp)
         } else {
-            peerConnection.setLocalDescription(mungedSdp)
+            peerConnection.setLocalDescription(sdp)
         }
 
         if (result is Either.Right) {
@@ -215,7 +215,7 @@ constructor(
             // sdp setting failed
             LKLog.w {
                 "setting original sdp for " +
-                    "${if (remote) "remote" else "local"} description," +
+                    "${if (remote) "remote" else "local"} description, " +
                     "${sdp.type} type failed!"
             }
             LKLog.w { "error: $errorMessage" }
@@ -232,6 +232,14 @@ constructor(
 
     fun updateRTCConfig(config: RTCConfiguration) {
         peerConnection.setConfiguration(config)
+    }
+
+    fun registerTrackBitrateInfo(cid: String, trackBitrateInfo: TrackBitrateInfo) {
+        trackBitrates[TrackBitrateInfoKey.Cid(cid)] = trackBitrateInfo
+    }
+
+    fun registerTrackBitrateInfo(transceiver: RtpTransceiver, trackBitrateInfo: TrackBitrateInfo) {
+        trackBitrates[TrackBitrateInfoKey.Transceiver(transceiver)] = trackBitrateInfo
     }
 
     @AssistedFactory
@@ -290,11 +298,16 @@ private const val startBitrateForSVC = 0.7;
 
 internal fun ensureCodecBitrates(
     media: SdpMedia,
-    trackBitrates: List<TrackBitrateInfo>,
+    trackBitrates: MutableMap<Any, TrackBitrateInfo>,
 ) {
     val msid = media.msid?.value ?: return
-    for (trackBr in trackBitrates) {
-        if (!msid.contains(trackBr.cid)) {
+    for ((key, trackBr) in trackBitrates) {
+        if (key !is TrackBitrateInfoKey.Cid) {
+            continue
+        }
+
+        val (cid) = key
+        if (!msid.contains(cid)) {
             continue
         }
 
@@ -353,8 +366,11 @@ internal fun isSVCCodec(codec: String): Boolean {
 }
 
 internal data class TrackBitrateInfo(
-    val cid: String,
-    val transceiver: RtpTransceiver,
     val codec: String,
     val maxBitrate: Long,
 )
+
+sealed class TrackBitrateInfoKey {
+    data class Cid(val value: String)
+    data class Transceiver(val value: RtpTransceiver)
+}
