@@ -1,65 +1,84 @@
-package io.livekit.android.room
+package io.livekit.android.webrtc
 
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
-import io.livekit.android.webrtc.JainSdpUtilsTest
-import io.livekit.android.webrtc.getExts
-import io.livekit.android.webrtc.getFmtps
+import android.javax.sdp.SessionDescription
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class SdpMungingTest {
+class JainSdpUtilsTest {
+
+    private val sdpFactory = SdpFactory.getInstance()
+    private fun createSessionDescription(): SessionDescription {
+        return sdpFactory.createSessionDescription(DESCRIPTION)
+    }
 
     @Test
-    fun ensureVideoDDExtensionForSVCTest() {
-        val sdp = SdpFactory.getInstance().createSessionDescription(NO_DD_DESCRIPTION)
-        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+    fun getRtpAttributes() {
+        val sdp = createSessionDescription()
+        val mediaDescriptions = sdp.getMediaDescriptions(true)
+            .filterIsInstance<MediaDescription>()
+        val mediaDesc = mediaDescriptions[1]
+        val rtps = mediaDesc.getRtps()
+        assertEquals(13, rtps.size)
 
-        ensureVideoDDExtensionForSVC(mediaDescription)
+        val (_, vp8Rtp) = rtps[0]
 
-        val exts = mediaDescription.getExts()
+        assertEquals(96, vp8Rtp.payload)
+        assertEquals("VP8", vp8Rtp.codec)
+        assertEquals(90000L, vp8Rtp.rate)
+        assertNull(vp8Rtp.encoding)
+    }
+
+    @Test
+    fun getExtmapAttributes() {
+        val sdp = createSessionDescription()
+        val mediaDescriptions = sdp.getMediaDescriptions(true)
+            .filterIsInstance<MediaDescription>()
+        val mediaDesc = mediaDescriptions[1]
+        val exts = mediaDesc.getExts()
 
         assertEquals(12, exts.size)
 
-        val ddExtPair = exts.find { it.second.value == 12L }
-
-        assertNotNull(ddExtPair)
-        val (_, ext) = ddExtPair!!
-
-        assertEquals(12, ext.value)
+        val (_, ext) = exts[0]
+        assertEquals(1, ext.value)
         assertNull(ext.direction)
         assertNull(ext.encryptUri)
-        assertEquals("https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension", ext.uri)
+        assertEquals("urn:ietf:params:rtp-hdrext:toffset", ext.uri)
         assertNull(ext.config)
     }
 
     @Test
-    fun ensureCodecBitratesTest() {
-        val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
-        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+    fun getMsid() {
+        val sdp = createSessionDescription()
+        val mediaDescriptions = sdp.getMediaDescriptions(true)
+            .filterIsInstance<MediaDescription>()
+        val mediaDesc = mediaDescriptions[1]
 
-        ensureCodecBitrates(
-            mediaDescription,
-            mapOf(
-                TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
-                    TrackBitrateInfo(
-                        "VP9",
-                        1000000L,
-                    ),
-            ),
-        )
+        val msid = mediaDesc.getMsid()
+        assertNotNull(msid)
+        assertEquals("PA_Qwqk4y9fcD3G 42dd9185-4ea2-4bf1-b964-1dc0eb739c6c", msid!!.value)
+    }
 
-        val (_, vp9fmtp) = mediaDescription.getFmtps()
-            .filter { (_, fmtp) -> fmtp.payload == 98L }
-            .first()
+    @Test
+    fun getFmtps() {
+        val sdp = createSessionDescription()
+        val mediaDescriptions = sdp.getMediaDescriptions(true)
+            .filterIsInstance<MediaDescription>()
+        val mediaDesc = mediaDescriptions[1]
 
-        assertEquals("profile-id=0;x-google-start-bitrate=700000;x-google-max-bitrate=1000000", vp9fmtp.config)
+        val fmtps = mediaDesc.getFmtps()
+            .filter { (_, fmtp) -> fmtp.payload == 97L }
+        assertEquals(1, fmtps.size)
+
+        val (_, fmtp) = fmtps[0]
+        assertEquals("apt=96", fmtp.config)
     }
 
     companion object {
-        const val NO_DD_DESCRIPTION = "v=0\n" +
+        const val DESCRIPTION = "v=0\n" +
             "o=- 3682890773448528616 3 IN IP4 127.0.0.1\n" +
             "s=-\n" +
             "t=0 0\n" +
@@ -102,17 +121,11 @@ class SdpMungingTest {
             "a=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\n" +
             "a=extmap:10 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\n" +
             "a=extmap:11 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\n" +
+            "a=extmap:12 https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension\n" +
             "a=sendonly\n" +
             "a=msid:PA_Qwqk4y9fcD3G 42dd9185-4ea2-4bf1-b964-1dc0eb739c6c\n" +
             "a=rtcp-mux\n" +
             "a=rtcp-rsize\n" +
-            "a=rtpmap:98 VP9/90000\n" +
-            "a=rtcp-fb:98 goog-remb\n" +
-            "a=rtcp-fb:98 transport-cc\n" +
-            "a=rtcp-fb:98 ccm fir\n" +
-            "a=rtcp-fb:98 nack\n" +
-            "a=rtcp-fb:98 nack pli\n" +
-            "a=fmtp:98 profile-id=0\n" +
             "a=rtpmap:96 VP8/90000\n" +
             "a=rtcp-fb:96 goog-remb\n" +
             "a=rtcp-fb:96 transport-cc\n" +
@@ -146,6 +159,13 @@ class SdpMungingTest {
             "a=rtcp-fb:39 nack pli\n" +
             "a=rtpmap:40 rtx/90000\n" +
             "a=fmtp:40 apt=39\n" +
+            "a=rtpmap:98 VP9/90000\n" +
+            "a=rtcp-fb:98 goog-remb\n" +
+            "a=rtcp-fb:98 transport-cc\n" +
+            "a=rtcp-fb:98 ccm fir\n" +
+            "a=rtcp-fb:98 nack\n" +
+            "a=rtcp-fb:98 nack pli\n" +
+            "a=fmtp:98 profile-id=0\n" +
             "a=rtpmap:99 rtx/90000\n" +
             "a=fmtp:99 apt=98\n" +
             "a=rtpmap:106 red/90000\n" +

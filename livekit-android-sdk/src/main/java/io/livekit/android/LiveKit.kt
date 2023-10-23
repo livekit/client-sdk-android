@@ -93,6 +93,7 @@ class LiveKit {
                 room.videoTrackPublishDefaults = it
             }
             room.adaptiveStream = options.adaptiveStream
+            room.dynacast = options.dynacast
 
             return room
         }

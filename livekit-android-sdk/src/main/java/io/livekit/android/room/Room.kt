@@ -154,8 +154,15 @@ constructor(
      * significantly reducing publishing CPU and bandwidth usage.
      *
      * Defaults to false.
+     *
+     * Will be enabled if SVC codecs (i.e. VP9/AV1) are used. Multi-codec simulcast
+     * requires dynacast.
      */
-    var dynacast: Boolean = false
+    var dynacast: Boolean
+        get() = localParticipant.dynacast
+        set(value) {
+            localParticipant.dynacast = value
+        }
 
     /**
      * Default options to use when creating an audio track.
@@ -177,7 +184,7 @@ constructor(
      */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = dynacast).apply {
+    val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
     }
 

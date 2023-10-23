@@ -17,6 +17,7 @@
 package io.livekit.android.mock.dagger
 
 import android.content.Context
+import android.javax.sdp.SdpFactory
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.dagger.CapabilitiesGetter
@@ -59,4 +60,7 @@ object TestRTCModule {
     @Provides
     @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
     fun videoHwAccel() = true
+
+    @Provides
+    fun sdpFactory() = SdpFactory.getInstance()
 }

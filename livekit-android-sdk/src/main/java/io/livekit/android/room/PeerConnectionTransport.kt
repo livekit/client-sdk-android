@@ -16,18 +16,22 @@
 
 package io.livekit.android.room
 
+import android.javax.sdp.MediaDescription
+import android.javax.sdp.SdpFactory
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import io.github.ggarber.sdpparser.SdpExt
-import io.github.ggarber.sdpparser.SdpFmtp
-import io.github.ggarber.sdpparser.SdpMedia
-import io.github.ggarber.sdpparser.SdpParser
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.util.*
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.debounce
+import io.livekit.android.webrtc.SdpExt
+import io.livekit.android.webrtc.SdpFmtp
+import io.livekit.android.webrtc.getExts
+import io.livekit.android.webrtc.getFmtps
+import io.livekit.android.webrtc.getMsid
+import io.livekit.android.webrtc.getRtps
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +41,7 @@ import kotlinx.coroutines.sync.withLock
 import org.webrtc.*
 import org.webrtc.PeerConnection.RTCConfiguration
 import javax.inject.Named
+import kotlin.math.roundToLong
 
 /**
  * @suppress
@@ -50,6 +55,7 @@ constructor(
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
     connectionFactory: PeerConnectionFactory,
+    private val sdpFactory: SdpFactory,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
     internal val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
@@ -146,25 +152,28 @@ constructor(
         }
 
         // munge sdp
-        val sdpDescription = SdpParser.parse(sdpOffer.description)
+        val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
 
-        val mediaDescs = sdpDescription.media
-        for (media in mediaDescs) {
-            LKLog.e { media.toString() }
-            if (media.mline?.type == "audio") {
+        val mediaDescs = sdpDescription.getMediaDescriptions(true)
+        for (mediaDesc in mediaDescs) {
+            if (mediaDesc !is MediaDescription) {
+                continue
+            }
+            LKLog.e { mediaDesc.media.toString() }
+            if (mediaDesc.media.mediaType == "audio") {
                 //TODO
-            } else if (media.mline?.type == "video") {
-                ensureVideoDDExtensionForSVC(media)
-                ensureCodecBitrates(media, trackBitrates = trackBitrates)
+            } else if (mediaDesc.media.mediaType == "video") {
+                ensureVideoDDExtensionForSVC(mediaDesc)
+                //ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
             }
 
         }
 
-        setMungedSdp(sdpOffer, sdpDescription.write())
-        listener.onOffer(sdpOffer)
+        val finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
+        listener.onOffer(finalSdp)
     }
 
-    private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false) {
+    private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false): SessionDescription {
         val mungedSdp = SessionDescription(sdp.type, mungedDescription)
 
         LKLog.e { "sdp type: ${sdp.type}\ndescription:\n${sdp.description}" }
@@ -179,7 +188,7 @@ constructor(
         val mungedErrorMessage = when (mungedResult) {
             is Either.Left -> {
                 // munged sdp set successfully.
-                return
+                return mungedSdp
             }
 
             is Either.Right -> {
@@ -220,6 +229,7 @@ constructor(
             }
             LKLog.w { "error: $errorMessage" }
         }
+        return sdp
     }
 
     fun prepareForIceRestart() {
@@ -254,17 +264,20 @@ constructor(
 
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
-internal fun ensureVideoDDExtensionForSVC(mediaDesc: SdpMedia) {
+internal fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     LKLog.e { mediaDesc.toString() }
 
-    val codec = mediaDesc.rtp.firstOrNull()?.codec ?: return
+    val codec = mediaDesc.getRtps()
+        .firstOrNull()
+        ?.second
+        ?.codec ?: return
     if (!isSVCCodec(codec)) {
         return
     }
 
     var maxId = 0L
 
-    val ddFound = mediaDesc.ext.any { ext ->
+    val ddFound = mediaDesc.getExts().any { (_, ext) ->
         if (ext.uri == DD_EXTENSION_URI) {
             return@any true
         }
@@ -276,14 +289,14 @@ internal fun ensureVideoDDExtensionForSVC(mediaDesc: SdpMedia) {
 
     // Not found, add manually
     if (!ddFound) {
-        mediaDesc.ext.add(
+        mediaDesc.addAttribute(
             SdpExt(
                 value = maxId + 1,
                 uri = DD_EXTENSION_URI,
                 config = null,
                 direction = null,
                 encryptUri = null,
-            ),
+            ).toAttributeField(),
         )
     }
 }
@@ -297,10 +310,10 @@ eliminate this issue.
 private const val startBitrateForSVC = 0.7;
 
 internal fun ensureCodecBitrates(
-    media: SdpMedia,
-    trackBitrates: MutableMap<Any, TrackBitrateInfo>,
+    media: MediaDescription,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
-    val msid = media.msid?.value ?: return
+    val msid = media.getMsid()?.value ?: return
     for ((key, trackBr) in trackBitrates) {
         if (key !is TrackBitrateInfoKey.Cid) {
             continue
@@ -311,58 +324,46 @@ internal fun ensureCodecBitrates(
             continue
         }
 
-        val rtp = media.rtp
-            .firstOrNull { rtp -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
+        val (_, rtp) = media.getRtps()
+            .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
             ?: continue
         val codecPayload = rtp.payload
 
+        val fmtps = media.getFmtps()
         var fmtpFound = false
-        var replaceFmtp: SdpFmtp? = null
-        var replaceFmtpWith: SdpFmtp? = null
-        for (fmtp in media.fmtp) {
+        for ((attribute, fmtp) in fmtps) {
             if (fmtp.payload == codecPayload) {
                 fmtpFound = true
-                var newFmtp = fmtp
+                var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtp = newFmtp.copy(
-                        config = "${newFmtp.config};x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC}",
-                    )
+                    newFmtpConfig = "${newFmtpConfig};x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
-                    newFmtp = newFmtp.copy(
-                        config = "${newFmtp.config};x-google-max-bitrate=${trackBr.maxBitrate}",
-                    )
+                    newFmtpConfig = "${newFmtpConfig};x-google-max-bitrate=${trackBr.maxBitrate}"
                 }
-                if (fmtp != newFmtp) {
-                    replaceFmtp = fmtp
-                    replaceFmtpWith = newFmtp
+                if (fmtp.config != newFmtpConfig) {
+                    attribute.value = "${fmtp.payload} $newFmtpConfig"
                     break
                 }
             }
         }
 
-        if (fmtpFound) {
-            if (replaceFmtp != null && replaceFmtpWith != null) {
-                val index = media.fmtp.indexOf(replaceFmtp)
-                if (media.fmtp.remove(replaceFmtp)) {
-                    media.fmtp.add(index, replaceFmtpWith)
-                }
-            }
-        } else {
-            media.fmtp.add(
+        if (!fmtpFound) {
+            media.addAttribute(
                 SdpFmtp(
                     payload = codecPayload,
                     config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC};" +
                         "x-google-max-bitrate=${trackBr.maxBitrate}",
-                ),
+                ).toAttributeField(),
             )
         }
     }
 }
 
-internal fun isSVCCodec(codec: String): Boolean {
-    return "av1".equals(codec, ignoreCase = true) ||
-        "vp9".equals(codec, ignoreCase = true)
+internal fun isSVCCodec(codec: String?): Boolean {
+    return codec != null &&
+        ("av1".equals(codec, ignoreCase = true) ||
+            "vp9".equals(codec, ignoreCase = true))
 }
 
 internal data class TrackBitrateInfo(
@@ -371,6 +372,6 @@ internal data class TrackBitrateInfo(
 )
 
 sealed class TrackBitrateInfoKey {
-    data class Cid(val value: String)
-    data class Transceiver(val value: RtpTransceiver)
+    data class Cid(val value: String) : TrackBitrateInfoKey()
+    data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }

@@ -336,6 +336,20 @@ internal constructor(
 
         track.statsGetter = createStatsGetter(engine.publisher.peerConnection, transceiver.sender)
 
+        // Handle trackBitrates
+        if (encodings.isNotEmpty()) {
+            if (options is VideoTrackPublishOptions && options.videoCodec != null) {
+                engine.publisher.registerTrackBitrateInfo(
+                    cid = cid,
+                    TrackBitrateInfo(
+                        codec = options.videoCodec,
+                        maxBitrate = (encodings.first().maxBitrateBps?.div(1000) ?: 0).toLong(),
+                    ),
+                )
+            }
+        }
+
+        // Set preferred video codec order
         if (options is VideoTrackPublishOptions && options.videoCodec != null) {
             val targetCodec = options.videoCodec.lowercase()
             val capabilities = capabilitiesGetter(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO)
