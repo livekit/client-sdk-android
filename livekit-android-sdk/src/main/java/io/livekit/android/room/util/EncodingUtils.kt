@@ -20,11 +20,15 @@ import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.track.VideoPreset
 import io.livekit.android.room.track.VideoPreset169
 import io.livekit.android.room.track.VideoPreset43
+import io.livekit.android.room.track.video.ScalabilityMode
 import livekit.LivekitModels
 import org.webrtc.RtpParameters
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 internal object EncodingUtils {
 
@@ -83,6 +87,7 @@ internal object EncodingUtils {
         trackWidth: Int,
         trackHeight: Int,
         encodings: List<RtpParameters.Encoding>,
+        isSVC: Boolean,
     ): List<LivekitModels.VideoLayer> {
         return if (encodings.isEmpty()) {
             listOf(
@@ -94,6 +99,19 @@ internal object EncodingUtils {
                     ssrc = 0
                 }.build(),
             )
+        } else if (isSVC) {
+            val encodingSM = encodings.first().scalabilityMode!!
+            val scalabilityMode = ScalabilityMode.parseFromString(encodingSM)
+            val maxBitrate = encodings.first().maxBitrateBps ?: 0
+            (0 until scalabilityMode.spatial).map { index ->
+                LivekitModels.VideoLayer.newBuilder().apply {
+                    width = ceil(trackWidth / (2f.pow(index))).roundToInt()
+                    height = ceil(trackHeight / (2f.pow(index))).roundToInt()
+                    quality = LivekitModels.VideoQuality.forNumber(LivekitModels.VideoQuality.HIGH.number - index)
+                    bitrate = ceil(maxBitrate / 3f.pow(index)).roundToInt()
+                    ssrc = 0
+                }.build()
+            }
         } else {
             encodings.map { encoding ->
                 val scaleDownBy = encoding.scaleResolutionDownBy ?: 1.0

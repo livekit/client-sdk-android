@@ -63,6 +63,8 @@ data class VideoEncoding(
 enum class VideoCodec(val codecName: String) {
     VP8("vp8"),
     H264("h264"),
+    VP9("vp9"),
+    AV1("av1")
 }
 
 enum class CameraPosition {
