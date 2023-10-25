@@ -35,11 +35,11 @@ import io.livekit.android.room.track.*
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.createStatsGetter
+import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
-import org.webrtc.RtpCapabilities.CodecCapability
 import javax.inject.Named
 import kotlin.math.max
 
@@ -271,25 +271,35 @@ internal constructor(
     ) {
         val isSVC = isSVCCodec(options.videoCodec)
 
-        var opts = options
+        @Suppress("NAME_SHADOWING") var options = options
         if (isSVC) {
             dynacast = true
-            if (opts.backupCodec == null) {
-                opts = opts.copy(backupCodec = BackupVideoCodec())
+            if (options.backupCodec == null) {
+                options = options.copy(backupCodec = BackupVideoCodec())
             }
-            if (opts.scalabilityMode == null) {
-                opts = opts.copy(scalabilityMode = "L3T3_KEY")
+            if (options.scalabilityMode == null) {
+                options = options.copy(scalabilityMode = "L3T3_KEY")
             }
         }
-        val encodings = computeVideoEncodings(track.dimensions, opts)
-
+        val encodings = computeVideoEncodings(track.dimensions, options)
         val videoLayers =
             EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings, isSVC)
+
+        var backupOptions: VideoTrackPublishOptions? = null
+        var backupEncodings: List<RtpParameters.Encoding>? = null
+
+        if (options.hasBackupCodec()) {
+            backupOptions = options.copy(
+                videoCodec = options.backupCodec!!.codec,
+                videoEncoding = options.backupCodec!!.encoding,
+            )
+            backupEncodings = computeVideoEncodings(track.dimensions, options)
+        }
 
 
         publishTrackImpl(
             track = track,
-            options = opts,
+            options = options,
             requestConfig = {
                 width = track.dimensions.width
                 height = track.dimensions.height
@@ -299,12 +309,39 @@ internal constructor(
                     LivekitModels.TrackSource.CAMERA
                 }
 
-                if (opts.videoCodec != opts.backupCodec?.codec) {
+                // set up backup codec
+                if (options.backupCodec?.codec != null && options.videoCodec != options.backupCodec?.codec) {
+                    addAllSimulcastCodecs(
+                        listOf(
+                            with(LivekitRtc.SimulcastCodec.newBuilder()) {
+                                codec = options.videoCodec
+                                cid = track.rtcTrack.id()
+                                build()
+                            },
+                            with(LivekitRtc.SimulcastCodec.newBuilder()) {
+                                codec = options.backupCodec!!.codec
+                                cid = ""
+                                build()
+                            },
+                        ),
+                    )
+                } else {
+                    addAllSimulcastCodecs(
+                        listOf(
+                            with(LivekitRtc.SimulcastCodec.newBuilder()) {
+                                codec = options.videoCodec
+                                cid = track.rtcTrack.id()
+                                build()
+                            },
+                        ),
+                    )
                 }
                 addAllLayers(videoLayers)
             },
             encodings = encodings,
             publishListener = publishListener,
+            backupOptions = backupOptions,
+            backupEncodings = backupEncodings,
         )
     }
 
@@ -317,7 +354,12 @@ internal constructor(
         requestConfig: LivekitRtc.AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null,
+        backupOptions: TrackPublishOptions? = null,
+        backupEncodings: List<RtpParameters.Encoding>? = null,
     ): Boolean {
+        @Suppress("NAME_SHADOWING") var options = options
+        @Suppress("NAME_SHADOWING") var encodings = encodings
+
         if (localTrackPublications.any { it.track == track }) {
             publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
             return false
@@ -340,12 +382,27 @@ internal constructor(
             for (codec in trackInfo.codecsList) {
                 val codecName = codec.mimeType.split('/')
                     .takeIf { it.size > 1 }
+                    ?.takeIf { it[0] == "video" }
                     ?.get(1)
                     ?: continue
                 if (codecName.equals(options.videoCodec, ignoreCase = true)) {
                     primaryCodecSupported = true
                 } else if (codecName.equals(options.backupCodec?.codec, ignoreCase = true)) {
                     backupCodecSupported = true
+                }
+            }
+
+            if (builder.simulcastCodecsList.isNotEmpty()) {
+                if (!primaryCodecSupported && !backupCodecSupported) {
+                    throw IllegalStateException("cannot publish track, codec not supported by server")
+                }
+
+                if (!primaryCodecSupported && options.hasBackupCodec()) {
+                    val videoOptions = options
+                    LKLog.d { "primary codec ${videoOptions.videoCodec} not supported, falling back to ${videoOptions.backupCodec?.codec}" }
+
+                    options = backupOptions!!
+                    encodings = backupEncodings!!
                 }
             }
         }
@@ -374,7 +431,7 @@ internal constructor(
 
         // Handle trackBitrates
         if (encodings.isNotEmpty()) {
-            if (options is VideoTrackPublishOptions && options.videoCodec != null) {
+            if (options is VideoTrackPublishOptions && isSVCCodec(options.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
                 engine.publisher.registerTrackBitrateInfo(
                     cid = cid,
                     TrackBitrateInfo(
@@ -386,43 +443,8 @@ internal constructor(
         }
 
         // Set preferred video codec order
-        if (options is VideoTrackPublishOptions && options.videoCodec != null) {
-            val targetCodec = options.videoCodec.lowercase()
-            val capabilities = capabilitiesGetter(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO)
-            LKLog.v { "capabilities:" }
-            capabilities.codecs.forEach { codec ->
-                LKLog.v { "codec: ${codec.name}, ${codec.kind}, ${codec.mimeType}, ${codec.parameters}, ${codec.preferredPayloadType}" }
-            }
-
-            val matched = mutableListOf<CodecCapability>()
-            val partialMatched = mutableListOf<CodecCapability>()
-            val unmatched = mutableListOf<CodecCapability>()
-
-            for (codec in capabilities.codecs) {
-                val mimeType = codec.mimeType.lowercase()
-                if (mimeType == "audio/opus") {
-                    matched.add(codec)
-                    continue
-                }
-
-                if (mimeType != "video/$targetCodec") {
-                    unmatched.add(codec)
-                    continue
-                }
-                // for h264 codecs that have sdpFmtpLine available, use only if the
-                // profile-level-id is 42e01f for cross-browser compatibility
-                if (targetCodec == "h264") {
-                    if (codec.parameters["profile-level-id"] == "42e01f") {
-                        matched.add(codec)
-                    } else {
-                        partialMatched.add(codec)
-                    }
-                    continue
-                } else {
-                    matched.add(codec)
-                }
-            }
-            transceiver.setCodecPreferences(matched.plus(partialMatched).plus(unmatched))
+        if (options is VideoTrackPublishOptions) {
+            transceiver.sortVideoCodecPreferences(options.videoCodec, capabilitiesGetter)
         }
 
         val publication = LocalTrackPublication(
@@ -447,6 +469,7 @@ internal constructor(
         val (width, height) = dimensions
         var encoding = options.videoEncoding
         val simulcast = options.simulcast
+        val scalabilityMode = options.scalabilityMode
 
         if ((encoding == null && !simulcast) || width == 0 || height == 0) {
             return emptyList()
@@ -459,7 +482,12 @@ internal constructor(
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
 
-        if (simulcast) {
+        if (scalabilityMode != null && isSVCCodec(options.videoCodec)) {
+            val rtpEncoding = encoding.toRtpEncoding()
+            rtpEncoding.scalabilityMode = scalabilityMode
+            encodings.add(rtpEncoding)
+            return encodings
+        } else if (simulcast) {
             val presets = EncodingUtils.presetsForResolution(width, height)
             val midPreset = presets[1]
             val lowPreset = presets[0]
@@ -502,10 +530,6 @@ internal constructor(
 
         // Make largest size at front. addTransceiver seems to fail if ordered from smallest to largest.
         encodings.reverse()
-
-        if (options.scalabilityMode != null && isSVCCodec(options.videoCodec)) {
-            encodings.firstOrNull()?.scalabilityMode = options.scalabilityMode
-        }
         return encodings
     }
 
@@ -887,4 +911,8 @@ data class ParticipantTrackPermission(
             .addAllTrackSids(allowedTrackSids)
             .build()
     }
+}
+
+internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
+    return backupCodec?.codec != null && videoCodec != backupCodec.codec
 }

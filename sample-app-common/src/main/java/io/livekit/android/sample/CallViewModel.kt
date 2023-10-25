@@ -127,7 +127,7 @@ class CallViewModel(
                         handlePrimarySpeaker(
                             participantsList,
                             speakers,
-                            room
+                            room,
                         )
                     }
             }
@@ -142,6 +142,7 @@ class CallViewModel(
                             messagesReceived++
                             Timber.e { "message received from $identity, count $messagesReceived" }
                         }
+
                         else -> {
                             Timber.e { "Room event: $it" }
                         }
@@ -246,7 +247,7 @@ class CallViewModel(
             val screencastTrack =
                 localParticipant.createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
             localParticipant.publishVideoTrack(
-                screencastTrack
+                screencastTrack,
             )
 
             // Must start the foreground prior to startCapture.
