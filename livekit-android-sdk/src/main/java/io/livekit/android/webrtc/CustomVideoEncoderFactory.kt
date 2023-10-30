@@ -22,7 +22,7 @@ import org.webrtc.VideoCodecInfo
 import org.webrtc.VideoEncoder
 import org.webrtc.VideoEncoderFactory
 
-class CustomVideoEncoderFactory(
+open class CustomVideoEncoderFactory(
     sharedContext: EglBase.Context?,
     enableIntelVp8Encoder: Boolean,
     enableH264HighProfile: Boolean,

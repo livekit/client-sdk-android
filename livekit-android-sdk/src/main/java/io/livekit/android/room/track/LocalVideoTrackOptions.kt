@@ -64,7 +64,11 @@ enum class VideoCodec(val codecName: String) {
     VP8("vp8"),
     H264("h264"),
     VP9("vp9"),
-    AV1("av1")
+    AV1("av1");
+
+    fun fromCodecName(codecName: String): VideoCodec {
+        return VideoCodec.values().first { it.codecName.equals(codecName, ignoreCase = true) }
+    }
 }
 
 enum class CameraPosition {

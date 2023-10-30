@@ -69,7 +69,7 @@ constructor(
 
     private val mutex = Mutex()
 
-    private var trackBitrates = mutableMapOf<Any, TrackBitrateInfo>()
+    private var trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
 
     interface Listener {
         fun onOffer(sd: SessionDescription)
@@ -159,14 +159,12 @@ constructor(
             if (mediaDesc !is MediaDescription) {
                 continue
             }
-            LKLog.e { mediaDesc.media.toString() }
             if (mediaDesc.media.mediaType == "audio") {
                 //TODO
             } else if (mediaDesc.media.mediaType == "video") {
                 ensureVideoDDExtensionForSVC(mediaDesc)
-                //ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
+                ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
             }
-
         }
 
         val finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
@@ -176,8 +174,8 @@ constructor(
     private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false): SessionDescription {
         val mungedSdp = SessionDescription(sdp.type, mungedDescription)
 
-        LKLog.e { "sdp type: ${sdp.type}\ndescription:\n${sdp.description}" }
-        LKLog.e { "munged sdp type: ${mungedSdp.type}\ndescription:\n${mungedSdp.description}" }
+        LKLog.v { "sdp type: ${sdp.type}\ndescription:\n${sdp.description}" }
+        LKLog.v { "munged sdp type: ${mungedSdp.type}\ndescription:\n${mungedSdp.description}" }
         val mungedResult = if (remote) {
             peerConnection.setRemoteDescription(mungedSdp)
         } else {
@@ -265,8 +263,6 @@ constructor(
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
 internal fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
-    LKLog.e { mediaDesc.toString() }
-
     val codec = mediaDesc.getRtps()
         .firstOrNull()
         ?.second

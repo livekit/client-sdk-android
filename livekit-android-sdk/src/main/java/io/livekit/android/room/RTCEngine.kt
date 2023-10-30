@@ -43,6 +43,7 @@ import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
 import org.webrtc.*
 import org.webrtc.PeerConnection.RTCConfiguration
+import org.webrtc.RtpTransceiver.RtpTransceiverInit
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -276,6 +277,13 @@ internal constructor(
             pendingTrackResolvers[cid] = cont
             client.sendAddTrack(cid, name, kind, builder)
         }
+    }
+
+    internal fun createSenderTransceiver(
+        rtcTrack: MediaStreamTrack,
+        transInit: RtpTransceiverInit,
+    ): RtpTransceiver? {
+        return publisher.peerConnection.addTransceiver(rtcTrack, transInit)
     }
 
     fun updateSubscriptionPermissions(
@@ -884,6 +892,7 @@ internal constructor(
     fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) {
         _subscriber?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
     }
+
 }
 
 /**
