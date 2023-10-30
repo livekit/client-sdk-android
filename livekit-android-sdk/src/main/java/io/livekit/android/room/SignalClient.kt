@@ -34,7 +34,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
-import livekit.LivekitModels.Encryption
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -95,6 +94,7 @@ constructor(
     private var pongJob: Job? = null
     private var pingTimeoutDurationMillis: Long = 0
     private var pingIntervalDurationMillis: Long = 0
+    private var rtt: Long = 0
 
     var connectionState: ConnectionState = ConnectionState.DISCONNECTED
 
@@ -491,6 +491,28 @@ constructor(
         sendRequest(request)
     }
 
+    fun sendPing(): Long {
+        val time = Date().time
+        sendRequest(
+            with(LivekitRtc.SignalRequest.newBuilder()) {
+                ping = time
+                build()
+            },
+        )
+        sendRequest(
+            with(LivekitRtc.SignalRequest.newBuilder()) {
+                pingReq = with(LivekitRtc.Ping.newBuilder()) {
+                    rtt = this@SignalClient.rtt
+                    timestamp = time
+                    build()
+                }
+                build()
+            },
+        )
+
+        return time
+    }
+
     private fun sendRequest(request: LivekitRtc.SignalRequest) {
         val skipQueue = skipQueueTypes.contains(request.messageCase)
 
@@ -647,7 +669,8 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.PONG_RESP -> {
-                // TODO
+                rtt = Date().time - response.pongResp.lastPingTimestamp
+                resetPingTimeout()
             }
 
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
@@ -671,13 +694,7 @@ constructor(
             pingJob = coroutineScope.launch {
                 while (true) {
                     delay(pingIntervalDurationMillis)
-
-                    val pingTimestamp = Date().time
-                    val pingRequest = LivekitRtc.SignalRequest.newBuilder()
-                        .setPing(pingTimestamp)
-                        .build()
-                    LKLog.v { "Sending ping: $pingTimestamp" }
-                    sendRequest(pingRequest)
+                    val pingTimestamp = sendPing()
                     startPingTimeout(pingTimestamp)
                 }
             }
