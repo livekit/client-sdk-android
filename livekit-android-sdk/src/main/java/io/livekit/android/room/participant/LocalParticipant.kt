@@ -838,6 +838,8 @@ abstract class BaseVideoTrackPublishOptions {
      * The video codec to use if available.
      *
      * Defaults to VP8.
+     *
+     * @see [VideoCodec]
      */
     abstract val videoCodec: String
 

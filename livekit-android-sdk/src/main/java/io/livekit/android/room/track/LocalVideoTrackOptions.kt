@@ -66,8 +66,10 @@ enum class VideoCodec(val codecName: String) {
     VP9("vp9"),
     AV1("av1");
 
-    fun fromCodecName(codecName: String): VideoCodec {
-        return VideoCodec.values().first { it.codecName.equals(codecName, ignoreCase = true) }
+    companion object {
+        fun fromCodecName(codecName: String): VideoCodec {
+            return VideoCodec.values().first { it.codecName.equals(codecName, ignoreCase = true) }
+        }
     }
 }
 

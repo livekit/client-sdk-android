@@ -333,7 +333,7 @@ constructor(
                 setPublishingLayers(codec.qualitiesList)
             } else {
                 val videoCodec = try {
-                    VideoCodec.valueOf(codec.codec.uppercase())
+                    VideoCodec.fromCodecName(codec.codec)
                 } catch (e: Exception) {
                     LKLog.w { "unknown publishing codec ${codec.codec}!" }
                     continue

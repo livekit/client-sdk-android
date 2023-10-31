@@ -18,9 +18,10 @@ package io.livekit.android.mock
 
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
+import java.util.UUID
 
 class MockVideoStreamTrack(
-    val id: String = "id",
+    val id: String = UUID.randomUUID().toString(),
     val kind: String = VIDEO_TRACK_KIND,
     var enabled: Boolean = true,
     var state: State = State.LIVE,

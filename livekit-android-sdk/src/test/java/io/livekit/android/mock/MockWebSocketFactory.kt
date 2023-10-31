@@ -23,6 +23,7 @@ import livekit.LivekitRtc
 import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
 
 class MockWebSocketFactory : WebSocket.Factory {
     /**
@@ -67,4 +68,8 @@ class MockWebSocketFactory : WebSocket.Factory {
     }
 
     var onOpen: ((MockWebSocketFactory) -> Unit)? = null
+
+    fun receiveMessage(byteString: ByteString) {
+        listener.onMessage(ws, byteString)
+    }
 }

@@ -63,6 +63,18 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
                     kind = MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO
                     parameters = mapOf("profile-level-id" to "42e01f")
                 },
+                RtpCapabilities.CodecCapability().apply {
+                    name = "AV1"
+                    mimeType = "video/AV1"
+                    kind = MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO
+                    parameters = emptyMap()
+                },
+                RtpCapabilities.CodecCapability().apply {
+                    name = "VP9"
+                    mimeType = "video/VP9"
+                    kind = MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO
+                    parameters = mapOf("profile-id" to "0")
+                },
             ),
             emptyList(),
         )
