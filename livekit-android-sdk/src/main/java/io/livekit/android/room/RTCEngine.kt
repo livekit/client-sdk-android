@@ -892,7 +892,6 @@ internal constructor(
     fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) {
         _subscriber?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
     }
-
 }
 
 /**

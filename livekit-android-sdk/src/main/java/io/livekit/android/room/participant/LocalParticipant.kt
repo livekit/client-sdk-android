@@ -320,7 +320,6 @@ internal constructor(
                         },
                     )
                 }
-
             },
             encodings = encodings,
             publishListener = publishListener,
@@ -338,6 +337,7 @@ internal constructor(
         publishListener: PublishListener? = null,
     ): Boolean {
         @Suppress("NAME_SHADOWING") var options = options
+
         @Suppress("NAME_SHADOWING") var encodings = encodings
 
         if (localTrackPublications.any { it.track == track }) {
@@ -697,7 +697,6 @@ internal constructor(
         )
 
         scope.launch {
-
             val transceiver = engine.createSenderTransceiver(track.rtcTrack, transceiverInit)
             if (transceiver == null) {
                 LKLog.w { "couldn't create new transceiver! $codec" }
@@ -933,7 +932,6 @@ data class AudioTrackPublishOptions(
         base.dtx,
     )
 }
-
 
 data class ParticipantTrackPermission(
     /**

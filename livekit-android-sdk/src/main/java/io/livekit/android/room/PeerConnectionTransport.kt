@@ -160,7 +160,7 @@ constructor(
                 continue
             }
             if (mediaDesc.media.mediaType == "audio") {
-                //TODO
+                // TODO
             } else if (mediaDesc.media.mediaType == "video") {
                 ensureVideoDDExtensionForSVC(mediaDesc)
                 ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
@@ -181,7 +181,6 @@ constructor(
         } else {
             peerConnection.setLocalDescription(mungedSdp)
         }
-
 
         val mungedErrorMessage = when (mungedResult) {
             is Either.Left -> {
@@ -303,7 +302,7 @@ process commonly cost more than 10 seconds cause subscriber will get blur video 
 the first few seconds. So we use a 70% of target bitrate here as the start bitrate to
 eliminate this issue.
 */
-private const val startBitrateForSVC = 0.7;
+private const val startBitrateForSVC = 0.7
 
 internal fun ensureCodecBitrates(
     media: MediaDescription,
@@ -332,10 +331,10 @@ internal fun ensureCodecBitrates(
                 fmtpFound = true
                 var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "${newFmtpConfig};x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
+                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
-                    newFmtpConfig = "${newFmtpConfig};x-google-max-bitrate=${trackBr.maxBitrate}"
+                    newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
                 }
                 if (fmtp.config != newFmtpConfig) {
                     attribute.value = "${fmtp.payload} $newFmtpConfig"
