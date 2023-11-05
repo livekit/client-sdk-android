@@ -49,7 +49,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import leakcanary.AppWatcher
 
 class CallViewModel(
     val url: String,
@@ -281,9 +280,6 @@ class CallViewModel(
         val application = getApplication<Application>()
         val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
         application.stopService(foregroundServiceIntent)
-
-        // Watch Room object for leaks (for testing purposes only)
-        AppWatcher.objectWatcher.expectWeaklyReachable(room, "LiveKit Room")
     }
 
     fun setMicEnabled(enabled: Boolean) {
