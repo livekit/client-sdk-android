@@ -149,7 +149,7 @@ constructor(
     }
 
     fun close() {
-        peerConnection.close()
+        peerConnection.dispose()
     }
 
     fun updateRTCConfig(config: RTCConfiguration) {

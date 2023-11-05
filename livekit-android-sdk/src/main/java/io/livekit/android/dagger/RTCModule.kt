@@ -91,6 +91,7 @@ object RTCModule {
         moduleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)?,
         audioOutputAttributes: AudioAttributes,
         appContext: Context,
+        closeableManager: CloseableManager,
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
             return audioDeviceModuleOverride
@@ -167,12 +168,13 @@ object RTCModule {
 
         moduleCustomizer?.invoke(builder)
         return builder.createAudioDeviceModule()
+            .apply { closeableManager.registerClosable { release() } }
     }
 
     @Provides
     @Singleton
     fun eglBase(
-        @Singleton memoryManager: CloseableManager,
+        memoryManager: CloseableManager,
     ): EglBase {
         val eglBase = EglBase.create()
         memoryManager.registerResource(eglBase) { eglBase.release() }
@@ -234,12 +236,14 @@ object RTCModule {
         audioDeviceModule: AudioDeviceModule,
         videoEncoderFactory: VideoEncoderFactory,
         videoDecoderFactory: VideoDecoderFactory,
+        memoryManager: CloseableManager,
     ): PeerConnectionFactory {
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
             .createPeerConnectionFactory()
+            .apply { memoryManager.registerClosable { dispose() } }
     }
 
     @Provides

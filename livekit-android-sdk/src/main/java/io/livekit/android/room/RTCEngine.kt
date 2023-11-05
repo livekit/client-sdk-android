@@ -315,12 +315,16 @@ internal constructor(
         _subscriber?.close()
         _subscriber = null
         reliableDataChannel?.close()
+        reliableDataChannel?.dispose()
         reliableDataChannel = null
         reliableDataChannelSub?.close()
+        reliableDataChannelSub?.dispose()
         reliableDataChannelSub = null
         lossyDataChannel?.close()
+        lossyDataChannel?.dispose()
         lossyDataChannel = null
         lossyDataChannelSub?.close()
+        lossyDataChannelSub?.dispose()
         lossyDataChannelSub = null
         isSubscriberPrimary = false
         client.close(reason = reason)
