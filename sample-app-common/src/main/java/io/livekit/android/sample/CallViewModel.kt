@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import leakcanary.AppWatcher
 
 class CallViewModel(
     val url: String,
@@ -127,7 +128,7 @@ class CallViewModel(
                         handlePrimarySpeaker(
                             participantsList,
                             speakers,
-                            room
+                            room,
                         )
                     }
             }
@@ -142,6 +143,7 @@ class CallViewModel(
                             messagesReceived++
                             Timber.e { "message received from $identity, count $messagesReceived" }
                         }
+
                         else -> {
                             Timber.e { "Room event: $it" }
                         }
@@ -182,7 +184,7 @@ class CallViewModel(
             room.connect(
                 url = url,
                 token = token,
-                roomOptions = RoomOptions(e2eeOptions = getE2EEOptions())
+                roomOptions = RoomOptions(e2eeOptions = getE2EEOptions()),
             )
 
             // Create and publish audio/video tracks
@@ -246,7 +248,7 @@ class CallViewModel(
             val screencastTrack =
                 localParticipant.createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
             localParticipant.publishVideoTrack(
-                screencastTrack
+                screencastTrack,
             )
 
             // Must start the foreground prior to startCapture.
@@ -270,6 +272,8 @@ class CallViewModel(
 
     override fun onCleared() {
         super.onCleared()
+
+        // Make sure to release any resources associated with LiveKit
         room.disconnect()
         room.release()
 
@@ -277,6 +281,9 @@ class CallViewModel(
         val application = getApplication<Application>()
         val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
         application.stopService(foregroundServiceIntent)
+
+        // Watch Room object for leaks (for testing purposes only)
+        AppWatcher.objectWatcher.expectWeaklyReachable(room, "LiveKit Room")
     }
 
     fun setMicEnabled(enabled: Boolean) {
