@@ -49,7 +49,6 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.*
 import javax.inject.Named
-import javax.inject.Singleton
 
 class Room
 @AssistedInject
@@ -64,7 +63,6 @@ constructor(
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
     val audioHandler: AudioHandler,
-    @Singleton
     private val closeableManager: CloseableManager,
     private val e2EEManagerFactory: E2EEManager.Factory,
 ) : RTCEngine.Listener, ParticipantListener {

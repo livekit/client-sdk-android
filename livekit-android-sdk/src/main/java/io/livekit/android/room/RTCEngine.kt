@@ -314,13 +314,19 @@ internal constructor(
         _publisher = null
         _subscriber?.close()
         _subscriber = null
-        reliableDataChannel?.close()
+
+        fun DataChannel?.completeDispose() {
+            this?.unregisterObserver()
+            this?.close()
+            this?.dispose()
+        }
+        reliableDataChannel?.completeDispose()
         reliableDataChannel = null
-        reliableDataChannelSub?.close()
+        reliableDataChannelSub?.completeDispose()
         reliableDataChannelSub = null
-        lossyDataChannel?.close()
+        lossyDataChannel?.completeDispose()
         lossyDataChannel = null
-        lossyDataChannelSub?.close()
+        lossyDataChannelSub?.completeDispose()
         lossyDataChannelSub = null
         isSubscriberPrimary = false
         client.close(reason = reason)
