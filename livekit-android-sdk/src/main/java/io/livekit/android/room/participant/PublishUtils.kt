@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package io.livekit.android.util
+package io.livekit.android.room.participant
 
-sealed class Either<out A, out B> {
-    class Left<out A>(val value: A) : Either<A, Nothing>()
-    class Right<out B>(val value: B) : Either<Nothing, B>()
+fun String.mimeTypeToVideoCodec(): String {
+    return split("/")[1].lowercase()
 }

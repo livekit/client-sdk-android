@@ -173,6 +173,8 @@ open class Participant(
         get() = participantInfo != null
 
     /**
+     * Maps track sids to their track publications.
+     *
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
     @FlowObservable

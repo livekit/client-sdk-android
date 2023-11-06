@@ -26,16 +26,33 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
-import io.livekit.android.room.track.video.*
+import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.room.track.video.CameraCapturerUtils.createCameraEnumerator
 import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
+import io.livekit.android.room.track.video.CameraCapturerWithSize
+import io.livekit.android.room.track.video.VideoCapturerWithSize
+import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
-import org.webrtc.*
+import livekit.LivekitModels
+import livekit.LivekitModels.VideoQuality
+import livekit.LivekitRtc
+import livekit.LivekitRtc.SubscribedCodec
+import org.webrtc.CameraVideoCapturer
 import org.webrtc.CameraVideoCapturer.CameraEventsHandler
-import java.util.*
+import org.webrtc.EglBase
+import org.webrtc.MediaStreamTrack
+import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpParameters
+import org.webrtc.RtpSender
+import org.webrtc.RtpTransceiver
+import org.webrtc.SurfaceTextureHelper
+import org.webrtc.VideoCapturer
+import org.webrtc.VideoProcessor
+import org.webrtc.VideoSource
+import java.util.UUID
 
 /**
  * A representation of a local video track (generally input coming from camera or screen).
@@ -60,6 +77,10 @@ constructor(
     override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
         internal set
 
+    internal var codec: String? = null
+    private var subscribedCodecs: List<SubscribedCodec>? = null
+    private val simulcastCodecs = mutableMapOf<VideoCodec, SimulcastTrackInfo>()
+
     @FlowObservable
     @get:FlowObservable
     var options: LocalVideoTrackOptions by flowDelegate(options)
@@ -69,7 +90,7 @@ constructor(
             (capturer as? VideoCapturerWithSize)?.let { capturerWithSize ->
                 val size = capturerWithSize.findCaptureFormat(
                     options.captureParams.width,
-                    options.captureParams.height
+                    options.captureParams.height,
                 )
                 return Dimensions(size.width, size.height)
             }
@@ -86,7 +107,7 @@ constructor(
         capturer.startCapture(
             options.captureParams.width,
             options.captureParams.height,
-            options.captureParams.maxFps
+            options.captureParams.maxFps,
         )
     }
 
@@ -140,7 +161,7 @@ constructor(
         fun updateCameraOptions() {
             val newOptions = options.copy(
                 deviceId = targetDeviceId,
-                position = enumerator.getCameraPosition(targetDeviceId)
+                position = enumerator.getCameraPosition(targetDeviceId),
             )
             options = newOptions
         }
@@ -150,30 +171,32 @@ constructor(
                 // For cameras we control, wait until the first frame to ensure everything is okay.
                 if (cameraCapturer is CameraCapturerWithSize) {
                     cameraCapturer.cameraEventsDispatchHandler
-                        .registerHandler(object : CameraEventsHandler {
-                            override fun onFirstFrameAvailable() {
-                                updateCameraOptions()
-                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
-                            }
+                        .registerHandler(
+                            object : CameraEventsHandler {
+                                override fun onFirstFrameAvailable() {
+                                    updateCameraOptions()
+                                    cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                                }
 
-                            override fun onCameraError(p0: String?) {
-                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
-                            }
+                                override fun onCameraError(p0: String?) {
+                                    cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                                }
 
-                            override fun onCameraDisconnected() {
-                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
-                            }
+                                override fun onCameraDisconnected() {
+                                    cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                                }
 
-                            override fun onCameraFreezed(p0: String?) {
-                            }
+                                override fun onCameraFreezed(p0: String?) {
+                                }
 
-                            override fun onCameraOpening(p0: String?) {
-                            }
+                                override fun onCameraOpening(p0: String?) {
+                                }
 
-                            override fun onCameraClosed() {
-                                cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
-                            }
-                        })
+                                override fun onCameraClosed() {
+                                    cameraCapturer.cameraEventsDispatchHandler.unregisterHandler(this)
+                                }
+                            },
+                        )
                 } else {
                     updateCameraOptions()
                 }
@@ -216,7 +239,7 @@ constructor(
             name,
             options,
             eglBase,
-            trackFactory
+            trackFactory,
         )
 
         // migrate video sinks to the new track
@@ -231,6 +254,122 @@ constructor(
         this.options = options
         startCapture()
         sender?.setTrack(newTrack.rtcTrack, true)
+    }
+
+    internal fun setPublishingLayers(
+        qualities: List<LivekitRtc.SubscribedQuality>,
+    ) {
+        val sender = transceiver?.sender ?: return
+
+        setPublishingLayersForSender(sender, qualities)
+    }
+
+    private fun setPublishingLayersForSender(
+        sender: RtpSender,
+        qualities: List<LivekitRtc.SubscribedQuality>,
+    ) {
+        val parameters = sender.parameters ?: return
+        val encodings = parameters.encodings ?: return
+        var hasChanged = false
+
+        if (encodings.firstOrNull()?.scalabilityMode != null) {
+            val encoding = encodings.first()
+            var maxQuality = VideoQuality.OFF
+            for (quality in qualities) {
+                if (quality.enabled && (maxQuality == VideoQuality.OFF || quality.quality.number > maxQuality.number)) {
+                    maxQuality = quality.quality
+                }
+            }
+
+            if (maxQuality == VideoQuality.OFF) {
+                if (encoding.active) {
+                    LKLog.v { "setting svc track to disabled" }
+                    encoding.active = false
+                    hasChanged = true
+                }
+            } else if (!encoding.active) {
+                LKLog.v { "setting svc track to enabled" }
+                encoding.active = true
+                hasChanged = true
+            }
+        } else {
+            // simulcast dynacast encodings
+            for (quality in qualities) {
+                val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
+                val encoding = encodings.firstOrNull { it.rid == rid }
+                    // use low quality layer settings for non-simulcasted streams
+                    ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
+                    ?: continue
+                if (encoding.active != quality.enabled) {
+                    hasChanged = true
+                    encoding.active = quality.enabled
+                    LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
+                }
+            }
+        }
+
+        if (hasChanged) {
+            // This refeshes the native code with the new information
+            sender.parameters = sender.parameters
+        }
+    }
+
+    fun setPublishingCodecs(codecs: List<SubscribedCodec>): List<VideoCodec> {
+        LKLog.v { "setting publishing codecs: $codecs" }
+
+        // only enable simulcast codec for preferred codec set
+        if (this.codec == null && codecs.isNotEmpty()) {
+            setPublishingLayers(codecs.first().qualitiesList)
+            return emptyList()
+        }
+
+        this.subscribedCodecs = codecs
+
+        val newCodecs = mutableListOf<VideoCodec>()
+
+        for (codec in codecs) {
+            if (this.codec == codec.codec) {
+                setPublishingLayers(codec.qualitiesList)
+            } else {
+                val videoCodec = try {
+                    VideoCodec.fromCodecName(codec.codec)
+                } catch (e: Exception) {
+                    LKLog.w { "unknown publishing codec ${codec.codec}!" }
+                    continue
+                }
+
+                LKLog.d { "try setPublishingCodec for ${codec.codec}" }
+                val simulcastInfo = this.simulcastCodecs[videoCodec]
+                if (simulcastInfo?.sender == null) {
+                    for (q in codec.qualitiesList) {
+                        if (q.enabled) {
+                            newCodecs.add(videoCodec)
+                            break
+                        }
+                    }
+                } else {
+                    LKLog.d { "try setPublishingLayersForSender ${codec.codec}" }
+                    setPublishingLayersForSender(
+                        simulcastInfo.sender!!,
+                        codec.qualitiesList,
+                    )
+                }
+            }
+        }
+        return newCodecs
+    }
+
+    internal fun addSimulcastTrack(codec: VideoCodec, encodings: List<RtpParameters.Encoding>): SimulcastTrackInfo {
+        if (this.simulcastCodecs.containsKey(codec)) {
+            throw IllegalStateException("$codec already added!")
+        }
+        val simulcastTrackInfo = SimulcastTrackInfo(
+            codec = codec.codecName,
+            rtcTrack = rtcTrack,
+            encodings = encodings,
+        )
+        simulcastCodecs[codec] = simulcastTrackInfo
+        return simulcastTrackInfo
     }
 
     @AssistedFactory
@@ -262,7 +401,7 @@ constructor(
             capturer.initialize(
                 surfaceTextureHelper,
                 context,
-                source.capturerObserver
+                source.capturerObserver,
             )
             val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
@@ -271,12 +410,12 @@ constructor(
                 source = source,
                 options = options,
                 name = name,
-                rtcTrack = rtcTrack
+                rtcTrack = rtcTrack,
             )
 
             track.closeableManager.registerResource(
                 rtcTrack,
-                SurfaceTextureHelperCloser(surfaceTextureHelper)
+                SurfaceTextureHelperCloser(surfaceTextureHelper),
             )
             return track
         }
@@ -303,7 +442,7 @@ constructor(
             capturer.initialize(
                 surfaceTextureHelper,
                 context,
-                source.capturerObserver
+                source.capturerObserver,
             )
             val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
@@ -312,15 +451,22 @@ constructor(
                 source = source,
                 options = newOptions,
                 name = name,
-                rtcTrack = rtcTrack
+                rtcTrack = rtcTrack,
             )
 
             track.closeableManager.registerResource(
                 rtcTrack,
-                SurfaceTextureHelperCloser(surfaceTextureHelper)
+                SurfaceTextureHelperCloser(surfaceTextureHelper),
             )
 
             return track
         }
     }
 }
+
+internal data class SimulcastTrackInfo(
+    var codec: String,
+    var rtcTrack: MediaStreamTrack,
+    var sender: RtpSender? = null,
+    var encodings: List<RtpParameters.Encoding>? = null,
+)

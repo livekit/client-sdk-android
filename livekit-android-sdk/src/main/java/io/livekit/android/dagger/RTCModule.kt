@@ -17,6 +17,7 @@
 package io.livekit.android.dagger
 
 import android.content.Context
+import android.javax.sdp.SdpFactory
 import android.media.AudioAttributes
 import android.media.MediaRecorder
 import android.os.Build
@@ -257,6 +258,9 @@ object RTCModule {
     @Provides
     @Named(InjectionNames.OPTIONS_VIDEO_HW_ACCEL)
     fun videoHwAccel() = true
+
+    @Provides
+    fun sdpFactory() = SdpFactory.getInstance()
 }
 
 /**
