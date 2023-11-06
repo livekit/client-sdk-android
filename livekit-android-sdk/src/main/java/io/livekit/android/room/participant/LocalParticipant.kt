@@ -669,6 +669,8 @@ internal constructor(
             if (track != null) {
                 track.stop()
                 unpublishTrack(track)
+
+                // We have the original track object reference, meaning we own it. Dispose here.
                 track.dispose()
             }
         }

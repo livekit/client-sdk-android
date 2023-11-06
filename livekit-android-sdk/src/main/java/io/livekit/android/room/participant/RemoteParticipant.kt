@@ -18,7 +18,11 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.RemoteAudioTrack
+import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.RemoteVideoTrack
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.RTCStatsGetter
@@ -57,7 +61,7 @@ class RemoteParticipant(
         info.identity,
         signalClient,
         ioDispatcher,
-        defaultDispatcher
+        defaultDispatcher,
     ) {
         super.updateFromInfo(info)
     }
@@ -83,7 +87,7 @@ class RemoteParticipant(
                 publication = RemoteTrackPublication(
                     trackInfo,
                     participant = this,
-                    ioDispatcher = ioDispatcher
+                    ioDispatcher = ioDispatcher,
                 )
 
                 newTrackPublications[trackSid] = publication
@@ -147,7 +151,7 @@ class RemoteParticipant(
                 name = "",
                 autoManageVideo = autoManageVideo,
                 dispatcher = ioDispatcher,
-                receiver = receiver
+                receiver = receiver,
             )
 
             else -> throw TrackException.InvalidTrackTypeException("invalid track type: $kind")
@@ -176,7 +180,11 @@ class RemoteParticipant(
 
         val track = publication.track
         if (track != null) {
-            track.stop()
+            try {
+                track.stop()
+            } catch (e: IllegalStateException) {
+                // track may already be disposed, ignore.
+            }
             internalListener?.onTrackUnsubscribed(track, publication, this)
             listener?.onTrackUnsubscribed(track, publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnsubscribed(this, track, publication), scope)
@@ -186,7 +194,6 @@ class RemoteParticipant(
             listener?.onTrackUnpublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
         }
-        track?.dispose()
         publication.track = null
     }
 
@@ -198,7 +205,7 @@ class RemoteParticipant(
 
             eventBus.postEvent(
                 ParticipantEvent.TrackSubscriptionPermissionChanged(this, pub, pub.subscriptionAllowed),
-                coroutineScope
+                coroutineScope,
             )
         }
     }
