@@ -26,6 +26,11 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.video.ViewVisibility.Notifier
 import java.util.Observable
 
+/**
+ * Provides the visibility and dimensions of the video sink, allowing LiveKit
+ * to automatically manage the quality of the stream when adaptive streaming
+ * is used.
+ */
 abstract class VideoSinkVisibility : Observable() {
     abstract fun isVisible(): Boolean
     abstract fun size(): Track.Dimensions
@@ -83,9 +88,12 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
 
     private fun scheduleRecalculate() {
         handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({
-            recalculate()
-        }, 2000)
+        handler.postDelayed(
+            {
+                recalculate()
+            },
+            2000,
+        )
     }
 
     fun recalculate() {
