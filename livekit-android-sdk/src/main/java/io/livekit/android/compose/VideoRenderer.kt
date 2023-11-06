@@ -43,7 +43,6 @@ fun VideoRenderer(
     modifier: Modifier = Modifier,
     mirror: Boolean = false,
 ) {
-
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var view: TextureViewRenderer? by remember { mutableStateOf(null) }
