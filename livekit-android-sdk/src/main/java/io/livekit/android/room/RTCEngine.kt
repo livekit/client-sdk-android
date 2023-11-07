@@ -36,7 +36,6 @@ import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
@@ -102,7 +101,6 @@ internal constructor(
 
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
-    private val reconnectingLock = Mutex()
     private var fullReconnectOnNext = false
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
@@ -301,6 +299,7 @@ internal constructor(
         if (isClosed) {
             return
         }
+        LKLog.v { "Close - $reason" }
         isClosed = true
         hasPublished = false
         sessionUrl = null
@@ -343,12 +342,14 @@ internal constructor(
     /**
      * reconnect Signal and PeerConnections
      */
+    @Synchronized
     internal fun reconnect() {
-        val didLock = reconnectingLock.tryLock()
-        if (!didLock) {
+        if (reconnectingJob?.isActive == true) {
+            LKLog.d { "Reconnection is already in progress" }
             return
         }
         if (this.isClosed) {
+            LKLog.d { "Skip reconnection - engine is closed" }
             return
         }
         val url = sessionUrl
@@ -463,7 +464,6 @@ internal constructor(
             if (reconnectingJob == job) {
                 reconnectingJob = null
             }
-            reconnectingLock.unlock()
         }
     }
 
