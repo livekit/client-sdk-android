@@ -363,13 +363,13 @@ internal constructor(
 
             if (primaryCodecMime != null) {
                 val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
-                if (updatedCodec != options.videoCodec) {
+                if (updatedCodec != null && updatedCodec != options.videoCodec) {
                     LKLog.d { "falling back to server selected codec: $updatedCodec" }
-                }
-                options = options.copy(videoCodec = updatedCodec)
+                    options = options.copy(videoCodec = updatedCodec)
 
-                // recompute encodings since bitrates/etc could have changed
-                encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                    // recompute encodings since bitrates/etc could have changed
+                    encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                }
             }
         }
 
@@ -850,6 +850,13 @@ abstract class BaseVideoTrackPublishOptions {
      */
     abstract val scalabilityMode: String?
 
+    /**
+     * Multi-codec Simulcast
+     *
+     * Codecs such as VP9 and AV1 are not supported by all clients. When backupCodec is
+     * set, when an incompatible client attempts to subscribe to the track, LiveKit
+     * will automatically publish a secondary track encoded with the backup codec.
+     */
     abstract val backupCodec: BackupVideoCodec?
 }
 

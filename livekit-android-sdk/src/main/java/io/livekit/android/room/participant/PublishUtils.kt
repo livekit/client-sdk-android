@@ -16,6 +16,9 @@
 
 package io.livekit.android.room.participant
 
-fun String.mimeTypeToVideoCodec(): String {
-    return split("/")[1].lowercase()
+fun String.mimeTypeToVideoCodec(): String? {
+    return split("/")
+        .takeIf { length > 1 }
+        ?.get(1)
+        ?.lowercase()
 }
