@@ -175,12 +175,14 @@ object RTCModule {
     @Provides
     @Singleton
     fun eglBase(
+        @Named(InjectionNames.OVERRIDE_EGL_BASE)
+        @Nullable
+        eglBaseOverride: EglBase?,
         memoryManager: CloseableManager,
     ): EglBase {
-        val eglBase = EglBase.create()
-        memoryManager.registerResource(eglBase) { eglBase.release() }
-
-        return eglBase
+        return eglBaseOverride ?: EglBase
+            .create()
+            .apply { memoryManager.registerClosable { release() } }
     }
 
     @Provides
