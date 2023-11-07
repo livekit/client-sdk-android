@@ -63,4 +63,9 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_EGL_BASE)
+    @Nullable
+    fun eglBase() = overrides.eglBase
 }
