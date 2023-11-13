@@ -31,6 +31,7 @@ import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
@@ -114,18 +115,8 @@ internal constructor(
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
 
-    private var _publisher: PeerConnectionTransport? = null
-    internal val publisher: PeerConnectionTransport
-        get() {
-            return _publisher
-                ?: throw UninitializedPropertyAccessException("publisher has not been initialized yet.")
-        }
-    private var _subscriber: PeerConnectionTransport? = null
-    internal val subscriber: PeerConnectionTransport
-        get() {
-            return _subscriber
-                ?: throw UninitializedPropertyAccessException("subscriber has not been initialized yet.")
-        }
+    private var publisher: PeerConnectionTransport? = null
+    private var subscriber: PeerConnectionTransport? = null
 
     private var reliableDataChannel: DataChannel? = null
     private var reliableDataChannelSub: DataChannel? = null
@@ -181,8 +172,8 @@ internal constructor(
         return joinResponse
     }
 
-    private fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
-        if (_publisher != null && _subscriber != null) {
+    private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
+        if (publisher != null && subscriber != null) {
             // already configured
             return
         }
@@ -196,14 +187,14 @@ internal constructor(
         // Setup peer connections
         val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
 
-        _publisher?.close()
-        _publisher = pctFactory.create(
+        publisher?.close()
+        publisher = pctFactory.create(
             rtcConfig,
             publisherObserver,
             publisherObserver,
         )
-        _subscriber?.close()
-        _subscriber = pctFactory.create(
+        subscriber?.close()
+        subscriber = pctFactory.create(
             rtcConfig,
             subscriberObserver,
             null,
@@ -243,19 +234,22 @@ internal constructor(
         // data channels
         val reliableInit = DataChannel.Init()
         reliableInit.ordered = true
-        reliableDataChannel = publisher.peerConnection.createDataChannel(
-            RELIABLE_DATA_CHANNEL_LABEL,
-            reliableInit,
-        )
-        reliableDataChannel!!.registerObserver(this)
+        reliableDataChannel = publisher?.withPeerConnection {
+            createDataChannel(
+                RELIABLE_DATA_CHANNEL_LABEL,
+                reliableInit,
+            ).apply { registerObserver(this@RTCEngine) }
+        }
+
         val lossyInit = DataChannel.Init()
         lossyInit.ordered = true
         lossyInit.maxRetransmits = 0
-        lossyDataChannel = publisher.peerConnection.createDataChannel(
-            LOSSY_DATA_CHANNEL_LABEL,
-            lossyInit,
-        )
-        lossyDataChannel!!.registerObserver(this)
+        lossyDataChannel = publisher?.withPeerConnection {
+            createDataChannel(
+                LOSSY_DATA_CHANNEL_LABEL,
+                lossyInit,
+            ).apply { registerObserver(this@RTCEngine) }
+        }
     }
 
     /**
@@ -277,11 +271,13 @@ internal constructor(
         }
     }
 
-    internal fun createSenderTransceiver(
+    internal suspend fun createSenderTransceiver(
         rtcTrack: MediaStreamTrack,
         transInit: RtpTransceiverInit,
     ): RtpTransceiver? {
-        return publisher.peerConnection.addTransceiver(rtcTrack, transInit)
+        return publisher?.withPeerConnection {
+            addTransceiver(rtcTrack, transInit)
+        }
     }
 
     fun updateSubscriptionPermissions(
@@ -301,15 +297,15 @@ internal constructor(
         }
         LKLog.v { "Close - $reason" }
         isClosed = true
+        reconnectingJob?.cancel()
+        reconnectingJob = null
+        coroutineScope.close()
         hasPublished = false
         sessionUrl = null
         sessionToken = null
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
-        reconnectingJob?.cancel()
-        reconnectingJob = null
-        coroutineScope.close()
         closeResources(reason)
         connectionState = ConnectionState.DISCONNECTED
     }
@@ -317,10 +313,10 @@ internal constructor(
     private fun closeResources(reason: String) {
         publisherObserver.connectionChangeListener = null
         subscriberObserver.connectionChangeListener = null
-        _publisher?.close()
-        _publisher = null
-        _subscriber?.close()
-        _subscriber = null
+        publisher?.closeBlocking()
+        publisher = null
+        subscriber?.closeBlocking()
+        subscriber = null
 
         fun DataChannel?.completeDispose() {
             this?.unregisterObserver()
@@ -366,6 +362,15 @@ internal constructor(
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
+                if (retries != 0) {
+                    yield()
+                }
+
+                if (isClosed) {
+                    LKLog.v { "RTCEngine closed, aborting reconnection" }
+                    break
+                }
+
                 var startDelay = 100 + retries.toLong() * retries * 500
                 if (startDelay > 5000) {
                     startDelay = 5000
@@ -395,14 +400,14 @@ internal constructor(
                     }
                 } else {
                     LKLog.v { "Attempting soft reconnect." }
-                    subscriber.prepareForIceRestart()
+                    subscriber?.prepareForIceRestart()
                     try {
                         val response = client.reconnect(url, token, participantSid)
                         if (response is Either.Left) {
                             val reconnectResponse = response.value
                             val rtcConfig = makeRTCConfig(Either.Right(reconnectResponse), connectOptions)
-                            _subscriber?.updateRTCConfig(rtcConfig)
-                            _publisher?.updateRTCConfig(rtcConfig)
+                            subscriber?.updateRTCConfig(rtcConfig)
+                            publisher?.updateRTCConfig(rtcConfig)
                         }
                         client.onReadyForResponses()
                     } catch (e: Exception) {
@@ -420,11 +425,17 @@ internal constructor(
                         negotiatePublisher()
                     }
                 }
+
+                if (isClosed) {
+                    LKLog.v { "RTCEngine closed, aborting reconnection" }
+                    break
+                }
+
                 // wait until ICE connected
                 val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
                 if (hasPublished) {
                     while (SystemClock.elapsedRealtime() < endTime) {
-                        if (publisher.peerConnection.connectionState().isConnected()) {
+                        if (publisher?.isConnected() == true) {
                             LKLog.v { "publisher reconnected to ICE" }
                             break
                         }
@@ -432,8 +443,13 @@ internal constructor(
                     }
                 }
 
+                if (isClosed) {
+                    LKLog.v { "RTCEngine closed, aborting reconnection" }
+                    break
+                }
+
                 while (SystemClock.elapsedRealtime() < endTime) {
-                    if (subscriber.peerConnection.connectionState().isConnected()) {
+                    if (subscriber?.isConnected() == true) {
                         LKLog.v { "reconnected to ICE" }
                         connectionState = ConnectionState.CONNECTED
                         break
@@ -441,8 +457,12 @@ internal constructor(
                     delay(100)
                 }
 
+                if (isClosed) {
+                    LKLog.v { "RTCEngine closed, aborting reconnection" }
+                    break
+                }
                 if (connectionState == ConnectionState.CONNECTED &&
-                    (!hasPublished || publisher.peerConnection.connectionState().isConnected())
+                    (!hasPublished || publisher?.isConnected() == true)
                 ) {
                     client.onPCConnected()
                     listener?.onPostReconnect(isFullReconnect)
@@ -475,7 +495,7 @@ internal constructor(
         hasPublished = true
 
         coroutineScope.launch {
-            publisher.negotiate(getPublisherOfferConstraints())
+            publisher?.negotiate?.invoke(getPublisherOfferConstraints())
         }
     }
 
@@ -498,12 +518,12 @@ internal constructor(
             return
         }
 
-        if (_publisher == null) {
+        if (publisher == null) {
             throw RoomException.ConnectException("Publisher isn't setup yet! Is room not connected?!")
         }
 
-        if (!publisher.peerConnection.isConnected() &&
-            publisher.peerConnection.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
+        if (publisher?.isConnected() != true &&
+            publisher?.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
         ) {
             // start negotiation
             this.negotiatePublisher()
@@ -517,7 +537,7 @@ internal constructor(
         // wait until publisher ICE connected
         val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
         while (SystemClock.elapsedRealtime() < endTime) {
-            if (this.publisher.peerConnection.isConnected() && targetChannel.state() == DataChannel.State.OPEN) {
+            if (publisher?.isConnected() == true && targetChannel.state() == DataChannel.State.OPEN) {
                 return
             }
             delay(50)
@@ -676,10 +696,11 @@ internal constructor(
     // ---------------------------------- SignalClient.Listener --------------------------------------//
 
     override fun onAnswer(sessionDescription: SessionDescription) {
-        LKLog.v { "received server answer: ${sessionDescription.type}, ${publisher.peerConnection.signalingState()}" }
+        val signalingState = runBlocking { publisher?.signalingState() }
+        LKLog.v { "received server answer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
             LKLog.i { sessionDescription.toString() }
-            when (val outcome = publisher.setRemoteDescription(sessionDescription)) {
+            when (val outcome = publisher?.setRemoteDescription(sessionDescription)) {
                 is Either.Left -> {
                     // do nothing.
                 }
@@ -687,49 +708,72 @@ internal constructor(
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
                 }
+
+                else -> {
+                    LKLog.w { "publisher is null, can't set remote description." }
+                }
             }
         }
     }
 
     override fun onOffer(sessionDescription: SessionDescription) {
-        LKLog.v { "received server offer: ${sessionDescription.type}, ${subscriber.peerConnection.signalingState()}" }
+        val signalingState = runBlocking { publisher?.signalingState() }
+        LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
-            run<Unit> {
-                when (
-                    val outcome =
-                        subscriber.setRemoteDescription(sessionDescription)
-                ) {
-                    is Either.Right -> {
-                        LKLog.e { "error setting remote description for answer: ${outcome.value} " }
-                        return@launch
-                    }
 
-                    else -> {}
-                }
-            }
+            // TODO: This is a potentially very long lock hold. May need to break up.
+            val answer = subscriber?.withPeerConnection {
+                run {
+                    when (
+                        val outcome =
+                            subscriber?.setRemoteDescription(sessionDescription)
+                    ) {
+                        is Either.Right -> {
+                            LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                            return@withPeerConnection null
+                        }
 
-            val answer = run {
-                when (val outcome = subscriber.peerConnection.createAnswer(MediaConstraints())) {
-                    is Either.Left -> outcome.value
-                    is Either.Right -> {
-                        LKLog.e { "error creating answer: ${outcome.value}" }
-                        return@launch
+                        else -> {}
                     }
                 }
-            }
 
-            run<Unit> {
-                when (val outcome = subscriber.peerConnection.setLocalDescription(answer)) {
-                    is Either.Right -> {
-                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
-                        return@launch
-                    }
-
-                    else -> {}
+                if (isClosed) {
+                    return@withPeerConnection null
                 }
-            }
 
-            client.sendAnswer(answer)
+                val answer = run {
+                    when (val outcome = createAnswer(MediaConstraints())) {
+                        is Either.Left -> outcome.value
+                        is Either.Right -> {
+                            LKLog.e { "error creating answer: ${outcome.value}" }
+                            return@withPeerConnection null
+                        }
+                    }
+                }
+
+                if (isClosed) {
+                    return@withPeerConnection null
+                }
+
+                run<Unit> {
+                    when (val outcome = setLocalDescription(answer)) {
+                        is Either.Right -> {
+                            LKLog.e { "error setting local description for answer: ${outcome.value}" }
+                            return@withPeerConnection null
+                        }
+
+                        else -> {}
+                    }
+                }
+
+                if (isClosed) {
+                    return@withPeerConnection null
+                }
+                return@withPeerConnection answer
+            }
+            answer?.let {
+                client.sendAnswer(it)
+            }
         }
     }
 
@@ -737,14 +781,15 @@ internal constructor(
         LKLog.v { "received ice candidate from peer: $candidate, $target" }
         when (target) {
             LivekitRtc.SignalTarget.PUBLISHER -> {
-                if (_publisher != null) {
-                    publisher.addIceCandidate(candidate)
-                } else {
-                    LKLog.w { "received candidate for publisher when we don't have one. ignoring." }
-                }
+                publisher?.addIceCandidate(candidate)
+                    ?: LKLog.w { "received candidate for publisher when we don't have one. ignoring." }
             }
 
-            LivekitRtc.SignalTarget.SUBSCRIBER -> subscriber.addIceCandidate(candidate)
+            LivekitRtc.SignalTarget.SUBSCRIBER -> {
+                subscriber?.addIceCandidate(candidate)
+                    ?: LKLog.w { "received candidate for subscriber when we don't have one. ignoring." }
+            }
+
             else -> LKLog.i { "unknown ice candidate target?" }
         }
     }
@@ -866,7 +911,9 @@ internal constructor(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
-        val answer = subscriber.peerConnection.localDescription?.toProtoSessionDescription()
+        val answer = runBlocking {
+            subscriber?.withPeerConnection { localDescription?.toProtoSessionDescription() }
+        }
 
         val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
             .toList()
@@ -892,12 +939,61 @@ internal constructor(
     }
 
     fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) {
-        _publisher?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+        runBlocking {
+            publisher?.withPeerConnection { getStats(callback) }
+                ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+        }
     }
 
     fun getSubscriberRTCStats(callback: RTCStatsCollectorCallback) {
-        _subscriber?.peerConnection?.getStats(callback) ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+        runBlocking {
+            subscriber?.withPeerConnection { getStats(callback) }
+                ?: callback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+        }
     }
+
+
+    fun createStatsGetter(sender: RtpSender): RTCStatsGetter {
+        val p = publisher
+        return { statsCallback: RTCStatsCollectorCallback ->
+            runBlocking {
+                p?.withPeerConnection {
+                    getStats(sender, statsCallback)
+                } ?: statsCallback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+            }
+        }
+    }
+
+
+    fun createStatsGetter(receiver: RtpReceiver): RTCStatsGetter {
+        val p = subscriber
+        return { statsCallback: RTCStatsCollectorCallback ->
+            runBlocking {
+                p?.withPeerConnection {
+                    getStats(receiver, statsCallback)
+                } ?: statsCallback.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+            }
+        }
+    }
+
+    internal fun registerTrackBitrateInfo(cid: String, trackBitrateInfo: TrackBitrateInfo) {
+        publisher?.registerTrackBitrateInfo(cid, trackBitrateInfo)
+    }
+
+    internal fun removeTrack(rtcTrack: MediaStreamTrack) {
+        runBlocking {
+            publisher?.withPeerConnection {
+                val senders = this.senders
+                for (sender in senders) {
+                    val t = sender.track() ?: continue
+                    if (t.id() == rtcTrack.id()) {
+                        this@withPeerConnection.removeTrack(sender)
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 /**

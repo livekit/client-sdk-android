@@ -16,10 +16,15 @@
 
 package io.livekit.android.mock
 
+import com.google.protobuf.MessageLite
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import livekit.LivekitRtc.LeaveRequest
+import livekit.LivekitRtc.SignalRequest
+import livekit.LivekitRtc.SignalResponse
+import livekit.LivekitRtc.TrackPublishedResponse
 import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -42,23 +47,8 @@ class MockWebSocketFactory : WebSocket.Factory {
     lateinit var listener: WebSocketListener
     override fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket {
         this.ws = MockWebSocket(request, listener) { byteString ->
-            val signalRequest = LivekitRtc.SignalRequest.parseFrom(byteString.toPBByteString())
-            if (signalRequest.hasAddTrack()) {
-                val addTrack = signalRequest.addTrack
-                val trackPublished = with(LivekitRtc.SignalResponse.newBuilder()) {
-                    trackPublished = with(LivekitRtc.TrackPublishedResponse.newBuilder()) {
-                        cid = addTrack.cid
-                        if (addTrack.type == LivekitModels.TrackType.AUDIO) {
-                            track = TestData.LOCAL_AUDIO_TRACK
-                        } else {
-                            track = TestData.LOCAL_VIDEO_TRACK
-                        }
-                        build()
-                    }
-                    build()
-                }
-                this.listener.onMessage(this.ws, trackPublished.toOkioByteString())
-            }
+            val signalRequest = SignalRequest.parseFrom(byteString.toPBByteString())
+            handleSignalRequest(signalRequest)
         }
         this.listener = listener
         this.request = request
@@ -67,9 +57,70 @@ class MockWebSocketFactory : WebSocket.Factory {
         return ws
     }
 
+    private val signalRequestHandlers = mutableListOf<SignalRequestHandler>(
+        { signalRequest -> defaultHandleSignalRequest(signalRequest) },
+    )
+
+    fun registerSignalRequestHandler(handler: SignalRequestHandler) {
+        signalRequestHandlers.add(0, handler)
+    }
+
+    private fun handleSignalRequest(signalRequest: SignalRequest) {
+        for (handler in signalRequestHandlers) {
+            if (handler.invoke(signalRequest)) {
+                break
+            }
+        }
+    }
+
+    private fun defaultHandleSignalRequest(signalRequest: SignalRequest): Boolean {
+        when (signalRequest.messageCase) {
+            SignalRequest.MessageCase.ADD_TRACK -> {
+                val addTrack = signalRequest.addTrack
+                val trackPublished = with(SignalResponse.newBuilder()) {
+                    trackPublished = with(TrackPublishedResponse.newBuilder()) {
+                        cid = addTrack.cid
+                        track = if (addTrack.type == LivekitModels.TrackType.AUDIO) {
+                            TestData.LOCAL_AUDIO_TRACK
+                        } else {
+                            TestData.LOCAL_VIDEO_TRACK
+                        }
+                        build()
+                    }
+                    build()
+                }
+                receiveMessage(trackPublished)
+                return true
+            }
+
+            SignalRequest.MessageCase.LEAVE -> {
+                val leaveResponse = with(SignalResponse.newBuilder()) {
+                    leave = with(LeaveRequest.newBuilder()) {
+                        canReconnect = false
+                        reason = LivekitModels.DisconnectReason.CLIENT_INITIATED
+                        build()
+                    }
+                    build()
+                }
+                receiveMessage(leaveResponse)
+                return true
+            }
+
+            else -> {
+                return false
+            }
+        }
+    }
+
     var onOpen: ((MockWebSocketFactory) -> Unit)? = null
+
+    fun receiveMessage(message: MessageLite) {
+        receiveMessage(message.toOkioByteString())
+    }
 
     fun receiveMessage(byteString: ByteString) {
         listener.onMessage(ws, byteString)
     }
 }
+
+typealias SignalRequestHandler = (SignalRequest) -> Boolean
