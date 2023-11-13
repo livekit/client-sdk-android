@@ -17,7 +17,6 @@
 package io.livekit.android.room
 
 import io.livekit.android.MockE2ETest
-import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,7 +46,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         val sentIceServers = SignalClientTest.JOIN.join.iceServersList
             .map { it.toWebrtc() }
-        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        val subPeerConnection = getSubscriberPeerConnection()
 
         assertEquals(sentIceServers, subPeerConnection.rtcConfig.iceServers)
     }
@@ -57,7 +56,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         assertEquals(
             SignalClientTest.OFFER.offer.sdp,
-            rtcEngine.subscriber.peerConnection.remoteDescription.description,
+            getSubscriberPeerConnection().remoteDescription?.description,
         )
 
         val ws = wsFactory.ws
@@ -65,7 +64,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             .mergeFrom(ws.sentRequests[0].toPBByteString())
             .build()
 
-        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        val subPeerConnection = getSubscriberPeerConnection()
         val localAnswer = subPeerConnection.localDescription ?: throw IllegalStateException("no answer was created.")
         Assert.assertTrue(sentRequest.hasAnswer())
         assertEquals(localAnswer.description, sentRequest.answer.sdp)
@@ -88,7 +87,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         val oldWs = wsFactory.ws
 
-        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        val subPeerConnection = getSubscriberPeerConnection()
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
         testScheduler.advanceTimeBy(1000)
 
@@ -101,7 +100,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         val oldWs = wsFactory.ws
 
-        val pubPeerConnection = rtcEngine.publisher.peerConnection as MockPeerConnection
+        val pubPeerConnection = getPublisherPeerConnection()
         pubPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
         testScheduler.advanceTimeBy(1000)
 
@@ -138,7 +137,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             },
         )
 
-        val subPeerConnection = rtcEngine.subscriber.peerConnection as MockPeerConnection
+        val subPeerConnection = getSubscriberPeerConnection()
         assertEquals(PeerConnection.IceTransportsType.RELAY, subPeerConnection.rtcConfig.iceTransportsType)
     }
 

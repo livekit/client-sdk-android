@@ -17,6 +17,7 @@
 package io.livekit.android.room
 
 import android.os.SystemClock
+import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
@@ -990,6 +991,15 @@ internal constructor(
             }
         }
     }
+
+    @VisibleForTesting
+    internal suspend fun getPublisherPeerConnection() =
+        publisher?.withPeerConnection { this }!!
+
+    @VisibleForTesting
+    internal suspend fun getSubscriberPeerConnection() =
+        subscriber?.withPeerConnection { this }!!
+
 }
 
 /**

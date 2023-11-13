@@ -24,7 +24,6 @@ import io.livekit.android.mock.MockWebSocketFactory
 import io.livekit.android.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.mock.dagger.TestCoroutinesModule
 import io.livekit.android.mock.dagger.TestLiveKitComponent
-import io.livekit.android.room.PeerConnectionTransport
 import io.livekit.android.room.Room
 import io.livekit.android.room.SignalClientTest
 import io.livekit.android.util.toOkioByteString
@@ -45,7 +44,6 @@ abstract class MockE2ETest : BaseTest() {
     internal lateinit var context: Context
     internal lateinit var room: Room
     internal lateinit var wsFactory: MockWebSocketFactory
-    internal lateinit var subscriber: PeerConnectionTransport
 
     @Before
     fun mocksSetup() {
@@ -77,16 +75,27 @@ abstract class MockE2ETest : BaseTest() {
         job.join()
     }
 
-    fun connectPeerConnection() {
-        subscriber = component.rtcEngine().subscriber
+    suspend fun getSubscriberPeerConnection() =
+        component
+            .rtcEngine()
+            .getSubscriberPeerConnection() as MockPeerConnection
+
+    suspend fun getPublisherPeerConnection() =
+        component
+            .rtcEngine()
+            .getPublisherPeerConnection() as MockPeerConnection
+
+
+    suspend fun connectPeerConnection() {
         simulateMessageFromServer(SignalClientTest.OFFER)
-        val subPeerConnection = subscriber.peerConnection as MockPeerConnection
+        val subPeerConnection = getSubscriberPeerConnection()
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
     }
 
-    fun disconnectPeerConnection() {
-        subscriber = component.rtcEngine().subscriber
-        val subPeerConnection = subscriber.peerConnection as MockPeerConnection
+    suspend fun disconnectPeerConnection() {
+        val subPeerConnection = component
+            .rtcEngine()
+            .getSubscriberPeerConnection() as MockPeerConnection
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.FAILED)
     }
 

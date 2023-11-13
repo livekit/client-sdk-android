@@ -89,8 +89,7 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         testScheduler.advanceTimeBy(1000)
         connectPeerConnection()
 
-        val rtcEngine = component.rtcEngine()
-        val rtcConfig = (rtcEngine.subscriber.peerConnection as MockPeerConnection).rtcConfig
+        val rtcConfig = getSubscriberPeerConnection().rtcConfig
         assertEquals(PeerConnection.IceTransportsType.RELAY, rtcConfig.iceTransportsType)
 
         val sentIceServers = SignalClientTest.RECONNECT.reconnect.iceServersList
