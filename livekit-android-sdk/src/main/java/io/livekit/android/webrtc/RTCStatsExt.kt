@@ -19,12 +19,9 @@ package io.livekit.android.webrtc
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.MediaStreamTrack
-import org.webrtc.PeerConnection
 import org.webrtc.RTCStats
 import org.webrtc.RTCStatsCollectorCallback
 import org.webrtc.RTCStatsReport
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpSender
 import kotlin.coroutines.resume
 
 /**

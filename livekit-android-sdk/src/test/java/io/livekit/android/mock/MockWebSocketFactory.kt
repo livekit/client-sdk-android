@@ -20,7 +20,6 @@ import com.google.protobuf.MessageLite
 import io.livekit.android.util.toOkioByteString
 import io.livekit.android.util.toPBByteString
 import livekit.LivekitModels
-import livekit.LivekitRtc
 import livekit.LivekitRtc.LeaveRequest
 import livekit.LivekitRtc.SignalRequest
 import livekit.LivekitRtc.SignalResponse

@@ -720,7 +720,6 @@ internal constructor(
         val signalingState = runBlocking { publisher?.signalingState() }
         LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
-
             // TODO: This is a potentially very long lock hold. May need to break up.
             val answer = subscriber?.withPeerConnection {
                 run {
@@ -952,7 +951,6 @@ internal constructor(
         }
     }
 
-
     fun createStatsGetter(sender: RtpSender): RTCStatsGetter {
         val p = publisher
         return { statsCallback: RTCStatsCollectorCallback ->
@@ -963,7 +961,6 @@ internal constructor(
             }
         }
     }
-
 
     fun createStatsGetter(receiver: RtpReceiver): RTCStatsGetter {
         val p = subscriber
@@ -993,7 +990,6 @@ internal constructor(
             }
         }
     }
-
 }
 
 /**
