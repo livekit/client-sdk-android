@@ -85,7 +85,6 @@ abstract class MockE2ETest : BaseTest() {
             .rtcEngine()
             .getPublisherPeerConnection() as MockPeerConnection
 
-
     suspend fun connectPeerConnection() {
         simulateMessageFromServer(SignalClientTest.OFFER)
         val subPeerConnection = getSubscriberPeerConnection()

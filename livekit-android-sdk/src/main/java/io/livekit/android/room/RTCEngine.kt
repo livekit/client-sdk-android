@@ -999,7 +999,6 @@ internal constructor(
     @VisibleForTesting
     internal suspend fun getSubscriberPeerConnection() =
         subscriber?.withPeerConnection { this }!!
-
 }
 
 /**

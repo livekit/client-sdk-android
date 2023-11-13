@@ -18,7 +18,6 @@ package io.livekit.android.room
 
 import io.livekit.android.MockE2ETest
 import io.livekit.android.mock.MockAudioStreamTrack
-import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
