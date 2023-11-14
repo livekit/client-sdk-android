@@ -24,6 +24,12 @@
 #########################################
 -keep class org.webrtc.** { *; }
 
+# NIST sdp parser
+#########################################
+-keep class android.gov.nist.** { *; }
+-dontwarn com.sun.nio.sctp.**
+-dontwarn org.apache.log4j.**
+
 # Protobuf
 #########################################
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
