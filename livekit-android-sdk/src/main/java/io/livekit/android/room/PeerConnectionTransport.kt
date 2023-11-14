@@ -36,7 +36,10 @@ import io.livekit.android.webrtc.getRtps
 import io.livekit.android.webrtc.isConnected
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import org.webrtc.*
@@ -263,7 +266,14 @@ constructor(
     suspend fun close() {
         withNotClosedLock {
             isClosed.set(true)
-            peerConnection.dispose()
+            peerConnection.close()
+
+            // Really ugly stop gap measure to avoid race conditions
+            // TODO: Properly lock any PeerConnection resources to prevent usage.
+            GlobalScope.launch {
+                delay(10L * 1000)
+                peerConnection.dispose()
+            }
         }
     }
 
