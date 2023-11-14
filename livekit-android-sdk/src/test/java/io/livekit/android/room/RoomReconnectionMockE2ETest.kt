@@ -18,7 +18,6 @@ package io.livekit.android.room
 
 import io.livekit.android.MockE2ETest
 import io.livekit.android.mock.MockAudioStreamTrack
-import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -89,8 +88,7 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         testScheduler.advanceTimeBy(1000)
         connectPeerConnection()
 
-        val rtcEngine = component.rtcEngine()
-        val rtcConfig = (rtcEngine.subscriber.peerConnection as MockPeerConnection).rtcConfig
+        val rtcConfig = getSubscriberPeerConnection().rtcConfig
         assertEquals(PeerConnection.IceTransportsType.RELAY, rtcConfig.iceTransportsType)
 
         val sentIceServers = SignalClientTest.RECONNECT.reconnect.iceServersList

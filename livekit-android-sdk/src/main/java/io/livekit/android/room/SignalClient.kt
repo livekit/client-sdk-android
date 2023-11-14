@@ -88,6 +88,8 @@ constructor(
     private var requestFlowJob: Job? = null
     private val requestFlow = MutableSharedFlow<LivekitRtc.SignalRequest>(Int.MAX_VALUE)
 
+    private val responseFlowJobLock = Object()
+    private var responseFlowJob: Job? = null
     private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
     private var pingJob: Job? = null
@@ -202,10 +204,17 @@ constructor(
      * Should be called after resolving the join message.
      */
     fun onReadyForResponses() {
-        coroutineScope.launch {
-            responseFlow.collect {
-                responseFlow.resetReplayCache()
-                handleSignalResponseImpl(it)
+        if (responseFlowJob != null) {
+            return
+        }
+        synchronized(responseFlowJobLock) {
+            if (responseFlowJob == null) {
+                responseFlowJob = coroutineScope.launch {
+                    responseFlow.collect {
+                        responseFlow.resetReplayCache()
+                        handleSignalResponseImpl(it)
+                    }
+                }
             }
         }
     }
@@ -378,7 +387,7 @@ constructor(
         type: LivekitModels.TrackType,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ) {
-        var encryptionType = lastRoomOptions?.e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE
+        val encryptionType = lastRoomOptions?.e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE
         val addTrackRequest = builder
             .setCid(cid)
             .setName(name)
@@ -731,6 +740,8 @@ constructor(
         }
         requestFlowJob?.cancel()
         requestFlowJob = null
+        responseFlowJob?.cancel()
+        responseFlowJob = null
         pingJob?.cancel()
         pingJob = null
         pongJob?.cancel()

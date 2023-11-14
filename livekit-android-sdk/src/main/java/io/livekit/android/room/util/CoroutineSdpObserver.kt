@@ -17,6 +17,10 @@
 package io.livekit.android.room.util
 
 import io.livekit.android.util.Either
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.webrtc.MediaConstraints
 import org.webrtc.PeerConnection
 import org.webrtc.SdpObserver
@@ -26,26 +30,47 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 open class CoroutineSdpObserver : SdpObserver {
+
+    private val stateLock = Mutex()
     private var createOutcome: Either<SessionDescription, String?>? = null
         set(value) {
-            field = value
+            val conts = runBlocking {
+                stateLock.withLock {
+                    field = value
+                    if (value != null) {
+                        val conts = pendingCreate.toList()
+                        pendingCreate.clear()
+                        conts
+                    } else {
+                        null
+                    }
+                }
+            }
             if (value != null) {
-                val conts = pendingCreate.toList()
-                pendingCreate.clear()
-                conts.forEach {
+                conts?.forEach {
                     it.resume(value)
                 }
             }
         }
+
     private var pendingCreate = mutableListOf<Continuation<Either<SessionDescription, String?>>>()
 
     private var setOutcome: Either<Unit, String?>? = null
         set(value) {
-            field = value
+            val conts = runBlocking {
+                stateLock.withLock {
+                    field = value
+                    if (value != null) {
+                        val conts = pendingSets.toList()
+                        pendingSets.clear()
+                        conts
+                    } else {
+                        null
+                    }
+                }
+            }
             if (value != null) {
-                val conts = pendingSets.toList()
-                pendingSets.clear()
-                conts.forEach {
+                conts?.forEach {
                     it.resume(value)
                 }
             }
@@ -72,21 +97,41 @@ open class CoroutineSdpObserver : SdpObserver {
         setOutcome = Either.Right(message)
     }
 
-    suspend fun awaitCreate() = suspendCoroutine { cont ->
-        val curOutcome = createOutcome
-        if (curOutcome != null) {
-            cont.resume(curOutcome)
+    suspend fun awaitCreate() = suspendCancellableCoroutine { cont ->
+        val unlockedOutcome = createOutcome
+        if (unlockedOutcome != null) {
+            cont.resume(unlockedOutcome)
         } else {
-            pendingCreate.add(cont)
+            runBlocking {
+                stateLock.lock()
+                val lockedOutcome = createOutcome
+                if (lockedOutcome != null) {
+                    stateLock.unlock()
+                    cont.resume(lockedOutcome)
+                } else {
+                    pendingCreate.add(cont)
+                    stateLock.unlock()
+                }
+            }
         }
     }
 
     suspend fun awaitSet() = suspendCoroutine { cont ->
-        val curOutcome = setOutcome
-        if (curOutcome != null) {
-            cont.resume(curOutcome)
+        val unlockedOutcome = setOutcome
+        if (unlockedOutcome != null) {
+            cont.resume(unlockedOutcome)
         } else {
-            pendingSets.add(cont)
+            runBlocking {
+                stateLock.lock()
+                val lockedOutcome = setOutcome
+                if (lockedOutcome != null) {
+                    stateLock.unlock()
+                    cont.resume(lockedOutcome)
+                } else {
+                    pendingSets.add(cont)
+                    stateLock.unlock()
+                }
+            }
         }
     }
 }

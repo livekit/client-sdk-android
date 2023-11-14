@@ -23,7 +23,6 @@ import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.mock.MockAudioStreamTrack
 import io.livekit.android.mock.MockEglBase
-import io.livekit.android.mock.MockPeerConnection
 import io.livekit.android.mock.MockVideoCapturer
 import io.livekit.android.mock.MockVideoStreamTrack
 import io.livekit.android.room.DefaultsManager
@@ -176,7 +175,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         room.localParticipant.publishVideoTrack(track = createLocalTrack())
 
-        val peerConnection = component.rtcEngine().publisher.peerConnection
+        val peerConnection = getPublisherPeerConnection()
         val transceiver = peerConnection.transceivers.first()
 
         Mockito.verify(transceiver).setCodecPreferences(
@@ -195,7 +194,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         room.localParticipant.publishVideoTrack(track = createLocalTrack())
 
-        val peerConnection = component.rtcEngine().publisher.peerConnection
+        val peerConnection = getPublisherPeerConnection()
         val transceiver = peerConnection.transceivers.first()
 
         Mockito.verify(transceiver).setCodecPreferences(
@@ -236,7 +235,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         val vp8Codec = addTrackRequest.simulcastCodecsList[1]
         assertEquals("vp8", vp8Codec.codec)
 
-        val publisherConn = component.rtcEngine().publisher.peerConnection as MockPeerConnection
+        val publisherConn = getPublisherPeerConnection()
 
         assertEquals(1, publisherConn.transceivers.size)
         Mockito.verify(publisherConn.transceivers.first()).setCodecPreferences(
