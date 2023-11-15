@@ -55,7 +55,7 @@ class CustomAudioProcessingFactory {
         externalAudioProcesser?.SetBypassFlagForRenderPre(bypass)
     }
 
-    private class AudioProcessingBridge: ExternalAudioProcessingFactory.AudioProcessing {
+    private class AudioProcessingBridge : ExternalAudioProcessingFactory.AudioProcessing {
         var audioProcessing: AudioProcessing? = null
         override fun Initialize(sampleRateHz: Int, numChannels: Int) {
             audioProcessing?.Initialize(sampleRateHz, numChannels)
@@ -69,5 +69,4 @@ class CustomAudioProcessingFactory {
             audioProcessing?.Process(numBans, numFrames, buffer!!)
         }
     }
-
 }

@@ -28,7 +28,6 @@ import io.livekit.android.LiveKit
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
-import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
 import org.webrtc.*

@@ -23,5 +23,5 @@ interface AudioProcessing {
 
     fun Reset(newRate: Int)
 
-    fun Process(numBans: Int, numFrames: Int,  buffer: ByteBuffer)
+    fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer)
 }
