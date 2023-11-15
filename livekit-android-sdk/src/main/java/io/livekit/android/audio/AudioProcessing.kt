@@ -18,10 +18,22 @@ package io.livekit.android.audio
 
 import java.nio.ByteBuffer
 
+/**
+ * Interface for external audio processing.
+ */
 interface AudioProcessing {
+    /**
+     * Initialize the audio processing.
+     */
     fun Initialize(sampleRateHz: Int, numChannels: Int)
 
+    /**
+     * sample rate changed
+     */
     fun Reset(newRate: Int)
 
+    /**
+     * Process the audio frame (10ms).
+     */
     fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer)
 }

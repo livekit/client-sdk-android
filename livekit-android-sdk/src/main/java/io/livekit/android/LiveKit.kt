@@ -72,7 +72,8 @@ class LiveKit {
         }
 
         /**
-         * Returns the [AudioProcessingRegistry] used by LiveKit.
+         * Returns the [AudioProcessingController] used by LiveKit for
+         * external audio processing.
          */
         fun audioProcessingController(): AudioProcessingController {
             return RTCModule.audioProcessingController()

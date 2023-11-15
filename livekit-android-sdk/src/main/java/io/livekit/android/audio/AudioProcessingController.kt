@@ -16,9 +16,27 @@
 
 package io.livekit.android.audio
 
+/**
+ * Interface for controlling external audio processing.
+ */
 interface AudioProcessingController {
+    /**
+     * Set the audio processing to be used for capture post.
+     */
     fun setCapturePostProcessing(processing: AudioProcessing)
+
+    /**
+     * Set whether to bypass mode the capture post processing.
+     */
     fun setByPassForCapturePostProcessing(bypass: Boolean)
+
+    /**
+     * Set the audio processing to be used for render pre.
+     */
     fun setRenderPreProcessing(processing: AudioProcessing)
+
+    /**
+     * Set whether to bypass mode the render pre processing.
+     */
     fun setByPassForRenderPreProcessing(bypass: Boolean)
 }
