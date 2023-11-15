@@ -25,9 +25,11 @@ import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
+import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
+import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
 import org.webrtc.*
@@ -212,6 +214,13 @@ object RTCModule {
     }
 
     @Provides
+    @Singleton
+    @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+    fun audioProcessingController(): AudioProcessingController {
+        return CustomAudioProcessingFactory.sharedInstance()
+    }
+
+    @Provides
     fun videoDecoderFactory(
         @Suppress("UNUSED_PARAMETER")
         @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
@@ -232,19 +241,6 @@ object RTCModule {
 
     @Provides
     @Singleton
-    fun audioProcessingFactory(
-        @Suppress("UNUSED_PARAMETER")
-        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
-        webrtcInitialization: LibWebrtcInitialization,
-        @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSING_FACTORY)
-        @Nullable
-        audioProcessingFactoryOverride: AudioProcessingFactory?,
-    ): AudioProcessingFactory {
-        return audioProcessingFactoryOverride ?: ExternalAudioProcessingFactory()
-    }
-
-    @Provides
-    @Singleton
     fun peerConnectionFactory(
         @Suppress("UNUSED_PARAMETER")
         @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
@@ -252,12 +248,11 @@ object RTCModule {
         audioDeviceModule: AudioDeviceModule,
         videoEncoderFactory: VideoEncoderFactory,
         videoDecoderFactory: VideoDecoderFactory,
-        audioProcessingFactory: AudioProcessingFactory,
         memoryManager: CloseableManager,
     ): PeerConnectionFactory {
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
-            .setAudioProcessingFactory(audioProcessingFactory)
+            .setAudioProcessingFactory(CustomAudioProcessingFactory.sharedInstance().audioProcessingFactory())
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
             .createPeerConnectionFactory()

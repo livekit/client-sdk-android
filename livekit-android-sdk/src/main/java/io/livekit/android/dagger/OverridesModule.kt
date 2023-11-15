@@ -56,11 +56,6 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     fun videoDecoderFactory() = overrides.videoDecoderFactory
 
     @Provides
-    @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSING_FACTORY)
-    @Nullable
-    fun audioProcessingFactory() = overrides.audioProcessingFactory
-
-    @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_HANDLER)
     @Nullable
     fun audioHandler() = overrides.audioOptions?.audioHandler

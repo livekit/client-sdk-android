@@ -17,21 +17,32 @@
 package io.livekit.android.webrtc
 
 import io.livekit.android.audio.AudioProcessing
+import io.livekit.android.audio.AudioProcessingController
 import org.webrtc.AudioProcessingFactory
 import org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
 
-class CustomAudioProcessingFactory {
-    constructor() {
+class CustomAudioProcessingFactory : AudioProcessingController {
+    companion object {
+        @Volatile
+        private var instance: CustomAudioProcessingFactory? = null
+        fun sharedInstance() =
+            instance ?: synchronized(this) {
+                instance ?: CustomAudioProcessingFactory().also { instance = it }
+            }
+    }
+
+    private constructor() {
         externalAudioProcesser = ExternalAudioProcessingFactory()
     }
+
     private var externalAudioProcesser: ExternalAudioProcessingFactory? = null
 
     fun audioProcessingFactory(): AudioProcessingFactory? {
         return externalAudioProcesser
     }
 
-    fun setCapturePostProcessing(processing: AudioProcessing) {
+    override fun setCapturePostProcessing(processing: AudioProcessing) {
         externalAudioProcesser?.SetCapturePostProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
@@ -39,11 +50,11 @@ class CustomAudioProcessingFactory {
         )
     }
 
-    fun setByPassForCapturePostProcessing(bypass: Boolean) {
+    override fun setByPassForCapturePostProcessing(bypass: Boolean) {
         externalAudioProcesser?.SetBypassFlagForCapturePost(bypass)
     }
 
-    fun setRenderPreProcessing(processing: AudioProcessing) {
+    override fun setRenderPreProcessing(processing: AudioProcessing) {
         externalAudioProcesser?.SetRenderPreProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
@@ -51,7 +62,7 @@ class CustomAudioProcessingFactory {
         )
     }
 
-    fun setByPassForRenderPreProcessing(bypass: Boolean) {
+    override fun setByPassForRenderPreProcessing(bypass: Boolean) {
         externalAudioProcesser?.SetBypassFlagForRenderPre(bypass)
     }
 
