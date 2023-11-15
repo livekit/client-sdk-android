@@ -147,7 +147,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation deps.coroutines.lib
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.serialization}"
-    api 'io.github.webrtc-sdk:android:114.5735.05'
+    api 'io.github.webrtc-sdk:android:114.5735.06'
     api "com.squareup.okhttp3:okhttp:4.12.0"
     api 'com.github.davidliu:audioswitch:89582c47c9a04c62f90aa5e57251af4800a62c9a'
     implementation deps.androidx.annotation

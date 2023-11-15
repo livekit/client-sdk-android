@@ -24,6 +24,7 @@ import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
 import okhttp3.OkHttpClient
+import org.webrtc.AudioProcessingFactory
 import org.webrtc.EglBase
 import org.webrtc.VideoDecoderFactory
 import org.webrtc.VideoEncoderFactory
@@ -48,6 +49,11 @@ data class LiveKitOverrides(
      * Override the [VideoDecoderFactory] used by the library.
      */
     val videoDecoderFactory: VideoDecoderFactory? = null,
+
+    /**
+     * Override the [AudioProcessingFactory] used by the library.
+     */
+    val audioProcessingFactory: AudioProcessingFactory? = null,
 
     /**
      * Override various audio options used by the library.
