@@ -25,21 +25,6 @@ class CustomAudioProcessingFactory {
     constructor() {
         externalAudioProcesser = ExternalAudioProcessingFactory()
     }
-    class AudioProcessingBridge: ExternalAudioProcessingFactory.AudioProcessing {
-        var audioProcessing: AudioProcessing? = null
-        override fun Initialize(sampleRateHz: Int, numChannels: Int) {
-            audioProcessing?.Initialize(sampleRateHz, numChannels)
-        }
-
-        override fun Reset(newRate: Int) {
-            audioProcessing?.Reset(newRate)
-        }
-
-        override fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer?) {
-            audioProcessing?.Process(numBans, numFrames, buffer!!)
-        }
-    }
-
     private var externalAudioProcesser: ExternalAudioProcessingFactory? = null
 
     fun audioProcessingFactory(): AudioProcessingFactory? {
@@ -54,6 +39,10 @@ class CustomAudioProcessingFactory {
         )
     }
 
+    fun setByPassForCapturePostProcessing(bypass: Boolean) {
+        externalAudioProcesser?.SetBypassFlagForCapturePost(bypass)
+    }
+
     fun setRenderPreProcessing(processing: AudioProcessing) {
         externalAudioProcesser?.SetRenderPreProcessing(
             AudioProcessingBridge().apply {
@@ -61,4 +50,24 @@ class CustomAudioProcessingFactory {
             },
         )
     }
+
+    fun setByPassForRenderPreProcessing(bypass: Boolean) {
+        externalAudioProcesser?.SetBypassFlagForRenderPre(bypass)
+    }
+
+    private class AudioProcessingBridge: ExternalAudioProcessingFactory.AudioProcessing {
+        var audioProcessing: AudioProcessing? = null
+        override fun Initialize(sampleRateHz: Int, numChannels: Int) {
+            audioProcessing?.Initialize(sampleRateHz, numChannels)
+        }
+
+        override fun Reset(newRate: Int) {
+            audioProcessing?.Reset(newRate)
+        }
+
+        override fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer?) {
+            audioProcessing?.Process(numBans, numFrames, buffer!!)
+        }
+    }
+
 }
