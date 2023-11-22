@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.util
 
-import org.webrtc.DataChannel
+import livekit.org.webrtc.DataChannel
 
 fun DataChannel.unpackedTrackLabel(): Triple<String, String, String> {
     val parts = label().split("|")

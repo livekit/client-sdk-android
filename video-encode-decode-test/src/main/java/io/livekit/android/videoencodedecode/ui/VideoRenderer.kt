@@ -34,7 +34,7 @@ import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.VideoTrack
-import org.webrtc.RendererCommon
+import livekit.org.webrtc.RendererCommon
 
 enum class ScaleType {
     FitInside,

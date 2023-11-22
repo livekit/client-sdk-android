@@ -22,9 +22,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.os.Build
 import android.view.Surface
-import org.webrtc.CapturerObserver
-import org.webrtc.SurfaceTextureHelper
-import org.webrtc.VideoCapturer
+import livekit.org.webrtc.CapturerObserver
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
 
 /**
  * A [VideoCapturer] that can be manually driven by passing in [Bitmap].

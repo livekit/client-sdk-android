@@ -21,10 +21,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.webrtc.MediaConstraints
-import org.webrtc.PeerConnection
-import org.webrtc.SdpObserver
-import org.webrtc.SessionDescription
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.SdpObserver
+import livekit.org.webrtc.SessionDescription
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine

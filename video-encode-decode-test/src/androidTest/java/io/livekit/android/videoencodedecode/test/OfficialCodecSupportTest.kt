@@ -4,9 +4,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-import org.webrtc.DefaultVideoEncoderFactory
-import org.webrtc.EglBase
-import org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.DefaultVideoEncoderFactory
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
 
 class OfficialCodecSupportTest {
     val defaultVideoEncoderFactory = DefaultVideoEncoderFactory(EglBase.create().eglBaseContext, true, true)

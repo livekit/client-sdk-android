@@ -16,8 +16,8 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.VideoSink
-import org.webrtc.VideoTrack
+import livekit.org.webrtc.VideoSink
+import livekit.org.webrtc.VideoTrack
 import java.util.UUID
 
 class MockVideoStreamTrack(

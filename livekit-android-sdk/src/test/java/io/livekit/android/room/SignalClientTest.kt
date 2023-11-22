@@ -40,7 +40,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.times
-import org.webrtc.SessionDescription
+import livekit.org.webrtc.SessionDescription
 
 @ExperimentalCoroutinesApi
 class SignalClientTest : BaseTest() {

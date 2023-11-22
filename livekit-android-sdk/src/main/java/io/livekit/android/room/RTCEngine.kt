@@ -42,9 +42,9 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject

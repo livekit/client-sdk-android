@@ -18,14 +18,14 @@ package io.livekit.android.room
 
 import io.livekit.android.util.LKLog
 import livekit.LivekitRtc
-import org.webrtc.CandidatePairChangeEvent
-import org.webrtc.DataChannel
-import org.webrtc.IceCandidate
-import org.webrtc.MediaStream
-import org.webrtc.MediaStreamTrack
-import org.webrtc.PeerConnection
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpTransceiver
+import livekit.org.webrtc.CandidatePairChangeEvent
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpTransceiver
 
 /**
  * @suppress

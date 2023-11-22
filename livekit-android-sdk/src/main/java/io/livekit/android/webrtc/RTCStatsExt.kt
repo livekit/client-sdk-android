@@ -18,10 +18,10 @@ package io.livekit.android.webrtc
 
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.suspendCancellableCoroutine
-import org.webrtc.MediaStreamTrack
-import org.webrtc.RTCStats
-import org.webrtc.RTCStatsCollectorCallback
-import org.webrtc.RTCStatsReport
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.RTCStats
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
 import kotlin.coroutines.resume
 
 /**

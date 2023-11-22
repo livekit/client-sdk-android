@@ -66,7 +66,7 @@ class MediaTrackEqualsDetector : Detector(), SourceCodeScanner {
     }
 
     companion object {
-        private const val MEDIA_STREAM_TRACK = "org.webrtc.MediaStreamTrack"
+        private const val MEDIA_STREAM_TRACK = "livekit.org.webrtc.MediaStreamTrack"
 
         private const val DEFAULT_MSG =
             "Suspicious equality check: MediaStreamTracks should not be checked for equality. Check id() instead."
@@ -81,7 +81,7 @@ class MediaTrackEqualsDetector : Detector(), SourceCodeScanner {
             explanation = """
                 MediaStreamTrack does not implement `equals`, and therefore cannot be relied upon.
                 Additionally, many MediaStreamTrack objects may exist for the same underlying stream,
-                and therefore the identity operator `===` is unreliable. 
+                and therefore the identity operator `===` is unreliable.
                 """,
             category = Category.CORRECTNESS,
             priority = 4,

@@ -223,7 +223,7 @@ class RemoteTrackPublication(
         val participant = this.participant.get() as? RemoteParticipant ?: return
 
         val rtcTrack = track?.rtcTrack
-        if (rtcTrack is org.webrtc.VideoTrack) {
+        if (rtcTrack is livekit.org.webrtc.VideoTrack) {
             rtcTrack.setShouldReceive(!disabled)
         }
 

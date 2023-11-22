@@ -41,8 +41,8 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
-import org.webrtc.*
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.*
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import javax.inject.Named
 import kotlin.math.max
 

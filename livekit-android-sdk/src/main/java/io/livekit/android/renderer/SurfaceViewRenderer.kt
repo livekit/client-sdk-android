@@ -20,7 +20,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
-import org.webrtc.SurfaceViewRenderer
+import livekit.org.webrtc.SurfaceViewRenderer
 
 open class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
     constructor(context: Context) : super(context)

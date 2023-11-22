@@ -21,7 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.Mockito
-import org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
 
 class RTCConfigurationTest : BaseTest() {
 

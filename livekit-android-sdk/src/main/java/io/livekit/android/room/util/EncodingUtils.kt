@@ -22,7 +22,7 @@ import io.livekit.android.room.track.VideoPreset169
 import io.livekit.android.room.track.VideoPreset43
 import io.livekit.android.room.track.video.ScalabilityMode
 import livekit.LivekitModels
-import org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpParameters
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max

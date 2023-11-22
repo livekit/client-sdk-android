@@ -23,7 +23,7 @@ import dagger.Provides
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.mock.MockEglBase
-import org.webrtc.*
+import livekit.org.webrtc.*
 import javax.inject.Named
 import javax.inject.Singleton
 

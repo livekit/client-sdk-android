@@ -17,7 +17,7 @@
 package io.livekit.android.mock
 
 import org.mockito.Mockito
-import org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpReceiver
 
 object MockRtpReceiver {
     fun create(): RtpReceiver {

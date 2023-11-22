@@ -17,7 +17,7 @@
 package io.livekit.android
 
 import io.livekit.android.room.ProtocolVersion
-import org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection
 
 data class ConnectOptions(
     /** Auto subscribe to room tracks upon connect, defaults to true */

@@ -2,8 +2,8 @@ package io.livekit.android.videoencodedecode
 
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.webrtc.SimulcastVideoEncoderFactoryWrapper
-import org.webrtc.EglBase
-import org.webrtc.VideoCodecInfo
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.VideoCodecInfo
 
 class WhitelistSimulcastVideoEncoderFactory(
     sharedContext: EglBase.Context?,

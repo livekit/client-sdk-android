@@ -1,9 +1,9 @@
 package io.livekit.android.videoencodedecode
 
 import com.github.ajalt.timberkt.Timber
-import org.webrtc.DefaultVideoEncoderFactory
-import org.webrtc.EglBase
-import org.webrtc.VideoCodecInfo
+import livekit.org.webrtc.DefaultVideoEncoderFactory
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.VideoCodecInfo
 
 class WhitelistDefaultVideoEncoderFactory(
     eglContext: EglBase.Context?,

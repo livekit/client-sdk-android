@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.track.video
 
-import org.webrtc.CameraVideoCapturer.CameraEventsHandler
+import livekit.org.webrtc.CameraVideoCapturer.CameraEventsHandler
 
 /**
  * Dispatches CameraEventsHandler callbacks to registered handlers.

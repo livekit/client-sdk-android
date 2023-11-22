@@ -20,10 +20,10 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import org.webrtc.MediaConstraints
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpSender
-import org.webrtc.RtpTransceiver
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
 import java.util.*
 
 /**
@@ -33,7 +33,7 @@ import java.util.*
  */
 class LocalAudioTrack(
     name: String,
-    mediaTrack: org.webrtc.AudioTrack
+    mediaTrack: livekit.org.webrtc.AudioTrack
 ) : AudioTrack(name, mediaTrack) {
     var enabled: Boolean
         get() = rtcTrack.enabled()

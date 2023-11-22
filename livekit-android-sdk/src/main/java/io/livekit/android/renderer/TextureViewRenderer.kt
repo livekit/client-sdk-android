@@ -19,8 +19,8 @@ import android.view.SurfaceHolder
 import android.view.TextureView
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
-import org.webrtc.*
-import org.webrtc.RendererCommon.*
+import livekit.org.webrtc.*
+import livekit.org.webrtc.RendererCommon.*
 import java.util.concurrent.CountDownLatch
 
 /**

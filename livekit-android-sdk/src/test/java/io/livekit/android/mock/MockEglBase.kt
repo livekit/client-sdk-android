@@ -18,7 +18,7 @@ package io.livekit.android.mock
 
 import android.graphics.SurfaceTexture
 import android.view.Surface
-import org.webrtc.EglBase
+import livekit.org.webrtc.EglBase
 
 class MockEglBase(
     private val eglContext: EglBase.Context = EglBase.Context { 0 },

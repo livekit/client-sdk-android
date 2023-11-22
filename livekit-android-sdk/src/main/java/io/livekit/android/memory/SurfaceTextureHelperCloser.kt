@@ -16,7 +16,7 @@
 
 package io.livekit.android.memory
 
-import org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.SurfaceTextureHelper
 import java.io.Closeable
 
 internal class SurfaceTextureHelperCloser(private val surfaceTextureHelper: SurfaceTextureHelper) : Closeable {

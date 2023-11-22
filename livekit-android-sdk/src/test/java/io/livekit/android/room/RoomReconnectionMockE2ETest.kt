@@ -27,7 +27,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection
 
 /**
  * For tests that only target one reconnection type.

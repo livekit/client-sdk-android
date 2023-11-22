@@ -26,8 +26,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-import org.webrtc.VideoFrame
-import org.webrtc.VideoSink
+import livekit.org.webrtc.VideoFrame
+import livekit.org.webrtc.VideoSink
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemoteVideoTrackTest : BaseTest() {

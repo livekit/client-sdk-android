@@ -16,9 +16,9 @@
 
 package io.livekit.android.room.track
 
-import org.webrtc.AudioTrack
-import org.webrtc.AudioTrackSink
-import org.webrtc.RtpReceiver
+import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrackSink
+import livekit.org.webrtc.RtpReceiver
 
 class RemoteAudioTrack(
     name: String,

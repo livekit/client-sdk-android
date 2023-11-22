@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.track
 
-import org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpParameters
 
 data class LocalVideoTrackOptions(
     val isScreencast: Boolean = false,

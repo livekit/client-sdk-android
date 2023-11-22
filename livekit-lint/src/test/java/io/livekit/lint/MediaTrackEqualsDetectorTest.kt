@@ -40,7 +40,7 @@ class MediaTrackEqualsDetectorTest {
                 java(
                     """
           package foo;
-          
+
           class Example {
             public boolean foo() {
               Object a = new Object();
@@ -64,8 +64,8 @@ class MediaTrackEqualsDetectorTest {
                 java(
                     """
           package foo;
-          import org.webrtc.MediaStreamTrack;
-          
+          import livekit.org.webrtc.MediaStreamTrack;
+
           class Example {
             public boolean foo() {
               MediaStreamTrack a = new MediaStreamTrack();
@@ -89,8 +89,8 @@ class MediaTrackEqualsDetectorTest {
                 java(
                     """
           package foo;
-          import org.webrtc.MediaStreamTrack;
-          
+          import livekit.org.webrtc.MediaStreamTrack;
+
           class Example {
             public boolean foo() {
               ABC a = new ABC();
@@ -141,8 +141,8 @@ class MediaTrackEqualsDetectorTest {
                 kotlin(
                     """
           package foo
-          import org.webrtc.MediaStreamTrack
-          
+          import livekit.org.webrtc.MediaStreamTrack
+
           class Example {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
@@ -166,8 +166,8 @@ class MediaTrackEqualsDetectorTest {
                 kotlin(
                     """
           package foo
-          import org.webrtc.MediaStreamTrack
-          
+          import livekit.org.webrtc.MediaStreamTrack
+
           class Example {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
@@ -191,8 +191,8 @@ class MediaTrackEqualsDetectorTest {
                 kotlin(
                     """
           package foo
-          import org.webrtc.MediaStreamTrack
-          
+          import livekit.org.webrtc.MediaStreamTrack
+
           class Example {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
@@ -216,8 +216,8 @@ class MediaTrackEqualsDetectorTest {
                 kotlin(
                     """
           package foo
-          import org.webrtc.MediaStreamTrack
-          
+          import livekit.org.webrtc.MediaStreamTrack
+
           class Example {
             fun foo() : Boolean {
               val a = MediaStreamTrack()
@@ -236,12 +236,12 @@ class MediaTrackEqualsDetectorTest {
 fun mediaStreamTrack(): TestFile {
     return java(
         """
-        package org.webrtc;
-        
+        package livekit.org.webrtc.;
+
         class MediaStreamTrack {
             int getId(){
                 return 0;
-            }        
+            }
         }
     """
     ).indented()

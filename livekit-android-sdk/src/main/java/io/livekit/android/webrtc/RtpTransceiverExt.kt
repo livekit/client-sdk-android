@@ -18,9 +18,9 @@ package io.livekit.android.webrtc
 
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.util.LKLog
-import org.webrtc.MediaStreamTrack
-import org.webrtc.RtpCapabilities
-import org.webrtc.RtpTransceiver
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.RtpCapabilities
+import livekit.org.webrtc.RtpTransceiver
 
 internal fun RtpTransceiver.sortVideoCodecPreferences(targetCodec: String, capabilitiesGetter: CapabilitiesGetter) {
     val capabilities = capabilitiesGetter(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO)

@@ -18,7 +18,7 @@ package io.livekit.android.room
 
 import io.livekit.android.util.LKLog
 import livekit.LivekitRtc
-import org.webrtc.*
+import livekit.org.webrtc.*
 
 /**
  * @suppress

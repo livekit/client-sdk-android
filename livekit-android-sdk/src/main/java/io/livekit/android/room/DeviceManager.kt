@@ -20,8 +20,8 @@ import android.content.Context
 import android.hardware.camera2.CameraManager
 import android.os.Handler
 import android.os.Looper
-import org.webrtc.Camera1Enumerator
-import org.webrtc.Camera2Enumerator
+import livekit.org.webrtc.Camera1Enumerator
+import livekit.org.webrtc.Camera2Enumerator
 
 object DeviceManager {
 

@@ -16,7 +16,7 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrack
 
 class MockAudioStreamTrack(
     val id: String = "id",

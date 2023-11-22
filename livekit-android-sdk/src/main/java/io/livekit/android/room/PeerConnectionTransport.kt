@@ -39,9 +39,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.PeerConnection.SignalingState
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection.SignalingState
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts

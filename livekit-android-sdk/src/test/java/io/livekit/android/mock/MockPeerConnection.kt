@@ -16,23 +16,23 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.DataChannel
-import org.webrtc.IceCandidate
-import org.webrtc.MediaConstraints
-import org.webrtc.MediaStream
-import org.webrtc.MediaStreamTrack
-import org.webrtc.MockRtpTransceiver
-import org.webrtc.NativePeerConnectionFactory
-import org.webrtc.PeerConnection
-import org.webrtc.RTCStatsCollectorCallback
-import org.webrtc.RTCStatsReport
-import org.webrtc.RtcCertificatePem
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpSender
-import org.webrtc.RtpTransceiver
-import org.webrtc.SdpObserver
-import org.webrtc.SessionDescription
-import org.webrtc.StatsObserver
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.MockRtpTransceiver
+import livekit.org.webrtc.NativePeerConnectionFactory
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
+import livekit.org.webrtc.RtcCertificatePem
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SdpObserver
+import livekit.org.webrtc.SessionDescription
+import livekit.org.webrtc.StatsObserver
 
 private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
     override fun createNativePeerConnection(): Long = 0L

@@ -46,7 +46,7 @@ import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.VideoSource
+import livekit.org.webrtc.VideoSource
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)

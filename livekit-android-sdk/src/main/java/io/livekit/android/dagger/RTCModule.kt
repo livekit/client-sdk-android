@@ -30,9 +30,9 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
-import org.webrtc.*
-import org.webrtc.audio.AudioDeviceModule
-import org.webrtc.audio.JavaAudioDeviceModule
+import livekit.org.webrtc.*
+import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
@@ -55,6 +55,7 @@ object RTCModule {
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions
                 .builder(appContext)
+                .setNativeLibraryName("lkjingle_peerconnection_so")
                 .setInjectableLogger(
                     { s, severity, s2 ->
                         if (!LiveKit.enableWebRTCLogging) {

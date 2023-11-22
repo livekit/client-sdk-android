@@ -23,9 +23,9 @@ import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.getStats
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.MediaStreamTrack
-import org.webrtc.RTCStatsCollectorCallback
-import org.webrtc.RTCStatsReport
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
 
 abstract class Track(
     name: String,

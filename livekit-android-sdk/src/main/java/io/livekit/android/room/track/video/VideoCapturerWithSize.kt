@@ -17,7 +17,7 @@
 package io.livekit.android.room.track.video
 
 import android.hardware.camera2.CameraManager
-import org.webrtc.*
+import livekit.org.webrtc.*
 
 /**
  * @suppress

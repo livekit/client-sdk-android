@@ -40,9 +40,9 @@ import livekit.LivekitRtc.ReconnectResponse
 import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import org.webrtc.IceCandidate
-import org.webrtc.PeerConnection
-import org.webrtc.SessionDescription
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.SessionDescription
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Named

@@ -32,10 +32,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.AudioTrack
-import org.webrtc.MediaStreamTrack
-import org.webrtc.RtpReceiver
-import org.webrtc.VideoTrack
+import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.VideoTrack
 
 class RemoteParticipant(
     sid: String,

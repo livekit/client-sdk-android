@@ -40,18 +40,18 @@ import livekit.LivekitModels
 import livekit.LivekitModels.VideoQuality
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
-import org.webrtc.CameraVideoCapturer
-import org.webrtc.CameraVideoCapturer.CameraEventsHandler
-import org.webrtc.EglBase
-import org.webrtc.MediaStreamTrack
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpParameters
-import org.webrtc.RtpSender
-import org.webrtc.RtpTransceiver
-import org.webrtc.SurfaceTextureHelper
-import org.webrtc.VideoCapturer
-import org.webrtc.VideoProcessor
-import org.webrtc.VideoSource
+import livekit.org.webrtc.CameraVideoCapturer
+import livekit.org.webrtc.CameraVideoCapturer.CameraEventsHandler
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
+import livekit.org.webrtc.VideoProcessor
+import livekit.org.webrtc.VideoSource
 import java.util.UUID
 
 /**
@@ -66,7 +66,7 @@ constructor(
     @Assisted private var source: VideoSource,
     @Assisted name: String,
     @Assisted options: LocalVideoTrackOptions,
-    @Assisted rtcTrack: org.webrtc.VideoTrack,
+    @Assisted rtcTrack: livekit.org.webrtc.VideoTrack,
     private val peerConnectionFactory: PeerConnectionFactory,
     private val context: Context,
     private val eglBase: EglBase,
@@ -74,7 +74,7 @@ constructor(
     private val trackFactory: Factory,
 ) : VideoTrack(name, rtcTrack) {
 
-    override var rtcTrack: org.webrtc.VideoTrack = rtcTrack
+    override var rtcTrack: livekit.org.webrtc.VideoTrack = rtcTrack
         internal set
 
     internal var codec: String? = null
@@ -379,7 +379,7 @@ constructor(
             source: VideoSource,
             name: String,
             options: LocalVideoTrackOptions,
-            rtcTrack: org.webrtc.VideoTrack,
+            rtcTrack: livekit.org.webrtc.VideoTrack,
         ): LocalVideoTrack
     }
 

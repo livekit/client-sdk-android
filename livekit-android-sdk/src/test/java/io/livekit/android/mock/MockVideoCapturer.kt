@@ -17,9 +17,9 @@
 package io.livekit.android.mock
 
 import android.content.Context
-import org.webrtc.CapturerObserver
-import org.webrtc.SurfaceTextureHelper
-import org.webrtc.VideoCapturer
+import livekit.org.webrtc.CapturerObserver
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
 
 class MockVideoCapturer : VideoCapturer {
     override fun initialize(p0: SurfaceTextureHelper?, p1: Context?, p2: CapturerObserver?) {

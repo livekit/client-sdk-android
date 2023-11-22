@@ -17,8 +17,8 @@
 package io.livekit.android.e2ee
 
 import io.livekit.android.util.LKLog
-import org.webrtc.FrameCryptorFactory
-import org.webrtc.FrameCryptorKeyProvider
+import livekit.org.webrtc.FrameCryptorFactory
+import livekit.org.webrtc.FrameCryptorKeyProvider
 
 class KeyInfo
 constructor(var participantId: String, var keyIndex: Int, var key: String) {

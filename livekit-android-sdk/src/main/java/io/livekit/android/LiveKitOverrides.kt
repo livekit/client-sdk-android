@@ -24,11 +24,11 @@ import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
 import okhttp3.OkHttpClient
-import org.webrtc.EglBase
-import org.webrtc.VideoDecoderFactory
-import org.webrtc.VideoEncoderFactory
-import org.webrtc.audio.AudioDeviceModule
-import org.webrtc.audio.JavaAudioDeviceModule
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.VideoDecoderFactory
+import livekit.org.webrtc.VideoEncoderFactory
+import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 
 /**
  * Overrides to replace LiveKit internally used components with custom implementations.

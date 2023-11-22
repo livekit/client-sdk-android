@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.webrtc
+package livekit.org.webrtc
 
 /**
  * A helper to access package-protected methods used in [Camera2Session]

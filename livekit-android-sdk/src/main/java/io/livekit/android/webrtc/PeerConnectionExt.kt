@@ -16,8 +16,8 @@
 
 package io.livekit.android.webrtc
 
-import org.webrtc.PeerConnection
-import org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
 
 /**
  * Completed state is a valid state for a connected connection, so this should be used

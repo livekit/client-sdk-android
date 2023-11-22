@@ -28,7 +28,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)

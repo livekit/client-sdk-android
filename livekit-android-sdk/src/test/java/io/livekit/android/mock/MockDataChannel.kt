@@ -16,7 +16,7 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.DataChannel
+import livekit.org.webrtc.DataChannel
 
 class MockDataChannel(private val label: String?) : DataChannel(1L) {
 

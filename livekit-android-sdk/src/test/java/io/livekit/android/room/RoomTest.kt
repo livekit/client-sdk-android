@@ -45,7 +45,7 @@ import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.shadows.ShadowConnectivityManager
-import org.webrtc.EglBase
+import livekit.org.webrtc.EglBase
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)

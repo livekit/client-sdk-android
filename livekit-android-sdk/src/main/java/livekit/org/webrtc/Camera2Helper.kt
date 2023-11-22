@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.webrtc
+package livekit.org.webrtc
 
 import android.hardware.camera2.CameraManager
 

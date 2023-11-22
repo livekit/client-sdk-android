@@ -30,13 +30,13 @@ import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.LKLog
-import org.webrtc.FrameCryptor
-import org.webrtc.FrameCryptor.FrameCryptionState
-import org.webrtc.FrameCryptorAlgorithm
-import org.webrtc.FrameCryptorFactory
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpSender
+import livekit.org.webrtc.FrameCryptor
+import livekit.org.webrtc.FrameCryptor.FrameCryptionState
+import livekit.org.webrtc.FrameCryptorAlgorithm
+import livekit.org.webrtc.FrameCryptorFactory
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
 
 class E2EEManager
 @AssistedInject

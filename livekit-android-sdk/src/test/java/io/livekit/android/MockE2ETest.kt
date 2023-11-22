@@ -35,7 +35,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okio.ByteString
 import org.junit.Before
-import org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection
 
 @ExperimentalCoroutinesApi
 abstract class MockE2ETest : BaseTest() {

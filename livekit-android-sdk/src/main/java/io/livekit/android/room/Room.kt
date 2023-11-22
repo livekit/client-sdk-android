@@ -46,7 +46,7 @@ import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import org.webrtc.*
+import livekit.org.webrtc.*
 import javax.inject.Named
 
 class Room

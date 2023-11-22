@@ -24,7 +24,7 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.sample.record.ui.theme.LivekitandroidTheme
 import io.livekit.android.sample.util.requestNeededPermissions
 import kotlinx.coroutines.launch
-import org.webrtc.EglBase
+import livekit.org.webrtc.EglBase
 import java.io.File
 import java.io.IOException
 import java.util.Date
