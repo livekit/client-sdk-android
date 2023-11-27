@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package livekit.org.webrtc.
+package livekit.org.webrtc
 
 import io.livekit.android.mock.MockRtpReceiver
 import io.livekit.android.mock.MockRtpSender

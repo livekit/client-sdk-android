@@ -14,18 +14,12 @@
  * limitations under the License.
  */
 
-package livekit.org.webrtc.
+package livekit.org.webrtc
 
-import android.content.Context
-import org.mockito.Mockito
-
-object WebRTCInitializer {
-    fun initialize(context: Context = Mockito.mock(Context::class.java)) {
-        try {
-            ContextUtils.initialize(context)
-            NativeLibraryLoaderTestHelper.initialize()
-        } catch (e: Throwable) {
-            // do nothing. this is expected.
+object NativeLibraryLoaderTestHelper {
+    fun initialize() {
+        if (!NativeLibrary.isLoaded()) {
+            NativeLibrary.initialize({ true }, "")
         }
     }
 }
