@@ -65,7 +65,7 @@ internal constructor(
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
-) : SignalClient.Listener, DataChannel.Observer {
+) : SignalClient.Listener {
     internal var listener: Listener? = null
 
     /**
@@ -218,7 +218,7 @@ internal constructor(
                     LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
                     else -> return@onDataChannel
                 }
-                dataChannel.registerObserver(this)
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
             }
 
             subscriberObserver.connectionChangeListener = connectionStateListener
@@ -239,7 +239,9 @@ internal constructor(
             createDataChannel(
                 RELIABLE_DATA_CHANNEL_LABEL,
                 reliableInit,
-            ).apply { registerObserver(this@RTCEngine) }
+            ).also { dataChannel ->
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+            }
         }
 
         val lossyInit = DataChannel.Init()
@@ -249,7 +251,9 @@ internal constructor(
             createDataChannel(
                 LOSSY_DATA_CHANNEL_LABEL,
                 lossyInit,
-            ).apply { registerObserver(this@RTCEngine) }
+            ).also { dataChannel ->
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+            }
         }
     }
 
@@ -684,8 +688,11 @@ internal constructor(
     }
 
     companion object {
-        private const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
-        private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+        @VisibleForTesting
+        internal const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+
+        @VisibleForTesting
+        internal const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_RECONNECT_RETRIES = 10
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
@@ -883,13 +890,13 @@ internal constructor(
 
     // --------------------------------- DataChannel.Observer ------------------------------------//
 
-    override fun onBufferedAmountChange(previousAmount: Long) {
+    fun onBufferedAmountChange(dataChannel: DataChannel, previousAmount: Long) {
     }
 
-    override fun onStateChange() {
+    fun onStateChange(dataChannel: DataChannel) {
     }
 
-    override fun onMessage(buffer: DataChannel.Buffer?) {
+    fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
         if (buffer == null) {
             return
         }
@@ -908,6 +915,20 @@ internal constructor(
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+        }
+    }
+
+    private inner class DataChannelObserver(val dataChannel: DataChannel) : DataChannel.Observer {
+        override fun onBufferedAmountChange(p0: Long) {
+            this@RTCEngine.onBufferedAmountChange(dataChannel, p0)
+        }
+
+        override fun onStateChange() {
+            this@RTCEngine.onStateChange(dataChannel)
+        }
+
+        override fun onMessage(p0: DataChannel.Buffer) {
+            this@RTCEngine.onMessage(dataChannel, p0)
         }
     }
 

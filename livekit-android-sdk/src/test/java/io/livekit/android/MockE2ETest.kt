@@ -35,9 +35,12 @@ import okhttp3.Request
 import okhttp3.Response
 import okio.ByteString
 import org.junit.Before
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.webrtc.PeerConnection
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 abstract class MockE2ETest : BaseTest() {
 
     internal lateinit var component: TestLiveKitComponent
