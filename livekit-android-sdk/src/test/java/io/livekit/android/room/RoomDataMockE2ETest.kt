@@ -1,7 +1,22 @@
+/*
+ * Copyright 2023 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.room
 
 import com.google.protobuf.ByteString
-import io.livekit.android.LiveKit
 import io.livekit.android.MockE2ETest
 import io.livekit.android.assert.assertIsClass
 import io.livekit.android.events.EventCollector
@@ -17,7 +32,7 @@ import org.webrtc.DataChannel
 import java.nio.ByteBuffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RoomDataMockE2ETest: MockE2ETest() {
+class RoomDataMockE2ETest : MockE2ETest() {
     @Test
     fun dataReceivedEvent() = runTest {
         connect()

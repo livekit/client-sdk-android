@@ -690,6 +690,7 @@ internal constructor(
     companion object {
         @VisibleForTesting
         internal const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+
         @VisibleForTesting
         internal const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
