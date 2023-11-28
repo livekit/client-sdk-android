@@ -66,6 +66,16 @@ subprojects {
             toggleOffOn()
         }
     }
+
+    // From Gradle 8 onwards, Kapt no longer automatically picks up jvmTarget
+    // from normal KotlinOptions. Must be manually set.
+    // JvmToolchain should not be used since it changes the actual JDK used.
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs).configureEach {
+        kotlinOptions {
+            jvmTarget = java_version
+        }
+    }
+
 }
 
 task clean(type: Delete) {
