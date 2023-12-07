@@ -1,8 +1,11 @@
 package io.livekit.android.webrtc.peerconnection
 
+import androidx.annotation.VisibleForTesting
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
@@ -23,8 +26,15 @@ private val threadFactory = object : ThreadFactory {
     }
 }
 
-internal val executor = Executors.newSingleThreadExecutor(threadFactory)
-internal val rtcDispatcher = executor.asCoroutineDispatcher()
+// var only for testing purposes, do not alter!
+private var executor = Executors.newSingleThreadExecutor(threadFactory)
+private var rtcDispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
+
+@VisibleForTesting
+internal fun overrideExecutorAndDispatcher(executorService: ExecutorService, dispatcher: CoroutineDispatcher) {
+    executor = executorService
+    rtcDispatcher = dispatcher
+}
 
 /**
  * Execute [action] on the RTC thread. The PeerConnection API
