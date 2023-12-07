@@ -36,6 +36,7 @@ import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
+import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -316,27 +317,29 @@ internal constructor(
     }
 
     private fun closeResources(reason: String) {
-        publisherObserver.connectionChangeListener = null
-        subscriberObserver.connectionChangeListener = null
-        publisher?.closeBlocking()
-        publisher = null
-        subscriber?.closeBlocking()
-        subscriber = null
+        executeOnRTCThread {
+            publisherObserver.connectionChangeListener = null
+            subscriberObserver.connectionChangeListener = null
+            publisher?.closeBlocking()
+            publisher = null
+            subscriber?.closeBlocking()
+            subscriber = null
 
-        fun DataChannel?.completeDispose() {
-            this?.unregisterObserver()
-            this?.close()
-            this?.dispose()
+            fun DataChannel?.completeDispose() {
+                this?.unregisterObserver()
+                this?.close()
+                this?.dispose()
+            }
+            reliableDataChannel?.completeDispose()
+            reliableDataChannel = null
+            reliableDataChannelSub?.completeDispose()
+            reliableDataChannelSub = null
+            lossyDataChannel?.completeDispose()
+            lossyDataChannel = null
+            lossyDataChannelSub?.completeDispose()
+            lossyDataChannelSub = null
+            isSubscriberPrimary = false
         }
-        reliableDataChannel?.completeDispose()
-        reliableDataChannel = null
-        reliableDataChannelSub?.completeDispose()
-        reliableDataChannelSub = null
-        lossyDataChannel?.completeDispose()
-        lossyDataChannel = null
-        lossyDataChannelSub?.completeDispose()
-        lossyDataChannelSub = null
-        isSubscriberPrimary = false
         client.close(reason = reason)
     }
 
@@ -1018,12 +1021,12 @@ internal constructor(
     }
 
     @VisibleForTesting
-    internal suspend fun getPublisherPeerConnection() =
-        publisher?.withPeerConnection { this }!!
+    internal fun getPublisherPeerConnection() =
+        publisher!!.peerConnection
 
     @VisibleForTesting
-    internal suspend fun getSubscriberPeerConnection() =
-        subscriber?.withPeerConnection { this }!!
+    internal fun getSubscriberPeerConnection() =
+        subscriber!!.peerConnection
 }
 
 /**
