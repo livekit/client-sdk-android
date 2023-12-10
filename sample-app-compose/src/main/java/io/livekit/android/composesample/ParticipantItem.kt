@@ -50,7 +50,7 @@ fun ParticipantItem(
     isSpeaking: Boolean,
 ) {
     val identity by participant::identity.flow.collectAsState()
-    val audioTracks by participant::audioTracks.flow.collectAsState()
+    val audioTracks by participant::audioTrackPublications.flow.collectAsState()
     val identityBarPadding = 4.dp
     ConstraintLayout(
         modifier = modifier.background(NoVideoBackground)

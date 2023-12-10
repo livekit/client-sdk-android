@@ -68,7 +68,7 @@ class RemoteParticipant(
 
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
 
-    fun getTrackPublication(sid: String): RemoteTrackPublication? = tracks[sid] as? RemoteTrackPublication
+    fun getTrackPublication(sid: String): RemoteTrackPublication? = trackPublications[sid] as? RemoteTrackPublication
 
     /**
      * @suppress
@@ -105,9 +105,9 @@ class RemoteParticipant(
             eventBus.postEvent(ParticipantEvent.TrackPublished(this, publication), scope)
         }
 
-        val invalidKeys = tracks.keys - validTrackPublication.keys
+        val invalidKeys = trackPublications.keys - validTrackPublication.keys
         for (invalidKey in invalidKeys) {
-            val publication = tracks[invalidKey] ?: continue
+            val publication = trackPublications[invalidKey] ?: continue
             unpublishTrack(publication.sid, true)
         }
     }
@@ -175,8 +175,8 @@ class RemoteParticipant(
     }
 
     fun unpublishTrack(trackSid: String, sendUnpublish: Boolean = false) {
-        val publication = tracks[trackSid] as? RemoteTrackPublication ?: return
-        tracks = tracks.toMutableMap().apply { remove(trackSid) }
+        val publication = trackPublications[trackSid] as? RemoteTrackPublication ?: return
+        trackPublications = trackPublications.toMutableMap().apply { remove(trackSid) }
 
         val track = publication.track
         if (track != null) {
@@ -198,7 +198,7 @@ class RemoteParticipant(
     }
 
     internal fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
-        val pub = tracks[subscriptionPermissionUpdate.trackSid] as? RemoteTrackPublication ?: return
+        val pub = trackPublications[subscriptionPermissionUpdate.trackSid] as? RemoteTrackPublication ?: return
 
         if (pub.subscriptionAllowed != subscriptionPermissionUpdate.allowed) {
             pub.subscriptionAllowed = subscriptionPermissionUpdate.allowed

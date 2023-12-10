@@ -63,7 +63,7 @@ class RemoteTrackPublicationTest : MockE2ETest() {
         wsFactory.ws.clearRequests()
 
         val remoteVideoPub = room.remoteParticipants.values.first()
-            .videoTracks.first()
+            .videoTrackPublications.first()
             .first as RemoteTrackPublication
 
         remoteVideoPub.setVideoQuality(VideoQuality.LOW)

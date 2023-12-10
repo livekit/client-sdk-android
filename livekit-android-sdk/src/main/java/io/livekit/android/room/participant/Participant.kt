@@ -179,7 +179,7 @@ open class Participant(
      */
     @FlowObservable
     @get:FlowObservable
-    var tracks by flowDelegate(emptyMap<String, TrackPublication>())
+    var trackPublications by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
 
     private fun Flow<Map<String, TrackPublication>>.trackUpdateFlow(): Flow<List<Pair<TrackPublication, Track?>>> {
@@ -206,8 +206,8 @@ open class Participant(
      */
     @FlowObservable
     @get:FlowObservable
-    val audioTracks by flowDelegate(
-        stateFlow = ::tracks.flow
+    val audioTrackPublications by flowDelegate(
+        stateFlow = ::trackPublications.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.AUDIO } }
             .trackUpdateFlow()
             .stateIn(delegateScope, SharingStarted.Eagerly, emptyList()),
@@ -218,8 +218,8 @@ open class Participant(
      */
     @FlowObservable
     @get:FlowObservable
-    val videoTracks by flowDelegate(
-        stateFlow = ::tracks.flow
+    val videoTrackPublications by flowDelegate(
+        stateFlow = ::trackPublications.flow
             .map { it.filterValues { publication -> publication.kind == Track.Kind.VIDEO } }
             .trackUpdateFlow()
             .stateIn(delegateScope, SharingStarted.Eagerly, emptyList()),
@@ -231,7 +231,7 @@ open class Participant(
     fun addTrackPublication(publication: TrackPublication) {
         val track = publication.track
         track?.sid = publication.sid
-        tracks = tracks.toMutableMap().apply {
+        trackPublications = trackPublications.toMutableMap().apply {
             this[publication.sid] = publication
         }
     }
@@ -244,7 +244,7 @@ open class Participant(
             return null
         }
 
-        for ((_, pub) in tracks) {
+        for ((_, pub) in trackPublications) {
             if (pub.source == source) {
                 return pub
             }
@@ -269,7 +269,7 @@ open class Participant(
      * Retrieves the first track that matches [name], or null
      */
     open fun getTrackPublicationByName(name: String): TrackPublication? {
-        for ((_, pub) in tracks) {
+        for ((_, pub) in trackPublications) {
             if (pub.name == name) {
                 return pub
             }
@@ -339,7 +339,7 @@ open class Participant(
     }
 
     internal fun onTrackStreamStateChanged(trackEvent: TrackEvent.StreamStateChanged) {
-        val trackPublication = tracks[trackEvent.track.sid] ?: return
+        val trackPublication = trackPublications[trackEvent.track.sid] ?: return
         eventBus.postEvent(
             ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState),
             scope,

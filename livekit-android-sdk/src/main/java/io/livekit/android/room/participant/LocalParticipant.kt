@@ -71,7 +71,7 @@ internal constructor(
 
     var republishes: List<LocalTrackPublication>? = null
     private val localTrackPublications
-        get() = tracks.values
+        get() = trackPublications.values
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
@@ -552,7 +552,7 @@ internal constructor(
         }
 
         val sid = publication.sid
-        tracks = tracks.toMutableMap().apply { remove(sid) }
+        trackPublications = trackPublications.toMutableMap().apply { remove(sid) }
 
         if (engine.connectionState == ConnectionState.CONNECTED) {
             engine.removeTrack(track.rtcTrack)
@@ -570,15 +570,16 @@ internal constructor(
      *
      * @param data payload to send
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
-     * @param destination list of participant SIDs to deliver the payload, null to deliver to everyone
      * @param topic the topic under which the message was published
+     * @param identities list of participant identities to deliver the payload, null to deliver to everyone
+     *
      */
     @Suppress("unused")
     suspend fun publishData(
         data: ByteArray,
         reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
-        destination: List<String>? = null,
         topic: String? = null,
+        identities: List<String>? = null,
     ) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
@@ -594,8 +595,8 @@ internal constructor(
             if (topic != null) {
                 setTopic(topic)
             }
-            if (destination != null) {
-                addAllDestinationSids(destination)
+            if (identities != null) {
+                addAllDestinationSids(identities)
             }
         }
         val dataPacket = LivekitModels.DataPacket.newBuilder()
@@ -611,7 +612,7 @@ internal constructor(
 
         // detect tracks that have mute status mismatched on server
         for (ti in info.tracksList) {
-            val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
+            val publication = this.trackPublications[ti.sid] as? LocalTrackPublication ?: continue
             val localMuted = publication.muted
             if (ti.muted != localMuted) {
                 engine.updateMuteStatus(sid, localMuted)
@@ -640,7 +641,7 @@ internal constructor(
     }
 
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
-        val pub = tracks[trackSid]
+        val pub = trackPublications[trackSid]
         pub?.muted = muted
     }
 
@@ -652,7 +653,7 @@ internal constructor(
         val trackSid = subscribedQualityUpdate.trackSid
         val subscribedCodecs = subscribedQualityUpdate.subscribedCodecsList
         val qualities = subscribedQualityUpdate.subscribedQualitiesList
-        val pub = tracks[trackSid] as? LocalTrackPublication ?: return
+        val pub = trackPublications[trackSid] as? LocalTrackPublication ?: return
         val track = pub.track as? LocalVideoTrack ?: return
         val options = pub.options as? VideoTrackPublishOptions ?: return
 
@@ -671,7 +672,7 @@ internal constructor(
     }
 
     private fun publishAdditionalCodecForTrack(track: LocalVideoTrack, codec: VideoCodec, options: VideoTrackPublishOptions) {
-        val existingPublication = tracks[track.sid] ?: run {
+        val existingPublication = trackPublications[track.sid] ?: run {
             LKLog.w { "attempting to publish additional codec for non-published track?!" }
             return
         }
@@ -735,7 +736,7 @@ internal constructor(
     }
 
     internal fun handleLocalTrackUnpublished(unpublishedResponse: LivekitRtc.TrackUnpublishedResponse) {
-        val pub = tracks[unpublishedResponse.trackSid]
+        val pub = trackPublications[unpublishedResponse.trackSid]
         val track = pub?.track
         if (track == null) {
             LKLog.w { "Received unpublished track response for unknown or non-published track: ${unpublishedResponse.trackSid}" }
@@ -753,7 +754,7 @@ internal constructor(
             republishes = pubs
         }
 
-        tracks = tracks.toMutableMap().apply { clear() }
+        trackPublications = trackPublications.toMutableMap().apply { clear() }
 
         for (publication in pubs) {
             internalListener?.onTrackUnpublished(publication, this)
@@ -780,7 +781,7 @@ internal constructor(
     }
 
     fun cleanup() {
-        for (pub in tracks.values) {
+        for (pub in trackPublications.values) {
             val track = pub.track
 
             if (track != null) {
@@ -810,7 +811,7 @@ internal constructor(
 }
 
 internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishedResponse> {
-    return tracks.values.mapNotNull { trackPub ->
+    return trackPublications.values.mapNotNull { trackPub ->
         val track = trackPub.track ?: return@mapNotNull null
 
         LivekitRtc.TrackPublishedResponse.newBuilder()

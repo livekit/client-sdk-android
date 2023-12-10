@@ -69,7 +69,7 @@ constructor(
         this.enabled = true
         this.room = room
         this.emitEvent = emitEvent
-        this.room?.localParticipant?.tracks?.forEach() { item ->
+        this.room?.localParticipant?.trackPublications?.forEach() { item ->
             var participant = this.room!!.localParticipant
             var publication = item.value
             if (publication.track != null) {
@@ -78,7 +78,7 @@ constructor(
         }
         this.room?.remoteParticipants?.forEach() { item ->
             var participant = item.value
-            participant.tracks.forEach() { item ->
+            participant.trackPublications.forEach() { item ->
                 var publication = item.value
                 if (publication.track != null) {
                     addSubscribedTrack(publication.track!!, publication, participant, room)

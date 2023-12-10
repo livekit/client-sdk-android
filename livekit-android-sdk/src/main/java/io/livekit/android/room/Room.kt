@@ -353,7 +353,7 @@ constructor(
     private fun handleParticipantDisconnect(sid: String) {
         val newParticipants = mutableRemoteParticipants.toMutableMap()
         val removedParticipant = newParticipants.remove(sid) ?: return
-        removedParticipant.tracks.values.toList().forEach { publication ->
+        removedParticipant.trackPublications.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid, true)
         }
 
@@ -581,7 +581,7 @@ constructor(
         for (participant in remoteParticipants.values) {
             val builder = LivekitModels.ParticipantTracks.newBuilder()
             builder.participantSid = participant.sid
-            for (trackPub in participant.tracks.values) {
+            for (trackPub in participant.trackPublications.values) {
                 val remoteTrackPub = (trackPub as? RemoteTrackPublication) ?: continue
                 if (remoteTrackPub.subscribed != sendUnsub) {
                     builder.addTrackSids(remoteTrackPub.sid)
@@ -821,7 +821,7 @@ constructor(
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
         for (streamState in streamStates) {
             val participant = getParticipant(streamState.participantSid) ?: continue
-            val track = participant.tracks[streamState.trackSid] ?: continue
+            val track = participant.trackPublications[streamState.trackSid] ?: continue
 
             track.track?.streamState = Track.StreamState.fromProto(streamState.state)
         }
@@ -887,7 +887,7 @@ constructor(
         } else {
             val remoteParticipants = remoteParticipants.values.toList()
             for (participant in remoteParticipants) {
-                val pubs = participant.tracks.values.toList()
+                val pubs = participant.trackPublications.values.toList()
                 for (pub in pubs) {
                     val remotePub = pub as? RemoteTrackPublication ?: continue
                     if (remotePub.subscribed) {

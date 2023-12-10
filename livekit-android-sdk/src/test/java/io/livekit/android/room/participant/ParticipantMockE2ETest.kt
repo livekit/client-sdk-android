@@ -54,7 +54,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
 
         assertEquals(1, events.size)
         assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
-        assertEquals(0, room.localParticipant.tracks.size)
+        assertEquals(0, room.localParticipant.trackPublications.size)
     }
 
     @Test

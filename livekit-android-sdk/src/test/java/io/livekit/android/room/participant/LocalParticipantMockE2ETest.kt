@@ -74,9 +74,9 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertFalse(room.localParticipant.isSpeaking)
         assertEquals(ConnectionQuality.UNKNOWN, room.localParticipant.connectionQuality)
 
-        assertEquals(0, room.localParticipant.tracks.values.size)
-        assertEquals(0, room.localParticipant.audioTracks.size)
-        assertEquals(0, room.localParticipant.videoTracks.size)
+        assertEquals(0, room.localParticipant.trackPublications.values.size)
+        assertEquals(0, room.localParticipant.audioTrackPublications.size)
+        assertEquals(0, room.localParticipant.videoTrackPublications.size)
     }
 
     @Test
@@ -249,7 +249,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         wsFactory.receiveMessage(
             with(LivekitRtc.SignalResponse.newBuilder()) {
                 subscribedQualityUpdate = with(LivekitRtc.SubscribedQualityUpdate.newBuilder()) {
-                    trackSid = room.localParticipant.videoTracks.first().first.sid
+                    trackSid = room.localParticipant.videoTrackPublications.first().first.sid
                     addAllSubscribedCodecs(
                         listOf(
                             with(SubscribedCodec.newBuilder()) {

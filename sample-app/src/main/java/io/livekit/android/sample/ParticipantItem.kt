@@ -57,7 +57,7 @@ class ParticipantItem(
             }
         }
         coroutineScope?.launch {
-            participant::audioTracks.flow
+            participant::audioTrackPublications.flow
                 .flatMapLatest { tracks ->
                     val audioTrack = tracks.firstOrNull()?.first
                     if (audioTrack != null) {
@@ -79,7 +79,7 @@ class ParticipantItem(
         }
 
         // observe videoTracks changes.
-        val videoTrackPubFlow = participant::videoTracks.flow
+        val videoTrackPubFlow = participant::videoTrackPublications.flow
             .map { participant to it }
             .flatMapLatest { (participant, videoTracks) ->
                 // Prioritize any screenshare streams.

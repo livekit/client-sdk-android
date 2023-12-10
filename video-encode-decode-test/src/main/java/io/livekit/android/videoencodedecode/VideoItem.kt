@@ -137,7 +137,7 @@ fun VideoItemTrackSelector(
     participant: Participant,
     modifier: Modifier = Modifier
 ) {
-    val videoTrackMap by participant::videoTracks.flow.collectAsState(initial = emptyList())
+    val videoTrackMap by participant::videoTrackPublications.flow.collectAsState(initial = emptyList())
     val videoPubs = videoTrackMap.filter { (pub) -> pub.subscribed }
         .map { (pub) -> pub }
     val videoTrack = videoPubs.firstOrNull { pub -> pub.source == Track.Source.SCREEN_SHARE }?.track as? VideoTrack

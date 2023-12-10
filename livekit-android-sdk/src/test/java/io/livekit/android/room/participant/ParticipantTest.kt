@@ -132,10 +132,10 @@ class ParticipantTest {
         val audioPublication = TrackPublication(TRACK_INFO, null, participant)
         participant.addTrackPublication(audioPublication)
 
-        assertEquals(1, participant.tracks.values.size)
-        assertEquals(audioPublication, participant.tracks.values.first())
-        assertEquals(1, participant.audioTracks.size)
-        assertEquals(audioPublication, participant.audioTracks.first().first)
+        assertEquals(1, participant.trackPublications.values.size)
+        assertEquals(audioPublication, participant.trackPublications.values.first())
+        assertEquals(1, participant.audioTrackPublications.size)
+        assertEquals(audioPublication, participant.audioTrackPublications.first().first)
     }
 
     @Test
