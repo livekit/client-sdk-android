@@ -49,5 +49,4 @@ abstract class BaseTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun runTest(testBody: suspend TestScope.() -> Unit) = coroutineRule.scope.runTest(testBody = testBody)
-
 }

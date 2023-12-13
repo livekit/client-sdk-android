@@ -312,7 +312,6 @@ constructor(
         } ?: SignalingState.CLOSED
     }
 
-
     @OptIn(ExperimentalContracts::class)
     private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend () -> T): T? {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }

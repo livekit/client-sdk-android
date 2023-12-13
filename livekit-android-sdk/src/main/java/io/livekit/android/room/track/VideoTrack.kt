@@ -52,6 +52,5 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
             }
         }
         super.stop()
-
     }
 }

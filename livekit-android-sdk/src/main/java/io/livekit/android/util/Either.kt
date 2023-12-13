@@ -21,6 +21,6 @@ sealed class Either<out A, out B> {
     class Right<out B>(val value: B) : Either<Nothing, B>()
 }
 
-fun <A> Either<A, String?>?.nullSafe(): Either<A, String?>{
+fun <A> Either<A, String?>?.nullSafe(): Either<A, String?> {
     return this ?: Either.Right("null")
 }
