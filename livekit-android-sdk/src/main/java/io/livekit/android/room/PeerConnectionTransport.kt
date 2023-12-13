@@ -34,8 +34,8 @@ import io.livekit.android.webrtc.getFmtps
 import io.livekit.android.webrtc.getMsid
 import io.livekit.android.webrtc.getRtps
 import io.livekit.android.webrtc.isConnected
-import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
-import io.livekit.android.webrtc.peerconnection.launchOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -319,8 +319,8 @@ constructor(
         if (isClosed()) {
             return null
         }
-        return launchOnRTCThread {
-            return@launchOnRTCThread if (isClosed()) {
+        return launchBlockingOnRTCThread {
+            return@launchBlockingOnRTCThread if (isClosed()) {
                 null
             } else {
                 action()
@@ -334,8 +334,8 @@ constructor(
         if (isClosed()) {
             return null
         }
-        return executeOnRTCThread {
-            return@executeOnRTCThread if (isClosed()) {
+        return executeBlockingOnRTCThread {
+            return@executeBlockingOnRTCThread if (isClosed()) {
                 null
             } else {
                 action()

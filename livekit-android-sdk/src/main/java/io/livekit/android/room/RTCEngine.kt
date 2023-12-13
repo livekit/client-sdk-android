@@ -37,7 +37,7 @@ import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
-import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -318,7 +318,7 @@ internal constructor(
     }
 
     private fun closeResources(reason: String) {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             publisherObserver.connectionChangeListener = null
             subscriberObserver.connectionChangeListener = null
             publisher?.closeBlocking()

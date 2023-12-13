@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.track
 
-import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import org.webrtc.AudioTrack
 import org.webrtc.AudioTrackSink
 import org.webrtc.RtpReceiver
@@ -36,7 +36,7 @@ class RemoteAudioTrack(
      * to use the data after this function returns.
      */
     fun addSink(sink: AudioTrackSink) {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             rtcTrack.addSink(sink)
         }
     }
@@ -45,7 +45,7 @@ class RemoteAudioTrack(
      * Removes a previously added sink.
      */
     fun removeSink(sink: AudioTrackSink) {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             rtcTrack.removeSink(sink)
         }
     }

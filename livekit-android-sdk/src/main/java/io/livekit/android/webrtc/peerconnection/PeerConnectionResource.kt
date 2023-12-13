@@ -23,19 +23,19 @@ internal abstract class PeerConnectionResource<T>(val parentPeerConnection: Peer
 }
 
 internal class RtpTransceiverResource(parentPeerConnection: PeerConnection, private val senderId: String) : PeerConnectionResource<RtpTransceiver>(parentPeerConnection) {
-    override fun get() = executeOnRTCThread {
+    override fun get() = executeBlockingOnRTCThread {
         parentPeerConnection.transceivers.firstOrNull { t -> t.sender.id() == senderId }
     }
 }
 
 internal class RtpReceiverResource(parentPeerConnection: PeerConnection, private val receiverId: String) : PeerConnectionResource<RtpReceiver>(parentPeerConnection) {
-    override fun get() = executeOnRTCThread {
+    override fun get() = executeBlockingOnRTCThread {
         parentPeerConnection.receivers.firstOrNull { r -> r.id() == receiverId }
     }
 }
 
 internal class RtpSenderResource(parentPeerConnection: PeerConnection, private val senderId: String) : PeerConnectionResource<RtpSender>(parentPeerConnection) {
-    override fun get() = executeOnRTCThread {
+    override fun get() = executeBlockingOnRTCThread {
         parentPeerConnection.senders.firstOrNull { s -> s.id() == senderId }
     }
 }

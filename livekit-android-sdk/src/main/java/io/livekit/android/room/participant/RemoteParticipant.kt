@@ -182,7 +182,7 @@ class RemoteParticipant(
         if (track != null) {
             try {
                 track.stop()
-            } catch (e: IllegalStateException) {
+            } catch (e: Exception) {
                 // track may already be disposed, ignore.
             }
             internalListener?.onTrackUnsubscribed(track, publication, this)

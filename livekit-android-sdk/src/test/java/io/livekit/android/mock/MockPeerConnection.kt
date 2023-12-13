@@ -214,7 +214,8 @@ class MockPeerConnection(
                     IceConnectionState.NEW -> PeerConnectionState.NEW
                     IceConnectionState.CHECKING -> PeerConnectionState.CONNECTING
                     IceConnectionState.CONNECTED,
-                    IceConnectionState.COMPLETED -> PeerConnectionState.CONNECTED
+                    IceConnectionState.COMPLETED,
+                    -> PeerConnectionState.CONNECTED
 
                     IceConnectionState.DISCONNECTED -> PeerConnectionState.DISCONNECTED
                     IceConnectionState.FAILED -> PeerConnectionState.FAILED
@@ -242,7 +243,8 @@ class MockPeerConnection(
             IceConnectionState.NEW,
             IceConnectionState.CHECKING,
             IceConnectionState.CONNECTED,
-            IceConnectionState.COMPLETED -> {
+            IceConnectionState.COMPLETED,
+            -> {
                 val currentOrdinal = iceConnectionState.ordinal
                 val newOrdinal = newState.ordinal
 
@@ -258,7 +260,8 @@ class MockPeerConnection(
 
             IceConnectionState.FAILED,
             IceConnectionState.DISCONNECTED,
-            IceConnectionState.CLOSED -> {
+            IceConnectionState.CLOSED,
+            -> {
                 // jump to state directly.
                 iceConnectionState = newState
             }
@@ -278,6 +281,9 @@ class MockPeerConnection(
     override fun dispose() {
         iceConnectionState = IceConnectionState.CLOSED
         closed = true
+
+        transceivers.forEach { t -> t.dispose() }
+        transceivers.clear()
     }
 
     override fun getNativePeerConnection(): Long = 0L

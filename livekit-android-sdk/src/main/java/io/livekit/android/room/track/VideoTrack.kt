@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.track
 
-import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
@@ -31,21 +31,21 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
         }
 
     open fun addRenderer(renderer: VideoSink) {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             sinks.add(renderer)
             rtcTrack.addSink(renderer)
         }
     }
 
     open fun removeRenderer(renderer: VideoSink) {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             rtcTrack.removeSink(renderer)
             sinks.remove(renderer)
         }
     }
 
     override fun stop() {
-        executeOnRTCThread {
+        executeBlockingOnRTCThread {
             for (sink in sinks) {
                 rtcTrack.removeSink(sink)
                 sinks.clear()

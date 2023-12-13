@@ -41,7 +41,20 @@ internal fun overrideExecutorAndDispatcher(executorService: ExecutorService, dis
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
  */
-fun <T> executeOnRTCThread(action: () -> T): T {
+fun <T> executeOnRTCThread(action: () -> T) {
+    if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
+        action()
+    } else {
+        executor.submit(action)
+    }
+}
+
+/**
+ * Execute [action] synchronously on the RTC thread. The PeerConnection API
+ * is generally not thread safe, so all actions relating to
+ * peer connection objects should go through the RTC thread.
+ */
+fun <T> executeBlockingOnRTCThread(action: () -> T): T {
     return if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
@@ -49,20 +62,17 @@ fun <T> executeOnRTCThread(action: () -> T): T {
     }
 }
 
-
 /**
- * Launch [action] on the RTC thread. The PeerConnection API
+ * Launch [action] synchronously on the RTC thread. The PeerConnection API
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
  */
-suspend fun <T> launchOnRTCThread(action: suspend () -> T): T = coroutineScope {
+suspend fun <T> launchBlockingOnRTCThread(action: suspend () -> T): T = coroutineScope {
     return@coroutineScope if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
-        val result = async(rtcDispatcher) {
+        async(rtcDispatcher) {
             action()
-        }
-
-        result.await()
+        }.await()
     }
 }
