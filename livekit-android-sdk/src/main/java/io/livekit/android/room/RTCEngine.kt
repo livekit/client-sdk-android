@@ -32,10 +32,12 @@ import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.nullSafe
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import livekit.LivekitModels
@@ -316,27 +318,29 @@ internal constructor(
     }
 
     private fun closeResources(reason: String) {
-        publisherObserver.connectionChangeListener = null
-        subscriberObserver.connectionChangeListener = null
-        publisher?.closeBlocking()
-        publisher = null
-        subscriber?.closeBlocking()
-        subscriber = null
+        executeBlockingOnRTCThread {
+            publisherObserver.connectionChangeListener = null
+            subscriberObserver.connectionChangeListener = null
+            publisher?.closeBlocking()
+            publisher = null
+            subscriber?.closeBlocking()
+            subscriber = null
 
-        fun DataChannel?.completeDispose() {
-            this?.unregisterObserver()
-            this?.close()
-            this?.dispose()
+            fun DataChannel?.completeDispose() {
+                this?.unregisterObserver()
+                this?.close()
+                this?.dispose()
+            }
+            reliableDataChannel?.completeDispose()
+            reliableDataChannel = null
+            reliableDataChannelSub?.completeDispose()
+            reliableDataChannelSub = null
+            lossyDataChannel?.completeDispose()
+            lossyDataChannel = null
+            lossyDataChannelSub?.completeDispose()
+            lossyDataChannelSub = null
+            isSubscriberPrimary = false
         }
-        reliableDataChannel?.completeDispose()
-        reliableDataChannel = null
-        reliableDataChannelSub?.completeDispose()
-        reliableDataChannelSub = null
-        lossyDataChannel?.completeDispose()
-        lossyDataChannel = null
-        lossyDataChannelSub?.completeDispose()
-        lossyDataChannelSub = null
-        isSubscriberPrimary = false
         client.close(reason = reason)
     }
 
@@ -712,17 +716,13 @@ internal constructor(
         LKLog.v { "received server answer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
             LKLog.i { sessionDescription.toString() }
-            when (val outcome = publisher?.setRemoteDescription(sessionDescription)) {
+            when (val outcome = publisher?.setRemoteDescription(sessionDescription).nullSafe()) {
                 is Either.Left -> {
                     // do nothing.
                 }
 
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
-                }
-
-                else -> {
-                    LKLog.w { "publisher is null, can't set remote description." }
                 }
             }
         }
@@ -732,59 +732,49 @@ internal constructor(
         val signalingState = runBlocking { publisher?.signalingState() }
         LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
-            // TODO: This is a potentially very long lock hold. May need to break up.
-            val answer = subscriber?.withPeerConnection {
-                run {
-                    when (
-                        val outcome =
-                            subscriber?.setRemoteDescription(sessionDescription)
-                    ) {
-                        is Either.Right -> {
-                            LKLog.e { "error setting remote description for answer: ${outcome.value} " }
-                            return@withPeerConnection null
-                        }
-
-                        else -> {}
+            run {
+                when (val outcome = subscriber?.setRemoteDescription(sessionDescription).nullSafe()) {
+                    is Either.Right -> {
+                        LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                        return@launch
                     }
-                }
 
-                if (isClosed) {
-                    return@withPeerConnection null
+                    else -> {}
                 }
-
-                val answer = run {
-                    when (val outcome = createAnswer(MediaConstraints())) {
-                        is Either.Left -> outcome.value
-                        is Either.Right -> {
-                            LKLog.e { "error creating answer: ${outcome.value}" }
-                            return@withPeerConnection null
-                        }
-                    }
-                }
-
-                if (isClosed) {
-                    return@withPeerConnection null
-                }
-
-                run<Unit> {
-                    when (val outcome = setLocalDescription(answer)) {
-                        is Either.Right -> {
-                            LKLog.e { "error setting local description for answer: ${outcome.value}" }
-                            return@withPeerConnection null
-                        }
-
-                        else -> {}
-                    }
-                }
-
-                if (isClosed) {
-                    return@withPeerConnection null
-                }
-                return@withPeerConnection answer
             }
-            answer?.let {
-                client.sendAnswer(it)
+
+            if (isClosed) {
+                return@launch
             }
+
+            val answer = run {
+                when (val outcome = subscriber?.withPeerConnection { createAnswer(MediaConstraints()) }.nullSafe()) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        LKLog.e { "error creating answer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+            }
+
+            if (isClosed) {
+                return@launch
+            }
+
+            run<Unit> {
+                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
+                    is Either.Left -> Unit
+                    is Either.Right -> {
+                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+            }
+
+            if (isClosed) {
+                return@launch
+            }
+            client.sendAnswer(answer)
         }
     }
 
@@ -1018,12 +1008,12 @@ internal constructor(
     }
 
     @VisibleForTesting
-    internal suspend fun getPublisherPeerConnection() =
-        publisher?.withPeerConnection { this }!!
+    internal fun getPublisherPeerConnection() =
+        publisher!!.peerConnection
 
     @VisibleForTesting
-    internal suspend fun getSubscriberPeerConnection() =
-        subscriber?.withPeerConnection { this }!!
+    internal fun getSubscriberPeerConnection() =
+        subscriber!!.peerConnection
 }
 
 /**

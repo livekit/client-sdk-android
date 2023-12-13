@@ -21,6 +21,7 @@ import io.livekit.android.events.TrackEvent
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.getStats
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.webrtc.MediaStreamTrack
@@ -149,15 +150,21 @@ abstract class Track(
     data class Dimensions(val width: Int, val height: Int)
 
     open fun start() {
-        rtcTrack.setEnabled(true)
+        executeBlockingOnRTCThread {
+            rtcTrack.setEnabled(true)
+        }
     }
 
     open fun stop() {
-        rtcTrack.setEnabled(false)
+        executeBlockingOnRTCThread {
+            rtcTrack.setEnabled(false)
+        }
     }
 
     open fun dispose() {
-        rtcTrack.dispose()
+        executeBlockingOnRTCThread {
+            rtcTrack.dispose()
+        }
     }
 }
 

@@ -28,21 +28,24 @@ import timber.log.Timber
  */
 class LoggingRule : TestRule {
 
-    val logTree = object : Timber.DebugTree() {
-        override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-            val priorityChar = when (priority) {
-                Log.VERBOSE -> "v"
-                Log.DEBUG -> "d"
-                Log.INFO -> "i"
-                Log.WARN -> "w"
-                Log.ERROR -> "e"
-                Log.ASSERT -> "a"
-                else -> "?"
-            }
+    companion object {
 
-            println("$priorityChar: $tag: $message")
-            if (t != null) {
-                println(t.toString())
+        val logTree = object : Timber.DebugTree() {
+            override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+                val priorityChar = when (priority) {
+                    Log.VERBOSE -> "v"
+                    Log.DEBUG -> "d"
+                    Log.INFO -> "i"
+                    Log.WARN -> "w"
+                    Log.ERROR -> "e"
+                    Log.ASSERT -> "a"
+                    else -> "?"
+                }
+
+                println("$priorityChar: $tag: $message")
+                if (t != null) {
+                    println(t.toString())
+                }
             }
         }
     }
