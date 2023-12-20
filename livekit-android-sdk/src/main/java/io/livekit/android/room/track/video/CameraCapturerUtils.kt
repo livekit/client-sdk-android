@@ -33,18 +33,45 @@ import org.webrtc.VideoCapturer
 
 object CameraCapturerUtils {
 
+    private val cameraProviders = mutableListOf<CameraProvider>().apply {
+        add(createCamera1Provider())
+        add(createCamera2Provider())
+    }
+
     /**
-     * Create a CameraEnumerator based on platform capabilities.
-     *
-     * If available, creates an enumerator that uses Camera2. If not,
-     * a Camera1 enumerator is created.
+     * Register external camera provider
+     */
+    fun registerCameraProvider(cameraProvider: CameraProvider) {
+        LKLog.d { "Registering camera provider: Camera version:${cameraProvider.cameraVersion}" }
+        cameraProviders.add(cameraProvider)
+    }
+
+    /**
+     * Unregister external camera provider
+     */
+    fun unregisterCameraProvider(cameraProvider: CameraProvider) {
+        LKLog.d { "Removing camera provider: Camera version:${cameraProvider.cameraVersion}" }
+        cameraProviders.remove(cameraProvider)
+    }
+
+    /**
+     * Obtain a CameraEnumerator based on platform capabilities.
      */
     fun createCameraEnumerator(context: Context): CameraEnumerator {
-        return if (Camera2Enumerator.isSupported(context)) {
-            Camera2Enumerator(context)
-        } else {
-            Camera1Enumerator(true)
-        }
+        return getCameraProvider(context).provideEnumerator(context)
+    }
+
+    /**
+     * Create a CameraProvider based on platform capabilities.
+     *
+     * Picks CameraProvider of highest available version that is supported on device
+     */
+    private fun getCameraProvider(context: Context): CameraProvider {
+        return cameraProviders
+            .sortedByDescending { it.cameraVersion }
+            .first {
+                it.isSupported(context)
+            }
     }
 
     /**
@@ -54,8 +81,7 @@ object CameraCapturerUtils {
         context: Context,
         options: LocalVideoTrackOptions,
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-        val cameraEnumerator = createCameraEnumerator(context)
-        val pair = createCameraCapturer(context, cameraEnumerator, options)
+        val pair = createCameraCapturer(context, getCameraProvider(context), options)
 
         if (pair == null) {
             LKLog.d { "Failed to open camera" }
@@ -66,52 +92,79 @@ object CameraCapturerUtils {
 
     private fun createCameraCapturer(
         context: Context,
-        enumerator: CameraEnumerator,
+        provider: CameraProvider,
         options: LocalVideoTrackOptions,
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
         val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
-        val targetDeviceName = enumerator.findCamera(options.deviceId, options.position) ?: return null
-        val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, cameraEventsDispatchHandler)
+        val cameraEnumerator = provider.provideEnumerator(context)
+        val targetDeviceName = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
+        val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
         // back fill any missing information
         val newOptions = options.copy(
             deviceId = targetDeviceName,
-            position = enumerator.getCameraPosition(targetDeviceName),
+            position = cameraEnumerator.getCameraPosition(targetDeviceName),
         )
-        if (targetVideoCapturer is Camera1Capturer) {
-            // Cache supported capture formats ahead of time to avoid future camera locks.
-            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(newOptions.deviceId))
-            return Pair(
-                Camera1CapturerWithSize(
-                    targetVideoCapturer,
-                    targetDeviceName,
-                    cameraEventsDispatchHandler,
-                ),
-                newOptions,
-            )
-        }
-
-        if (targetVideoCapturer is Camera2Capturer) {
-            return Pair(
-                Camera2CapturerWithSize(
-                    targetVideoCapturer,
-                    context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                    targetDeviceName,
-                    cameraEventsDispatchHandler,
-                ),
-                newOptions,
-            )
-        }
 
         LKLog.w { "unknown CameraCapturer class: ${targetVideoCapturer.javaClass.canonicalName}. Reported dimensions may be inaccurate." }
-        if (targetVideoCapturer != null) {
-            return Pair(
-                targetVideoCapturer,
-                newOptions,
+        return Pair(
+            targetVideoCapturer,
+            newOptions,
+        )
+    }
+
+    private fun createCamera1Provider() = object : CameraProvider {
+        private val enumerator by lazy { Camera1Enumerator(true) }
+
+        override val cameraVersion = 1
+
+        override fun provideEnumerator(context: Context) = enumerator
+
+        override fun provideCapturer(
+            context: Context,
+            options: LocalVideoTrackOptions,
+            eventsHandler: CameraEventsDispatchHandler,
+        ): VideoCapturer {
+            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
+            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(options.deviceId))
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            return Camera1CapturerWithSize(
+                targetVideoCapturer as Camera1Capturer,
+                targetDeviceName,
+                eventsHandler,
             )
         }
 
-        return null
+        override fun isSupported(context: Context) = true
+    }
+
+    private fun createCamera2Provider() = object : CameraProvider {
+        private var enumerator: Camera2Enumerator? = null
+
+        override val cameraVersion = 2
+
+        override fun provideEnumerator(context: Context): CameraEnumerator =
+            enumerator ?: Camera2Enumerator(context).also {
+                enumerator = it
+            }
+
+        override fun provideCapturer(
+            context: Context,
+            options: LocalVideoTrackOptions,
+            eventsHandler: CameraEventsDispatchHandler,
+        ): VideoCapturer {
+            val enumerator = provideEnumerator(context)
+            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            return Camera2CapturerWithSize(
+                targetVideoCapturer as Camera2Capturer,
+                context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
+                targetDeviceName,
+                eventsHandler,
+            )
+        }
+
+        override fun isSupported(context: Context) = Camera2Enumerator.isSupported(context)
     }
 
     /**
@@ -176,5 +229,12 @@ object CameraCapturerUtils {
             return CameraPosition.FRONT
         }
         return null
+    }
+
+    interface CameraProvider {
+        val cameraVersion: Int
+        fun provideEnumerator(context: Context): CameraEnumerator
+        fun provideCapturer(context: Context, options: LocalVideoTrackOptions, eventsHandler: CameraEventsDispatchHandler): VideoCapturer
+        fun isSupported(context: Context): Boolean
     }
 }

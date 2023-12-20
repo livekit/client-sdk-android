@@ -30,7 +30,7 @@ internal interface VideoCapturerWithSize : VideoCapturer {
  * @suppress
  */
 
-internal abstract class CameraCapturerWithSize(
+abstract class CameraCapturerWithSize(
     val cameraEventsDispatchHandler: CameraEventsDispatchHandler,
 ) : VideoCapturerWithSize
 

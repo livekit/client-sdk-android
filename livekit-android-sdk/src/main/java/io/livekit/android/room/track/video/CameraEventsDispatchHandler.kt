@@ -23,7 +23,7 @@ import org.webrtc.CameraVideoCapturer.CameraEventsHandler
  *
  * @suppress
  */
-internal class CameraEventsDispatchHandler : CameraEventsHandler {
+class CameraEventsDispatchHandler : CameraEventsHandler {
     private val handlers = mutableSetOf<CameraEventsHandler>()
 
     @Synchronized
