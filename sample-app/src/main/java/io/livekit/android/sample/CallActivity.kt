@@ -26,17 +26,24 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraControl
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
+import org.webrtc.CameraXHelper
+import org.webrtc.CameraXSession
 
 class CallActivity : AppCompatActivity() {
+
+    private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
+    private var cameraControl: CameraControl? = null
 
     val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
@@ -56,12 +63,30 @@ class CallActivity : AppCompatActivity() {
             viewModel.startScreenCapture(data)
         }
 
+    @androidx.camera.camera2.interop.ExperimentalCamera2Interop
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding = CallActivityBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
+
+        val controlListener = object : CameraXSession.CameraControlListener {
+            override fun onCameraControlAvailable(control: CameraControl) {
+                cameraControl = control
+            }
+        }
+
+        CameraXHelper.getCameraProvider(
+            this,
+            controlListener,
+        ).let {
+            if (it.isSupported(this@CallActivity)) {
+                CameraCapturerUtils.registerCameraProvider(it)
+                cameraProvider = it
+            }
+        }
+
 
         // Audience row setup
         val audienceAdapter = GroupieAdapter()
@@ -194,6 +219,9 @@ class CallActivity : AppCompatActivity() {
     override fun onDestroy() {
         binding.audienceRow.adapter = null
         binding.speakerView.adapter = null
+        cameraProvider?.let {
+            CameraCapturerUtils.unregisterCameraProvider(it)
+        }
         super.onDestroy()
     }
 
