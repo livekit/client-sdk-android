@@ -35,7 +35,7 @@ data class RoomOptions(
     val dynacast: Boolean = false,
 
     /**
-     * Options for end-to-end encryption.
+     * @see [Room.e2eeOptions]
      */
     val e2eeOptions: E2EEOptions? = null,
 

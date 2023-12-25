@@ -71,9 +71,11 @@ class RoomTest {
         override fun create(dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
                 .apply {
-                    whenever(this.events).thenReturn(object : EventListenable<ParticipantEvent> {
-                        override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
-                    })
+                    whenever(this.events).thenReturn(
+                        object : EventListenable<ParticipantEvent> {
+                            override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
+                        },
+                    )
                 }
         }
     }
