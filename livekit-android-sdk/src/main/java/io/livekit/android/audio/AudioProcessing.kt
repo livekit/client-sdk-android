@@ -35,5 +35,5 @@ interface AudioProcessing {
     /**
      * Process the audio frame (10ms).
      */
-    fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer)
+    fun Process(numBands: Int, numFrames: Int, buffer: ByteBuffer)
 }

@@ -76,8 +76,8 @@ class CustomAudioProcessingFactory : AudioProcessingController {
             audioProcessing?.Reset(newRate)
         }
 
-        override fun Process(numBans: Int, numFrames: Int, buffer: ByteBuffer?) {
-            audioProcessing?.Process(numBans, numFrames, buffer!!)
+        override fun Process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
+            audioProcessing?.Process(numBands, numFrames, buffer!!)
         }
     }
 }
