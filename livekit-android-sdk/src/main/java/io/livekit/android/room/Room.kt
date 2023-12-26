@@ -33,6 +33,7 @@ import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
@@ -162,6 +163,13 @@ constructor(
         }
 
     /**
+     * Options for end-to-end encryption. Must be setup prior to [connect].
+     *
+     * If null, e2ee will be disabled.
+     */
+    var e2eeOptions: E2EEOptions? = null
+
+    /**
      * Default options to use when creating an audio track.
      */
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
@@ -210,14 +218,16 @@ constructor(
             videoTrackCaptureDefaults = videoTrackCaptureDefaults,
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
-            e2eeOptions = null,
+            e2eeOptions = e2eeOptions,
         )
 
-    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions(), roomOptions: RoomOptions = getCurrentRoomOptions()) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
         }
         coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
+
+        val roomOptions = getCurrentRoomOptions()
 
         // Setup local participant.
         localParticipant.reinitialize()
