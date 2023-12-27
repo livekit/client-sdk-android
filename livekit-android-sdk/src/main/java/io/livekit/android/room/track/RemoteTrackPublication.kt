@@ -123,7 +123,7 @@ class RemoteTrackPublication(
         unsubscribed = !subscribed
         val participant = this.participant.get() as? RemoteParticipant ?: return
         val participantTracks = with(LivekitModels.ParticipantTracks.newBuilder()) {
-            participantSid = participant.sid
+            participantSid = participant.sid.value
             addTrackSids(sid)
             build()
         }

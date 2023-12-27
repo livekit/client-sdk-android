@@ -60,7 +60,7 @@ fun ParticipantItem(
                 } else {
                     this
                 }
-            }
+            },
     ) {
         val (videoItem, identityBar, identityText, muteIndicator, connectionIndicator) = createRefs()
 
@@ -74,7 +74,7 @@ fun ParticipantItem(
                 end.linkTo(parent.end)
                 width = Dimension.fillToConstraints
                 height = Dimension.fillToConstraints
-            }
+            },
         )
 
         Surface(
@@ -85,11 +85,11 @@ fun ParticipantItem(
                 end.linkTo(parent.end)
                 width = Dimension.fillToConstraints
                 height = Dimension.value(30.dp)
-            }
+            },
         ) {}
 
         Text(
-            text = identity ?: "",
+            text = identity?.value ?: "",
             color = Color.White,
             modifier = Modifier.constrainAs(identityText) {
                 top.linkTo(identityBar.top)
@@ -112,7 +112,7 @@ fun ParticipantItem(
                     top.linkTo(identityBar.top)
                     bottom.linkTo(identityBar.bottom)
                     end.linkTo(identityBar.end, margin = identityBarPadding)
-                }
+                },
             )
         }
 
@@ -122,6 +122,7 @@ fun ParticipantItem(
             ConnectionQuality.EXCELLENT -> R.drawable.wifi_strength_4
             ConnectionQuality.GOOD -> R.drawable.wifi_strength_3
             ConnectionQuality.POOR -> R.drawable.wifi_strength_alert_outline
+            ConnectionQuality.LOST -> R.drawable.wifi_strength_alert_outline
             ConnectionQuality.UNKNOWN -> R.drawable.wifi_strength_alert_outline
         }
 
@@ -135,7 +136,7 @@ fun ParticipantItem(
                         top.linkTo(parent.top, margin = identityBarPadding)
                         end.linkTo(parent.end, margin = identityBarPadding)
                     }
-                    .alpha(0.5f)
+                    .alpha(0.5f),
             )
         }
     }

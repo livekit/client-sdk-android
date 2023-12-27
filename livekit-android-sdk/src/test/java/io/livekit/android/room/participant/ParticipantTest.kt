@@ -44,7 +44,7 @@ class ParticipantTest {
 
     @Before
     fun setup() {
-        participant = Participant("", null, coroutineRule.dispatcher)
+        participant = Participant(Participant.Sid(""), null, coroutineRule.dispatcher)
     }
 
     @Test
@@ -52,8 +52,8 @@ class ParticipantTest {
         participant.updateFromInfo(INFO)
 
         assertTrue(participant.hasInfo)
-        assertEquals(INFO.sid, participant.sid)
-        assertEquals(INFO.identity, participant.identity)
+        assertEquals(INFO.sid, participant.sid.value)
+        assertEquals(INFO.identity, participant.identity?.value)
         assertEquals(INFO.metadata, participant.metadata)
         assertEquals(INFO.name, participant.name)
         assertEquals(INFO, participant.participantInfo)
@@ -144,7 +144,7 @@ class ParticipantTest {
         participant.addTrackPublication(audioPublication)
 
         participant.dispose()
-        assertEquals("", participant.sid)
+        assertEquals("", participant.sid.value)
         assertNull(participant.name)
         assertNull(participant.identity)
         assertNull(participant.metadata)

@@ -44,7 +44,7 @@ class ParticipantItem(
         ensureCoroutineScope()
         coroutineScope?.launch {
             participant::identity.flow.collect { identity ->
-                viewBinding.identityText.text = identity
+                viewBinding.identityText.text = identity?.value
             }
         }
         coroutineScope?.launch {
@@ -182,7 +182,7 @@ private fun hideFocus(binding: ParticipantItemBinding) {
 }
 
 private inline fun <T, R> Flow<T?>.flatMapLatestOrNull(
-    crossinline transform: suspend (value: T) -> Flow<R>
+    crossinline transform: suspend (value: T) -> Flow<R>,
 ): Flow<R?> {
     return flatMapLatest {
         if (it == null) {

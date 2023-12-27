@@ -185,12 +185,14 @@ constructor(
         internalListener = this@Room
     }
 
-    private var mutableRemoteParticipants by flowDelegate(emptyMap<String, RemoteParticipant>())
+    private var mutableRemoteParticipants by flowDelegate(emptyMap<Participant.Identity, RemoteParticipant>())
 
     @FlowObservable
     @get:FlowObservable
-    val remoteParticipants: Map<String, RemoteParticipant>
+    val remoteParticipants: Map<Participant.Identity, RemoteParticipant>
         get() = mutableRemoteParticipants
+
+    private var sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
 
@@ -344,15 +346,15 @@ constructor(
         localParticipant.updateFromInfo(response.participant)
 
         if (response.otherParticipantsList.isNotEmpty()) {
-            response.otherParticipantsList.forEach {
-                getOrCreateRemoteParticipant(it.sid, it)
+            response.otherParticipantsList.forEach { info ->
+                getOrCreateRemoteParticipant(Participant.Identity(info.identity), info)
             }
         }
     }
 
-    private fun handleParticipantDisconnect(sid: String) {
+    private fun handleParticipantDisconnect(identity: Participant.Identity) {
         val newParticipants = mutableRemoteParticipants.toMutableMap()
-        val removedParticipant = newParticipants.remove(sid) ?: return
+        val removedParticipant = newParticipants.remove(identity) ?: return
         removedParticipant.trackPublications.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid, true)
         }
@@ -362,29 +364,41 @@ constructor(
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
     }
 
-    fun getParticipant(sid: String): Participant? {
+    fun getParticipantBySid(sid: String): Participant? {
+        return getParticipantBySid(Participant.Sid(sid))
+    }
+
+    fun getParticipantBySid(sid: Participant.Sid): Participant? {
         if (sid == localParticipant.sid) {
             return localParticipant
         } else {
-            return remoteParticipants[sid]
+            return remoteParticipants[sidToIdentity[sid]]
+        }
+    }
+
+    fun getParticipantByIdentity(identity: String): Participant? {
+        return getParticipantByIdentity(Participant.Identity(identity))
+    }
+
+    fun getParticipantByIdentity(identity: Participant.Identity): Participant? {
+        if (identity == localParticipant.identity) {
+            return localParticipant
+        } else {
+            return remoteParticipants[identity]
         }
     }
 
     @Synchronized
     private fun getOrCreateRemoteParticipant(
-        sid: String,
-        info: LivekitModels.ParticipantInfo? = null,
+        identity: Participant.Identity,
+        info: LivekitModels.ParticipantInfo,
     ): RemoteParticipant {
-        var participant = remoteParticipants[sid]
+        var participant = remoteParticipants[identity]
         if (participant != null) {
             return participant
         }
 
-        participant = if (info != null) {
-            RemoteParticipant(info, engine.client, ioDispatcher, defaultDispatcher)
-        } else {
-            RemoteParticipant(sid, null, engine.client, ioDispatcher, defaultDispatcher)
-        }
+        participant = RemoteParticipant(info, engine.client, ioDispatcher, defaultDispatcher)
         participant.internalListener = this
 
         coroutineScope.launch {
@@ -456,26 +470,25 @@ constructor(
             }
         }
 
-        if (info != null) {
-            participant.updateFromInfo(info)
-        }
+        participant.updateFromInfo(info)
 
         val newRemoteParticipants = mutableRemoteParticipants.toMutableMap()
-        newRemoteParticipants[sid] = participant
+        newRemoteParticipants[identity] = participant
         mutableRemoteParticipants = newRemoteParticipants
+        sidToIdentity[participant.sid] = identity
 
         return participant
     }
 
     private fun handleActiveSpeakersUpdate(speakerInfos: List<LivekitModels.SpeakerInfo>) {
         val speakers = mutableListOf<Participant>()
-        val seenSids = mutableSetOf<String>()
+        val seenSids = mutableSetOf<Participant.Sid>()
         val localParticipant = localParticipant
         speakerInfos.forEach { speakerInfo ->
-            val speakerSid = speakerInfo.sid!!
+            val speakerSid = Participant.Sid(speakerInfo.sid)
             seenSids.add(speakerSid)
 
-            val participant = getParticipant(speakerSid) ?: return@forEach
+            val participant = getParticipantBySid(speakerSid) ?: return@forEach
             participant.audioLevel = speakerInfo.level
             participant.isSpeaking = true
             speakers.add(participant)
@@ -498,21 +511,22 @@ constructor(
     }
 
     private fun handleSpeakersChanged(speakerInfos: List<LivekitModels.SpeakerInfo>) {
-        val updatedSpeakers = mutableMapOf<String, Participant>()
-        activeSpeakers.forEach {
-            updatedSpeakers[it.sid] = it
+        val updatedSpeakers = mutableMapOf<Participant.Sid, Participant>()
+        activeSpeakers.forEach { participant ->
+            updatedSpeakers[participant.sid] = participant
         }
 
         speakerInfos.forEach { speaker ->
-            val participant = getParticipant(speaker.sid) ?: return@forEach
+            val speakerSid = Participant.Sid(speaker.sid)
+            val participant = getParticipantBySid(speakerSid) ?: return@forEach
 
             participant.audioLevel = speaker.level
             participant.isSpeaking = speaker.active
 
             if (speaker.active) {
-                updatedSpeakers[speaker.sid] = participant
+                updatedSpeakers[speakerSid] = participant
             } else {
-                updatedSpeakers.remove(speaker.sid)
+                updatedSpeakers.remove(speakerSid)
             }
         }
 
@@ -545,6 +559,7 @@ constructor(
         metadata = null
         name = null
         isRecording = false
+        sidToIdentity.clear()
     }
 
     private fun handleDisconnect(reason: DisconnectReason) {
@@ -580,7 +595,7 @@ constructor(
         val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
         for (participant in remoteParticipants.values) {
             val builder = LivekitModels.ParticipantTracks.newBuilder()
-            builder.participantSid = participant.sid
+            builder.participantSid = participant.sid.value
             for (trackPub in participant.trackPublications.values) {
                 val remoteTrackPub = (trackPub as? RemoteTrackPublication) ?: continue
                 if (remoteTrackPub.subscribed != sendUnsub) {
@@ -706,7 +721,13 @@ constructor(
         if (trackSid == null) {
             trackSid = track.id()
         }
-        val participant = getOrCreateRemoteParticipant(participantSid)
+        val participant = getParticipantBySid(participantSid) as? RemoteParticipant
+
+        if (participant == null) {
+            LKLog.e { "Tried to add a track for a participant that is not present. sid: $participantSid" }
+            return
+        }
+
         val statsGetter = engine.createStatsGetter(receiver)
         participant.addSubscribedMediaTrack(
             track,
@@ -722,24 +743,36 @@ constructor(
      */
     override fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>) {
         for (info in updates) {
-            val participantSid = info.sid
+            val participantSid = Participant.Sid(info.sid)
+            // LiveKit server doesn't send identity info prior to version 1.5.2 in disconnect updates
+            // so we try to map an empty identity to an already known sID manually
+            @Suppress("NAME_SHADOWING") var info = info
+            if (info.identity.isNullOrBlank()) {
+                info = with(info.toBuilder()) {
+                    identity = sidToIdentity[participantSid]?.value ?: ""
+                    build()
+                }
+            }
 
-            if (localParticipant.sid == participantSid) {
+            val participantIdentity = Participant.Identity(info.identity)
+
+            if (localParticipant.identity == participantIdentity) {
                 localParticipant.updateFromInfo(info)
                 continue
             }
 
-            val isNewParticipant = !remoteParticipants.contains(participantSid)
+            val isNewParticipant = !remoteParticipants.contains(participantIdentity)
 
             if (info.state == LivekitModels.ParticipantInfo.State.DISCONNECTED) {
-                handleParticipantDisconnect(participantSid)
+                handleParticipantDisconnect(participantIdentity)
             } else {
-                val participant = getOrCreateRemoteParticipant(participantSid, info)
+                val participant = getOrCreateRemoteParticipant(participantIdentity, info)
                 if (isNewParticipant) {
                     listener?.onParticipantConnected(this, participant)
                     eventBus.postEvent(RoomEvent.ParticipantConnected(this, participant), coroutineScope)
                 } else {
                     participant.updateFromInfo(info)
+                    sidToIdentity[participantSid] = participantIdentity
                 }
             }
         }
@@ -784,7 +817,7 @@ constructor(
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
         updates.forEach { info ->
             val quality = ConnectionQuality.fromProto(info.quality)
-            val participant = getParticipant(info.participantSid) ?: return
+            val participant = getParticipantBySid(info.participantSid) ?: return
             participant.connectionQuality = quality
             listener?.onConnectionQualityChanged(participant, quality)
             eventBus.postEvent(RoomEvent.ConnectionQualityChanged(this, participant, quality), coroutineScope)
@@ -802,7 +835,7 @@ constructor(
      * @suppress
      */
     override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind) {
-        val participant = remoteParticipants[packet.participantSid]
+        val participant = getParticipantBySid(packet.participantSid) as? RemoteParticipant
         val data = packet.payload.toByteArray()
         val topic = if (packet.hasTopic()) {
             packet.topic
@@ -820,7 +853,7 @@ constructor(
      */
     override fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>) {
         for (streamState in streamStates) {
-            val participant = getParticipant(streamState.participantSid) ?: continue
+            val participant = getParticipantBySid(streamState.participantSid) ?: continue
             val track = participant.trackPublications[streamState.trackSid] ?: continue
 
             track.track?.streamState = Track.StreamState.fromProto(streamState.state)
@@ -838,7 +871,7 @@ constructor(
      * @suppress
      */
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
-        val participant = getParticipant(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
+        val participant = getParticipantBySid(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
         participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
     }
 
@@ -875,7 +908,7 @@ constructor(
     override fun onFullReconnecting() {
         localParticipant.prepareForFullReconnect()
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
-            .forEach { sid -> handleParticipantDisconnect(sid) }
+            .forEach { identity -> handleParticipantDisconnect(identity) }
     }
 
     /**

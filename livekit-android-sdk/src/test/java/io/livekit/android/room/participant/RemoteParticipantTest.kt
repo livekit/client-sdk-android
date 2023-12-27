@@ -40,7 +40,8 @@ class RemoteParticipantTest : BaseTest() {
     fun setup() {
         signalClient = Mockito.mock(SignalClient::class.java)
         participant = RemoteParticipant(
-            "sid",
+            sid = Participant.Sid("sid"),
+            identity = null,
             signalClient = signalClient,
             ioDispatcher = coroutineRule.dispatcher,
             defaultDispatcher = coroutineRule.dispatcher,

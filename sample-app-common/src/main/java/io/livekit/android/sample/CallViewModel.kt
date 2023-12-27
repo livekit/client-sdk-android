@@ -79,7 +79,7 @@ class CallViewModel(
             listOf<Participant>(room.localParticipant) +
                 remoteParticipants
                     .keys
-                    .sortedBy { it }
+                    .sortedBy { it.value }
                     .mapNotNull { remoteParticipants[it] }
         }
 

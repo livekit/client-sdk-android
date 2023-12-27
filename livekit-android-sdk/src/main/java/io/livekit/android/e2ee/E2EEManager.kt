@@ -22,6 +22,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
@@ -47,7 +48,7 @@ constructor(
     private var room: Room? = null
     private var keyProvider: KeyProvider
     private var peerConnectionFactory: PeerConnectionFactory
-    private var frameCryptors = mutableMapOf<Pair<String, String>, FrameCryptor>()
+    private var frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
     var enabled: Boolean = false
@@ -169,11 +170,11 @@ constructor(
         }
     }
 
-    private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String, kind: String): FrameCryptor {
+    private fun addRtpSender(sender: RtpSender, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
             peerConnectionFactory,
             sender,
-            participantId,
+            participantId.value,
             algorithm,
             keyProvider.rtcKeyProvider,
         )
@@ -183,11 +184,11 @@ constructor(
         return frameCryptor
     }
 
-    private fun addRtpReceiver(receiver: RtpReceiver, participantId: String, trackId: String, kind: String): FrameCryptor {
+    private fun addRtpReceiver(receiver: RtpReceiver, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
             peerConnectionFactory,
             receiver,
-            participantId,
+            participantId.value,
             algorithm,
             keyProvider.rtcKeyProvider,
         )

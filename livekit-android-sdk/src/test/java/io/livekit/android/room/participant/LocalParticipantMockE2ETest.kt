@@ -39,6 +39,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.LivekitRtc.SubscribedQuality
+import livekit.org.webrtc.VideoSource
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,7 +47,6 @@ import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
-import livekit.org.webrtc.VideoSource
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -65,7 +65,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         room.disconnect()
 
-        assertEquals("", room.localParticipant.sid)
+        assertEquals("", room.localParticipant.sid.value)
         assertNull(room.localParticipant.name)
         assertNull(room.localParticipant.identity)
         assertNull(room.localParticipant.metadata)

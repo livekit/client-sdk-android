@@ -38,8 +38,8 @@ import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.VideoTrack
 
 class RemoteParticipant(
-    sid: String,
-    identity: String? = null,
+    sid: Sid,
+    identity: Identity? = null,
     val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
     defaultDispatcher: CoroutineDispatcher,
@@ -57,8 +57,8 @@ class RemoteParticipant(
         ioDispatcher: CoroutineDispatcher,
         defaultDispatcher: CoroutineDispatcher,
     ) : this(
-        info.sid,
-        info.identity,
+        Sid(info.sid),
+        Identity(info.identity),
         signalClient,
         ioDispatcher,
         defaultDispatcher,

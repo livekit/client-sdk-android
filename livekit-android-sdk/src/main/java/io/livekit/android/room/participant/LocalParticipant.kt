@@ -62,7 +62,7 @@ internal constructor(
     coroutineDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
-) : Participant("", null, coroutineDispatcher) {
+) : Participant(Sid(""), null, coroutineDispatcher) {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
@@ -374,7 +374,7 @@ internal constructor(
 
         val transInit = RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid),
+            listOf(this.sid.value),
             encodings,
         )
         val transceiver = engine.createSenderTransceiver(track.rtcTrack, transInit)
@@ -591,7 +591,7 @@ internal constructor(
         }
         val packetBuilder = LivekitModels.UserPacket.newBuilder().apply {
             payload = ByteString.copyFrom(data)
-            participantSid = sid
+            participantSid = sid.value
             if (topic != null) {
                 setTopic(topic)
             }
@@ -615,7 +615,7 @@ internal constructor(
             val publication = this.trackPublications[ti.sid] as? LocalTrackPublication ?: continue
             val localMuted = publication.muted
             if (ti.muted != localMuted) {
-                engine.updateMuteStatus(sid, localMuted)
+                engine.updateMuteStatus(sid.value, localMuted)
             }
         }
     }
@@ -686,7 +686,7 @@ internal constructor(
 
         val transceiverInit = RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid),
+            listOf(this.sid.value),
             newEncodings,
         )
 

@@ -27,7 +27,7 @@ class CallViewModel(
     private val useDefaultVideoEncoder: Boolean = false,
     private val codecWhiteList: List<String>? = null,
     private val showVideo: Boolean,
-    application: Application
+    application: Application,
 ) : AndroidViewModel(application) {
     private val mutableRoom = MutableStateFlow<Room?>(null)
     val room: MutableStateFlow<Room?> = mutableRoom
@@ -38,7 +38,7 @@ class CallViewModel(
                     listOf<Participant>(room.localParticipant) +
                         remoteParticipants
                             .keys
-                            .sortedBy { it }
+                            .sortedBy { it.value }
                             .mapNotNull { remoteParticipants[it] }
                 }
         } else {
@@ -62,7 +62,7 @@ class CallViewModel(
                         WhitelistDefaultVideoEncoderFactory(
                             EglBase.create().eglBaseContext,
                             enableIntelVp8Encoder = true,
-                            enableH264HighProfile = true
+                            enableH264HighProfile = true,
                         )
                     } else {
                         WhitelistSimulcastVideoEncoderFactory(
@@ -77,13 +77,12 @@ class CallViewModel(
                 }
                 val overrides = LiveKitOverrides(videoEncoderFactory = videoEncoderFactory)
 
-                val room = LiveKit.connect(
+                val room = LiveKit.create(
                     application,
-                    url,
-                    token,
-                    roomOptions = RoomOptions(videoTrackPublishDefaults = VideoTrackPublishDefaults(simulcast = !useDefaultVideoEncoder)),
-                    overrides = overrides
+                    options = RoomOptions(videoTrackPublishDefaults = VideoTrackPublishDefaults(simulcast = !useDefaultVideoEncoder)),
+                    overrides = overrides,
                 )
+                room.connect(url, token)
 
                 // Create and publish audio/video tracks
                 val localParticipant = room.localParticipant
@@ -92,7 +91,7 @@ class CallViewModel(
                     val capturer = DummyVideoCapturer(Color.RED)
                     val videoTrack = localParticipant.createVideoTrack(
                         capturer = capturer,
-                        options = LocalVideoTrackOptions(captureParams = VideoCaptureParameter(128, 128, 30))
+                        options = LocalVideoTrackOptions(captureParams = VideoCaptureParameter(128, 128, 30)),
                     )
                     videoTrack.startCapture()
                     localParticipant.publishVideoTrack(videoTrack)

@@ -34,11 +34,17 @@ import java.util.Date
 import javax.inject.Named
 
 open class Participant(
-    var sid: String,
-    identity: String? = null,
+    var sid: Sid,
+    identity: Identity? = null,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val coroutineDispatcher: CoroutineDispatcher,
 ) {
+
+    @JvmInline
+    value class Identity(val value: String)
+
+    @JvmInline
+    value class Sid(val value: String)
 
     /**
      * To only be used for flow delegate scoping, and should not be cancelled.
@@ -65,7 +71,7 @@ open class Participant(
      */
     @FlowObservable
     @get:FlowObservable
-    var identity: String? by flowDelegate(identity)
+    var identity: Identity? by flowDelegate(identity)
         internal set
 
     /**
@@ -300,8 +306,8 @@ open class Participant(
      * @suppress
      */
     internal open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
-        sid = info.sid
-        identity = info.identity
+        sid = Sid(info.sid)
+        identity = Identity(info.identity)
         participantInfo = info
         metadata = info.metadata
         name = info.name
@@ -355,7 +361,7 @@ open class Participant(
     internal open fun dispose() {
         scope.cancel()
 
-        sid = ""
+        sid = Sid("")
         name = null
         identity = null
         metadata = null
@@ -448,6 +454,7 @@ interface ParticipantListener {
      * Received data published by another participant
      */
     fun onDataReceived(data: ByteArray, participant: RemoteParticipant) {}
+
 }
 
 enum class ConnectionQuality {
@@ -455,6 +462,7 @@ enum class ConnectionQuality {
     GOOD,
     POOR,
     UNKNOWN,
+    LOST,
     ;
 
     companion object {
@@ -464,6 +472,7 @@ enum class ConnectionQuality {
                 LivekitModels.ConnectionQuality.GOOD -> GOOD
                 LivekitModels.ConnectionQuality.POOR -> POOR
                 LivekitModels.ConnectionQuality.UNRECOGNIZED -> UNKNOWN
+                LivekitModels.ConnectionQuality.LOST -> LOST
             }
         }
     }
