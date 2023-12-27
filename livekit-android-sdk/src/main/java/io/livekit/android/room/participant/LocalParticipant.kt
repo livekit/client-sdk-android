@@ -579,7 +579,7 @@ internal constructor(
         data: ByteArray,
         reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
         topic: String? = null,
-        identities: List<String>? = null,
+        identities: List<Participant.Identity>? = null,
     ) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
@@ -596,7 +596,7 @@ internal constructor(
                 setTopic(topic)
             }
             if (identities != null) {
-                addAllDestinationSids(identities)
+                addAllDestinationSids(identities.map { it.value })
             }
         }
         val dataPacket = LivekitModels.DataPacket.newBuilder()
