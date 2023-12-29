@@ -29,6 +29,7 @@ import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import java.util.Date
 import javax.inject.Named
@@ -40,9 +41,11 @@ open class Participant(
     private val coroutineDispatcher: CoroutineDispatcher,
 ) {
 
+    @Serializable
     @JvmInline
     value class Identity(val value: String)
 
+    @Serializable
     @JvmInline
     value class Sid(val value: String)
 

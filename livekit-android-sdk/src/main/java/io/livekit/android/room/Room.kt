@@ -44,6 +44,7 @@ import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.*
@@ -91,6 +92,7 @@ constructor(
         SERVER_LEAVE,
     }
 
+    @Serializable
     @JvmInline
     value class Sid(val sid: String)
 
