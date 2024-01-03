@@ -43,7 +43,7 @@ class CustomAudioProcessingFactory : AudioProcessingController {
     }
 
     override fun setCapturePostProcessing(processing: AudioProcessing) {
-        externalAudioProcesser?.SetCapturePostProcessing(
+        externalAudioProcesser?.setCapturePostProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
             },
@@ -51,11 +51,11 @@ class CustomAudioProcessingFactory : AudioProcessingController {
     }
 
     override fun setByPassForCapturePostProcessing(bypass: Boolean) {
-        externalAudioProcesser?.SetBypassFlagForCapturePost(bypass)
+        externalAudioProcesser?.setBypassFlagForCapturePost(bypass)
     }
 
     override fun setRenderPreProcessing(processing: AudioProcessing) {
-        externalAudioProcesser?.SetRenderPreProcessing(
+        externalAudioProcesser?.setRenderPreProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
             },
@@ -63,20 +63,20 @@ class CustomAudioProcessingFactory : AudioProcessingController {
     }
 
     override fun setByPassForRenderPreProcessing(bypass: Boolean) {
-        externalAudioProcesser?.SetBypassFlagForRenderPre(bypass)
+        externalAudioProcesser?.setBypassFlagForRenderPre(bypass)
     }
 
     private class AudioProcessingBridge : ExternalAudioProcessingFactory.AudioProcessing {
         var audioProcessing: AudioProcessing? = null
-        override fun Initialize(sampleRateHz: Int, numChannels: Int) {
+        override fun initialize(sampleRateHz: Int, numChannels: Int) {
             audioProcessing?.Initialize(sampleRateHz, numChannels)
         }
 
-        override fun Reset(newRate: Int) {
+        override fun reset(newRate: Int) {
             audioProcessing?.Reset(newRate)
         }
 
-        override fun Process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
+        override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
             audioProcessing?.Process(numBands, numFrames, buffer!!)
         }
     }
