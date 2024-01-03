@@ -69,15 +69,15 @@ class CustomAudioProcessingFactory : AudioProcessingController {
     private class AudioProcessingBridge : ExternalAudioProcessingFactory.AudioProcessing {
         var audioProcessing: AudioProcessing? = null
         override fun initialize(sampleRateHz: Int, numChannels: Int) {
-            audioProcessing?.Initialize(sampleRateHz, numChannels)
+            audioProcessing?.initialize(sampleRateHz, numChannels)
         }
 
         override fun reset(newRate: Int) {
-            audioProcessing?.Reset(newRate)
+            audioProcessing?.reset(newRate)
         }
 
         override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
-            audioProcessing?.Process(numBands, numFrames, buffer!!)
+            audioProcessing?.process(numBands, numFrames, buffer!!)
         }
     }
 }

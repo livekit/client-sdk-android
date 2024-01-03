@@ -25,15 +25,15 @@ interface AudioProcessing {
     /**
      * Initialize the audio processing.
      */
-    fun Initialize(sampleRateHz: Int, numChannels: Int)
+    fun initialize(sampleRateHz: Int, numChannels: Int)
 
     /**
      * sample rate changed
      */
-    fun Reset(newRate: Int)
+    fun reset(newRate: Int)
 
     /**
      * Process the audio frame (10ms).
      */
-    fun Process(numBands: Int, numFrames: Int, buffer: ByteBuffer)
+    fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer)
 }
