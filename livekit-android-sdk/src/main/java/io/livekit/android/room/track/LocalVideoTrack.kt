@@ -37,7 +37,6 @@ import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
 import livekit.LivekitModels
-import livekit.LivekitModels.VideoQuality
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.org.webrtc.CameraVideoCapturer
@@ -53,6 +52,7 @@ import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSource
 import java.util.UUID
+import livekit.LivekitModels.VideoQuality as ProtoVideoQuality
 
 /**
  * A representation of a local video track (generally input coming from camera or screen).
@@ -274,14 +274,14 @@ constructor(
 
         if (encodings.firstOrNull()?.scalabilityMode != null) {
             val encoding = encodings.first()
-            var maxQuality = VideoQuality.OFF
+            var maxQuality = ProtoVideoQuality.OFF
             for (quality in qualities) {
-                if (quality.enabled && (maxQuality == VideoQuality.OFF || quality.quality.number > maxQuality.number)) {
+                if (quality.enabled && (maxQuality == ProtoVideoQuality.OFF || quality.quality.number > maxQuality.number)) {
                     maxQuality = quality.quality
                 }
             }
 
-            if (maxQuality == VideoQuality.OFF) {
+            if (maxQuality == ProtoVideoQuality.OFF) {
                 if (encoding.active) {
                     LKLog.v { "setting svc track to disabled" }
                     encoding.active = false
@@ -297,7 +297,7 @@ constructor(
             for (quality in qualities) {
                 val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
                 val encoding = encodings.firstOrNull { it.rid == rid }
-                    // use low quality layer settings for non-simulcasted streams
+                // use low quality layer settings for non-simulcasted streams
                     ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
                     ?: continue
                 if (encoding.active != quality.enabled) {

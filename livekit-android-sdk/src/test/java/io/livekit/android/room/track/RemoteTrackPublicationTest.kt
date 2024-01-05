@@ -66,7 +66,7 @@ class RemoteTrackPublicationTest : MockE2ETest() {
             .videoTrackPublications.first()
             .first as RemoteTrackPublication
 
-        remoteVideoPub.setVideoQuality(VideoQuality.LOW)
+        remoteVideoPub.setVideoQuality(io.livekit.android.room.track.VideoQuality.LOW)
         remoteVideoPub.setVideoFps(100)
 
         advanceUntilIdle()

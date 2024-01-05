@@ -34,7 +34,6 @@ class RemoteTrackPublication(
     private val ioDispatcher: CoroutineDispatcher,
 ) : TrackPublication(info, track, participant) {
 
-    @OptIn(FlowPreview::class)
     override var track: Track?
         get() = super.track
         set(value) {
@@ -67,7 +66,7 @@ class RemoteTrackPublication(
 
     private var unsubscribed: Boolean = false
     private var disabled: Boolean = false
-    private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
+    private var videoQuality: VideoQuality? = VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
     private var fps: Int? = null
 
@@ -152,7 +151,7 @@ class RemoteTrackPublication(
      *
      * Will override previous calls to [setVideoDimensions].
      */
-    fun setVideoQuality(quality: LivekitModels.VideoQuality) {
+    fun setVideoQuality(quality: VideoQuality) {
         if (isAutoManaged ||
             !subscribed ||
             quality == videoQuality ||
@@ -231,7 +230,7 @@ class RemoteTrackPublication(
             sid,
             disabled,
             videoDimensions,
-            videoQuality,
+            videoQuality?.toProto(),
             fps,
         )
     }
