@@ -260,6 +260,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
+        stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
@@ -268,7 +269,13 @@ internal constructor(
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, builder)
+            client.sendAddTrack(
+                cid = cid,
+                name = name,
+                type = kind,
+                stream = stream,
+                builder = builder,
+            )
         }
     }
 

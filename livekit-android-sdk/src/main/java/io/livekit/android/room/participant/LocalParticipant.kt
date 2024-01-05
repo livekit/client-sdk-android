@@ -259,7 +259,7 @@ internal constructor(
             requestConfig = {
                 disableDtx = !options.dtx
                 disableRed = !options.red
-                source = LivekitModels.TrackSource.MICROPHONE
+                source = options.source?.toProto() ?: LivekitModels.TrackSource.MICROPHONE
             },
             encodings = encodings,
             publishListener = publishListener,
@@ -295,7 +295,7 @@ internal constructor(
             requestConfig = {
                 width = track.dimensions.width
                 height = track.dimensions.height
-                source = if (track.options.isScreencast) {
+                source = options.source?.toProto() ?: if (track.options.isScreencast) {
                     LivekitModels.TrackSource.SCREEN_SHARE
                 } else {
                     LivekitModels.TrackSource.CAMERA
@@ -350,8 +350,9 @@ internal constructor(
         }
         val trackInfo = engine.addTrack(
             cid = cid,
-            name = track.name,
+            name = options.name ?: track.name,
             kind = track.kind.toProto(),
+            stream = options.stream,
             builder = builder,
         )
 
@@ -725,6 +726,7 @@ internal constructor(
                 cid = simulcastTrack.rtcTrack.id(),
                 name = existingPublication.name,
                 kind = existingPublication.kind.toProto(),
+                stream = options.stream,
                 builder = trackRequest,
             )
 
@@ -821,7 +823,23 @@ internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishe
 }
 
 interface TrackPublishOptions {
+    /**
+     * The name of the track.
+     */
     val name: String?
+
+    /**
+     * The source of a track, camera, microphone or screen.
+     */
+    val source: Track.Source?
+
+    /**
+     * The stream name for the track. Audio and video tracks with the same stream
+     * name will be placed in the same `MediaStream` and offer better synchronization.
+     *
+     * By default, camera and microphone will be placed in the same stream.
+     */
+    val stream: String?
 }
 
 abstract class BaseVideoTrackPublishOptions {
@@ -868,17 +886,23 @@ data class VideoTrackPublishOptions(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
+    override val source: Track.Source? = null,
+    override val stream: String? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
         base: BaseVideoTrackPublishOptions,
+        source: Track.Source? = null,
+        stream: String? = null,
     ) : this(
-        name,
-        base.videoEncoding,
-        base.simulcast,
-        base.videoCodec,
-        base.scalabilityMode,
-        base.backupCodec,
+        name = name,
+        videoEncoding = base.videoEncoding,
+        simulcast = base.simulcast,
+        videoCodec = base.videoCodec,
+        scalabilityMode = base.scalabilityMode,
+        backupCodec = base.backupCodec,
+        source = source,
+        stream = stream,
     )
 
     fun createBackupOptions(): VideoTrackPublishOptions? {
@@ -924,14 +948,21 @@ data class AudioTrackPublishOptions(
     override val audioBitrate: Int? = null,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
+    override val source: Track.Source? = null,
+    override val stream: String? = null,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
         base: BaseAudioTrackPublishOptions,
+        source: Track.Source? = null,
+        stream: String? = null,
     ) : this(
-        name,
-        base.audioBitrate,
-        base.dtx,
+        name = name,
+        audioBitrate = base.audioBitrate,
+        dtx = base.dtx,
+        red = base.red,
+        source = source,
+        stream = stream,
     )
 }
 

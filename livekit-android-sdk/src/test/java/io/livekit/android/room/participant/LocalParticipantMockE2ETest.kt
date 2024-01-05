@@ -30,6 +30,7 @@ import io.livekit.android.room.SignalClientTest
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.util.toOkioByteString
@@ -94,6 +95,30 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateMetadata())
         assertEquals(newName, sentRequest.updateMetadata.name)
+    }
+
+    @Test
+    fun publishVideoTrackRequest() = runTest {
+        connect()
+        wsFactory.ws.clearRequests()
+        val videoTrack = createLocalTrack()
+        val publishOptions = VideoTrackPublishOptions(
+            name = "name",
+            source = Track.Source.SCREEN_SHARE,
+            stream = "stream_id",
+        )
+        room.localParticipant.publishVideoTrack(videoTrack, publishOptions)
+
+        // Verify the add track request gets the proper publish options set.
+        val requestString = wsFactory.ws.sentRequests.first().toPBByteString()
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(requestString)
+            .build()
+
+        assertTrue(sentRequest.hasAddTrack())
+        assertEquals(publishOptions.name, sentRequest.addTrack.name)
+        assertEquals(publishOptions.source?.toProto(), sentRequest.addTrack.source)
+        assertEquals(publishOptions.stream, sentRequest.addTrack.stream)
     }
 
     @Test

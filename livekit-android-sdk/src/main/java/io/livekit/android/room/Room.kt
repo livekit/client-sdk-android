@@ -719,9 +719,11 @@ constructor(
             return
         }
 
-        var (participantSid, trackSid) = unpackStreamId(streams.first().id)
-        if (trackSid == null) {
-            trackSid = track.id()
+        var (participantSid, streamId) = unpackStreamId(streams.first().id)
+        var trackSid = track.id()
+
+        if (streamId != null && streamId.startsWith("TR")) {
+            trackSid = streamId
         }
         val participant = getParticipantBySid(participantSid) as? RemoteParticipant
 
