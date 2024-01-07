@@ -164,7 +164,8 @@ object RTCModule {
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
-            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+            // VOICE_COMMUNICATION needs to be used for echo cancelling.
+            .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             .setAudioAttributes(audioOutputAttributes)
 
         moduleCustomizer?.invoke(builder)
