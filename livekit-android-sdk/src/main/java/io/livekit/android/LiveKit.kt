@@ -26,6 +26,7 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.RoomListener
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
+import io.livekit.android.util.executeSuspendWithRetry
 import timber.log.Timber
 
 class LiveKit {
@@ -114,6 +115,7 @@ class LiveKit {
          * Connect to a LiveKit room
          * @param url URL to LiveKit server (i.e. ws://mylivekitdeploy.io)
          * @param listener Listener to Room events. LiveKit interactions take place with these callbacks
+         * @param maxConnectRetry Int to set max connect retry.
          */
         @Deprecated("Use LiveKit.create and Room.connect instead. This is limited to max protocol 7.")
         suspend fun connect(
@@ -124,6 +126,7 @@ class LiveKit {
             roomOptions: RoomOptions = RoomOptions(),
             listener: RoomListener? = null,
             overrides: LiveKitOverrides = LiveKitOverrides(),
+            maxConnectRetry: Int = 0
         ): Room {
             val room = create(appContext, roomOptions, overrides)
 
@@ -132,7 +135,10 @@ class LiveKit {
             val protocolVersion = maxOf(options.protocolVersion, ProtocolVersion.v7)
             val connectOptions = options.copy(protocolVersion = protocolVersion)
 
-            room.connect(url, token, connectOptions)
+            executeSuspendWithRetry(maxConnectRetry){
+                room.connect(url, token, connectOptions)
+            }
+
             return room
         }
     }
