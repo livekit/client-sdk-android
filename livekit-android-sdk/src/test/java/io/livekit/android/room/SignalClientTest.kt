@@ -30,8 +30,15 @@ import livekit.LivekitModels
 import livekit.LivekitModels.ClientConfiguration
 import livekit.LivekitRtc
 import livekit.LivekitRtc.ICEServer
-import okhttp3.*
-import org.junit.Assert.*
+import livekit.org.webrtc.SessionDescription
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocketListener
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
@@ -40,7 +47,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.times
-import livekit.org.webrtc.SessionDescription
 
 @ExperimentalCoroutinesApi
 class SignalClientTest : BaseTest() {
@@ -330,7 +336,6 @@ class SignalClientTest : BaseTest() {
             join = with(LivekitRtc.JoinResponse.newBuilder()) {
                 room = with(LivekitModels.Room.newBuilder()) {
                     name = "roomname"
-                    sid = "room_sid"
                     build()
                 }
                 participant = TestData.LOCAL_PARTICIPANT
@@ -380,6 +385,7 @@ class SignalClientTest : BaseTest() {
         val ROOM_UPDATE = with(LivekitRtc.SignalResponse.newBuilder()) {
             roomUpdate = with(LivekitRtc.RoomUpdate.newBuilder()) {
                 room = with(LivekitModels.Room.newBuilder()) {
+                    sid = "room_sid"
                     metadata = "metadata"
                     activeRecording = true
                     build()

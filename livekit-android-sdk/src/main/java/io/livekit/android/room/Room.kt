@@ -40,10 +40,13 @@ import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -99,9 +102,28 @@ constructor(
     @Deprecated("Use events instead.")
     var listener: RoomListener? = null
 
+    /**
+     * The session id of the room.
+     *
+     * Note: the sid may not be populated immediately upon [connect],
+     * so using the suspend function [getSid] or listening to the flow
+     * `room::sid.flow` is highly advised.
+     */
     @FlowObservable
     @get:FlowObservable
     var sid: Sid? by flowDelegate(null)
+        private set
+
+    /**
+     * Gets the sid of the room.
+     *
+     * If the sid is not yet available, will suspend until received.
+     */
+    suspend fun getSid(): Sid {
+        return this@Room::sid.flow
+            .filterNotNull()
+            .first()
+    }
 
     @FlowObservable
     @get:FlowObservable
@@ -327,7 +349,11 @@ constructor(
     override fun onJoinResponse(response: LivekitRtc.JoinResponse) {
         LKLog.i { "Connected to server, server version: ${response.serverVersion}, client version: ${Version.CLIENT_VERSION}" }
 
-        sid = Sid(response.room.sid)
+        if (response.room.sid != null) {
+            sid = Sid(response.room.sid)
+        } else {
+            sid = null
+        }
         name = response.room.name
         metadata = response.room.metadata
 
@@ -800,6 +826,9 @@ constructor(
      * @suppress
      */
     override fun onRoomUpdate(update: LivekitModels.Room) {
+        if (update.sid != null) {
+            sid = Sid(update.sid)
+        }
         val oldMetadata = metadata
         metadata = update.metadata
 
