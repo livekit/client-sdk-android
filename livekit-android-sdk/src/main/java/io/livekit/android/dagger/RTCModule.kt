@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -165,7 +165,8 @@ object RTCModule {
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
-            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+            // VOICE_COMMUNICATION needs to be used for echo cancelling.
+            .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             .setAudioAttributes(audioOutputAttributes)
 
         moduleCustomizer?.invoke(builder)

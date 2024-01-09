@@ -102,6 +102,7 @@ object LiveKit {
         }
         room.adaptiveStream = options.adaptiveStream
         room.dynacast = options.dynacast
+        room.e2eeOptions = options.e2eeOptions
 
         return room
     }

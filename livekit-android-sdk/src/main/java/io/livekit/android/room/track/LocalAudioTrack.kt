@@ -20,6 +20,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpSender
@@ -36,9 +37,9 @@ class LocalAudioTrack(
     mediaTrack: livekit.org.webrtc.AudioTrack
 ) : AudioTrack(name, mediaTrack) {
     var enabled: Boolean
-        get() = rtcTrack.enabled()
+        get() = executeBlockingOnRTCThread { rtcTrack.enabled() }
         set(value) {
-            rtcTrack.setEnabled(value)
+            executeBlockingOnRTCThread { rtcTrack.setEnabled(value) }
         }
 
     internal var transceiver: RtpTransceiver? = null

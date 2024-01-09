@@ -24,6 +24,9 @@ class MockAudioStreamTrack(
     var enabled: Boolean = true,
     var state: State = State.LIVE,
 ) : AudioTrack(1L) {
+
+    var disposed = false
+
     override fun id(): String = id
 
     override fun kind(): String = kind
@@ -40,6 +43,10 @@ class MockAudioStreamTrack(
     }
 
     override fun dispose() {
+        if (disposed) {
+            throw IllegalStateException("already disposed")
+        }
+        disposed = true
     }
 
     override fun setVolume(volume: Double) {

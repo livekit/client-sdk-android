@@ -24,6 +24,8 @@ class MockMediaStreamTrack(
     var enabled: Boolean = true,
     var state: State = State.LIVE,
 ) : MediaStreamTrack(1L) {
+
+    var disposed = false
     override fun id(): String = id
 
     override fun kind(): String = kind
@@ -40,5 +42,9 @@ class MockMediaStreamTrack(
     }
 
     override fun dispose() {
+        if (disposed) {
+            throw IllegalStateException("already disposed")
+        }
+        disposed = true
     }
 }
