@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package io.livekit.android.mock
 
-import org.mockito.Mockito
 import livekit.org.webrtc.RtpSender
+import org.mockito.Mockito
 
 object MockRtpSender {
     fun create(): RtpSender {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package io.livekit.android.webrtc
 
 import io.livekit.android.BaseTest
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.Mockito
-import livekit.org.webrtc.PeerConnection.RTCConfiguration
 
 class RTCConfigurationTest : BaseTest() {
 

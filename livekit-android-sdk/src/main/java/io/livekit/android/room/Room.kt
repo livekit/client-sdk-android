@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -786,6 +786,7 @@ constructor(
             val participantSid = Participant.Sid(info.sid)
             // LiveKit server doesn't send identity info prior to version 1.5.2 in disconnect updates
             // so we try to map an empty identity to an already known sID manually
+
             @Suppress("NAME_SHADOWING") var info = info
             if (info.identity.isNullOrBlank()) {
                 info = with(info.toBuilder()) {

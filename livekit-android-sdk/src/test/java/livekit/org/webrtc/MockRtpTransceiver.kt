@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package livekit.org.webrtc
 
 import io.livekit.android.mock.MockRtpReceiver
 import io.livekit.android.mock.MockRtpSender
-import org.mockito.Mockito
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverDirection
+import org.mockito.Mockito
 
 object MockRtpTransceiver {
     fun create(
