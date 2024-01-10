@@ -31,6 +31,9 @@ import livekit.org.webrtc.Camera2Enumerator
 import livekit.org.webrtc.CameraEnumerator
 import livekit.org.webrtc.VideoCapturer
 
+/**
+ * Various utils for handling camera capturers.
+ */
 object CameraCapturerUtils {
 
     /**

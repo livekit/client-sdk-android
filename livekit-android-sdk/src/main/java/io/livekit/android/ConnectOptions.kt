@@ -17,8 +17,12 @@
 package io.livekit.android
 
 import io.livekit.android.room.ProtocolVersion
+import io.livekit.android.room.Room
 import livekit.org.webrtc.PeerConnection
 
+/**
+ * Options for using with [Room.connect].
+ */
 data class ConnectOptions(
     /** Auto subscribe to room tracks upon connect, defaults to true */
     val autoSubscribe: Boolean = true,

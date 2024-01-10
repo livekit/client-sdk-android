@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@ import androidx.core.app.NotificationCompat
  * This a simple default foreground service to display a notification while screen
  * capturing.
  */
-
 open class ScreenCaptureService : Service() {
     private var binder: IBinder = ScreenCaptureBinder()
     private var bindCount = 0
+
     override fun onBind(intent: Intent?): IBinder {
         bindCount++
         return binder

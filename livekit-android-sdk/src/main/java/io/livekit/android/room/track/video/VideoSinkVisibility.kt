@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,14 @@ import java.util.Observable
  * is used.
  */
 abstract class VideoSinkVisibility : Observable() {
+    /**
+     * @return whether this VideoSink is visible or not.
+     */
     abstract fun isVisible(): Boolean
+
+    /**
+     * @return the dimensions of this VideoSink.
+     */
     abstract fun size(): Track.Dimensions
 
     /**

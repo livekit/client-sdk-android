@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,12 @@
 
 package io.livekit.android
 
+/**
+ * Version information about LiveKit
+ */
 object Version {
+    /**
+     * The current LiveKit SDK version.
+     */
     const val CLIENT_VERSION = BuildConfig.VERSION_NAME
 }

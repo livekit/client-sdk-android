@@ -29,7 +29,7 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-open class CoroutineSdpObserver : SdpObserver {
+internal open class CoroutineSdpObserver : SdpObserver {
 
     private val stateLock = Mutex()
     private var createOutcome: Either<SessionDescription, String?>? = null
@@ -136,25 +136,25 @@ open class CoroutineSdpObserver : SdpObserver {
     }
 }
 
-suspend fun PeerConnection.createOffer(constraints: MediaConstraints): Either<SessionDescription, String?> {
+internal suspend fun PeerConnection.createOffer(constraints: MediaConstraints): Either<SessionDescription, String?> {
     val observer = CoroutineSdpObserver()
     this.createOffer(observer, constraints)
     return observer.awaitCreate()
 }
 
-suspend fun PeerConnection.createAnswer(constraints: MediaConstraints): Either<SessionDescription, String?> {
+internal suspend fun PeerConnection.createAnswer(constraints: MediaConstraints): Either<SessionDescription, String?> {
     val observer = CoroutineSdpObserver()
     this.createAnswer(observer, constraints)
     return observer.awaitCreate()
 }
 
-suspend fun PeerConnection.setRemoteDescription(description: SessionDescription): Either<Unit, String?> {
+internal suspend fun PeerConnection.setRemoteDescription(description: SessionDescription): Either<Unit, String?> {
     val observer = CoroutineSdpObserver()
     this.setRemoteDescription(observer, description)
     return observer.awaitSet()
 }
 
-suspend fun PeerConnection.setLocalDescription(description: SessionDescription): Either<Unit, String?> {
+internal suspend fun PeerConnection.setLocalDescription(description: SessionDescription): Either<Unit, String?> {
     val observer = CoroutineSdpObserver()
     this.setLocalDescription(observer, description)
     return observer.awaitSet()

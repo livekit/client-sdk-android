@@ -69,7 +69,7 @@ internal constructor(
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    var republishes: List<LocalTrackPublication>? = null
+    private var republishes: List<LocalTrackPublication>? = null
     private val localTrackPublications
         get() = trackPublications.values
             .mapNotNull { it as? LocalTrackPublication }
@@ -937,12 +937,18 @@ abstract class BaseAudioTrackPublishOptions {
     abstract val red: Boolean
 }
 
+/**
+ * Default options for publishing an audio track.
+ */
 data class AudioTrackPublishDefaults(
     override val audioBitrate: Int? = 20_000,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
 ) : BaseAudioTrackPublishOptions()
 
+/**
+ * Options for publishing an audio track.
+ */
 data class AudioTrackPublishOptions(
     override val name: String? = null,
     override val audioBitrate: Int? = null,
@@ -993,7 +999,7 @@ data class ParticipantTrackPermission(
         }
     }
 
-    fun toProto(): LivekitRtc.TrackPermission {
+    internal fun toProto(): LivekitRtc.TrackPermission {
         return LivekitRtc.TrackPermission.newBuilder()
             .setParticipantIdentity(participantIdentity)
             .setParticipantSid(participantSid)

@@ -53,6 +53,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.*
 import javax.inject.Named
+import kotlin.jvm.Throws
 
 class Room
 @AssistedInject
@@ -247,6 +248,14 @@ constructor(
             e2eeOptions = e2eeOptions,
         )
 
+    /**
+     * Connect to a LiveKit Room.
+     *
+     * @param url
+     * @param token
+     * @param options
+     */
+    @Throws(Exception::class)
     suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
         if (this::coroutineScope.isInitialized) {
             coroutineScope.cancel()
@@ -1158,8 +1167,6 @@ interface RoomListener {
      * Could not connect to the room
      */
     fun onFailedToConnect(room: Room, error: Throwable) {}
-//        fun onReconnecting(room: Room, error: Exception) {}
-//        fun onReconnect(room: Room) {}
 
     /**
      * Active speakers changed. List of speakers are ordered by their audio level. loudest

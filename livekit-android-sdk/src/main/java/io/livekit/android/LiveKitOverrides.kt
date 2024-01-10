@@ -65,6 +65,9 @@ data class LiveKitOverrides(
     val eglBase: EglBase? = null,
 )
 
+/**
+ * Options for customizing the audio settings of LiveKit.
+ */
 class AudioOptions(
     /**
      * Override the default output [AudioType].
@@ -103,6 +106,9 @@ class AudioOptions(
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
 )
 
+/**
+ * Audio types for customizing the audio of LiveKit.
+ */
 sealed class AudioType(
     val audioMode: Int,
     val audioAttributes: AudioAttributes,

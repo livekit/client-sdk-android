@@ -18,5 +18,14 @@ package io.livekit.android.room.track
 
 import livekit.org.webrtc.AudioTrack
 
-abstract class AudioTrack(name: String, override val rtcTrack: AudioTrack) :
+/**
+ * A class representing an audio track.
+ */
+abstract class AudioTrack(
+    name: String,
+    /**
+     * The underlying WebRTC audio track.
+     */
+    override val rtcTrack: AudioTrack
+) :
     Track(name, Kind.AUDIO, rtcTrack)

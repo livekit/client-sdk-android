@@ -37,10 +37,16 @@ open class CustomVideoEncoderFactory(
             SimulcastVideoEncoderFactoryWrapper(sharedContext, enableIntelVp8Encoder, enableH264HighProfile)
     }
 
+    /**
+     * Set to true to force software codecs.
+     */
     fun setForceSWCodec(forceSWCodec: Boolean) {
         this.forceSWCodec = forceSWCodec
     }
 
+    /**
+     * Set a list of codecs for which to use software codecs.
+     */
     fun setForceSWCodecList(forceSWCodecs: List<String>) {
         this.forceSWCodecs = forceSWCodecs
     }

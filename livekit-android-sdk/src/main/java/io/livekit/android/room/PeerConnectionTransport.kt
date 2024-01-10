@@ -459,7 +459,7 @@ internal data class TrackBitrateInfo(
     val maxBitrate: Long,
 )
 
-sealed class TrackBitrateInfoKey {
+internal sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }

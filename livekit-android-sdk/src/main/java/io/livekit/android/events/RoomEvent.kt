@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -232,7 +232,7 @@ enum class DisconnectReason {
     JOIN_FAILURE,
 }
 
-fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
+internal fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
     return when (this) {
         LivekitModels.DisconnectReason.CLIENT_INITIATED -> DisconnectReason.CLIENT_INITIATED
         LivekitModels.DisconnectReason.DUPLICATE_IDENTITY -> DisconnectReason.DUPLICATE_IDENTITY

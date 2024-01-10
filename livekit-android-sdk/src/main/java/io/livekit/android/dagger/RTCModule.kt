@@ -37,13 +37,10 @@ import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
-typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
+internal typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
 
-/**
- * @suppress
- */
 @Module
-object RTCModule {
+internal object RTCModule {
 
     /**
      * Certain classes require libwebrtc to be initialized prior to use.

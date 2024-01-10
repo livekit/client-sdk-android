@@ -19,12 +19,16 @@ package io.livekit.android.room
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitRtc
-import livekit.org.webrtc.*
+import livekit.org.webrtc.CandidatePairChangeEvent
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SessionDescription
 
-/**
- * @suppress
- */
-class PublisherTransportObserver(
+internal class PublisherTransportObserver(
     private val engine: RTCEngine,
     private val client: SignalClient,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener {
