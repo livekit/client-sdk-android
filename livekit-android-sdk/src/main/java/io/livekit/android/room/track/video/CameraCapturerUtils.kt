@@ -128,7 +128,8 @@ object CameraCapturerUtils {
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
             val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
-            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(options.deviceId))
+            // Cache supported capture formats ahead of time to avoid future camera locks.
+            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDeviceName))
             val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
             return Camera1CapturerWithSize(
                 targetVideoCapturer as Camera1Capturer,
