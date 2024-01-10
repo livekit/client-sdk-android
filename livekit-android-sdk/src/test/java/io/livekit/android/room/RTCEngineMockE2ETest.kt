@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ import io.livekit.android.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import livekit.org.webrtc.PeerConnection
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.PeerConnection
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)

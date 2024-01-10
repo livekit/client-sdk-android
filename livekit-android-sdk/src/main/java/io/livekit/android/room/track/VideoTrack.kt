@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package io.livekit.android.room.track
 
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
-import org.webrtc.VideoSink
-import org.webrtc.VideoTrack
+import livekit.org.webrtc.VideoSink
+import livekit.org.webrtc.VideoTrack
 
 abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {

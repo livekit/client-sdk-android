@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,18 @@
  * limitations under the License.
  */
 
-package io.livekit.android.room.util
+package livekit.org.webrtc
 
-import org.webrtc.DataChannel
+import android.content.Context
+import org.mockito.Mockito
 
-fun DataChannel.unpackedTrackLabel(): Triple<String, String, String> {
-    val parts = label().split("|")
-    val participantSid: String
-    val trackSid: String
-    val name: String
-
-    if (parts.count() == 3) {
-        participantSid = parts[0]
-        trackSid = parts[1]
-        name = parts[2]
-    } else {
-        participantSid = ""
-        trackSid = ""
-        name = ""
+object WebRTCInitializer {
+    fun initialize(context: Context = Mockito.mock(Context::class.java)) {
+        try {
+            ContextUtils.initialize(context)
+            NativeLibraryLoaderTestHelper.initialize()
+        } catch (e: Throwable) {
+            // do nothing. this is expected.
+        }
     }
-
-    return Triple(participantSid, trackSid, name)
 }

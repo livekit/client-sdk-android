@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,8 @@ import dagger.Provides
 import dagger.Reusable
 import kotlinx.serialization.json.Json
 
-/**
- * @suppress
- */
 @Module
-object JsonFormatModule {
+internal object JsonFormatModule {
     @Provides
     @Reusable
     fun kotlinSerializationJson(): Json =

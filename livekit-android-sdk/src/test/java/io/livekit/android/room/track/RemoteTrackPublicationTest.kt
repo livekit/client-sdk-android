@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,10 +63,10 @@ class RemoteTrackPublicationTest : MockE2ETest() {
         wsFactory.ws.clearRequests()
 
         val remoteVideoPub = room.remoteParticipants.values.first()
-            .videoTracks.first()
+            .videoTrackPublications.first()
             .first as RemoteTrackPublication
 
-        remoteVideoPub.setVideoQuality(VideoQuality.LOW)
+        remoteVideoPub.setVideoQuality(io.livekit.android.room.track.VideoQuality.LOW)
         remoteVideoPub.setVideoFps(100)
 
         advanceUntilIdle()

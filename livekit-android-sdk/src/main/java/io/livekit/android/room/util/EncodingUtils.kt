@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import io.livekit.android.room.track.VideoPreset169
 import io.livekit.android.room.track.VideoPreset43
 import io.livekit.android.room.track.video.ScalabilityMode
 import livekit.LivekitModels
-import org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpParameters
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max

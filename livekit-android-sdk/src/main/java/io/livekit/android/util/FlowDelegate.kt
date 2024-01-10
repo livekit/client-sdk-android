@@ -57,6 +57,10 @@ internal val <T> KProperty0<T>.delegate: Any?
         }
     }
 
+/**
+ * @return the flow associated with a [FlowObservable] property,
+ * which can be collected upon to observe changes in the value.
+ */
 @Suppress("UNCHECKED_CAST")
 val <T> KProperty0<T>.flow: StateFlow<T>
     get() = delegate as StateFlow<T>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import io.livekit.android.room.SignalClientTest
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.util.toOkioByteString
@@ -39,6 +40,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.LivekitRtc.SubscribedQuality
+import livekit.org.webrtc.VideoSource
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,7 +48,6 @@ import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
-import org.webrtc.VideoSource
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -65,7 +66,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         room.disconnect()
 
-        assertEquals("", room.localParticipant.sid)
+        assertEquals("", room.localParticipant.sid.value)
         assertNull(room.localParticipant.name)
         assertNull(room.localParticipant.identity)
         assertNull(room.localParticipant.metadata)
@@ -74,9 +75,9 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertFalse(room.localParticipant.isSpeaking)
         assertEquals(ConnectionQuality.UNKNOWN, room.localParticipant.connectionQuality)
 
-        assertEquals(0, room.localParticipant.tracks.values.size)
-        assertEquals(0, room.localParticipant.audioTracks.size)
-        assertEquals(0, room.localParticipant.videoTracks.size)
+        assertEquals(0, room.localParticipant.trackPublications.values.size)
+        assertEquals(0, room.localParticipant.audioTrackPublications.size)
+        assertEquals(0, room.localParticipant.videoTrackPublications.size)
     }
 
     @Test
@@ -94,6 +95,30 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateMetadata())
         assertEquals(newName, sentRequest.updateMetadata.name)
+    }
+
+    @Test
+    fun publishVideoTrackRequest() = runTest {
+        connect()
+        wsFactory.ws.clearRequests()
+        val videoTrack = createLocalTrack()
+        val publishOptions = VideoTrackPublishOptions(
+            name = "name",
+            source = Track.Source.SCREEN_SHARE,
+            stream = "stream_id",
+        )
+        room.localParticipant.publishVideoTrack(videoTrack, publishOptions)
+
+        // Verify the add track request gets the proper publish options set.
+        val requestString = wsFactory.ws.sentRequests.first().toPBByteString()
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(requestString)
+            .build()
+
+        assertTrue(sentRequest.hasAddTrack())
+        assertEquals(publishOptions.name, sentRequest.addTrack.name)
+        assertEquals(publishOptions.source?.toProto(), sentRequest.addTrack.source)
+        assertEquals(publishOptions.stream, sentRequest.addTrack.stream)
     }
 
     @Test
@@ -249,7 +274,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         wsFactory.receiveMessage(
             with(LivekitRtc.SignalResponse.newBuilder()) {
                 subscribedQualityUpdate = with(LivekitRtc.SubscribedQualityUpdate.newBuilder()) {
-                    trackSid = room.localParticipant.videoTracks.first().first.sid
+                    trackSid = room.localParticipant.videoTrackPublications.first().first.sid
                     addAllSubscribedCodecs(
                         listOf(
                             with(SubscribedCodec.newBuilder()) {

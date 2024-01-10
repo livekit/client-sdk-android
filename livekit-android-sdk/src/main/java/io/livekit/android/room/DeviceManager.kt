@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import android.content.Context
 import android.hardware.camera2.CameraManager
 import android.os.Handler
 import android.os.Looper
-import org.webrtc.Camera1Enumerator
-import org.webrtc.Camera2Enumerator
+import livekit.org.webrtc.Camera1Enumerator
+import livekit.org.webrtc.Camera2Enumerator
 
 object DeviceManager {
 

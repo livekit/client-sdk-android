@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.VideoDecoderFactory
+import livekit.org.webrtc.VideoEncoderFactory
+import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import okhttp3.OkHttpClient
-import org.webrtc.EglBase
-import org.webrtc.VideoDecoderFactory
-import org.webrtc.VideoEncoderFactory
-import org.webrtc.audio.AudioDeviceModule
-import org.webrtc.audio.JavaAudioDeviceModule
 
 /**
  * Overrides to replace LiveKit internally used components with custom implementations.
@@ -65,6 +65,9 @@ data class LiveKitOverrides(
     val eglBase: EglBase? = null,
 )
 
+/**
+ * Options for customizing the audio settings of LiveKit.
+ */
 class AudioOptions(
     /**
      * Override the default output [AudioType].
@@ -103,6 +106,9 @@ class AudioOptions(
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
 )
 
+/**
+ * Audio types for customizing the audio of LiveKit.
+ */
 sealed class AudioType(
     val audioMode: Int,
     val audioAttributes: AudioAttributes,

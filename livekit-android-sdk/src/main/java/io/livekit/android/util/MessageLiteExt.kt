@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.google.protobuf.MessageLite
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-fun MessageLite.toOkioByteString(): ByteString {
+internal fun MessageLite.toOkioByteString(): ByteString {
     val byteArray = toByteArray()
     return byteArray.toByteString(0, byteArray.size)
 }

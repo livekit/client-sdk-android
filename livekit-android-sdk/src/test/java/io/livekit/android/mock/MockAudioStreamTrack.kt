@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrack
 
 class MockAudioStreamTrack(
     val id: String = "id",

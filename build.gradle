@@ -57,7 +57,11 @@ subprojects {
         }
         kotlin {
             target("src/*/java/**/*.kt")
-            targetExclude("src/*/java/**/ReentrantMutex.kt") // Different license
+            targetExclude(
+                "src/*/java/**/ReentrantMutex.kt", // Different license
+                "src/*/java/**/TextureViewRenderer.kt", // Different license
+                "src/*/java/**/FlowDelegate.kt", // Different license
+            )
             ktlint("0.50.0")
                 .setEditorConfigPath("$rootDir/.editorconfig")
             licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))

@@ -22,7 +22,7 @@
 
 # WebRTC
 #########################################
--keep class org.webrtc.** { *; }
+-keep class livekit.org.webrtc.** { *; }
 
 # NIST sdp parser
 #########################################

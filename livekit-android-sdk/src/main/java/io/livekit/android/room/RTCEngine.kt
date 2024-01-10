@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,9 +44,9 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -266,6 +266,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
+        stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
@@ -274,7 +275,13 @@ internal constructor(
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, builder)
+            client.sendAddTrack(
+                cid = cid,
+                name = name,
+                type = kind,
+                stream = stream,
+                builder = builder,
+            )
         }
     }
 

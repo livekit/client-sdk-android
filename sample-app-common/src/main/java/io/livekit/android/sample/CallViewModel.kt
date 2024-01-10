@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ class CallViewModel(
             listOf<Participant>(room.localParticipant) +
                 remoteParticipants
                     .keys
-                    .sortedBy { it }
+                    .sortedBy { it.value }
                     .mapNotNull { remoteParticipants[it] }
         }
 

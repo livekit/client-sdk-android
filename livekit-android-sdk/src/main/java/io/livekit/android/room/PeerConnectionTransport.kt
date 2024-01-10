@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.PeerConnection.SignalingState
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection.SignalingState
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts
@@ -459,7 +459,7 @@ internal data class TrackBitrateInfo(
     val maxBitrate: Long,
 )
 
-sealed class TrackBitrateInfoKey {
+internal sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }

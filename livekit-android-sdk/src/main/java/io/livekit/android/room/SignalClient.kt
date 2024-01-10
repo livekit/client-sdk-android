@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,12 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.SessionDescription
 import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import org.webrtc.IceCandidate
-import org.webrtc.PeerConnection
-import org.webrtc.SessionDescription
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Named
@@ -116,7 +116,7 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
-    suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
+    internal suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
         val reconnectResponse = connect(
             url,
             token,
@@ -385,14 +385,21 @@ constructor(
         cid: String,
         name: String,
         type: LivekitModels.TrackType,
+        stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ) {
         val encryptionType = lastRoomOptions?.e2eeOptions?.encryptionType ?: LivekitModels.Encryption.Type.NONE
-        val addTrackRequest = builder
-            .setCid(cid)
-            .setName(name)
-            .setType(type)
-            .setEncryption(encryptionType)
+        val addTrackRequest = builder.apply {
+            setCid(cid)
+            setName(name)
+            setType(type)
+            if (stream != null) {
+                setStream(stream)
+            } else {
+                clearStream()
+            }
+            encryption = encryptionType
+        }
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAddTrack(addTrackRequest)
             .build()
@@ -834,4 +841,7 @@ enum class ProtocolVersion(val value: Int) {
     v7(7),
     v8(8),
     v9(9),
+    v10(10),
+    v11(11),
+    v12(12),
 }

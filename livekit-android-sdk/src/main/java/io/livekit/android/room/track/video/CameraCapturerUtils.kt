@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,17 @@ import android.hardware.camera2.CameraManager
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.util.LKLog
-import org.webrtc.Camera1Capturer
-import org.webrtc.Camera1Enumerator
-import org.webrtc.Camera1Helper
-import org.webrtc.Camera2Capturer
-import org.webrtc.Camera2Enumerator
-import org.webrtc.CameraEnumerator
-import org.webrtc.VideoCapturer
+import livekit.org.webrtc.Camera1Capturer
+import livekit.org.webrtc.Camera1Enumerator
+import livekit.org.webrtc.Camera1Helper
+import livekit.org.webrtc.Camera2Capturer
+import livekit.org.webrtc.Camera2Enumerator
+import livekit.org.webrtc.CameraEnumerator
+import livekit.org.webrtc.VideoCapturer
 
+/**
+ * Various utils for handling camera capturers.
+ */
 object CameraCapturerUtils {
 
     /**

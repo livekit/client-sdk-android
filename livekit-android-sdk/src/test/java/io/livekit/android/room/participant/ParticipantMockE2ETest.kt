@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class ParticipantMockE2ETest : MockE2ETest() {
 
         assertEquals(1, events.size)
         assertEquals(true, events[0] is RoomEvent.TrackUnpublished)
-        assertEquals(0, room.localParticipant.tracks.size)
+        assertEquals(0, room.localParticipant.trackPublications.size)
     }
 
     @Test

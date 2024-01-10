@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@ import io.livekit.android.mock.MockPeerConnection
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.UserPacket
+import livekit.org.webrtc.DataChannel
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.webrtc.DataChannel
 import java.nio.ByteBuffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -50,7 +50,7 @@ class RoomDataMockE2ETest : MockE2ETest() {
         }
         val dataBuffer = DataChannel.Buffer(
             ByteBuffer.wrap(dataPacket.toByteArray()),
-            true
+            true,
         )
 
         subDataChannel.observer?.onMessage(dataBuffer)

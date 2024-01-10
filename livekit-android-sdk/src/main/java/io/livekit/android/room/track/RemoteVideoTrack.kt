@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,14 @@ import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.*
-import org.webrtc.RtpReceiver
-import org.webrtc.VideoSink
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max
 
 class RemoteVideoTrack(
     name: String,
-    rtcTrack: org.webrtc.VideoTrack,
+    rtcTrack: livekit.org.webrtc.VideoTrack,
     val autoManageVideo: Boolean = false,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
