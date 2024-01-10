@@ -106,7 +106,7 @@ object CameraCapturerUtils {
             position = cameraEnumerator.getCameraPosition(targetDeviceName),
         )
 
-        if(targetVideoCapturer !is VideoCapturerWithSize){
+        if (targetVideoCapturer !is VideoCapturerWithSize) {
             LKLog.w { "unknown CameraCapturer class: ${targetVideoCapturer.javaClass.canonicalName}. Reported dimensions may be inaccurate." }
         }
         return Pair(
