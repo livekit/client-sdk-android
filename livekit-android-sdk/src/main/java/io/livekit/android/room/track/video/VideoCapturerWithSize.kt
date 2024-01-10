@@ -19,16 +19,9 @@ package io.livekit.android.room.track.video
 import android.hardware.camera2.CameraManager
 import org.webrtc.*
 
-/**
- * @suppress
- */
-internal interface VideoCapturerWithSize : VideoCapturer {
+interface VideoCapturerWithSize : VideoCapturer {
     fun findCaptureFormat(width: Int, height: Int): Size
 }
-
-/**
- * @suppress
- */
 
 abstract class CameraCapturerWithSize(
     val cameraEventsDispatchHandler: CameraEventsDispatchHandler,
