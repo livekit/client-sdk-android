@@ -53,7 +53,6 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.*
 import javax.inject.Named
-import kotlin.jvm.Throws
 
 class Room
 @AssistedInject
@@ -100,9 +99,6 @@ constructor(
     @Serializable
     @JvmInline
     value class Sid(val sid: String)
-
-    @Deprecated("Use events instead.")
-    var listener: RoomListener? = null
 
     /**
      * The session id of the room.
@@ -287,7 +283,6 @@ constructor(
                     )
 
                     is ParticipantEvent.MetadataChanged -> {
-                        listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
                         emitWhenConnected(
                             RoomEvent.ParticipantMetadataChanged(
                                 this@Room,
@@ -386,8 +381,7 @@ constructor(
         }
 
         if (!response.hasParticipant()) {
-            listener?.onFailedToConnect(this, RoomException.ConnectException("server didn't return any participants"))
-            return
+            throw RoomException.ConnectException("server didn't return a local participant")
         }
 
         localParticipant.updateFromInfo(response.participant)
@@ -407,7 +401,6 @@ constructor(
         }
 
         mutableRemoteParticipants = newParticipants
-        listener?.onParticipantDisconnected(this, removedParticipant)
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
     }
 
@@ -481,7 +474,6 @@ constructor(
                     )
 
                     is ParticipantEvent.MetadataChanged -> {
-                        listener?.onMetadataChanged(it.participant, it.prevMetadata, this@Room)
                         emitWhenConnected(
                             RoomEvent.ParticipantMetadataChanged(
                                 this@Room,
@@ -553,7 +545,6 @@ constructor(
             }
 
         mutableActiveSpeakers = speakers.toList()
-        listener?.onActiveSpeakersChanged(mutableActiveSpeakers, this)
         eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, mutableActiveSpeakers), coroutineScope)
     }
 
@@ -581,7 +572,6 @@ constructor(
             .sortedBy { it.audioLevel }
 
         mutableActiveSpeakers = updatedSpeakersList.toList()
-        listener?.onActiveSpeakersChanged(mutableActiveSpeakers, this)
         eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, mutableActiveSpeakers), coroutineScope)
     }
 
@@ -625,8 +615,6 @@ constructor(
         cleanupRoom()
         engine.close()
 
-        listener?.onDisconnect(this, null)
-        listener = null
         localParticipant.dispose()
 
         // Ensure all observers see the disconnected before closing scope.
@@ -742,7 +730,6 @@ constructor(
      */
     override fun onEngineReconnected() {
         state = State.CONNECTED
-        listener?.onReconnected(this)
         eventBus.postEvent(RoomEvent.Reconnected(this), coroutineScope)
     }
 
@@ -751,7 +738,6 @@ constructor(
      */
     override fun onEngineReconnecting() {
         state = State.RECONNECTING
-        listener?.onReconnecting(this)
         eventBus.postEvent(RoomEvent.Reconnecting(this), coroutineScope)
     }
 
@@ -818,7 +804,6 @@ constructor(
             } else {
                 val participant = getOrCreateRemoteParticipant(participantIdentity, info)
                 if (isNewParticipant) {
-                    listener?.onParticipantConnected(this, participant)
                     eventBus.postEvent(RoomEvent.ParticipantConnected(this, participant), coroutineScope)
                 } else {
                     participant.updateFromInfo(info)
@@ -872,7 +857,6 @@ constructor(
             val quality = ConnectionQuality.fromProto(info.quality)
             val participant = getParticipantBySid(info.participantSid) ?: return
             participant.connectionQuality = quality
-            listener?.onConnectionQualityChanged(participant, quality)
             eventBus.postEvent(RoomEvent.ConnectionQualityChanged(this, participant, quality), coroutineScope)
         }
     }
@@ -896,7 +880,6 @@ constructor(
             null
         }
 
-        listener?.onDataReceived(data, participant, this)
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant, topic), coroutineScope)
         participant?.onDataReceived(data, topic)
     }
@@ -940,7 +923,6 @@ constructor(
      * @suppress
      */
     override fun onFailToConnect(error: Throwable) {
-        listener?.onFailedToConnect(this, error)
         // scope will likely be closed already here, so force it out of scope.
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
     }
@@ -1001,13 +983,11 @@ constructor(
 
     /** @suppress */
     override fun onTrackMuted(publication: TrackPublication, participant: Participant) {
-        listener?.onTrackMuted(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackMuted(this, publication, participant), coroutineScope)
     }
 
     /** @suppress */
     override fun onTrackUnmuted(publication: TrackPublication, participant: Participant) {
-        listener?.onTrackUnmuted(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnmuted(this, publication, participant), coroutineScope)
     }
 
@@ -1015,7 +995,6 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        listener?.onTrackUnpublished(publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
@@ -1023,7 +1002,6 @@ constructor(
      * @suppress
      */
     override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        listener?.onTrackPublished(publication, participant, this)
         if (e2eeManager != null) {
             e2eeManager!!.addPublishedTrack(publication.track!!, publication, participant, this)
         }
@@ -1034,7 +1012,6 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        listener?.onTrackUnpublished(publication, participant, this)
         e2eeManager?.let { e2eeManager ->
             e2eeManager!!.removePublishedTrack(publication.track!!, publication, participant, this)
         }
@@ -1045,7 +1022,6 @@ constructor(
      * @suppress
      */
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        listener?.onTrackSubscribed(track, publication, participant, this)
         if (e2eeManager != null) {
             e2eeManager!!.addSubscribedTrack(track, publication, participant, this)
         }
@@ -1060,7 +1036,6 @@ constructor(
         exception: Exception,
         participant: RemoteParticipant,
     ) {
-        listener?.onTrackSubscriptionFailed(sid, exception, participant, this)
         eventBus.postEvent(RoomEvent.TrackSubscriptionFailed(this, sid, exception, participant), coroutineScope)
     }
 
@@ -1072,7 +1047,6 @@ constructor(
         publication: RemoteTrackPublication,
         participant: RemoteParticipant,
     ) {
-        listener?.onTrackUnsubscribed(track, publication, participant, this)
         e2eeManager?.let { e2eeManager ->
             e2eeManager!!.removeSubscribedTrack(track, publication, participant, this)
         }
@@ -1080,8 +1054,9 @@ constructor(
     }
 
     /**
-     * // TODO(@dl): can this be moved out of Room/SDK?
+     * Initialize a [SurfaceViewRenderer] for rendering a video from this room.
      */
+    // TODO(@dl): can this be moved out of Room/SDK?
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
@@ -1089,8 +1064,9 @@ constructor(
     }
 
     /**
-     * // TODO(@dl): can this be moved out of Room/SDK?
+     * Initialize a [TextureViewRenderer] for rendering a video from this room.
      */
+    // TODO(@dl): can this be moved out of Room/SDK?
     fun initVideoRenderer(viewRenderer: TextureViewRenderer) {
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
@@ -1127,136 +1103,6 @@ constructor(
     @VisibleForTesting
     fun setReconnectionType(reconnectType: ReconnectType) {
         engine.reconnectType = reconnectType
-    }
-}
-
-/**
- * Room Listener, this class provides callbacks that clients should override.
- *
- */
-@Deprecated("Use Room.events instead")
-interface RoomListener {
-    /**
-     * A network change has been detected and LiveKit attempts to reconnect to the room
-     * When reconnect attempts succeed, the room state will be kept, including tracks that are subscribed/published
-     */
-    fun onReconnecting(room: Room) {}
-
-    /**
-     * The reconnect attempt had been successful
-     */
-    fun onReconnected(room: Room) {}
-
-    /**
-     * Disconnected from room
-     */
-    fun onDisconnect(room: Room, error: Exception?) {}
-
-    /**
-     * When a [RemoteParticipant] joins after the local participant. It will not emit events
-     * for participants that are already in the room
-     */
-    fun onParticipantConnected(room: Room, participant: RemoteParticipant) {}
-
-    /**
-     * When a [RemoteParticipant] leaves after the local participant has joined.
-     */
-    fun onParticipantDisconnected(room: Room, participant: RemoteParticipant) {}
-
-    /**
-     * Could not connect to the room
-     */
-    fun onFailedToConnect(room: Room, error: Throwable) {}
-
-    /**
-     * Active speakers changed. List of speakers are ordered by their audio level. loudest
-     * speakers first. This will include the [LocalParticipant] too.
-     */
-    fun onActiveSpeakersChanged(speakers: List<Participant>, room: Room) {}
-
-    // Participant callbacks
-    /**
-     * Participant metadata is a simple way for app-specific state to be pushed to all users.
-     * When RoomService.UpdateParticipantMetadata is called to change a participant's state,
-     * this event will be fired for all clients in the room.
-     */
-    fun onMetadataChanged(participant: Participant, prevMetadata: String?, room: Room) {}
-
-    /**
-     * The participant was muted.
-     *
-     * For the local participant, the callback will be called if setMute was called on the
-     * [LocalTrackPublication], or if the server has requested the participant to be muted
-     */
-    fun onTrackMuted(publication: TrackPublication, participant: Participant, room: Room) {}
-
-    /**
-     * The participant was unmuted.
-     *
-     * For the local participant, the callback will be called if setMute was called on the
-     * [LocalTrackPublication], or if the server has requested the participant to be muted
-     */
-    fun onTrackUnmuted(publication: TrackPublication, participant: Participant, room: Room) {}
-
-    /**
-     * When a new track is published to room after the local participant has joined. It will
-     * not fire for tracks that are already published
-     */
-    fun onTrackPublished(publication: RemoteTrackPublication, participant: RemoteParticipant, room: Room) {}
-
-    /**
-     * A [RemoteParticipant] has unpublished a track
-     */
-    fun onTrackUnpublished(publication: RemoteTrackPublication, participant: RemoteParticipant, room: Room) {}
-
-    /**
-     * When a new track is published to room after the local participant has joined.
-     */
-    fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant, room: Room) {}
-
-    /**
-     * [LocalParticipant] has unpublished a track
-     */
-    fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant, room: Room) {}
-
-    /**
-     * The [LocalParticipant] has subscribed to a new track. This event will always fire as
-     * long as new tracks are ready for use.
-     */
-    fun onTrackSubscribed(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {}
-
-    /**
-     * Could not subscribe to a track
-     */
-    fun onTrackSubscriptionFailed(sid: String, exception: Exception, participant: RemoteParticipant, room: Room) {}
-
-    /**
-     * A subscribed track is no longer available. Clients should listen to this event and ensure
-     * the track removes all renderers
-     */
-    fun onTrackUnsubscribed(track: Track, publications: TrackPublication, participant: RemoteParticipant, room: Room) {}
-
-    /**
-     * Received data published by another participant
-     */
-    fun onDataReceived(data: ByteArray, participant: RemoteParticipant?, room: Room) {}
-
-    /**
-     * The connection quality for a participant has changed.
-     *
-     * @param participant Either a remote participant or [Room.localParticipant]
-     * @param quality the new connection quality
-     */
-    fun onConnectionQualityChanged(participant: Participant, quality: ConnectionQuality) {}
-
-    companion object {
-        fun getDefaultDevice(kind: DeviceManager.Kind): String? {
-            return DeviceManager.getDefaultDevice(kind)
-        }
-
-        fun setDefaultDevice(kind: DeviceManager.Kind, deviceId: String?) {
-            DeviceManager.setDefaultDevice(kind, deviceId)
-        }
     }
 }
 

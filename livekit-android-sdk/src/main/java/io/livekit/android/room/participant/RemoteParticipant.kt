@@ -101,7 +101,6 @@ class RemoteParticipant(
 
         for (publication in newTrackPublications.values) {
             internalListener?.onTrackPublished(publication, this)
-            listener?.onTrackPublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackPublished(this, publication), scope)
         }
 
@@ -133,7 +132,6 @@ class RemoteParticipant(
                 LKLog.e { "remote participant ${this.sid} --- $message" }
 
                 internalListener?.onTrackSubscriptionFailed(sid, exception, this)
-                listener?.onTrackSubscriptionFailed(sid, exception, this)
                 eventBus.postEvent(ParticipantEvent.TrackSubscriptionFailed(this, sid, exception), scope)
             } else {
                 coroutineScope.launch {
@@ -170,7 +168,6 @@ class RemoteParticipant(
         // TODO: how does mediatrack send ended event?
 
         internalListener?.onTrackSubscribed(track, publication, this)
-        listener?.onTrackSubscribed(track, publication, this)
         eventBus.postEvent(ParticipantEvent.TrackSubscribed(this, track, publication), scope)
     }
 
@@ -186,12 +183,10 @@ class RemoteParticipant(
                 // track may already be disposed, ignore.
             }
             internalListener?.onTrackUnsubscribed(track, publication, this)
-            listener?.onTrackUnsubscribed(track, publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnsubscribed(this, track, publication), scope)
         }
         if (sendUnpublish) {
             internalListener?.onTrackUnpublished(publication, this)
-            listener?.onTrackUnpublished(publication, this)
             eventBus.postEvent(ParticipantEvent.TrackUnpublished(this, publication), scope)
         }
         publication.track = null
@@ -212,7 +207,6 @@ class RemoteParticipant(
 
     // Internal methods just for posting events.
     internal fun onDataReceived(data: ByteArray, topic: String?) {
-        listener?.onDataReceived(data, this)
         eventBus.postEvent(ParticipantEvent.DataReceived(this, data, topic), scope)
     }
 

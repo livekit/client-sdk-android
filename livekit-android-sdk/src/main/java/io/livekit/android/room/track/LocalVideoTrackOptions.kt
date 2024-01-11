@@ -26,7 +26,7 @@ data class LocalVideoTrackOptions(
      */
     val deviceId: String? = null,
     val position: CameraPosition? = CameraPosition.FRONT,
-    val captureParams: VideoCaptureParameter = VideoPreset169.QHD.capture,
+    val captureParams: VideoCaptureParameter = VideoPreset169.H540.capture,
 )
 
 data class VideoCaptureParameter(
@@ -126,36 +126,6 @@ enum class VideoPreset169(
         VideoCaptureParameter(3840, 2160, 30),
         VideoEncoding(8_000_000, 30),
     ),
-
-    @Deprecated("QVGA is deprecated, use H180 instead")
-    QVGA(
-        VideoCaptureParameter(320, 180, 15),
-        VideoEncoding(125_000, 15),
-    ),
-
-    @Deprecated("VGA is deprecated, use H360 instead")
-    VGA(
-        VideoCaptureParameter(640, 360, 30),
-        VideoEncoding(400_000, 30),
-    ),
-
-    @Deprecated("QHD is deprecated, use H540 instead")
-    QHD(
-        VideoCaptureParameter(960, 540, 30),
-        VideoEncoding(800_000, 30),
-    ),
-
-    @Deprecated("HD is deprecated, use H720 instead")
-    HD(
-        VideoCaptureParameter(1280, 720, 30),
-        VideoEncoding(2_500_000, 30),
-    ),
-
-    @Deprecated("FHD is deprecated, use H1080 instead")
-    FHD(
-        VideoCaptureParameter(1920, 1080, 30),
-        VideoEncoding(4_000_000, 30),
-    ),
 }
 
 /**
@@ -200,35 +170,5 @@ enum class VideoPreset43(
     H1440(
         VideoCaptureParameter(1920, 1440, 30),
         VideoEncoding(3_800_000, 30),
-    ),
-
-    @Deprecated("QVGA is deprecated, use H120 instead")
-    QVGA(
-        VideoCaptureParameter(240, 180, 15),
-        VideoEncoding(100_000, 15),
-    ),
-
-    @Deprecated("VGA is deprecated, use H360 instead")
-    VGA(
-        VideoCaptureParameter(480, 360, 30),
-        VideoEncoding(320_000, 30),
-    ),
-
-    @Deprecated("QHD is deprecated, use H540 instead")
-    QHD(
-        VideoCaptureParameter(720, 540, 30),
-        VideoEncoding(640_000, 30),
-    ),
-
-    @Deprecated("HD is deprecated, use H720 instead")
-    HD(
-        VideoCaptureParameter(960, 720, 30),
-        VideoEncoding(2_000_000, 30),
-    ),
-
-    @Deprecated("FHD is deprecated, use H1080 instead")
-    FHD(
-        VideoCaptureParameter(1440, 1080, 30),
-        VideoEncoding(3_200_000, 30),
     ),
 }
