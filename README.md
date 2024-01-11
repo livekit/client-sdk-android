@@ -40,20 +40,23 @@ LiveKit for Android is available as a Maven package.
 ```groovy title="build.gradle"
 ...
 dependencies {
-  implementation "io.livekit:livekit-android:1.5.3"
-  // Snapshots of the latest development version are available at:
-  // implementation "io.livekit:livekit-android:1.5.4-SNAPSHOT"
+    implementation "io.livekit:livekit-android:1.5.3"
+    
+    // Snapshots of the latest development version are available at:
+    // implementation "io.livekit:livekit-android:1.5.4-SNAPSHOT"
 }
 ```
 
+Compose-based apps should check out our [Android Components SDK](https://github.com/livekit/components-android) for composables support.
+
 You'll also need jitpack as one of your repositories.
 
-```groovy
-subprojects {
+```groovy title="settings.gradle"
+dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // ...
+        //...
         maven { url 'https://jitpack.io' }
 
         // For SNAPSHOT access
