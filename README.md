@@ -251,7 +251,7 @@ git submodule update --init
 
 ---
 
-For those developing on Apple M1 Macs, please add below to $HOME/.gradle/gradle.properties
+For those developing on Macs with Apple silicon (e.g. M1, M2, etc.), please add below to $HOME/.gradle/gradle.properties
 
 ```
 protoc_platform=osx-x86_64
