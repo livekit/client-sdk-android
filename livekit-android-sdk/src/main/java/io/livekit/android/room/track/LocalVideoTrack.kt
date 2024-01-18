@@ -226,8 +226,14 @@ constructor(
         oldCapturer.dispose()
         oldSource.dispose()
 
-        // sender owns rtcTrack, so it'll take care of disposing it.
         oldRtcTrack.setEnabled(false)
+
+        // We always own our copy of rtcTrack, so we need to dispose it.
+        // Note: For the first rtcTrack we pass to the PeerConnection, PeerConnection actually
+        // passes it down to the native, and then ends up holding onto a separate copy at the
+        // Java layer. This means our initial rtcTrack isn't owned by PeerConnection, and is
+        // our responsibility to dispose.
+        oldRtcTrack.dispose()
 
         // Close resources associated to the old track. new track resources is registered in createTrack.
         val oldCloseable = closeableManager.unregisterResource(oldRtcTrack)
@@ -253,7 +259,7 @@ constructor(
         rtcTrack = newTrack.rtcTrack
         this.options = options
         startCapture()
-        sender?.setTrack(newTrack.rtcTrack, true)
+        sender?.setTrack(newTrack.rtcTrack, false)
     }
 
     internal fun setPublishingLayers(
