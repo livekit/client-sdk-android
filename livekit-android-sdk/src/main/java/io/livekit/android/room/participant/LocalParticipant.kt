@@ -787,10 +787,14 @@ internal constructor(
 
             if (track != null) {
                 track.stop()
-                unpublishTrack(track)
+                unpublishTrack(track, stopOnUnpublish = false)
 
                 // We have the original track object reference, meaning we own it. Dispose here.
-                track.dispose()
+                try {
+                    track.dispose()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception thrown when cleaning up local participant track $pub:" }
+                }
             }
         }
     }
