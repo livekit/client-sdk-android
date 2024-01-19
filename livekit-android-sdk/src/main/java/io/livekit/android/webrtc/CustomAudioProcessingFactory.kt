@@ -16,7 +16,7 @@
 
 package io.livekit.android.webrtc
 
-import io.livekit.android.audio.AudioProcessing
+import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessingController
 import org.webrtc.AudioProcessingFactory
 import org.webrtc.ExternalAudioProcessingFactory
@@ -42,7 +42,7 @@ class CustomAudioProcessingFactory : AudioProcessingController {
         return externalAudioProcesser
     }
 
-    override fun setCapturePostProcessing(processing: AudioProcessing) {
+    override fun setCapturePostProcessing(processing: AudioProcessorInterface) {
         externalAudioProcesser?.setCapturePostProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
@@ -54,7 +54,7 @@ class CustomAudioProcessingFactory : AudioProcessingController {
         externalAudioProcesser?.setBypassFlagForCapturePost(bypass)
     }
 
-    override fun setRenderPreProcessing(processing: AudioProcessing) {
+    override fun setRenderPreProcessing(processing: AudioProcessorInterface) {
         externalAudioProcesser?.setRenderPreProcessing(
             AudioProcessingBridge().apply {
                 audioProcessing = processing
@@ -67,7 +67,7 @@ class CustomAudioProcessingFactory : AudioProcessingController {
     }
 
     private class AudioProcessingBridge : ExternalAudioProcessingFactory.AudioProcessing {
-        var audioProcessing: AudioProcessing? = null
+        var audioProcessing: AudioProcessorInterface? = null
         override fun initialize(sampleRateHz: Int, numChannels: Int) {
             audioProcessing?.initialize(sampleRateHz, numChannels)
         }

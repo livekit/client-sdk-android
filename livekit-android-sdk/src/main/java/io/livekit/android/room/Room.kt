@@ -28,6 +28,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
+import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
@@ -279,6 +280,12 @@ constructor(
                         emitWhenConnected(event)
                     }
                 }
+            }
+        }
+
+        if(roomOptions.audioProcessor != null) {
+            if(roomOptions.audioProcessor.isEnabled(url, token)) {
+                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor);
             }
         }
 

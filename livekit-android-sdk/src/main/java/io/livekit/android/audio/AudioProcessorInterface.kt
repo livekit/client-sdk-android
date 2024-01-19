@@ -21,7 +21,17 @@ import java.nio.ByteBuffer
 /**
  * Interface for external audio processing.
  */
-interface AudioProcessing {
+interface AudioProcessorInterface {
+    /**
+     * Check if the audio processing is enabled.
+     */
+    fun isEnabled(url: String, token: String) : Boolean
+
+    /**
+     * Get the name of the audio processing.
+     */
+    fun getName() : String
+
     /**
      * Initialize the audio processing.
      */

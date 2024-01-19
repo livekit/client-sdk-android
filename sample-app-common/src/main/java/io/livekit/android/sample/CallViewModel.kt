@@ -20,6 +20,7 @@ import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -27,6 +28,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
+import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
@@ -41,6 +43,7 @@ import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.flow
+import io.livekit.audio.krisp_noise_cancellation.KrispNoiseCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -49,6 +52,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 
 class CallViewModel(
     val url: String,
@@ -67,9 +71,31 @@ class CallViewModel(
         return e2eeOptions
     }
 
+
     val room = LiveKit.create(
         appContext = application,
-        options = RoomOptions(adaptiveStream = true, dynacast = true),
+        options = RoomOptions(adaptiveStream = true, dynacast = true, audioProcessor = object : AudioProcessorInterface{
+            override fun isEnabled(url: String, token: String): Boolean {
+                Log.d(getName(), "isEnabled: $url, $token")
+                return true
+            }
+
+            override fun getName(): String {
+                return "fakeNoiseCancellation"
+            }
+
+            override fun initialize(sampleRateHz: Int, numChannels: Int) {
+                Log.d(getName(), "initialize")
+            }
+
+            override fun reset(newRate: Int) {
+                Log.d(getName(), "reset")
+            }
+
+            override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
+                Log.d(getName(), "process")
+            }
+        } ),
     )
 
     val audioHandler = room.audioHandler as AudioSwitchHandler
