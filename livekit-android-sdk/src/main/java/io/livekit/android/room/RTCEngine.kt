@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,19 +32,21 @@ import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.nullSafe
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -65,7 +67,7 @@ internal constructor(
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
-) : SignalClient.Listener, DataChannel.Observer {
+) : SignalClient.Listener {
     internal var listener: Listener? = null
 
     /**
@@ -218,7 +220,7 @@ internal constructor(
                     LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
                     else -> return@onDataChannel
                 }
-                dataChannel.registerObserver(this)
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
             }
 
             subscriberObserver.connectionChangeListener = connectionStateListener
@@ -239,7 +241,9 @@ internal constructor(
             createDataChannel(
                 RELIABLE_DATA_CHANNEL_LABEL,
                 reliableInit,
-            ).apply { registerObserver(this@RTCEngine) }
+            ).also { dataChannel ->
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+            }
         }
 
         val lossyInit = DataChannel.Init()
@@ -249,7 +253,9 @@ internal constructor(
             createDataChannel(
                 LOSSY_DATA_CHANNEL_LABEL,
                 lossyInit,
-            ).apply { registerObserver(this@RTCEngine) }
+            ).also { dataChannel ->
+                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+            }
         }
     }
 
@@ -260,6 +266,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
+        stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
@@ -268,7 +275,13 @@ internal constructor(
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, builder)
+            client.sendAddTrack(
+                cid = cid,
+                name = name,
+                type = kind,
+                stream = stream,
+                builder = builder,
+            )
         }
     }
 
@@ -312,27 +325,29 @@ internal constructor(
     }
 
     private fun closeResources(reason: String) {
-        publisherObserver.connectionChangeListener = null
-        subscriberObserver.connectionChangeListener = null
-        publisher?.closeBlocking()
-        publisher = null
-        subscriber?.closeBlocking()
-        subscriber = null
+        executeBlockingOnRTCThread {
+            publisherObserver.connectionChangeListener = null
+            subscriberObserver.connectionChangeListener = null
+            publisher?.closeBlocking()
+            publisher = null
+            subscriber?.closeBlocking()
+            subscriber = null
 
-        fun DataChannel?.completeDispose() {
-            this?.unregisterObserver()
-            this?.close()
-            this?.dispose()
+            fun DataChannel?.completeDispose() {
+                this?.unregisterObserver()
+                this?.close()
+                this?.dispose()
+            }
+            reliableDataChannel?.completeDispose()
+            reliableDataChannel = null
+            reliableDataChannelSub?.completeDispose()
+            reliableDataChannelSub = null
+            lossyDataChannel?.completeDispose()
+            lossyDataChannel = null
+            lossyDataChannelSub?.completeDispose()
+            lossyDataChannelSub = null
+            isSubscriberPrimary = false
         }
-        reliableDataChannel?.completeDispose()
-        reliableDataChannel = null
-        reliableDataChannelSub?.completeDispose()
-        reliableDataChannelSub = null
-        lossyDataChannel?.completeDispose()
-        lossyDataChannel = null
-        lossyDataChannelSub?.completeDispose()
-        lossyDataChannelSub = null
-        isSubscriberPrimary = false
         client.close(reason = reason)
     }
 
@@ -684,8 +699,11 @@ internal constructor(
     }
 
     companion object {
-        private const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
-        private const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+        @VisibleForTesting
+        internal const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+
+        @VisibleForTesting
+        internal const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_RECONNECT_RETRIES = 10
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
@@ -705,17 +723,13 @@ internal constructor(
         LKLog.v { "received server answer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
             LKLog.i { sessionDescription.toString() }
-            when (val outcome = publisher?.setRemoteDescription(sessionDescription)) {
+            when (val outcome = publisher?.setRemoteDescription(sessionDescription).nullSafe()) {
                 is Either.Left -> {
                     // do nothing.
                 }
 
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
-                }
-
-                else -> {
-                    LKLog.w { "publisher is null, can't set remote description." }
                 }
             }
         }
@@ -725,59 +739,49 @@ internal constructor(
         val signalingState = runBlocking { publisher?.signalingState() }
         LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
-            // TODO: This is a potentially very long lock hold. May need to break up.
-            val answer = subscriber?.withPeerConnection {
-                run {
-                    when (
-                        val outcome =
-                            subscriber?.setRemoteDescription(sessionDescription)
-                    ) {
-                        is Either.Right -> {
-                            LKLog.e { "error setting remote description for answer: ${outcome.value} " }
-                            return@withPeerConnection null
-                        }
-
-                        else -> {}
+            run {
+                when (val outcome = subscriber?.setRemoteDescription(sessionDescription).nullSafe()) {
+                    is Either.Right -> {
+                        LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                        return@launch
                     }
-                }
 
-                if (isClosed) {
-                    return@withPeerConnection null
+                    else -> {}
                 }
-
-                val answer = run {
-                    when (val outcome = createAnswer(MediaConstraints())) {
-                        is Either.Left -> outcome.value
-                        is Either.Right -> {
-                            LKLog.e { "error creating answer: ${outcome.value}" }
-                            return@withPeerConnection null
-                        }
-                    }
-                }
-
-                if (isClosed) {
-                    return@withPeerConnection null
-                }
-
-                run<Unit> {
-                    when (val outcome = setLocalDescription(answer)) {
-                        is Either.Right -> {
-                            LKLog.e { "error setting local description for answer: ${outcome.value}" }
-                            return@withPeerConnection null
-                        }
-
-                        else -> {}
-                    }
-                }
-
-                if (isClosed) {
-                    return@withPeerConnection null
-                }
-                return@withPeerConnection answer
             }
-            answer?.let {
-                client.sendAnswer(it)
+
+            if (isClosed) {
+                return@launch
             }
+
+            val answer = run {
+                when (val outcome = subscriber?.withPeerConnection { createAnswer(MediaConstraints()) }.nullSafe()) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> {
+                        LKLog.e { "error creating answer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+            }
+
+            if (isClosed) {
+                return@launch
+            }
+
+            run<Unit> {
+                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
+                    is Either.Left -> Unit
+                    is Either.Right -> {
+                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
+                        return@launch
+                    }
+                }
+            }
+
+            if (isClosed) {
+                return@launch
+            }
+            client.sendAnswer(answer)
         }
     }
 
@@ -883,13 +887,13 @@ internal constructor(
 
     // --------------------------------- DataChannel.Observer ------------------------------------//
 
-    override fun onBufferedAmountChange(previousAmount: Long) {
+    fun onBufferedAmountChange(dataChannel: DataChannel, previousAmount: Long) {
     }
 
-    override fun onStateChange() {
+    fun onStateChange(dataChannel: DataChannel) {
     }
 
-    override fun onMessage(buffer: DataChannel.Buffer?) {
+    fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
         if (buffer == null) {
             return
         }
@@ -908,6 +912,20 @@ internal constructor(
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+        }
+    }
+
+    private inner class DataChannelObserver(val dataChannel: DataChannel) : DataChannel.Observer {
+        override fun onBufferedAmountChange(p0: Long) {
+            this@RTCEngine.onBufferedAmountChange(dataChannel, p0)
+        }
+
+        override fun onStateChange() {
+            this@RTCEngine.onStateChange(dataChannel)
+        }
+
+        override fun onMessage(p0: DataChannel.Buffer) {
+            this@RTCEngine.onMessage(dataChannel, p0)
         }
     }
 
@@ -997,12 +1015,12 @@ internal constructor(
     }
 
     @VisibleForTesting
-    internal suspend fun getPublisherPeerConnection() =
-        publisher?.withPeerConnection { this }!!
+    internal fun getPublisherPeerConnection() =
+        publisher!!.peerConnection
 
     @VisibleForTesting
-    internal suspend fun getSubscriberPeerConnection() =
-        subscriber?.withPeerConnection { this }!!
+    internal fun getSubscriberPeerConnection() =
+        subscriber!!.peerConnection
 }
 
 /**

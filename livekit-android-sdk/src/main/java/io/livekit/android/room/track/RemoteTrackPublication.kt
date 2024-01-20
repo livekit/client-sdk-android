@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ class RemoteTrackPublication(
     private val ioDispatcher: CoroutineDispatcher,
 ) : TrackPublication(info, track, participant) {
 
-    @OptIn(FlowPreview::class)
     override var track: Track?
         get() = super.track
         set(value) {
@@ -67,7 +66,7 @@ class RemoteTrackPublication(
 
     private var unsubscribed: Boolean = false
     private var disabled: Boolean = false
-    private var videoQuality: LivekitModels.VideoQuality? = LivekitModels.VideoQuality.HIGH
+    private var videoQuality: VideoQuality? = VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
     private var fps: Int? = null
 
@@ -123,7 +122,7 @@ class RemoteTrackPublication(
         unsubscribed = !subscribed
         val participant = this.participant.get() as? RemoteParticipant ?: return
         val participantTracks = with(LivekitModels.ParticipantTracks.newBuilder()) {
-            participantSid = participant.sid
+            participantSid = participant.sid.value
             addTrackSids(sid)
             build()
         }
@@ -152,7 +151,7 @@ class RemoteTrackPublication(
      *
      * Will override previous calls to [setVideoDimensions].
      */
-    fun setVideoQuality(quality: LivekitModels.VideoQuality) {
+    fun setVideoQuality(quality: VideoQuality) {
         if (isAutoManaged ||
             !subscribed ||
             quality == videoQuality ||
@@ -223,7 +222,7 @@ class RemoteTrackPublication(
         val participant = this.participant.get() as? RemoteParticipant ?: return
 
         val rtcTrack = track?.rtcTrack
-        if (rtcTrack is org.webrtc.VideoTrack) {
+        if (rtcTrack is livekit.org.webrtc.VideoTrack) {
             rtcTrack.setShouldReceive(!disabled)
         }
 
@@ -231,7 +230,7 @@ class RemoteTrackPublication(
             sid,
             disabled,
             videoDimensions,
-            videoQuality,
+            videoQuality?.toProto(),
             fps,
         )
     }

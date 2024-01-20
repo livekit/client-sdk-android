@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import org.webrtc.MediaConstraints
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpSender
-import org.webrtc.RtpTransceiver
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
 import java.util.*
 
 /**
@@ -33,12 +34,12 @@ import java.util.*
  */
 class LocalAudioTrack(
     name: String,
-    mediaTrack: org.webrtc.AudioTrack
+    mediaTrack: livekit.org.webrtc.AudioTrack
 ) : AudioTrack(name, mediaTrack) {
     var enabled: Boolean
-        get() = rtcTrack.enabled()
+        get() = executeBlockingOnRTCThread { rtcTrack.enabled() }
         set(value) {
-            rtcTrack.setEnabled(value)
+            executeBlockingOnRTCThread { rtcTrack.setEnabled(value) }
         }
 
     internal var transceiver: RtpTransceiver? = null

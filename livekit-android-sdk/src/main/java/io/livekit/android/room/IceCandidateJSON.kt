@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,5 @@ package io.livekit.android.room
 
 import kotlinx.serialization.Serializable
 
-/**
- * @suppress
- */
 @Serializable
-data class IceCandidateJSON(val candidate: String, val sdpMLineIndex: Int, val sdpMid: String?)
+internal data class IceCandidateJSON(val candidate: String, val sdpMLineIndex: Int, val sdpMid: String?)

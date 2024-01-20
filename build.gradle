@@ -57,7 +57,11 @@ subprojects {
         }
         kotlin {
             target("src/*/java/**/*.kt")
-            targetExclude("src/*/java/**/ReentrantMutex.kt") // Different license
+            targetExclude(
+                "src/*/java/**/ReentrantMutex.kt", // Different license
+                "src/*/java/**/TextureViewRenderer.kt", // Different license
+                "src/*/java/**/FlowDelegate.kt", // Different license
+            )
             ktlint("0.50.0")
                 .setEditorConfigPath("$rootDir/.editorconfig")
             licenseHeaderFile(rootProject.file("LicenseHeaderFile.txt"))
@@ -66,6 +70,16 @@ subprojects {
             toggleOffOn()
         }
     }
+
+    // From Gradle 8 onwards, Kapt no longer automatically picks up jvmTarget
+    // from normal KotlinOptions. Must be manually set.
+    // JvmToolchain should not be used since it changes the actual JDK used.
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs).configureEach {
+        kotlinOptions {
+            jvmTarget = java_version
+        }
+    }
+
 }
 
 task clean(type: Delete) {

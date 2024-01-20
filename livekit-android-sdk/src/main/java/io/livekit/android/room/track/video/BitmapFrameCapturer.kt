@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.os.Build
 import android.view.Surface
-import org.webrtc.CapturerObserver
-import org.webrtc.SurfaceTextureHelper
-import org.webrtc.VideoCapturer
+import livekit.org.webrtc.CapturerObserver
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
 
 /**
  * A [VideoCapturer] that can be manually driven by passing in [Bitmap].

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,8 @@ class RemoteParticipantTest : BaseTest() {
     fun setup() {
         signalClient = Mockito.mock(SignalClient::class.java)
         participant = RemoteParticipant(
-            "sid",
+            sid = Participant.Sid("sid"),
+            identity = null,
             signalClient = signalClient,
             ioDispatcher = coroutineRule.dispatcher,
             defaultDispatcher = coroutineRule.dispatcher,
@@ -57,7 +58,7 @@ class RemoteParticipantTest : BaseTest() {
         participant.updateFromInfo(newTrackInfo)
         val events = collector.stopCollecting()
 
-        assertEquals(1, participant.tracks.values.size)
+        assertEquals(1, participant.trackPublications.values.size)
         assertNotNull(participant.getTrackPublication(TRACK_INFO.sid))
 
         val publishes = events.filterIsInstance<ParticipantEvent.TrackPublished>()
@@ -70,7 +71,7 @@ class RemoteParticipantTest : BaseTest() {
             .addTracks(TRACK_INFO)
             .build()
 
-        val collector = FlowCollector(participant::tracks.flow, coroutineRule.scope)
+        val collector = FlowCollector(participant::trackPublications.flow, coroutineRule.scope)
         participant.updateFromInfo(newTrackInfo)
 
         val emissions = collector.stopCollecting()
@@ -85,7 +86,7 @@ class RemoteParticipantTest : BaseTest() {
             .addTracks(TRACK_INFO)
             .build()
 
-        val collector = FlowCollector(participant::tracks.flow, coroutineRule.scope)
+        val collector = FlowCollector(participant::trackPublications.flow, coroutineRule.scope)
         participant.updateFromInfo(newTrackInfo)
 
         val emissions = collector.stopCollecting()
@@ -103,7 +104,7 @@ class RemoteParticipantTest : BaseTest() {
         participant.updateFromInfo(newTrackInfo)
         participant.updateFromInfo(INFO)
 
-        assertEquals(0, participant.tracks.values.size)
+        assertEquals(0, participant.trackPublications.values.size)
         assertNull(participant.getTrackPublication(TRACK_INFO.sid))
     }
 
@@ -116,7 +117,7 @@ class RemoteParticipantTest : BaseTest() {
         participant.updateFromInfo(newTrackInfo)
         participant.unpublishTrack(TRACK_INFO.sid)
 
-        assertEquals(0, participant.tracks.values.size)
+        assertEquals(0, participant.trackPublications.values.size)
         assertNull(participant.getTrackPublication(TRACK_INFO.sid))
     }
 

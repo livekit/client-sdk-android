@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package io.livekit.android.webrtc
 
-import org.webrtc.PeerConnection
-import org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
 
 /**
  * Completed state is a valid state for a connected connection, so this should be used

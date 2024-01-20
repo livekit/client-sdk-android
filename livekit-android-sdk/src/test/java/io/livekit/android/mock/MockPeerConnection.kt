@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,23 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.DataChannel
-import org.webrtc.IceCandidate
-import org.webrtc.MediaConstraints
-import org.webrtc.MediaStream
-import org.webrtc.MediaStreamTrack
-import org.webrtc.MockRtpTransceiver
-import org.webrtc.NativePeerConnectionFactory
-import org.webrtc.PeerConnection
-import org.webrtc.RTCStatsCollectorCallback
-import org.webrtc.RTCStatsReport
-import org.webrtc.RtcCertificatePem
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpSender
-import org.webrtc.RtpTransceiver
-import org.webrtc.SdpObserver
-import org.webrtc.SessionDescription
-import org.webrtc.StatsObserver
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.MockRtpTransceiver
+import livekit.org.webrtc.NativePeerConnectionFactory
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
+import livekit.org.webrtc.RtcCertificatePem
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SdpObserver
+import livekit.org.webrtc.SessionDescription
+import livekit.org.webrtc.StatsObserver
 
 private class MockNativePeerConnectionFactory : NativePeerConnectionFactory {
     override fun createNativePeerConnection(): Long = 0L
@@ -214,7 +214,8 @@ class MockPeerConnection(
                     IceConnectionState.NEW -> PeerConnectionState.NEW
                     IceConnectionState.CHECKING -> PeerConnectionState.CONNECTING
                     IceConnectionState.CONNECTED,
-                    IceConnectionState.COMPLETED -> PeerConnectionState.CONNECTED
+                    IceConnectionState.COMPLETED,
+                    -> PeerConnectionState.CONNECTED
 
                     IceConnectionState.DISCONNECTED -> PeerConnectionState.DISCONNECTED
                     IceConnectionState.FAILED -> PeerConnectionState.FAILED
@@ -242,7 +243,8 @@ class MockPeerConnection(
             IceConnectionState.NEW,
             IceConnectionState.CHECKING,
             IceConnectionState.CONNECTED,
-            IceConnectionState.COMPLETED -> {
+            IceConnectionState.COMPLETED,
+            -> {
                 val currentOrdinal = iceConnectionState.ordinal
                 val newOrdinal = newState.ordinal
 
@@ -258,7 +260,8 @@ class MockPeerConnection(
 
             IceConnectionState.FAILED,
             IceConnectionState.DISCONNECTED,
-            IceConnectionState.CLOSED -> {
+            IceConnectionState.CLOSED,
+            -> {
                 // jump to state directly.
                 iceConnectionState = newState
             }
@@ -278,6 +281,9 @@ class MockPeerConnection(
     override fun dispose() {
         iceConnectionState = IceConnectionState.CLOSED
         closed = true
+
+        transceivers.forEach { t -> t.dispose() }
+        transceivers.clear()
     }
 
     override fun getNativePeerConnection(): Long = 0L

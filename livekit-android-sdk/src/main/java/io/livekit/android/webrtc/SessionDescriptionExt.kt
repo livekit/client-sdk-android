@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package io.livekit.android.webrtc
 
 import livekit.LivekitRtc
-import org.webrtc.SessionDescription
+import livekit.org.webrtc.SessionDescription
 
-fun SessionDescription.toProtoSessionDescription(): LivekitRtc.SessionDescription {
+internal fun SessionDescription.toProtoSessionDescription(): LivekitRtc.SessionDescription {
     val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
     sdBuilder.sdp = description
     sdBuilder.type = type.canonicalForm()

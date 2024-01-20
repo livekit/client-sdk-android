@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,20 +32,17 @@ import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
-import org.webrtc.*
-import org.webrtc.audio.AudioDeviceModule
-import org.webrtc.audio.JavaAudioDeviceModule
+import livekit.org.webrtc.*
+import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
-typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
+internal typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
 
-/**
- * @suppress
- */
 @Module
-object RTCModule {
+internal object RTCModule {
 
     /**
      * Certain classes require libwebrtc to be initialized prior to use.
@@ -57,6 +54,7 @@ object RTCModule {
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions
                 .builder(appContext)
+                .setNativeLibraryName("lkjingle_peerconnection_so")
                 .setInjectableLogger(
                     { s, severity, s2 ->
                         if (!LiveKit.enableWebRTCLogging) {
@@ -166,7 +164,8 @@ object RTCModule {
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
-            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+            // VOICE_COMMUNICATION needs to be used for echo cancelling.
+            .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             .setAudioAttributes(audioOutputAttributes)
 
         moduleCustomizer?.invoke(builder)

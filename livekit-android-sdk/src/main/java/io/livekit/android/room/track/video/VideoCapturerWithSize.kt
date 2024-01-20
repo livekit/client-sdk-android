@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,13 @@
 package io.livekit.android.room.track.video
 
 import android.hardware.camera2.CameraManager
-import org.webrtc.*
+import livekit.org.webrtc.*
 
-/**
- * @suppress
- */
-internal interface VideoCapturerWithSize : VideoCapturer {
+interface VideoCapturerWithSize : VideoCapturer {
     fun findCaptureFormat(width: Int, height: Int): Size
 }
 
-/**
- * @suppress
- */
-
-internal abstract class CameraCapturerWithSize(
+abstract class CameraCapturerWithSize(
     val cameraEventsDispatchHandler: CameraEventsDispatchHandler,
 ) : VideoCapturerWithSize
 

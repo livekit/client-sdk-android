@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,16 @@
 
 package io.livekit.android.events
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 
 interface EventListenable<out T> {
     val events: SharedFlow<T>
 }
 
+/**
+ * @see [Flow.collect]
+ */
 suspend inline fun <T> EventListenable<T>.collect(crossinline action: suspend (value: T) -> Unit) {
     events.collect { value -> action(value) }
 }

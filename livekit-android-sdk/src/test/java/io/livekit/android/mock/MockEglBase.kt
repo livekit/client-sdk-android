@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package io.livekit.android.mock
 
 import android.graphics.SurfaceTexture
 import android.view.Surface
-import org.webrtc.EglBase
+import livekit.org.webrtc.EglBase
 
 class MockEglBase(
     private val eglContext: EglBase.Context = EglBase.Context { 0 },

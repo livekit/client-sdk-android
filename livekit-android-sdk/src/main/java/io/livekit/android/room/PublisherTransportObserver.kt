@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,18 @@
 package io.livekit.android.room
 
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitRtc
-import org.webrtc.*
+import livekit.org.webrtc.CandidatePairChangeEvent
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SessionDescription
 
-/**
- * @suppress
- */
-class PublisherTransportObserver(
+internal class PublisherTransportObserver(
     private val engine: RTCEngine,
     private val client: SignalClient,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener {
@@ -31,13 +36,17 @@ class PublisherTransportObserver(
     var connectionChangeListener: ((newState: PeerConnection.PeerConnectionState) -> Unit)? = null
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
-        val candidate = iceCandidate ?: return
-        LKLog.v { "onIceCandidate: $candidate" }
-        client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
+        executeOnRTCThread {
+            val candidate = iceCandidate ?: return@executeOnRTCThread
+            LKLog.v { "onIceCandidate: $candidate" }
+            client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
+        }
     }
 
     override fun onRenegotiationNeeded() {
-        engine.negotiatePublisher()
+        executeOnRTCThread {
+            engine.negotiatePublisher()
+        }
     }
 
     override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
@@ -45,15 +54,19 @@ class PublisherTransportObserver(
     }
 
     override fun onOffer(sd: SessionDescription) {
-        client.sendOffer(sd)
+        executeOnRTCThread {
+            client.sendOffer(sd)
+        }
     }
 
     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
-        LKLog.v { "onConnection new state: $newState" }
-        connectionChangeListener?.invoke(newState)
+        executeOnRTCThread {
+            LKLog.v { "onConnection new state: $newState" }
+            connectionChangeListener?.invoke(newState)
+        }
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {

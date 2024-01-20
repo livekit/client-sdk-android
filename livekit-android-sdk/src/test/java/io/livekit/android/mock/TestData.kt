@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,24 +21,24 @@ import livekit.LivekitModels
 object TestData {
 
     val LOCAL_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
-        sid = "local_audio_track_sid"
+        sid = "TR_local_audio_track_sid"
         type = LivekitModels.TrackType.AUDIO
         build()
     }
     val LOCAL_VIDEO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
-        sid = "local_video_track_sid"
+        sid = "TR_local_video_track_sid"
         type = LivekitModels.TrackType.VIDEO
         build()
     }
 
     val REMOTE_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
-        sid = "remote_audio_track_sid"
+        sid = "TR_remote_audio_track_sid"
         type = LivekitModels.TrackType.AUDIO
         build()
     }
 
     val REMOTE_VIDEO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
-        sid = "remote_video_track_sid"
+        sid = "TR_remote_video_track_sid"
         type = LivekitModels.TrackType.VIDEO
         build()
     }

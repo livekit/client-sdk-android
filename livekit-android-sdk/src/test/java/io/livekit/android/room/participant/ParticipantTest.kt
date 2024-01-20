@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class ParticipantTest {
 
     @Before
     fun setup() {
-        participant = Participant("", null, coroutineRule.dispatcher)
+        participant = Participant(Participant.Sid(""), null, coroutineRule.dispatcher)
     }
 
     @Test
@@ -52,8 +52,8 @@ class ParticipantTest {
         participant.updateFromInfo(INFO)
 
         assertTrue(participant.hasInfo)
-        assertEquals(INFO.sid, participant.sid)
-        assertEquals(INFO.identity, participant.identity)
+        assertEquals(INFO.sid, participant.sid.value)
+        assertEquals(INFO.identity, participant.identity?.value)
         assertEquals(INFO.metadata, participant.metadata)
         assertEquals(INFO.name, participant.name)
         assertEquals(INFO, participant.participantInfo)
@@ -72,10 +72,8 @@ class ParticipantTest {
             }
         }
 
-        val publicListener = MetadataListener()
         val internalListener = MetadataListener()
 
-        participant.listener = publicListener
         participant.internalListener = internalListener
 
         val prevMetadata = participant.metadata
@@ -88,7 +86,6 @@ class ParticipantTest {
             assertEquals(prevMetadata, listener.prevMetadataValue)
         }
 
-        checkValues(publicListener)
         checkValues(internalListener)
     }
 
@@ -132,10 +129,10 @@ class ParticipantTest {
         val audioPublication = TrackPublication(TRACK_INFO, null, participant)
         participant.addTrackPublication(audioPublication)
 
-        assertEquals(1, participant.tracks.values.size)
-        assertEquals(audioPublication, participant.tracks.values.first())
-        assertEquals(1, participant.audioTracks.size)
-        assertEquals(audioPublication, participant.audioTracks.first().first)
+        assertEquals(1, participant.trackPublications.values.size)
+        assertEquals(audioPublication, participant.trackPublications.values.first())
+        assertEquals(1, participant.audioTrackPublications.size)
+        assertEquals(audioPublication, participant.audioTrackPublications.first().first)
     }
 
     @Test
@@ -144,7 +141,7 @@ class ParticipantTest {
         participant.addTrackPublication(audioPublication)
 
         participant.dispose()
-        assertEquals("", participant.sid)
+        assertEquals("", participant.sid.value)
         assertNull(participant.name)
         assertNull(participant.identity)
         assertNull(participant.metadata)

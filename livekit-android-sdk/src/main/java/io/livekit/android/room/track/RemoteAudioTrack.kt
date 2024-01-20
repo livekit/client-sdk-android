@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 
 package io.livekit.android.room.track
 
-import org.webrtc.AudioTrack
-import org.webrtc.AudioTrackSink
-import org.webrtc.RtpReceiver
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrackSink
+import livekit.org.webrtc.RtpReceiver
 
 class RemoteAudioTrack(
     name: String,
     rtcTrack: AudioTrack,
-    internal val receiver: RtpReceiver
+    internal val receiver: RtpReceiver,
 ) : io.livekit.android.room.track.AudioTrack(name, rtcTrack) {
 
     /**
@@ -35,13 +36,17 @@ class RemoteAudioTrack(
      * to use the data after this function returns.
      */
     fun addSink(sink: AudioTrackSink) {
-        rtcTrack.addSink(sink)
+        executeBlockingOnRTCThread {
+            rtcTrack.addSink(sink)
+        }
     }
 
     /**
      * Removes a previously added sink.
      */
     fun removeSink(sink: AudioTrackSink) {
-        rtcTrack.removeSink(sink)
+        executeBlockingOnRTCThread {
+            rtcTrack.removeSink(sink)
+        }
     }
 }

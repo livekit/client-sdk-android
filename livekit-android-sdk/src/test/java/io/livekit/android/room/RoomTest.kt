@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,13 @@ import io.livekit.android.memory.CloseableManager
 import io.livekit.android.mock.*
 import io.livekit.android.room.participant.LocalParticipant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import livekit.LivekitRtc.JoinResponse
+import livekit.org.webrtc.EglBase
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -45,7 +49,6 @@ import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.shadows.ShadowConnectivityManager
-import org.webrtc.EglBase
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -71,9 +74,11 @@ class RoomTest {
         override fun create(dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
                 .apply {
-                    whenever(this.events).thenReturn(object : EventListenable<ParticipantEvent> {
-                        override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
-                    })
+                    whenever(this.events).thenReturn(
+                        object : EventListenable<ParticipantEvent> {
+                            override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
+                        },
+                    )
                 }
         }
     }
@@ -97,12 +102,12 @@ class RoomTest {
         )
     }
 
-    suspend fun connect() {
+    suspend fun connect(joinResponse: JoinResponse = SignalClientTest.JOIN.join) {
         rtcEngine.stub {
             onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull()) }
                 .doSuspendableAnswer {
-                    room.onJoinResponse(SignalClientTest.JOIN.join)
-                    SignalClientTest.JOIN.join
+                    room.onJoinResponse(joinResponse)
+                    joinResponse
                 }
         }
         rtcEngine.stub {
@@ -136,6 +141,7 @@ class RoomTest {
         room.onRoomUpdate(update)
         val events = eventCollector.stopCollecting()
 
+        assertEquals(update.sid, room.sid?.sid)
         assertEquals(update.metadata, room.metadata)
         assertEquals(update.activeRecording, room.isRecording)
 
@@ -206,5 +212,24 @@ class RoomTest {
         assertNull(room.metadata)
         assertNull(room.name)
         assertFalse(room.isRecording)
+    }
+
+    @Test
+    fun getSidSuspendsUntilPopulated() = runTest {
+        val job = async {
+            room.getSid()
+        }
+
+        assertFalse(job.isCompleted)
+        connect()
+        assertFalse(job.isCompleted)
+        val update = SignalClientTest.ROOM_UPDATE.roomUpdate.room
+        room.onRoomUpdate(update)
+
+        advanceUntilIdle()
+        assertTrue(job.isCompleted)
+        val sid = job.await()
+
+        assertEquals(update.sid, sid.sid)
     }
 }

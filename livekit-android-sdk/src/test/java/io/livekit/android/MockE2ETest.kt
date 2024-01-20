@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,14 +30,17 @@ import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import livekit.LivekitRtc
+import livekit.org.webrtc.PeerConnection
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okio.ByteString
 import org.junit.Before
-import org.webrtc.PeerConnection
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 abstract class MockE2ETest : BaseTest() {
 
     internal lateinit var component: TestLiveKitComponent

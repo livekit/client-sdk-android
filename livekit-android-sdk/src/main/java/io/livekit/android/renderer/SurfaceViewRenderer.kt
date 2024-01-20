@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
-import org.webrtc.SurfaceViewRenderer
+import livekit.org.webrtc.SurfaceViewRenderer
 
 open class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
     constructor(context: Context) : super(context)

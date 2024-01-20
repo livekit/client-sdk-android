@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,16 @@ class ComposeVisibility : VideoSinkVisibility() {
         return Track.Dimensions(width, height)
     }
 
-    // Note, LayoutCoordinates are mutable and may be reused.
+    /**
+     * To be called from a compose view, using `Modifier.onGloballyPositioned`.
+     *
+     * Example:
+     * ```
+     * modifier = Modifier.onGloballyPositioned { videoSinkVisibility.onGloballyPositioned(it) }
+     * ```
+     */
     fun onGloballyPositioned(layoutCoordinates: LayoutCoordinates) {
+        // Note, LayoutCoordinates are mutable and may be reused.
         coordinates = layoutCoordinates
         val visible = isVisible()
         val size = size()
@@ -58,6 +66,18 @@ class ComposeVisibility : VideoSinkVisibility() {
         lastSize = size
     }
 
+    /**
+     * To be called when the associated compose view no longer exists.
+     *
+     * Example:
+     * ```
+     * DisposableEffect(room, videoTrack) {
+     *     onDispose {
+     *         videoSinkVisibility.onDispose()
+     *     }
+     * }
+     * ```
+     */
     fun onDispose() {
         if (coordinates == null) {
             return

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,6 +76,9 @@ constructor(context: Context) : AudioHandler {
         onAudioFocusChangeListener?.onAudioFocusChange(it)
     }
 
+    /**
+     * Set this to listen to audio focus changes.
+     */
     var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
 
     override fun start() {
@@ -98,6 +101,16 @@ constructor(context: Context) : AudioHandler {
         }
     }
 
+    /**
+     * Creates the request used when requesting audio focus.
+     *
+     * The default implementation creates an audio focus request based on the
+     * settings of this object.
+     *
+     * Only used on Android O and upwards. On lower platforms,
+     * the request will be made using the [audioStreamType] and [focusMode]
+     * settings.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     open fun createAudioRequest(): AudioFocusRequest {
         return AudioFocusRequest.Builder(focusMode)

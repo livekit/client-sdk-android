@@ -18,8 +18,8 @@ package io.livekit.android.webrtc
 
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessingController
-import org.webrtc.AudioProcessingFactory
-import org.webrtc.ExternalAudioProcessingFactory
+import livekit.org.webrtc.AudioProcessingFactory
+import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
 
 class CustomAudioProcessingFactory : AudioProcessingController {

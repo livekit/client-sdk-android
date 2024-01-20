@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -285,7 +285,7 @@ class RoomMockE2ETest : MockE2ETest() {
         Assert.assertEquals(true, events[0] is RoomEvent.TrackSubscriptionPermissionChanged)
 
         val event = events[0] as RoomEvent.TrackSubscriptionPermissionChanged
-        Assert.assertEquals(TestData.REMOTE_PARTICIPANT.sid, event.participant.sid)
+        Assert.assertEquals(TestData.REMOTE_PARTICIPANT.sid, event.participant.sid.value)
         Assert.assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.trackPublication.sid)
         Assert.assertEquals(false, event.subscriptionAllowed)
     }

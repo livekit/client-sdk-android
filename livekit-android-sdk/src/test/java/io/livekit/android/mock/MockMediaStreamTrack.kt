@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.livekit.android.mock
 
-import org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.MediaStreamTrack
 
 class MockMediaStreamTrack(
     val id: String = "id",
@@ -24,6 +24,8 @@ class MockMediaStreamTrack(
     var enabled: Boolean = true,
     var state: State = State.LIVE,
 ) : MediaStreamTrack(1L) {
+
+    var disposed = false
     override fun id(): String = id
 
     override fun kind(): String = kind
@@ -40,5 +42,9 @@ class MockMediaStreamTrack(
     }
 
     override fun dispose() {
+        if (disposed) {
+            throw IllegalStateException("already disposed")
+        }
+        disposed = true
     }
 }

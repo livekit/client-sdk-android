@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package io.livekit.android.webrtc
 
-import org.webrtc.EglBase
-import org.webrtc.SoftwareVideoEncoderFactory
-import org.webrtc.VideoCodecInfo
-import org.webrtc.VideoEncoder
-import org.webrtc.VideoEncoderFactory
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.SoftwareVideoEncoderFactory
+import livekit.org.webrtc.VideoCodecInfo
+import livekit.org.webrtc.VideoEncoder
+import livekit.org.webrtc.VideoEncoderFactory
 
 open class CustomVideoEncoderFactory(
     sharedContext: EglBase.Context?,
@@ -37,10 +37,16 @@ open class CustomVideoEncoderFactory(
             SimulcastVideoEncoderFactoryWrapper(sharedContext, enableIntelVp8Encoder, enableH264HighProfile)
     }
 
+    /**
+     * Set to true to force software codecs.
+     */
     fun setForceSWCodec(forceSWCodec: Boolean) {
         this.forceSWCodec = forceSWCodec
     }
 
+    /**
+     * Set a list of codecs for which to use software codecs.
+     */
     fun setForceSWCodecList(forceSWCodecs: List<String>) {
         this.forceSWCodecs = forceSWCodecs
     }

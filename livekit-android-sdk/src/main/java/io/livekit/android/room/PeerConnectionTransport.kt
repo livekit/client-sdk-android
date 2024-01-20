@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ package io.livekit.android.room
 
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
+import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import io.livekit.android.coroutines.withReentrantLock
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.util.*
 import io.livekit.android.util.Either
@@ -34,17 +34,15 @@ import io.livekit.android.webrtc.getFmtps
 import io.livekit.android.webrtc.getMsid
 import io.livekit.android.webrtc.getRtps
 import io.livekit.android.webrtc.isConnected
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.PeerConnection.SignalingState
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection.SignalingState
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts
@@ -67,7 +65,9 @@ constructor(
     private val sdpFactory: SdpFactory,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
-    private val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
+
+    @VisibleForTesting
+    internal val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
         config,
         pcObserver,
     ) ?: throw IllegalStateException("peer connection creation failed?")
@@ -75,8 +75,6 @@ constructor(
     private var restartingIce: Boolean = false
 
     private var renegotiate = false
-
-    private val mutex = Mutex()
 
     private var trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
     private var isClosed = AtomicBoolean(false)
@@ -86,25 +84,23 @@ constructor(
     }
 
     fun addIceCandidate(candidate: IceCandidate) {
-        runBlocking {
-            withNotClosedLock {
-                if (peerConnection.remoteDescription != null && !restartingIce) {
-                    peerConnection.addIceCandidate(candidate)
-                } else {
-                    pendingCandidates.add(candidate)
-                }
+        executeRTCIfNotClosed {
+            if (peerConnection.remoteDescription != null && !restartingIce) {
+                peerConnection.addIceCandidate(candidate)
+            } else {
+                pendingCandidates.add(candidate)
             }
         }
     }
 
     suspend fun <T> withPeerConnection(action: suspend PeerConnection.() -> T): T? {
-        return withNotClosedLock {
+        return launchRTCIfNotClosed {
             action(peerConnection)
         }
     }
 
     suspend fun setRemoteDescription(sd: SessionDescription): Either<Unit, String?> {
-        val result = withNotClosedLock {
+        val result = launchRTCIfNotClosed {
             val result = peerConnection.setRemoteDescription(sd)
             if (result is Either.Left) {
                 pendingCandidates.forEach { pending ->
@@ -140,7 +136,7 @@ constructor(
         var finalSdp: SessionDescription? = null
 
         // TODO: This is a potentially long lock hold. May need to break up.
-        withNotClosedLock {
+        launchRTCIfNotClosed {
             val iceRestart =
                 constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
             if (iceRestart) {
@@ -158,7 +154,7 @@ constructor(
                     peerConnection.setRemoteDescription(curSd)
                 } else {
                     renegotiate = true
-                    return@withNotClosedLock
+                    return@launchRTCIfNotClosed
                 }
             }
 
@@ -167,10 +163,13 @@ constructor(
                 is Either.Left -> outcome.value
                 is Either.Right -> {
                     LKLog.d { "error creating offer: ${outcome.value}" }
-                    return@withNotClosedLock
+                    return@launchRTCIfNotClosed
                 }
             }
 
+            if (isClosed()) {
+                return@launchRTCIfNotClosed
+            }
             // munge sdp
             val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
 
@@ -198,11 +197,14 @@ constructor(
 
         LKLog.v { "sdp type: ${sdp.type}\ndescription:\n${sdp.description}" }
         LKLog.v { "munged sdp type: ${mungedSdp.type}\ndescription:\n${mungedSdp.description}" }
-        val mungedResult = if (remote) {
-            peerConnection.setRemoteDescription(mungedSdp)
-        } else {
-            peerConnection.setLocalDescription(mungedSdp)
-        }
+
+        val mungedResult = launchRTCIfNotClosed {
+            if (remote) {
+                peerConnection.setRemoteDescription(mungedSdp)
+            } else {
+                peerConnection.setLocalDescription(mungedSdp)
+            }
+        } ?: Either.Right("PCT closed")
 
         val mungedErrorMessage = when (mungedResult) {
             is Either.Left -> {
@@ -227,11 +229,13 @@ constructor(
         }
         LKLog.w { "error: $mungedErrorMessage" }
 
-        val result = if (remote) {
-            peerConnection.setRemoteDescription(sdp)
-        } else {
-            peerConnection.setLocalDescription(sdp)
-        }
+        val result = launchRTCIfNotClosed {
+            if (remote) {
+                peerConnection.setRemoteDescription(sdp)
+            } else {
+                peerConnection.setLocalDescription(sdp)
+            }
+        } ?: Either.Right("PCT closed")
 
         if (result is Either.Right) {
             val errorMessage = if (result.value.isNullOrBlank()) {
@@ -264,24 +268,15 @@ constructor(
     }
 
     suspend fun close() {
-        withNotClosedLock {
+        launchRTCIfNotClosed {
             isClosed.set(true)
-            peerConnection.close()
-
-            // Really ugly stop gap measure to avoid race conditions
-            // TODO: Properly lock any PeerConnection resources to prevent usage.
-            GlobalScope.launch {
-                delay(10L * 1000)
-                peerConnection.dispose()
-            }
+            peerConnection.dispose()
         }
     }
 
     fun updateRTCConfig(config: RTCConfiguration) {
-        runBlocking {
-            withNotClosedLock {
-                peerConnection.setConfiguration(config)
-            }
+        executeRTCIfNotClosed {
+            peerConnection.setConfiguration(config)
         }
     }
 
@@ -294,40 +289,56 @@ constructor(
     }
 
     suspend fun isConnected(): Boolean {
-        return withNotClosedLock {
+        return launchRTCIfNotClosed {
             peerConnection.isConnected()
         } ?: false
     }
 
     suspend fun iceConnectionState(): PeerConnection.IceConnectionState {
-        return withNotClosedLock {
+        return launchRTCIfNotClosed {
             peerConnection.iceConnectionState()
         } ?: PeerConnection.IceConnectionState.CLOSED
     }
 
     suspend fun connectionState(): PeerConnection.PeerConnectionState {
-        return withNotClosedLock {
+        return launchRTCIfNotClosed {
             peerConnection.connectionState()
         } ?: PeerConnection.PeerConnectionState.CLOSED
     }
 
     suspend fun signalingState(): SignalingState {
-        return withNotClosedLock {
+        return launchRTCIfNotClosed {
             peerConnection.signalingState()
         } ?: SignalingState.CLOSED
     }
 
     @OptIn(ExperimentalContracts::class)
-    private suspend inline fun <T> withNotClosedLock(crossinline action: suspend () -> T): T? {
+    private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend () -> T): T? {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
         if (isClosed()) {
             return null
         }
-        return mutex.withReentrantLock {
-            if (isClosed()) {
-                return@withReentrantLock null
+        return launchBlockingOnRTCThread {
+            return@launchBlockingOnRTCThread if (isClosed()) {
+                null
+            } else {
+                action()
             }
-            return@withReentrantLock action()
+        }
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    private fun <T> executeRTCIfNotClosed(action: () -> T): T? {
+        contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
+        if (isClosed()) {
+            return null
+        }
+        return executeBlockingOnRTCThread {
+            return@executeBlockingOnRTCThread if (isClosed()) {
+                null
+            } else {
+                action()
+            }
         }
     }
 
@@ -448,7 +459,7 @@ internal data class TrackBitrateInfo(
     val maxBitrate: Long,
 )
 
-sealed class TrackBitrateInfoKey {
+internal sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }

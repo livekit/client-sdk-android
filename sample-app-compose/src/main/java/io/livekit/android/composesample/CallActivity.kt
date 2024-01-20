@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,7 +136,11 @@ class CallActivity : AppCompatActivity() {
         screenCaptureIntentLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
     }
 
-    val previewParticipant = Participant("asdf", "asdf", Dispatchers.Main)
+    val previewParticipant = Participant(
+        Participant.Sid("asdf"),
+        Participant.Identity("asdf"),
+        Dispatchers.Main,
+    )
 
     @ExperimentalMaterialApi
     @Preview(showBackground = true, showSystemUi = true)
@@ -202,7 +206,7 @@ class CallActivity : AppCompatActivity() {
                     if (room != null) {
                         items(
                             count = participants.size,
-                            key = { index -> participants[index].sid },
+                            key = { index -> participants[index].sid.value },
                         ) { index ->
                             ParticipantItem(
                                 room = room,
