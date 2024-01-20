@@ -148,6 +148,11 @@ constructor(
     var adaptiveStream: Boolean = false
 
     /**
+     *  audio processing is enabled
+     */
+    var audioProcessorIsEnabled: Boolean = false
+
+    /**
      * Dynamically pauses video layers that are not being consumed by any subscribers,
      * significantly reducing publishing CPU and bandwidth usage.
      *
@@ -286,6 +291,7 @@ constructor(
         if(roomOptions.audioProcessor != null) {
             if(roomOptions.audioProcessor.isEnabled(url, token)) {
                 LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor);
+                audioProcessorIsEnabled = true
             }
         }
 

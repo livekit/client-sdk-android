@@ -43,7 +43,6 @@ import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.flow
-import io.livekit.audio.krisp_noise_cancellation.KrispNoiseCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
