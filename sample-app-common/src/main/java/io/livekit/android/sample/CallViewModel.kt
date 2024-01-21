@@ -59,6 +59,7 @@ class CallViewModel(
     application: Application,
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
+    val audioProcessor: AudioProcessorInterface? = null,
 ) : AndroidViewModel(application) {
 
     private fun getE2EEOptions(): E2EEOptions? {
@@ -70,31 +71,18 @@ class CallViewModel(
         return e2eeOptions
     }
 
+    private fun getRoomOptions(): RoomOptions {
+        return RoomOptions(
+            adaptiveStream = true,
+            dynacast = true,
+            audioProcessor = audioProcessor,
+            e2eeOptions = getE2EEOptions(),
+        )
+    }
 
     val room = LiveKit.create(
         appContext = application,
-        options = RoomOptions(adaptiveStream = true, dynacast = true, audioProcessor = object : AudioProcessorInterface{
-            override fun isEnabled(url: String, token: String): Boolean {
-                Log.d(getName(), "isEnabled: $url, $token")
-                return true
-            }
-
-            override fun getName(): String {
-                return "fakeNoiseCancellation"
-            }
-
-            override fun initialize(sampleRateHz: Int, numChannels: Int) {
-                Log.d(getName(), "initialize")
-            }
-
-            override fun reset(newRate: Int) {
-                Log.d(getName(), "reset")
-            }
-
-            override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
-                Log.d(getName(), "process")
-            }
-        } ),
+        options = getRoomOptions(),
     )
 
     val audioHandler = room.audioHandler as AudioSwitchHandler
@@ -127,6 +115,12 @@ class CallViewModel(
 
     private val mutableScreencastEnabled = MutableLiveData(false)
     val screenshareEnabled = mutableScreencastEnabled.hide()
+
+    private val mutableEnhancedNsEnabled = MutableLiveData(false)
+    val enhancedNsEnabled = mutableEnhancedNsEnabled.hide()
+
+    private val mutableEnableAudioProcessor = MutableLiveData(true)
+    val enableAudioProcessor = mutableEnableAudioProcessor.hide()
 
     // Emits a string whenever a data message is received.
     private val mutableDataReceived = MutableSharedFlow<String>()
@@ -201,13 +195,36 @@ class CallViewModel(
         }
     }
 
+    fun toggleEnhancedNs(enabled: Boolean? = null) {
+
+        if(enabled != null) {
+            mutableEnableAudioProcessor.postValue(enabled)
+            LiveKit.audioProcessingController().setByPassForCapturePostProcessing(!enabled)
+            return
+        }
+
+        if (room.audioProcessorIsEnabled) {
+            if (enableAudioProcessor.value == true) {
+                LiveKit.audioProcessingController().setByPassForCapturePostProcessing(true)
+                mutableEnableAudioProcessor.postValue(false)
+            } else {
+                LiveKit.audioProcessingController().setByPassForCapturePostProcessing(false)
+                mutableEnableAudioProcessor.postValue(true)
+            }
+        }
+    }
+
     private suspend fun connectToRoom() {
         try {
             room.e2eeOptions = getE2EEOptions()
+            room.audioProcessor = audioProcessor
             room.connect(
                 url = url,
                 token = token,
             )
+
+            mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
+            mutableEnableAudioProcessor.postValue(true)
 
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant

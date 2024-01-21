@@ -20,6 +20,7 @@ import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import android.util.Log
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.Toast
@@ -29,19 +30,46 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
+import java.nio.ByteBuffer
 
 class CallActivity : AppCompatActivity() {
 
     val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey)
+
+        var audioProcessor = object : AudioProcessorInterface {
+            override fun isEnabled(url: String, token: String): Boolean {
+                Log.d(getName(), "isEnabled: $url, $token")
+                return true
+            }
+
+            override fun getName(): String {
+                return "fakeNoiseCancellation"
+            }
+
+            override fun initialize(sampleRateHz: Int, numChannels: Int) {
+                Log.d(getName(), "initialize")
+            }
+
+            override fun reset(newRate: Int) {
+                Log.d(getName(), "reset")
+            }
+
+            override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
+                Log.d(getName(), "process")
+            }
+        }
+
+        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessor)
     }
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
@@ -144,6 +172,18 @@ class CallActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel") { _, _ -> }
                 .create()
                 .show()
+        }
+
+        viewModel.enhancedNsEnabled.observe(this) { enabled ->
+            binding.enhancedNs.visibility = if (enabled) {
+                android.view.View.VISIBLE
+            } else {
+                android.view.View.GONE
+            }
+        }
+
+        binding.enhancedNs.setOnClickListener {
+            showAudioProcessorSwitchDialog(viewModel)
         }
 
         binding.exit.setOnClickListener { finish() }

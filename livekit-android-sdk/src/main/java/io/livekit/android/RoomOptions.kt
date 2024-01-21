@@ -44,8 +44,6 @@ data class RoomOptions(
     val videoTrackCaptureDefaults: LocalVideoTrackOptions? = null,
     val audioTrackPublishDefaults: AudioTrackPublishDefaults? = null,
     val videoTrackPublishDefaults: VideoTrackPublishDefaults? = null,
-    /**
-     * @see external audio processing
-     */
+
     val audioProcessor: AudioProcessorInterface? = null,
 )

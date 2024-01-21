@@ -32,6 +32,8 @@ import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
@@ -197,6 +199,11 @@ constructor(
     var e2eeOptions: E2EEOptions? = null
 
     /**
+     * @see external audio processing
+     */
+    var audioProcessor: AudioProcessorInterface? = null
+
+    /**
      * Default options to use when creating an audio track.
      */
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
@@ -248,6 +255,7 @@ constructor(
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
             e2eeOptions = e2eeOptions,
+            audioProcessor = audioProcessor,
         )
 
     /**
@@ -330,8 +338,9 @@ constructor(
 
         if(roomOptions.audioProcessor != null) {
             if(roomOptions.audioProcessor.isEnabled(url, token)) {
-                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor);
                 audioProcessorIsEnabled = true
+                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor);
+                audioProcessor = roomOptions.audioProcessor
             }
         }
 

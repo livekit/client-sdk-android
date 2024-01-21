@@ -81,6 +81,17 @@
             app:tint="@android:color/white" />
 
         <ImageView
+            android:id="@+id/enhanced_ns"
+            android:visibility="gone"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/voice_wave_24"
+            app:tint="@android:color/white" />
+
+        <ImageView
             android:id="@+id/exit"
             android:layout_width="@dimen/control_size"
             android:layout_height="@dimen/control_size"
