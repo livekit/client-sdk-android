@@ -25,6 +25,7 @@ import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
+import io.livekit.android.audio.CommunicationWorkaroundImpl
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
@@ -83,6 +84,15 @@ object RTCModule {
     @Provides
     @Singleton
     @JvmSuppressWildcards
+    fun communicationWorkaround(closeableManager: CloseableManager): CommunicationWorkaroundImpl {
+        return CommunicationWorkaroundImpl().apply {
+            closeableManager.registerClosable { this.dispose() }
+        }
+    }
+
+    @Provides
+    @Singleton
+    @JvmSuppressWildcards
     fun audioModule(
         @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE)
         @Nullable
@@ -93,6 +103,7 @@ object RTCModule {
         audioOutputAttributes: AudioAttributes,
         appContext: Context,
         closeableManager: CloseableManager,
+        communicationWorkaroundImpl: CommunicationWorkaroundImpl,
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
             return audioDeviceModuleOverride
@@ -132,14 +143,18 @@ object RTCModule {
                 LKLog.e { "onWebRtcAudioTrackError: $errorMessage" }
             }
         }
+
+        communicationWorkaroundImpl.start()
         val audioRecordStateCallback: JavaAudioDeviceModule.AudioRecordStateCallback = object :
             JavaAudioDeviceModule.AudioRecordStateCallback {
             override fun onWebRtcAudioRecordStart() {
                 LKLog.v { "Audio recording starts" }
+                communicationWorkaroundImpl.onStartPlayout()
             }
 
             override fun onWebRtcAudioRecordStop() {
                 LKLog.v { "Audio recording stops" }
+                communicationWorkaroundImpl.onStopPlayout()
             }
         }
 
