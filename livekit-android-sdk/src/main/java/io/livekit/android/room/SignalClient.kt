@@ -394,9 +394,9 @@ constructor(
             setName(name)
             setType(type)
             if (stream != null) {
-                //setStream(stream)
+                // setStream(stream)
             } else {
-                //clearStream()
+                // clearStream()
             }
             encryption = encryptionType
         }

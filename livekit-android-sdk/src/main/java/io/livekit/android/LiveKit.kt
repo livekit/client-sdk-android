@@ -50,13 +50,13 @@ object LiveKit {
             }
         }
 
-        /**
-         * Returns the [AudioProcessingController] used by LiveKit for
-         * external audio processing.
-         */
-        fun audioProcessingController(): AudioProcessingController {
-            return RTCModule.audioProcessingController()
-        }
+    /**
+     * Returns the [AudioProcessingController] used by LiveKit for
+     * external audio processing.
+     */
+    fun audioProcessingController(): AudioProcessingController {
+        return RTCModule.audioProcessingController()
+    }
 
     /**
      * Enables logs for the underlying WebRTC sdk logging. Used in conjunction with [loggingLevel].

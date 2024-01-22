@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ interface AudioProcessorInterface {
     /**
      * Check if the audio processing is enabled.
      */
-    fun isEnabled(url: String, token: String) : Boolean
+    fun isEnabled(url: String, token: String): Boolean
 
     /**
      * Get the name of the audio processing.
      */
-    fun getName() : String
+    fun getName(): String
 
     /**
      * Initialize the audio processing.

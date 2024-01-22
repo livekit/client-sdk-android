@@ -32,7 +32,6 @@ import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
-import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
@@ -336,10 +335,10 @@ constructor(
             }
         }
 
-        if(roomOptions.audioProcessor != null) {
-            if(roomOptions.audioProcessor.isEnabled(url, token)) {
+        if (roomOptions.audioProcessor != null) {
+            if (roomOptions.audioProcessor.isEnabled(url, token)) {
                 audioProcessorIsEnabled = true
-                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor);
+                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor)
                 audioProcessor = roomOptions.audioProcessor
             }
         }

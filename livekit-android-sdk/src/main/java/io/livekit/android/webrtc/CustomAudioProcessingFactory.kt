@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package io.livekit.android.webrtc
 
-import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioProcessorInterface
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
