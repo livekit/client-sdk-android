@@ -20,7 +20,6 @@ import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -51,7 +50,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.nio.ByteBuffer
 
 class CallViewModel(
     val url: String,
@@ -196,8 +194,7 @@ class CallViewModel(
     }
 
     fun toggleEnhancedNs(enabled: Boolean? = null) {
-
-        if(enabled != null) {
+        if (enabled != null) {
             mutableEnableAudioProcessor.postValue(enabled)
             LiveKit.audioProcessingController().setByPassForCapturePostProcessing(!enabled)
             return
