@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
@@ -65,6 +66,7 @@ constructor(
     val audioHandler: AudioHandler,
     private val closeableManager: CloseableManager,
     private val e2EEManagerFactory: E2EEManager.Factory,
+    private val communicationWorkaround: CommunicationWorkaround,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -112,8 +114,16 @@ constructor(
     var state: State by flowDelegate(State.DISCONNECTED) { new, old ->
         if (new != old) {
             when (new) {
-                State.CONNECTING -> audioHandler.start()
-                State.DISCONNECTED -> audioHandler.stop()
+                State.CONNECTING -> {
+                    audioHandler.start()
+                    communicationWorkaround.start()
+                }
+
+                State.DISCONNECTED -> {
+                    audioHandler.stop()
+                    communicationWorkaround.stop()
+                }
+
                 else -> {}
             }
         }
