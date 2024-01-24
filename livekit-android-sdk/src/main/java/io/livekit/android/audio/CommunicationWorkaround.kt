@@ -23,17 +23,20 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
 import androidx.annotation.RequiresApi
+import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.util.CloseableCoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import javax.inject.Inject
+import javax.inject.Named
+import javax.inject.Singleton
 
 /**
- * @suppress
+ * @see CommunicationWorkaroundImpl
  */
 interface CommunicationWorkaround {
 
@@ -45,9 +48,6 @@ interface CommunicationWorkaround {
     fun dispose()
 }
 
-/**
- * @suppress
- */
 class NoopCommunicationWorkaround
 @Inject
 constructor() : CommunicationWorkaround {
@@ -71,17 +71,19 @@ constructor() : CommunicationWorkaround {
  * Work around for communication mode resetting after 6 seconds if no audio playback or capture.
  * Issue only happens on 11+ (version code R).
  * https://issuetracker.google.com/issues/209493718
- *
- * @suppress
  */
+@Singleton
 @RequiresApi(Build.VERSION_CODES.R)
 class CommunicationWorkaroundImpl
 @Inject
-constructor() : CommunicationWorkaround {
+constructor(
+    @Named(InjectionNames.DISPATCHER_MAIN)
+    dispatcher: MainCoroutineDispatcher,
+) : CommunicationWorkaround {
 
-    private val coroutineScope = CloseableCoroutineScope(Dispatchers.Main)
+    private val coroutineScope = CloseableCoroutineScope(dispatcher)
     private val started = MutableStateFlow(false)
-    private val playoutStopped = MutableStateFlow(false)
+    private val playoutStopped = MutableStateFlow(true)
 
     private var audioTrack: AudioTrack? = null
 
@@ -125,6 +127,7 @@ constructor() : CommunicationWorkaround {
         if (audioTrack != null) {
             return
         }
+
         val sampleRate = 16000
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
         val bytesPerFrame = 1 * getBytesPerSample(audioFormat)

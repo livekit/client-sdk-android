@@ -77,13 +77,14 @@ object AudioHandlerModule {
         disableCommunicationWorkaround: Boolean,
         audioType: AudioType,
         closeableManager: CloseableManager,
+        commWorkaroundImplProvider: Provider<CommunicationWorkaroundImpl>,
     ): CommunicationWorkaround {
         return if (
             !disableCommunicationWorkaround &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
             audioType.audioMode == AudioManager.MODE_IN_COMMUNICATION
         ) {
-            CommunicationWorkaroundImpl().apply {
+            commWorkaroundImplProvider.get().apply {
                 closeableManager.registerClosable { this.dispose() }
             }
         } else {
