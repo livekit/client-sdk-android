@@ -104,6 +104,22 @@ class AudioOptions(
      * Not used if [audioDeviceModule] is provided.
      */
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
+
+    /**
+     * On Android 11+, the audio mode will reset itself from [AudioManager.MODE_IN_COMMUNICATION] if
+     * there is no audio playback or capture for 6 seconds (for example when joining a room with
+     * no speakers and the local mic is muted.) This mode reset will cause unexpected
+     * behavior when trying to change the volume, causing it to not properly change the volume.
+     *
+     * We use a workaround by playing a silent audio track to keep the communication mode from
+     * resetting.
+     *
+     * Setting this flag to true will disable the workaround.
+     *
+     * This flag is a no-op when the audio mode is set to anything other than
+     * [AudioManager.MODE_IN_COMMUNICATION].
+     */
+    val disableCommunicationModeWorkaround: Boolean = false,
 )
 
 /**

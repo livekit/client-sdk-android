@@ -23,6 +23,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.assert.assertIsClassList
 import io.livekit.android.audio.NoAudioHandler
+import io.livekit.android.audio.NoopCommunicationWorkaround
 import io.livekit.android.coroutines.TestCoroutineRule
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.*
@@ -99,6 +100,7 @@ class RoomTest {
             audioHandler = NoAudioHandler(),
             closeableManager = CloseableManager(),
             e2EEManagerFactory = e2EEManagerFactory,
+            communicationWorkaround = NoopCommunicationWorkaround(),
         )
     }
 
