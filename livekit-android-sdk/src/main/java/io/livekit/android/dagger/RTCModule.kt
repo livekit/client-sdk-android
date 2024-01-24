@@ -139,12 +139,10 @@ object RTCModule {
             JavaAudioDeviceModule.AudioRecordStateCallback {
             override fun onWebRtcAudioRecordStart() {
                 LKLog.v { "Audio recording starts" }
-                communicationWorkaround.onStartPlayout()
             }
 
             override fun onWebRtcAudioRecordStop() {
                 LKLog.v { "Audio recording stops" }
-                communicationWorkaround.onStopPlayout()
             }
         }
 
@@ -153,10 +151,12 @@ object RTCModule {
             JavaAudioDeviceModule.AudioTrackStateCallback {
             override fun onWebRtcAudioTrackStart() {
                 LKLog.v { "Audio playout starts" }
+                communicationWorkaround.onStartPlayout()
             }
 
             override fun onWebRtcAudioTrackStop() {
                 LKLog.v { "Audio playout stops" }
+                communicationWorkaround.onStopPlayout()
             }
         }
 
