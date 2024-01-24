@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
+/**
+ * @suppress
+ */
 interface CommunicationWorkaround {
 
     fun start()
@@ -25,7 +28,10 @@ interface CommunicationWorkaround {
     fun dispose()
 }
 
-class NoopCommunicationWorkaround : CommunicationWorkaround {
+/**
+ * @suppress
+ */
+internal class NoopCommunicationWorkaround : CommunicationWorkaround {
     override fun start() {
     }
 
@@ -42,7 +48,15 @@ class NoopCommunicationWorkaround : CommunicationWorkaround {
     }
 }
 
-class CommunicationWorkaroundImpl : CommunicationWorkaround {
+/**
+ * Work around for communication mode resetting after 6 seconds if no audio playback or capture.
+ * Issue only happens on 11+ (version code R).
+ * https://issuetracker.google.com/issues/209493718
+ *
+ * @suppress
+ */
+@RequiresApi(Build.VERSION_CODES.R)
+internal class CommunicationWorkaroundImpl : CommunicationWorkaround {
 
     private val coroutineScope = CloseableCoroutineScope(Dispatchers.Main)
     private val started = MutableStateFlow(false)
@@ -77,7 +91,7 @@ class CommunicationWorkaroundImpl : CommunicationWorkaround {
     }
 
     @SuppressLint("NewApi")
-    fun onStateChanged(started: Boolean, playoutStopped: Boolean) {
+    private fun onStateChanged(started: Boolean, playoutStopped: Boolean) {
         if (started && playoutStopped) {
             startAudioTrackIfNeeded()
         } else {
@@ -86,7 +100,6 @@ class CommunicationWorkaroundImpl : CommunicationWorkaround {
     }
 
     @SuppressLint("Range")
-    @RequiresApi(Build.VERSION_CODES.M)
     private fun startAudioTrackIfNeeded() {
         if (audioTrack != null) {
             return
@@ -94,18 +107,13 @@ class CommunicationWorkaroundImpl : CommunicationWorkaround {
         val sampleRate = 16000
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
         val bytesPerFrame = 1 * getBytesPerSample(audioFormat)
-        val framesPerBuffer: Int = sampleRate / 100
+        val framesPerBuffer: Int = sampleRate / 100 // 10 ms
         val byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer)
-//        while (byteBuffer.hasRemaining()) {
-//            byteBuffer.put(Random.nextInt().toByte())
-//        }
-//
-//        byteBuffer.rewind()
 
         audioTrack = AudioTrack.Builder()
             .setAudioFormat(
                 AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setEncoding(audioFormat)
                     .setSampleRate(sampleRate)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build(),
