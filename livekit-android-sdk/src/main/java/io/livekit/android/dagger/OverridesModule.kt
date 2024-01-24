@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,8 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
 
     @Provides
     @Named(InjectionNames.OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND)
-    fun disableCommunicationWorkAround() = overrides.audioOptions?.disableCommunicationModeWorkaround
+    fun disableCommunicationWorkAround() = overrides.audioOptions?.disableCommunicationModeWorkaround ?: false
+
     @Provides
     @Named(InjectionNames.OVERRIDE_EGL_BASE)
     @Nullable

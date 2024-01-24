@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,16 +73,21 @@ object AudioHandlerModule {
     @Singleton
     @JvmSuppressWildcards
     fun communicationWorkaround(
+        @Named(InjectionNames.OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND)
+        disableCommunicationWorkaround: Boolean,
         audioType: AudioType,
         closeableManager: CloseableManager,
     ): CommunicationWorkaround {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && audioType.audioMode == AudioManager.MODE_IN_COMMUNICATION) {
+        return if (
+            !disableCommunicationWorkaround &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            audioType.audioMode == AudioManager.MODE_IN_COMMUNICATION
+        ) {
             CommunicationWorkaroundImpl().apply {
                 closeableManager.registerClosable { this.dispose() }
             }
         } else {
             NoopCommunicationWorkaround()
         }
-
     }
 }

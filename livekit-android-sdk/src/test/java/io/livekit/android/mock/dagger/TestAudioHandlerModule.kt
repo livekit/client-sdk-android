@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,15 @@ package io.livekit.android.mock.dagger
 import dagger.Binds
 import dagger.Module
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.audio.NoAudioHandler
+import io.livekit.android.audio.NoopCommunicationWorkaround
 
 @Module
 interface TestAudioHandlerModule {
     @Binds
     fun audioHandler(audioHandler: NoAudioHandler): AudioHandler
+
+    @Binds
+    fun communicationWorkaround(communicationWorkaround: NoopCommunicationWorkaround): CommunicationWorkaround
 }
