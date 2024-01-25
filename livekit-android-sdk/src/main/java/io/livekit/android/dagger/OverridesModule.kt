@@ -62,6 +62,10 @@ internal class OverridesModule(private val overrides: LiveKitOverrides) {
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
 
     @Provides
+    @Named(InjectionNames.OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND)
+    fun disableCommunicationWorkAround() = overrides.audioOptions?.disableCommunicationModeWorkaround ?: false
+
+    @Provides
     @Named(InjectionNames.OVERRIDE_EGL_BASE)
     @Nullable
     fun eglBase() = overrides.eglBase
