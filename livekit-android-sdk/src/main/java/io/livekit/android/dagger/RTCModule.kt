@@ -26,6 +26,7 @@ import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
@@ -93,6 +94,7 @@ internal object RTCModule {
         audioOutputAttributes: AudioAttributes,
         appContext: Context,
         closeableManager: CloseableManager,
+        communicationWorkaround: CommunicationWorkaround,
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
             return audioDeviceModuleOverride
@@ -132,6 +134,7 @@ internal object RTCModule {
                 LKLog.e { "onWebRtcAudioTrackError: $errorMessage" }
             }
         }
+
         val audioRecordStateCallback: JavaAudioDeviceModule.AudioRecordStateCallback = object :
             JavaAudioDeviceModule.AudioRecordStateCallback {
             override fun onWebRtcAudioRecordStart() {
@@ -148,10 +151,12 @@ internal object RTCModule {
             JavaAudioDeviceModule.AudioTrackStateCallback {
             override fun onWebRtcAudioTrackStart() {
                 LKLog.v { "Audio playout starts" }
+                communicationWorkaround.onStartPlayout()
             }
 
             override fun onWebRtcAudioTrackStop() {
                 LKLog.v { "Audio playout stops" }
+                communicationWorkaround.onStopPlayout()
             }
         }
 

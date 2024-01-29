@@ -17,11 +17,17 @@
 package io.livekit.android.dagger
 
 import android.media.AudioAttributes
+import android.media.AudioManager
+import android.os.Build
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.AudioType
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioSwitchHandler
+import io.livekit.android.audio.CommunicationWorkaround
+import io.livekit.android.audio.CommunicationWorkaroundImpl
+import io.livekit.android.audio.NoopCommunicationWorkaround
+import io.livekit.android.memory.CloseableManager
 import javax.inject.Named
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -60,6 +66,29 @@ internal object AudioHandlerModule {
             audioAttributeContentType = audioOutputType.audioAttributes.contentType
             audioAttributeUsageType = audioOutputType.audioAttributes.usage
             audioStreamType = audioOutputType.audioStreamType
+        }
+    }
+
+    @Provides
+    @Singleton
+    @JvmSuppressWildcards
+    fun communicationWorkaround(
+        @Named(InjectionNames.OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND)
+        disableCommunicationWorkaround: Boolean,
+        audioType: AudioType,
+        closeableManager: CloseableManager,
+        commWorkaroundImplProvider: Provider<CommunicationWorkaroundImpl>,
+    ): CommunicationWorkaround {
+        return if (
+            !disableCommunicationWorkaround &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            audioType.audioMode == AudioManager.MODE_IN_COMMUNICATION
+        ) {
+            commWorkaroundImplProvider.get().apply {
+                closeableManager.registerClosable { this.dispose() }
+            }
+        } else {
+            NoopCommunicationWorkaround()
         }
     }
 }

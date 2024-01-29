@@ -52,5 +52,6 @@ internal object InjectionNames {
     internal const val OVERRIDE_VIDEO_DECODER_FACTORY = "override_video_decoder_factory"
     internal const val OVERRIDE_AUDIO_HANDLER = "override_audio_handler"
     internal const val OVERRIDE_AUDIO_OUTPUT_TYPE = "override_audio_output_type"
+    internal const val OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND = "override_disable_communication_workaround"
     internal const val OVERRIDE_EGL_BASE = "override_egl_base"
 }
