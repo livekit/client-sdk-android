@@ -16,7 +16,7 @@
 
 package io.livekit.android
 
-import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
@@ -45,5 +45,5 @@ data class RoomOptions(
     val audioTrackPublishDefaults: AudioTrackPublishDefaults? = null,
     val videoTrackPublishDefaults: VideoTrackPublishDefaults? = null,
 
-    val audioProcessor: AudioProcessorInterface? = null,
+    val audioProcessorOptions: AudioProcessorOptions? = null,
 )

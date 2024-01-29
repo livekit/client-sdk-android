@@ -23,8 +23,10 @@ import android.widget.ArrayAdapter
 import io.livekit.android.sample.CallViewModel
 
 fun Activity.showAudioProcessorSwitchDialog(callViewModel: CallViewModel) {
+    var name = callViewModel.audioProcessorOptions?.getCapturePostProcessor()?.getName()
+    var enabled = if (callViewModel.enableAudioProcessor.value == true) "On" else "Off"
     val builder = with(AlertDialog.Builder(this)) {
-        setTitle("AudioProcessor: [" + callViewModel.audioProcessor?.getName() + "] is " + if (callViewModel.enableAudioProcessor.value == true) "On" else "Off")
+        setTitle("AudioProcessor for mic: \n[$name] is $enabled")
 
         val arrayAdapter = ArrayAdapter<String>(this@showAudioProcessorSwitchDialog, R.layout.select_dialog_item)
         arrayAdapter.add("On")

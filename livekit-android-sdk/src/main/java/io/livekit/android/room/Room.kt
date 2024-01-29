@@ -32,7 +32,7 @@ import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
-import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
@@ -198,9 +198,9 @@ constructor(
     var e2eeOptions: E2EEOptions? = null
 
     /**
-     * @see external audio processing
+     * @see external audio processing options
      */
-    var audioProcessor: AudioProcessorInterface? = null
+    var audioProcessorOptions: AudioProcessorOptions? = null
 
     /**
      * Default options to use when creating an audio track.
@@ -254,7 +254,7 @@ constructor(
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
             e2eeOptions = e2eeOptions,
-            audioProcessor = audioProcessor,
+            audioProcessorOptions = audioProcessorOptions,
         )
 
     /**
@@ -335,11 +335,26 @@ constructor(
             }
         }
 
-        if (roomOptions.audioProcessor != null) {
-            if (roomOptions.audioProcessor.isEnabled(url, token)) {
-                audioProcessorIsEnabled = true
-                LiveKit.audioProcessingController().setCapturePostProcessing(roomOptions.audioProcessor)
-                audioProcessor = roomOptions.audioProcessor
+        if (roomOptions.audioProcessorOptions != null) {
+            if (roomOptions.audioProcessorOptions.process.containsKey(AudioProcessorOptions.AudioProcessorType.CapturePost)) {
+                var audioProcessor = roomOptions.audioProcessorOptions.process[AudioProcessorOptions.AudioProcessorType.CapturePost]
+                if (audioProcessor!!.isEnabled(url, token)) {
+                    LiveKit.audioProcessingController().setCapturePostProcessing(audioProcessor)
+                    var bypass = roomOptions.audioProcessorOptions.bypass[AudioProcessorOptions.AudioProcessorType.CapturePost]
+                    if (bypass != null) {
+                        LiveKit.audioProcessingController().setByPassForCapturePostProcessing(bypass)
+                    }
+                }
+            }
+            if (roomOptions.audioProcessorOptions.process.containsKey(AudioProcessorOptions.AudioProcessorType.RenderPre)) {
+                var audioProcessor = roomOptions.audioProcessorOptions.process[AudioProcessorOptions.AudioProcessorType.RenderPre]
+                if (audioProcessor!!.isEnabled(url, token)) {
+                    LiveKit.audioProcessingController().setRenderPreProcessing(audioProcessor)
+                    var bypass = roomOptions.audioProcessorOptions.bypass[AudioProcessorOptions.AudioProcessorType.RenderPre]
+                    if (bypass != null) {
+                        LiveKit.audioProcessingController().setByPassForRenderPreProcessing(bypass)
+                    }
+                }
             }
         }
 

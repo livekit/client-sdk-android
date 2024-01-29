@@ -31,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
@@ -53,7 +54,7 @@ class CallActivity : AppCompatActivity() {
             }
 
             override fun getName(): String {
-                return "fakeNoiseCancellation"
+                return "fake_noise_cancellation"
             }
 
             override fun initialize(sampleRateHz: Int, numChannels: Int) {
@@ -69,7 +70,11 @@ class CallActivity : AppCompatActivity() {
             }
         }
 
-        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessor)
+        var audioProcessorOptions = AudioProcessorOptions(
+            capturePostProcessor = audioProcessor,
+        )
+
+        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessorOptions)
     }
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =

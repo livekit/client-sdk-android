@@ -27,7 +27,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
-import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
@@ -57,7 +57,7 @@ class CallViewModel(
     application: Application,
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
-    val audioProcessor: AudioProcessorInterface? = null,
+    val audioProcessorOptions: AudioProcessorOptions? = null,
 ) : AndroidViewModel(application) {
 
     private fun getE2EEOptions(): E2EEOptions? {
@@ -73,7 +73,7 @@ class CallViewModel(
         return RoomOptions(
             adaptiveStream = true,
             dynacast = true,
-            audioProcessor = audioProcessor,
+            audioProcessorOptions = audioProcessorOptions,
             e2eeOptions = getE2EEOptions(),
         )
     }
@@ -214,7 +214,7 @@ class CallViewModel(
     private suspend fun connectToRoom() {
         try {
             room.e2eeOptions = getE2EEOptions()
-            room.audioProcessor = audioProcessor
+            room.audioProcessorOptions = audioProcessorOptions
             room.connect(
                 url = url,
                 token = token,
