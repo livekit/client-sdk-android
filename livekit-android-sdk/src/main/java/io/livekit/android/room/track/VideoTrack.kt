@@ -48,8 +48,8 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
         executeBlockingOnRTCThread {
             for (sink in sinks) {
                 rtcTrack.removeSink(sink)
-                sinks.clear()
             }
+            sinks.clear()
         }
         super.stop()
     }
