@@ -28,10 +28,10 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
-import io.livekit.android.LiveKit
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
@@ -47,6 +47,7 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
+import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filterNotNull
@@ -63,7 +64,7 @@ constructor(
     @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-    private val localParticipantFactory: LocalParticipant.Factory,
+    localParticipantFactory: LocalParticipant.Factory,
     private val defaultsManager: DefaultsManager,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val defaultDispatcher: CoroutineDispatcher,
@@ -73,6 +74,7 @@ constructor(
     private val closeableManager: CloseableManager,
     private val e2EEManagerFactory: E2EEManager.Factory,
     private val communicationWorkaround: CommunicationWorkaround,
+    val audioProcessingController: AudioProcessingController,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -264,7 +266,6 @@ constructor(
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
             e2eeOptions = e2eeOptions,
-            audioProcessorOptions = audioProcessorOptions,
         )
 
     /**
@@ -345,27 +346,8 @@ constructor(
             }
         }
 
-        if (roomOptions.audioProcessorOptions != null) {
-            if (roomOptions.audioProcessorOptions.process.containsKey(AudioProcessorOptions.AudioProcessorType.CapturePost)) {
-                var audioProcessor = roomOptions.audioProcessorOptions.process[AudioProcessorOptions.AudioProcessorType.CapturePost]
-                if (audioProcessor!!.isEnabled(url, token)) {
-                    LiveKit.audioProcessingController().setCapturePostProcessing(audioProcessor)
-                    var bypass = roomOptions.audioProcessorOptions.bypass[AudioProcessorOptions.AudioProcessorType.CapturePost]
-                    if (bypass != null) {
-                        LiveKit.audioProcessingController().setByPassForCapturePostProcessing(bypass)
-                    }
-                }
-            }
-            if (roomOptions.audioProcessorOptions.process.containsKey(AudioProcessorOptions.AudioProcessorType.RenderPre)) {
-                var audioProcessor = roomOptions.audioProcessorOptions.process[AudioProcessorOptions.AudioProcessorType.RenderPre]
-                if (audioProcessor!!.isEnabled(url, token)) {
-                    LiveKit.audioProcessingController().setRenderPreProcessing(audioProcessor)
-                    var bypass = roomOptions.audioProcessorOptions.bypass[AudioProcessorOptions.AudioProcessorType.RenderPre]
-                    if (bypass != null) {
-                        LiveKit.audioProcessingController().setByPassForRenderPreProcessing(bypass)
-                    }
-                }
-            }
+        if (audioProcessingController is CustomAudioProcessingFactory) {
+            audioProcessingController.setup(url, token)
         }
 
         engine.join(url, token, options, roomOptions)

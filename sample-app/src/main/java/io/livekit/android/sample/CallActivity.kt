@@ -20,7 +20,6 @@ import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
-import android.util.Log
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.Toast
@@ -29,6 +28,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessorOptions
@@ -43,13 +43,13 @@ import java.nio.ByteBuffer
 
 class CallActivity : AppCompatActivity() {
 
-    val viewModel: CallViewModel by viewModelByFactory {
+    private val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
 
-        var audioProcessor = object : AudioProcessorInterface {
+        val audioProcessor = object : AudioProcessorInterface {
             override fun isEnabled(url: String, token: String): Boolean {
-                Log.d(getName(), "isEnabled: $url, $token")
+                Timber.d { "${getName()} isEnabled: $url, $token" }
                 return true
             }
 
@@ -58,25 +58,25 @@ class CallActivity : AppCompatActivity() {
             }
 
             override fun initialize(sampleRateHz: Int, numChannels: Int) {
-                Log.d(getName(), "initialize")
+                Timber.d { "${getName()} initialize" }
             }
 
             override fun reset(newRate: Int) {
-                Log.d(getName(), "reset")
+                Timber.d { "${getName()} reset" }
             }
 
             override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
-                Log.d(getName(), "process")
+                Timber.d { "${getName()} process" }
             }
         }
 
-        var audioProcessorOptions = AudioProcessorOptions(
+        val audioProcessorOptions = AudioProcessorOptions(
             capturePostProcessor = audioProcessor,
         )
 
         CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessorOptions)
     }
-    lateinit var binding: CallActivityBinding
+    private lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult(),

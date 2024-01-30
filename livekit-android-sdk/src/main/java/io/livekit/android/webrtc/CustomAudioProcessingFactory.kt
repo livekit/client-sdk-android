@@ -18,56 +18,63 @@ package io.livekit.android.webrtc
 
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
 
-class CustomAudioProcessingFactory : AudioProcessingController {
-    companion object {
-        @Volatile
-        private var instance: CustomAudioProcessingFactory? = null
-        fun sharedInstance() =
-            instance ?: synchronized(this) {
-                instance ?: CustomAudioProcessingFactory().also { instance = it }
-            }
+class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProcessorOptions) : AudioProcessingController {
+
+    private val externalAudioProcessor = ExternalAudioProcessingFactory()
+
+    fun setup(url: String, token: String) {
+        if (audioProcessorOptions.capturePostProcessor != null &&
+            audioProcessorOptions.capturePostProcessor.isEnabled(url, token)
+        ) {
+            setCapturePostProcessing(audioProcessorOptions.capturePostProcessor)
+            setBypassForCapturePostProcessing(audioProcessorOptions.capturePostBypass)
+        } else {
+            setCapturePostProcessing(null)
+            setBypassForCapturePostProcessing(false)
+        }
+        if (audioProcessorOptions.renderPreProcessor != null &&
+            audioProcessorOptions.renderPreProcessor.isEnabled(url, token)
+        ) {
+            setRenderPreProcessing(audioProcessorOptions.renderPreProcessor)
+            setBypassForRenderPreProcessing(audioProcessorOptions.renderPreBypass)
+        } else {
+            setRenderPreProcessing(null)
+            setBypassForRenderPreProcessing(false)
+        }
     }
 
-    private constructor() {
-        externalAudioProcesser = ExternalAudioProcessingFactory()
+    fun getAudioProcessingFactory(): AudioProcessingFactory {
+        return externalAudioProcessor
     }
 
-    private var externalAudioProcesser: ExternalAudioProcessingFactory? = null
-
-    fun audioProcessingFactory(): AudioProcessingFactory? {
-        return externalAudioProcesser
-    }
-
-    override fun setCapturePostProcessing(processing: AudioProcessorInterface) {
-        externalAudioProcesser?.setCapturePostProcessing(
-            AudioProcessingBridge().apply {
-                audioProcessing = processing
-            },
+    override fun setCapturePostProcessing(processing: AudioProcessorInterface?) {
+        externalAudioProcessor.setCapturePostProcessing(
+            processing.toAudioProcessing(),
         )
     }
 
-    override fun setByPassForCapturePostProcessing(bypass: Boolean) {
-        externalAudioProcesser?.setBypassFlagForCapturePost(bypass)
+    override fun setBypassForCapturePostProcessing(bypass: Boolean) {
+        externalAudioProcessor.setBypassFlagForCapturePost(bypass)
     }
 
-    override fun setRenderPreProcessing(processing: AudioProcessorInterface) {
-        externalAudioProcesser?.setRenderPreProcessing(
-            AudioProcessingBridge().apply {
-                audioProcessing = processing
-            },
+    override fun setRenderPreProcessing(processing: AudioProcessorInterface?) {
+        externalAudioProcessor.setRenderPreProcessing(
+            processing.toAudioProcessing(),
         )
     }
 
-    override fun setByPassForRenderPreProcessing(bypass: Boolean) {
-        externalAudioProcesser?.setBypassFlagForRenderPre(bypass)
+    override fun setBypassForRenderPreProcessing(bypass: Boolean) {
+        externalAudioProcessor.setBypassFlagForRenderPre(bypass)
     }
 
-    private class AudioProcessingBridge : ExternalAudioProcessingFactory.AudioProcessing {
-        var audioProcessing: AudioProcessorInterface? = null
+    private class AudioProcessingBridge(
+        var audioProcessing: AudioProcessorInterface? = null,
+    ) : ExternalAudioProcessingFactory.AudioProcessing {
         override fun initialize(sampleRateHz: Int, numChannels: Int) {
             audioProcessing?.initialize(sampleRateHz, numChannels)
         }
@@ -80,4 +87,9 @@ class CustomAudioProcessingFactory : AudioProcessingController {
             audioProcessing?.process(numBands, numFrames, buffer!!)
         }
     }
+
+    private fun AudioProcessorInterface?.toAudioProcessing(): ExternalAudioProcessingFactory.AudioProcessing {
+        return AudioProcessingBridge(this)
+    }
 }
+

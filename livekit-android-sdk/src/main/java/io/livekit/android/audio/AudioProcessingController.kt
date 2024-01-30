@@ -23,20 +23,20 @@ interface AudioProcessingController {
     /**
      * Set the audio processing to be used for capture post.
      */
-    fun setCapturePostProcessing(processing: AudioProcessorInterface)
+    fun setCapturePostProcessing(processing: AudioProcessorInterface?)
 
     /**
      * Set whether to bypass mode the capture post processing.
      */
-    fun setByPassForCapturePostProcessing(bypass: Boolean)
+    fun setBypassForCapturePostProcessing(bypass: Boolean)
 
     /**
      * Set the audio processing to be used for render pre.
      */
-    fun setRenderPreProcessing(processing: AudioProcessorInterface)
+    fun setRenderPreProcessing(processing: AudioProcessorInterface?)
 
     /**
      * Set whether to bypass mode the render pre processing.
      */
-    fun setByPassForRenderPreProcessing(bypass: Boolean)
+    fun setBypassForRenderPreProcessing(bypass: Boolean)
 }

@@ -25,7 +25,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
+import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
+import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
@@ -73,7 +75,6 @@ class CallViewModel(
         return RoomOptions(
             adaptiveStream = true,
             dynacast = true,
-            audioProcessorOptions = audioProcessorOptions,
             e2eeOptions = getE2EEOptions(),
         )
     }
@@ -81,6 +82,9 @@ class CallViewModel(
     val room = LiveKit.create(
         appContext = application,
         options = getRoomOptions(),
+        overrides = LiveKitOverrides(
+            audioOptions = AudioOptions(audioProcessorOptions = audioProcessorOptions),
+        ),
     )
 
     val audioHandler = room.audioHandler as AudioSwitchHandler
@@ -196,16 +200,16 @@ class CallViewModel(
     fun toggleEnhancedNs(enabled: Boolean? = null) {
         if (enabled != null) {
             mutableEnableAudioProcessor.postValue(enabled)
-            LiveKit.audioProcessingController().setByPassForCapturePostProcessing(!enabled)
+            room.audioProcessingController.setBypassForCapturePostProcessing(!enabled)
             return
         }
 
         if (room.audioProcessorIsEnabled) {
             if (enableAudioProcessor.value == true) {
-                LiveKit.audioProcessingController().setByPassForCapturePostProcessing(true)
+                room.audioProcessingController.setBypassForCapturePostProcessing(true)
                 mutableEnableAudioProcessor.postValue(false)
             } else {
-                LiveKit.audioProcessingController().setByPassForCapturePostProcessing(false)
+                room.audioProcessingController.setBypassForCapturePostProcessing(false)
                 mutableEnableAudioProcessor.postValue(true)
             }
         }

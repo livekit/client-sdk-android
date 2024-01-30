@@ -38,7 +38,7 @@ interface AudioProcessorInterface {
     fun initialize(sampleRateHz: Int, numChannels: Int)
 
     /**
-     * sample rate changed
+     * Called when the sample rate has changed.
      */
     fun reset(newRate: Int)
 

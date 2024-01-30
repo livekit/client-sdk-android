@@ -26,6 +26,7 @@ import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
@@ -47,6 +48,22 @@ internal object RTCModule {
 
     /**
      * Certain classes require libwebrtc to be initialized prior to use.
+     *
+     * If your provision depends on libwebrtc initialization, just add it
+     * as a dependency in your method signature.
+     *
+     * Example:
+     *
+     * ```
+     * @Provides
+     * fun someFactory(
+     *     @Suppress("UNUSED_PARAMETER")
+     *     @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+     *     webrtcInitialization: LibWebrtcInitialization
+     * ): SomeFactory {
+     *     ...
+     * }
+     * ```
      */
     @Provides
     @Singleton
@@ -219,9 +236,24 @@ internal object RTCModule {
 
     @Provides
     @Singleton
-    @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
-    fun audioProcessingController(): AudioProcessingController {
-        return CustomAudioProcessingFactory.sharedInstance()
+    fun customAudioProcessingFactory(
+        @Suppress("UNUSED_PARAMETER")
+        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+        webrtcInitialization: LibWebrtcInitialization,
+        @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSOR_OPTIONS)
+        audioProcessorOptions: AudioProcessorOptions?,
+    ): CustomAudioProcessingFactory {
+        return CustomAudioProcessingFactory(audioProcessorOptions ?: AudioProcessorOptions())
+    }
+
+    @Provides
+    fun audioProcessingController(customAudioProcessingFactory: CustomAudioProcessingFactory): AudioProcessingController {
+        return customAudioProcessingFactory
+    }
+
+    @Provides
+    fun audioProcessingFactory(customAudioProcessingFactory: CustomAudioProcessingFactory): AudioProcessingFactory {
+        return customAudioProcessingFactory.getAudioProcessingFactory()
     }
 
     @Provides
@@ -253,10 +285,11 @@ internal object RTCModule {
         videoEncoderFactory: VideoEncoderFactory,
         videoDecoderFactory: VideoDecoderFactory,
         memoryManager: CloseableManager,
+        audioProcessingFactory: AudioProcessingFactory?,
     ): PeerConnectionFactory {
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
-            .setAudioProcessingFactory(CustomAudioProcessingFactory.sharedInstance().audioProcessingFactory())
+            .setAudioProcessingFactory(audioProcessingFactory)
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
             .createPeerConnectionFactory()

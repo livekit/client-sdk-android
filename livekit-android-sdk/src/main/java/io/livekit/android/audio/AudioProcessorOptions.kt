@@ -16,51 +16,21 @@
 
 package io.livekit.android.audio
 
-class AudioProcessorOptions {
-    enum class AudioProcessorType {
-        CapturePost,
-        RenderPre,
-    }
-
+data class AudioProcessorOptions(
     /**
-     * The audio processing to be used.
+     * Audio processor for captured audio.
      */
-    var process: Map<AudioProcessorType, AudioProcessorInterface> = mapOf()
-
+    val capturePostProcessor: AudioProcessorInterface? = null,
     /**
-     * Whether to bypass the audio processing.
+     * When true, bypass the processing for captured audio.
      */
-    var bypass: Map<AudioProcessorType, Boolean> = mapOf()
-
-    fun getCapturePostProcessor(): AudioProcessorInterface? {
-        return process[AudioProcessorType.CapturePost]
-    }
-
-    fun getCapturePostBypass(): Boolean {
-        return bypass[AudioProcessorType.CapturePost] ?: false
-    }
-
-    fun getRenderPreProcessor(): AudioProcessorInterface? {
-        return process[AudioProcessorType.RenderPre]
-    }
-
-    fun getRenderPreBypass(): Boolean {
-        return bypass[AudioProcessorType.RenderPre] ?: false
-    }
-
-    constructor(
-        capturePostProcessor: AudioProcessorInterface? = null,
-        capturePostBypass: Boolean = false,
-        renderPreProcessor: AudioProcessorInterface? = null,
-        renderPreBypass: Boolean = false,
-    ) {
-        if (capturePostProcessor != null) {
-            process = process.plus(Pair(AudioProcessorType.CapturePost, capturePostProcessor))
-            bypass = bypass.plus(Pair(AudioProcessorType.CapturePost, capturePostBypass))
-        }
-        if (renderPreProcessor != null) {
-            process = process.plus(Pair(AudioProcessorType.RenderPre, renderPreProcessor))
-            bypass = bypass.plus(Pair(AudioProcessorType.RenderPre, renderPreBypass))
-        }
-    }
-}
+    val capturePostBypass: Boolean = false,
+    /**
+     * Audio processor for rendered audio.
+     */
+    val renderPreProcessor: AudioProcessorInterface? = null,
+    /**
+     * When true, bypass the processing for rendered audio.
+     */
+    val renderPreBypass: Boolean = false,
+)

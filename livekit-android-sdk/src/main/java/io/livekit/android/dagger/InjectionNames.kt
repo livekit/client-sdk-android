@@ -47,6 +47,7 @@ internal object InjectionNames {
     // Overrides
     internal const val OVERRIDE_OKHTTP = "override_okhttp"
     internal const val OVERRIDE_AUDIO_DEVICE_MODULE = "override_audio_device_module"
+    internal const val OVERRIDE_AUDIO_PROCESSOR_OPTIONS = "override_audio_processor_options"
     internal const val OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER = "override_java_audio_device_module_customizer"
     internal const val OVERRIDE_VIDEO_ENCODER_FACTORY = "override_video_encoder_factory"
     internal const val OVERRIDE_VIDEO_DECODER_FACTORY = "override_video_decoder_factory"

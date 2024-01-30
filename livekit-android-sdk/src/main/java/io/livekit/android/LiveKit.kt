@@ -18,7 +18,6 @@ package io.livekit.android
 
 import android.app.Application
 import android.content.Context
-import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
 import io.livekit.android.dagger.create
@@ -49,14 +48,6 @@ object LiveKit {
                 }
             }
         }
-
-    /**
-     * Returns the [AudioProcessingController] used by LiveKit for
-     * external audio processing.
-     */
-    fun audioProcessingController(): AudioProcessingController {
-        return RTCModule.audioProcessingController()
-    }
 
     /**
      * Enables logs for the underlying WebRTC sdk logging. Used in conjunction with [loggingLevel].
