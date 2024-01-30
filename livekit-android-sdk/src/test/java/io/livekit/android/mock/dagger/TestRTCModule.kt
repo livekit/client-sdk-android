@@ -20,8 +20,10 @@ import android.content.Context
 import android.javax.sdp.SdpFactory
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.mock.MockAudioProcessingController
 import io.livekit.android.mock.MockEglBase
 import livekit.org.webrtc.*
 import javax.inject.Named
@@ -38,6 +40,11 @@ object TestRTCModule {
 
     @Provides
     fun eglContext(eglBase: EglBase): EglBase.Context = eglBase.eglBaseContext
+
+    @Provides
+    fun audioProcessingController(): AudioProcessingController {
+        return MockAudioProcessingController()
+    }
 
     @Provides
     @Singleton

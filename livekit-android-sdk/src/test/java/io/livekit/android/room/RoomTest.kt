@@ -101,6 +101,7 @@ class RoomTest {
             closeableManager = CloseableManager(),
             e2EEManagerFactory = e2EEManagerFactory,
             communicationWorkaround = NoopCommunicationWorkaround(),
+            audioProcessingController = MockAudioProcessingController(),
         )
     }
 
