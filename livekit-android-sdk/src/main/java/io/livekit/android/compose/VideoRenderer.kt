@@ -83,7 +83,12 @@ fun VideoRenderer(
 
     DisposableEffect(currentCompositeKeyHash.toString()) {
         onDispose {
-            view?.release()
+            view?.let {
+                it.release()
+                videoTrack?.removeRenderer(it)
+            }
+            view = null
+            boundVideoTrack = null
         }
     }
 
