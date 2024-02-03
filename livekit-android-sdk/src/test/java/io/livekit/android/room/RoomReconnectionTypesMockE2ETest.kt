@@ -66,6 +66,46 @@ class RoomReconnectionTypesMockE2ETest(
         room.setReconnectionType(reconnectType)
     }
 
+    private fun expectedEventsForReconnectType(reconnectType: ReconnectType): List<Class<out RoomEvent>> {
+        return when (reconnectType) {
+            ReconnectType.FORCE_SOFT_RECONNECT -> {
+                emptyList()
+            }
+
+            ReconnectType.FORCE_FULL_RECONNECT -> {
+                listOf(
+                    RoomEvent.Reconnecting::class.java,
+                    RoomEvent.Reconnected::class.java,
+                )
+            }
+
+            else -> {
+                throw IllegalArgumentException()
+            }
+        }
+    }
+
+
+    private fun expectedStatesForReconnectType(reconnectType: ReconnectType): List<Room.State> {
+        return when (reconnectType) {
+            ReconnectType.FORCE_SOFT_RECONNECT -> {
+                listOf(Room.State.CONNECTED)
+            }
+
+            ReconnectType.FORCE_FULL_RECONNECT -> {
+                listOf(
+                    Room.State.CONNECTED,
+                    Room.State.RECONNECTING,
+                    Room.State.CONNECTED,
+                )
+            }
+
+            else -> {
+                throw IllegalArgumentException()
+            }
+        }
+    }
+
     @Test
     fun reconnectFromPeerConnectionDisconnect() = runTest {
         connect()
@@ -83,19 +123,12 @@ class RoomReconnectionTypesMockE2ETest(
         val states = stateCollector.stopCollecting()
 
         assertIsClassList(
-            listOf(
-                RoomEvent.Reconnecting::class.java,
-                RoomEvent.Reconnected::class.java,
-            ),
+            expectedEventsForReconnectType(reconnectType),
             events,
         )
 
         assertEquals(
-            listOf(
-                Room.State.CONNECTED,
-                Room.State.RECONNECTING,
-                Room.State.CONNECTED,
-            ),
+            expectedStatesForReconnectType(reconnectType),
             states,
         )
     }
@@ -117,19 +150,12 @@ class RoomReconnectionTypesMockE2ETest(
         val states = stateCollector.stopCollecting()
 
         assertIsClassList(
-            listOf(
-                RoomEvent.Reconnecting::class.java,
-                RoomEvent.Reconnected::class.java,
-            ),
+            expectedEventsForReconnectType(reconnectType),
             events,
         )
 
         assertEquals(
-            listOf(
-                Room.State.CONNECTED,
-                Room.State.RECONNECTING,
-                Room.State.CONNECTED,
-            ),
+            expectedStatesForReconnectType(reconnectType),
             states,
         )
     }

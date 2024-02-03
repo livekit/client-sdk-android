@@ -21,4 +21,5 @@ enum class ConnectionState {
     CONNECTED,
     DISCONNECTED,
     RECONNECTING,
+    RESUMING,
 }
