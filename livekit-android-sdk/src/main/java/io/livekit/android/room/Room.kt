@@ -941,7 +941,7 @@ constructor(
      * @suppress
      */
     override fun onSignalConnected(isResume: Boolean) {
-        if (state == State.RECONNECTING && isResume) {
+        if (isResume) {
             // during resume reconnection, need to send sync state upon signal connection.
             sendSyncState()
         }
