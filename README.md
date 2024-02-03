@@ -50,14 +50,16 @@ dependencies {
 }
 ```
 
+Compose-based apps should check out our [Android Components SDK](https://github.com/livekit/components-android) for composables support.
+
 You'll also need jitpack as one of your repositories.
 
-```groovy
-subprojects {
+```groovy title="settings.gradle"
+dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // ...
+        //...
         maven { url 'https://jitpack.io' }
 
         // For SNAPSHOT access
