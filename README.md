@@ -37,6 +37,10 @@ API reference can be found
 at [https://docs.livekit.io/client-sdk-android/index.html](https://docs.livekit.io/client-sdk-android/index.html)
 .
 
+> [!NOTE]
+> This is v2 of the Android SDK. When migrating from v1.x to v2.x you might encounter a small set of breaking changes.
+> Read the [migration guide](https://docs.livekit.io/guides/migrate-from-v1/) for a detailed overview of what has changed.
+
 ## Installation
 
 LiveKit for Android is available as a Maven package.
@@ -44,9 +48,9 @@ LiveKit for Android is available as a Maven package.
 ```groovy title="build.gradle"
 ...
 dependencies {
-  implementation "io.livekit:livekit-android:1.6.1"
+  implementation "io.livekit:livekit-android:2.0.0"
   // Snapshots of the latest development version are available at:
-  // implementation "io.livekit:livekit-android:2.0.0-SNAPSHOT"
+  // implementation "io.livekit:livekit-android:2.0.1-SNAPSHOT"
 }
 ```
 
