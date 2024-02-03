@@ -72,10 +72,8 @@ class ParticipantTest {
             }
         }
 
-        val publicListener = MetadataListener()
         val internalListener = MetadataListener()
 
-        participant.listener = publicListener
         participant.internalListener = internalListener
 
         val prevMetadata = participant.metadata
@@ -88,7 +86,6 @@ class ParticipantTest {
             assertEquals(prevMetadata, listener.prevMetadataValue)
         }
 
-        checkValues(publicListener)
         checkValues(internalListener)
     }
 

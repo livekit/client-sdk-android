@@ -92,7 +92,6 @@ open class Participant(
     @get:FlowObservable
     var isSpeaking: Boolean by flowDelegate(false) { newValue, oldValue ->
         if (newValue != oldValue) {
-            listener?.onSpeakingChanged(this)
             internalListener?.onSpeakingChanged(this)
             eventBus.postEvent(ParticipantEvent.SpeakingChanged(this, newValue), scope)
             if (newValue) {
@@ -118,7 +117,6 @@ open class Participant(
     @get:FlowObservable
     var metadata: String? by flowDelegate(null) { newMetadata, oldMetadata ->
         if (newMetadata != oldMetadata) {
-            listener?.onMetadataChanged(this, oldMetadata)
             internalListener?.onMetadataChanged(this, oldMetadata)
             eventBus.postEvent(ParticipantEvent.MetadataChanged(this, oldMetadata), scope)
         }
@@ -165,12 +163,6 @@ open class Participant(
     @get:FlowObservable
     var lastSpokeAt by flowDelegate<Long?>(null)
         internal set
-
-    /**
-     * Listener for when participant properties change
-     */
-    @Deprecated("Use events instead")
-    var listener: ParticipantListener? = null
 
     /**
      * @suppress
@@ -336,13 +328,11 @@ open class Participant(
 
     // Internal methods just for posting events.
     internal fun onTrackMuted(trackPublication: TrackPublication) {
-        listener?.onTrackMuted(trackPublication, this)
         internalListener?.onTrackMuted(trackPublication, this)
         eventBus.postEvent(ParticipantEvent.TrackMuted(this, trackPublication), scope)
     }
 
     internal fun onTrackUnmuted(trackPublication: TrackPublication) {
-        listener?.onTrackUnmuted(trackPublication, this)
         internalListener?.onTrackUnmuted(trackPublication, this)
         eventBus.postEvent(ParticipantEvent.TrackUnmuted(this, trackPublication), scope)
     }
@@ -374,6 +364,9 @@ open class Participant(
     }
 }
 
+/**
+ * @suppress
+ */
 @Deprecated("Use Participant.events instead.")
 interface ParticipantListener {
     // all participants

@@ -20,10 +20,8 @@ import livekit.org.webrtc.CameraVideoCapturer.CameraEventsHandler
 
 /**
  * Dispatches CameraEventsHandler callbacks to registered handlers.
- *
- * @suppress
  */
-internal class CameraEventsDispatchHandler : CameraEventsHandler {
+class CameraEventsDispatchHandler : CameraEventsHandler {
     private val handlers = mutableSetOf<CameraEventsHandler>()
 
     @Synchronized
