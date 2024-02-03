@@ -374,7 +374,6 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         val job = coroutineScope.launch {
-
             var hasResumedOnce = false
             var hasReconnectedOnce = false
 
@@ -424,7 +423,6 @@ internal constructor(
                         continue
                     }
                 } else {
-
                     if (!hasResumedOnce) {
                         hasResumedOnce = true
                         listener?.onEngineResuming()
