@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.selfie
 
 import android.util.Log
@@ -5,15 +21,27 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSink
 import java.nio.ByteBuffer
 
-class SelfieVideoProcessor : VideoProcessor {
+class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
 
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter
+
+    private val scope = CoroutineScope(dispatcher)
+    private val taskFlow = MutableSharedFlow<VideoFrame>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.SUSPEND,
+    )
 
     init {
         val options =
@@ -21,6 +49,11 @@ class SelfieVideoProcessor : VideoProcessor {
                 .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE)
                 .build()
         segmenter = Segmentation.getClient(options)
+        scope.launch {
+            taskFlow.collect { frame ->
+                processFrame(frame)
+            }
+        }
     }
 
     override fun onCapturerStarted(started: Boolean) {
@@ -30,8 +63,12 @@ class SelfieVideoProcessor : VideoProcessor {
     }
 
     override fun onFrameCaptured(frame: VideoFrame) {
+        if (taskFlow.tryEmit(frame)) {
+            frame.retain()
+        }
+    }
 
-        frame.retain()
+    fun processFrame(frame: VideoFrame) {
         val frameBuffer = frame.buffer.toI420() ?: return
         val byteBuffer = ByteBuffer.allocateDirect(frameBuffer.dataY.limit() + frameBuffer.dataV.limit() + frameBuffer.dataU.limit())
             // YV12 is exactly like I420, but the order of the U and V planes is reversed.
