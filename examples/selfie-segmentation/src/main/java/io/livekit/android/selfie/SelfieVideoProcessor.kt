@@ -49,6 +49,9 @@ class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
                 .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE)
                 .build()
         segmenter = Segmentation.getClient(options)
+
+        // Funnel processing into a single flow that won't buffer,
+        // since processing will be slower than video capture
         scope.launch {
             taskFlow.collect { frame ->
                 processFrame(frame)
@@ -69,6 +72,7 @@ class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
     }
 
     fun processFrame(frame: VideoFrame) {
+        // toI420 causes a retain, so a corresponding frameBuffer.release is needed when done.
         val frameBuffer = frame.buffer.toI420() ?: return
         val byteBuffer = ByteBuffer.allocateDirect(frameBuffer.dataY.limit() + frameBuffer.dataV.limit() + frameBuffer.dataU.limit())
             // YV12 is exactly like I420, but the order of the U and V planes is reversed.
@@ -90,11 +94,13 @@ class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
             val mask = segmentationMask.buffer
 
             val dataY = frameBuffer.dataY
+
+            // Do some image processing
             for (i in 0 until segmentationMask.height) {
                 for (j in 0 until segmentationMask.width) {
                     val backgroundConfidence = 1 - mask.float
 
-                    if (backgroundConfidence > 0.5f) {
+                    if (backgroundConfidence > 0.8f) {
                         val position = dataY.position()
                         val yValue = 0x80.toByte()
                         dataY.position(position)
@@ -104,7 +110,11 @@ class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
                     }
                 }
             }
+
+            // Send the final frame off to the sink.
             targetSink?.onFrame(VideoFrame(frameBuffer, frame.rotation, frame.timestampNs))
+
+            // Release any remaining resources
             frameBuffer.release()
             frame.release()
         }.addOnFailureListener {

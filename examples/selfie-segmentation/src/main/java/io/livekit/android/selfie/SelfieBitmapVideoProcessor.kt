@@ -16,7 +16,6 @@
 
 package io.livekit.android.selfie
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageFormat
@@ -53,6 +52,7 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter
 
+    private var lastRotation = 0
     private var lastWidth = 0
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
@@ -71,6 +71,9 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
                 .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE)
                 .build()
         segmenter = Segmentation.getClient(options)
+
+        // Funnel processing into a single flow that won't buffer,
+        // since processing will be slower than video capture
         scope.launch {
             taskFlow.collect { frame ->
                 processFrame(frame)
@@ -97,7 +100,9 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
     }
 
     suspend fun processFrame(frame: VideoFrame) {
+        // toI420 causes a retain, so a corresponding frameBuffer.release is needed when done.
         val frameBuffer = frame.buffer.toI420() ?: return
+        val rotationDegrees = frame.rotation
 
         val dataY = frameBuffer.dataY
         val dataU = frameBuffer.dataU
@@ -117,38 +122,49 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
             frameBuffer.height,
         )
 
+        // Use YuvImage to convert to bitmap
         val yuvImage = YuvImage(nv12Buffer.array(), ImageFormat.NV21, frameBuffer.width, frameBuffer.height, null)
         val stream = ByteArrayOutputStream()
         yuvImage.compressToJpeg(Rect(0, 0, frameBuffer.width, frameBuffer.height), 100, stream)
 
-        val decodedBmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size(), BitmapFactory.Options())
-        val rotatedBmp = rotateBitmap(decodedBmp, frame.rotation)
+        val bitmap = BitmapFactory.decodeByteArray(
+            stream.toByteArray(),
+            0,
+            stream.size(),
+            BitmapFactory.Options().apply { inMutable = true },
+        )
 
         // No longer need the original frame buffer any more.
         frameBuffer.release()
         frame.release()
 
-        val inputImage = InputImage.fromBitmap(rotatedBmp, 0)
+        val inputImage = InputImage.fromBitmap(bitmap, 0)
         val task = segmenter.process(inputImage)
 
         val latch = Mutex(true)
         task.addOnSuccessListener { segmentationMask ->
             val mask = segmentationMask.buffer
 
+            // Do some image processing
             for (y in 0 until segmentationMask.height) {
                 for (x in 0 until segmentationMask.width) {
                     val backgroundConfidence = 1 - mask.float
 
                     if (backgroundConfidence > 0.8f) {
-                        rotatedBmp[x, y] = Color.GREEN // Color off the background
+                        bitmap[x, y] = Color.GREEN // Color off the background
                     }
                 }
             }
 
-            if (lastWidth != rotatedBmp.width || lastHeight != rotatedBmp.height) {
-                surfaceTextureHelper?.setTextureSize(rotatedBmp.width, rotatedBmp.height)
-                lastWidth = rotatedBmp.width
-                lastHeight = rotatedBmp.height
+            if (lastRotation != rotationDegrees) {
+                surfaceTextureHelper?.setFrameRotation(rotationDegrees)
+                lastRotation = rotationDegrees
+            }
+
+            if (lastWidth != bitmap.width || lastHeight != bitmap.height) {
+                surfaceTextureHelper?.setTextureSize(bitmap.width, bitmap.height)
+                lastWidth = bitmap.width
+                lastHeight = bitmap.height
             }
 
             surfaceTextureHelper?.handler?.post {
@@ -159,10 +175,10 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
                 }
 
                 if (canvas != null) {
-                    canvas.drawBitmap(rotatedBmp, Matrix(), Paint())
+                    canvas.drawBitmap(bitmap, Matrix(), Paint())
                     surface.unlockCanvasAndPost(canvas)
                 }
-                rotatedBmp.recycle()
+                bitmap.recycle()
                 latch.unlock()
             }
         }.addOnFailureListener {
@@ -180,28 +196,5 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
         surfaceTextureHelper.stopListening()
         surfaceTextureHelper.dispose()
         scope.cancel()
-    }
-
-    /** Rotates a bitmap if it is converted from a bytebuffer.  */
-    private fun rotateBitmap(
-        bitmap: Bitmap,
-        rotationDegrees: Int = 0,
-        flipX: Boolean = false,
-        flipY: Boolean = false,
-    ): Bitmap {
-        val matrix = Matrix()
-
-        // Rotate the image back to straight.
-        matrix.postRotate(rotationDegrees.toFloat())
-
-        // Mirror the image along the X or Y axis.
-        matrix.postScale(if (flipX) -1.0f else 1.0f, if (flipY) -1.0f else 1.0f)
-        val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-
-        // Recycle the old bitmap if it has changed.
-        if (rotatedBitmap != bitmap) {
-            bitmap.recycle()
-        }
-        return rotatedBitmap
     }
 }

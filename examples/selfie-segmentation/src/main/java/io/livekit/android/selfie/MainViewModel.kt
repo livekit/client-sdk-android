@@ -40,7 +40,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val track = MutableLiveData<LocalVideoTrack?>(null)
 
     // For direct I420 processing:
-    //val processor = SelfieVideoProcessor(Dispatchers.IO)
+    // val processor = SelfieVideoProcessor(Dispatchers.IO)
     val processor = SelfieBitmapVideoProcessor(eglBase, Dispatchers.IO)
 
     fun startCapture() {
