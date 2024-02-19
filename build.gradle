@@ -23,6 +23,11 @@ buildscript {
 apply plugin: 'io.codearte.nexus-staging'
 
 subprojects {
+    // Ignore examples folder, it's not a module itself.
+    if (project.name == "examples") {
+        return
+    }
+
     repositories {
         google()
         mavenCentral()
