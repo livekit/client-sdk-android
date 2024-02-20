@@ -31,7 +31,9 @@ import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
@@ -73,36 +75,35 @@ internal constructor(
     /**
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
-    internal var connectionState: ConnectionState = ConnectionState.DISCONNECTED
-        set(value) {
-            val oldVal = field
-            field = value
-            if (value == oldVal) {
-                return
+    @FlowObservable
+    internal var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
+        if (newVal == oldVal) {
+            return@flowDelegate
+        }
+        when (newVal) {
+            ConnectionState.CONNECTED -> {
+                if (oldVal == ConnectionState.DISCONNECTED) {
+                    LKLog.d { "primary ICE connected" }
+                    listener?.onEngineConnected()
+                } else if (oldVal == ConnectionState.RECONNECTING) {
+                    LKLog.d { "primary ICE reconnected" }
+                    listener?.onEngineReconnected()
+                } else if (oldVal == ConnectionState.RESUMING) {
+                    listener?.onEngineResumed()
+                }
             }
-            when (value) {
-                ConnectionState.CONNECTED -> {
-                    if (oldVal == ConnectionState.DISCONNECTED) {
-                        LKLog.d { "primary ICE connected" }
-                        listener?.onEngineConnected()
-                    } else if (oldVal == ConnectionState.RECONNECTING) {
-                        LKLog.d { "primary ICE reconnected" }
-                        listener?.onEngineReconnected()
-                    }
-                }
 
-                ConnectionState.DISCONNECTED -> {
-                    LKLog.d { "primary ICE disconnected" }
-                    if (oldVal == ConnectionState.CONNECTED) {
-                        reconnect()
-                    }
+            ConnectionState.DISCONNECTED -> {
+                LKLog.d { "primary ICE disconnected" }
+                if (oldVal == ConnectionState.CONNECTED) {
+                    reconnect()
                 }
+            }
 
-                else -> {
-                }
+            else -> {
             }
         }
-
+    }
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
     private var fullReconnectOnNext = false
@@ -373,8 +374,8 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         val job = coroutineScope.launch {
-            connectionState = ConnectionState.RECONNECTING
-            listener?.onEngineReconnecting()
+            var hasResumedOnce = false
+            var hasReconnectedOnce = false
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
@@ -406,6 +407,12 @@ internal constructor(
                 val connectOptions = connectOptions ?: ConnectOptions()
                 if (isFullReconnect) {
                     LKLog.v { "Attempting full reconnect." }
+
+                    if (!hasReconnectedOnce) {
+                        hasReconnectedOnce = true
+                        listener?.onEngineReconnecting()
+                    }
+                    connectionState = ConnectionState.RECONNECTING
                     try {
                         closeResources("Full Reconnecting")
                         listener?.onFullReconnecting()
@@ -416,6 +423,11 @@ internal constructor(
                         continue
                     }
                 } else {
+                    if (!hasResumedOnce) {
+                        hasResumedOnce = true
+                        listener?.onEngineResuming()
+                    }
+                    connectionState = ConnectionState.RESUMING
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber?.prepareForIceRestart()
                     try {
@@ -588,7 +600,7 @@ internal constructor(
                         MediaConstraintKeys.FALSE,
                     ),
                 )
-                if (connectionState == ConnectionState.RECONNECTING) {
+                if (connectionState == ConnectionState.RECONNECTING || connectionState == ConnectionState.RESUMING) {
                     add(
                         MediaConstraints.KeyValuePair(
                             MediaConstraintKeys.ICE_RESTART,
@@ -678,6 +690,8 @@ internal constructor(
         fun onEngineConnected()
         fun onEngineReconnected()
         fun onEngineReconnecting()
+        fun onEngineResuming() {}
+        fun onEngineResumed() {}
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: JoinResponse)

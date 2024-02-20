@@ -293,7 +293,8 @@ class RoomMockE2ETest : MockE2ETest() {
     @Test
     fun onConnectionAvailableWillReconnect() = runTest {
         connect()
-        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val engine = component.rtcEngine()
+        val eventCollector = FlowCollector(engine::connectionState.flow, coroutineRule.scope)
         val network = Mockito.mock(Network::class.java)
 
         val connectivityManager = InstrumentationRegistry.getInstrumentation()
@@ -308,10 +309,16 @@ class RoomMockE2ETest : MockE2ETest() {
             callback.onAvailable(network)
         }
 
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.Reconnecting)
+        assertEquals(
+            listOf(
+                ConnectionState.CONNECTED,
+                ConnectionState.RESUMING,
+            ),
+            events,
+        )
     }
 
     @Test

@@ -27,10 +27,12 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.util.CloseableCoroutineScope
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -87,11 +89,13 @@ constructor(
 
     private var audioTrack: AudioTrack? = null
 
+    private val isAudioTrackStarted = AtomicBoolean(false)
+
     init {
         coroutineScope.launch {
             started.combine(playoutStopped) { a, b -> a to b }
                 .distinctUntilChanged()
-                .collect { (started, playoutStopped) ->
+                .collectLatest { (started, playoutStopped) ->
                     onStateChanged(started, playoutStopped)
                 }
         }
@@ -113,32 +117,32 @@ constructor(
         playoutStopped.value = true
     }
 
-    @SuppressLint("NewApi")
+    override fun dispose() {
+        coroutineScope.close()
+
+        stop()
+
+        audioTrack?.stop()
+        audioTrack?.release()
+    }
+
     private fun onStateChanged(started: Boolean, playoutStopped: Boolean) {
         if (started && playoutStopped) {
-            startAudioTrackIfNeeded()
+            playAudioTrackIfNeeded()
         } else {
-            stopAudioTrackIfNeeded()
+            pauseAudioTrackIfNeeded()
         }
     }
 
     @SuppressLint("Range")
-    private fun startAudioTrackIfNeeded() {
-        if (audioTrack != null) {
-            return
-        }
+    private fun buildAudioTrack(): AudioTrack {
+        val audioSample = ByteBuffer.allocateDirect(getBytesPerSample(AUDIO_FORMAT) * AUDIO_FRAME_PER_BUFFER)
 
-        val sampleRate = 16000
-        val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-        val bytesPerFrame = 1 * getBytesPerSample(audioFormat)
-        val framesPerBuffer: Int = sampleRate / 100 // 10 ms
-        val byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer)
-
-        audioTrack = AudioTrack.Builder()
+        return AudioTrack.Builder()
             .setAudioFormat(
                 AudioFormat.Builder()
-                    .setEncoding(audioFormat)
-                    .setSampleRate(sampleRate)
+                    .setEncoding(AUDIO_FORMAT)
+                    .setSampleRate(SAMPLE_RATE)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build(),
             )
@@ -148,15 +152,35 @@ constructor(
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build(),
             )
-            .setBufferSizeInBytes(byteBuffer.capacity())
+            .setBufferSizeInBytes(audioSample.capacity())
             .setTransferMode(AudioTrack.MODE_STATIC)
             .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
             .build()
+            .apply {
+                write(audioSample, audioSample.remaining(), AudioTrack.WRITE_BLOCKING)
+                setLoopPoints(0, AUDIO_FRAME_PER_BUFFER - 1, -1)
+            }
+    }
 
-        audioTrack?.write(byteBuffer, byteBuffer.remaining(), AudioTrack.WRITE_BLOCKING)
-        audioTrack?.setLoopPoints(0, framesPerBuffer - 1, -1)
+    private fun playAudioTrackIfNeeded() {
+        val swapped = isAudioTrackStarted.compareAndSet(false, true)
+        if (!swapped) {
+            // Already playing, nothing to do
+            return
+        }
 
-        audioTrack?.play()
+        val audioTrack = audioTrack ?: buildAudioTrack().also { audioTrack = it }
+        audioTrack.play()
+    }
+
+    private fun pauseAudioTrackIfNeeded() {
+        val swapped = isAudioTrackStarted.compareAndSet(true, false)
+        if (!swapped) {
+            // Already stopped, nothing to do
+            return
+        }
+
+        audioTrack?.pause()
     }
 
     // Reference from Android code, AudioFormat.getBytesPerSample. BitPerSample / 8
@@ -172,15 +196,9 @@ constructor(
         }
     }
 
-    private fun stopAudioTrackIfNeeded() {
-        audioTrack?.stop()
-        audioTrack?.release()
-        audioTrack = null
-    }
-
-    override fun dispose() {
-        coroutineScope.close()
-        stop()
-        stopAudioTrackIfNeeded()
+    companion object {
+        private const val SAMPLE_RATE = 16000
+        private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
+        private const val AUDIO_FRAME_PER_BUFFER = SAMPLE_RATE / 100 // 10 ms
     }
 }
