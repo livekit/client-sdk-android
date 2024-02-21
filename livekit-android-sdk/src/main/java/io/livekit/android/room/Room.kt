@@ -47,7 +47,6 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
-import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filterNotNull
@@ -344,10 +343,6 @@ constructor(
                     }
                 }
             }
-        }
-
-        if (audioProcessingController is CustomAudioProcessingFactory) {
-            audioProcessingController.setup(url, token)
         }
 
         engine.join(url, token, options, roomOptions)

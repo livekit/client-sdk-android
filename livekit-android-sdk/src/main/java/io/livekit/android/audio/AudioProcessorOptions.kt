@@ -23,6 +23,8 @@ data class AudioProcessorOptions(
     val capturePostProcessor: AudioProcessorInterface? = null,
     /**
      * When true, bypass the processing for captured audio.
+     *
+     * Noop if [capturePostProcessor] is null.
      */
     val capturePostBypass: Boolean = false,
     /**
@@ -31,6 +33,8 @@ data class AudioProcessorOptions(
     val renderPreProcessor: AudioProcessorInterface? = null,
     /**
      * When true, bypass the processing for rendered audio.
+     *
+     * Noop if [renderPreProcessor] is null.
      */
     val renderPreBypass: Boolean = false,
 )

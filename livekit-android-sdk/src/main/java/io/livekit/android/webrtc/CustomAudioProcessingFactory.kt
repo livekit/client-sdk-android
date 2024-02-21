@@ -27,19 +27,15 @@ class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProce
 
     private val externalAudioProcessor = ExternalAudioProcessingFactory()
 
-    fun setup(url: String, token: String) {
-        if (audioProcessorOptions.capturePostProcessor != null &&
-            audioProcessorOptions.capturePostProcessor.isEnabled(url, token)
-        ) {
+    init {
+        if (audioProcessorOptions.capturePostProcessor != null) {
             setCapturePostProcessing(audioProcessorOptions.capturePostProcessor)
             setBypassForCapturePostProcessing(audioProcessorOptions.capturePostBypass)
         } else {
             setCapturePostProcessing(null)
             setBypassForCapturePostProcessing(false)
         }
-        if (audioProcessorOptions.renderPreProcessor != null &&
-            audioProcessorOptions.renderPreProcessor.isEnabled(url, token)
-        ) {
+        if (audioProcessorOptions.renderPreProcessor != null) {
             setRenderPreProcessing(audioProcessorOptions.renderPreProcessor)
             setBypassForRenderPreProcessing(audioProcessorOptions.renderPreBypass)
         } else {
@@ -76,15 +72,15 @@ class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProce
         var audioProcessing: AudioProcessorInterface? = null,
     ) : ExternalAudioProcessingFactory.AudioProcessing {
         override fun initialize(sampleRateHz: Int, numChannels: Int) {
-            audioProcessing?.initialize(sampleRateHz, numChannels)
+            audioProcessing?.initializeAudioProcessing(sampleRateHz, numChannels)
         }
 
         override fun reset(newRate: Int) {
-            audioProcessing?.reset(newRate)
+            audioProcessing?.resetAudioProcessing(newRate)
         }
 
         override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
-            audioProcessing?.process(numBands, numFrames, buffer!!)
+            audioProcessing?.processAudio(numBands, numFrames, buffer!!)
         }
     }
 

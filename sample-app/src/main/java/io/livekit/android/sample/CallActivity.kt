@@ -48,8 +48,8 @@ class CallActivity : AppCompatActivity() {
             ?: throw NullPointerException("args is null!")
 
         val audioProcessor = object : AudioProcessorInterface {
-            override fun isEnabled(url: String, token: String): Boolean {
-                Timber.d { "${getName()} isEnabled: $url, $token" }
+            override fun isEnabled(): Boolean {
+                Timber.d { "${getName()} isEnabled" }
                 return true
             }
 
@@ -57,15 +57,15 @@ class CallActivity : AppCompatActivity() {
                 return "fake_noise_cancellation"
             }
 
-            override fun initialize(sampleRateHz: Int, numChannels: Int) {
+            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {
                 Timber.d { "${getName()} initialize" }
             }
 
-            override fun reset(newRate: Int) {
+            override fun resetAudioProcessing(newRate: Int) {
                 Timber.d { "${getName()} reset" }
             }
 
-            override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
+            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
                 Timber.d { "${getName()} process" }
             }
         }

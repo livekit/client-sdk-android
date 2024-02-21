@@ -25,7 +25,7 @@ interface AudioProcessorInterface {
     /**
      * Check if the audio processing is enabled.
      */
-    fun isEnabled(url: String, token: String): Boolean
+    fun isEnabled(): Boolean
 
     /**
      * Get the name of the audio processing.
@@ -35,15 +35,15 @@ interface AudioProcessorInterface {
     /**
      * Initialize the audio processing.
      */
-    fun initialize(sampleRateHz: Int, numChannels: Int)
+    fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int)
 
     /**
      * Called when the sample rate has changed.
      */
-    fun reset(newRate: Int)
+    fun resetAudioProcessing(newRate: Int)
 
     /**
      * Process the audio frame (10ms).
      */
-    fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer)
+    fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer)
 }
