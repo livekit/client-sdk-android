@@ -24,6 +24,7 @@ import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
 import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.VideoDecoderFactory
 import livekit.org.webrtc.VideoEncoderFactory
 import livekit.org.webrtc.audio.AudioDeviceModule
@@ -63,6 +64,11 @@ data class LiveKitOverrides(
      * with it to prevent memory leaks.
      */
     val eglBase: EglBase? = null,
+
+    /**
+     * Override the options passed into the PeerConnectionFactory when building it.
+     */
+    val peerConnectionFactoryOptions: PeerConnectionFactory.Options? = null,
 )
 
 /**
