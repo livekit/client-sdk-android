@@ -258,7 +258,6 @@ internal object RTCModule {
             }
             .createPeerConnectionFactory()
             .apply { memoryManager.registerClosable { dispose() } }
-
     }
 
     @Provides
