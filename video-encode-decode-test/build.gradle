@@ -77,8 +77,8 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation deps.coroutines.lib
-    implementation "androidx.core:core-ktx:${versions.androidx_core}"
+    implementation libs.coroutines.lib
+    implementation "androidx.core:core-ktx:${libs.versions.androidx.core.get()}"
     implementation 'androidx.appcompat:appcompat:1.3.1'
     implementation 'com.google.android.material:material:1.4.0'
     implementation "androidx.compose.ui:ui:$compose_version"
@@ -86,13 +86,13 @@ dependencies {
     implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
     implementation "androidx.constraintlayout:constraintlayout-compose:1.0.0-rc01"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
-    implementation "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${libs.versions.androidx.lifecycle.get()}"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${libs.versions.androidx.lifecycle.get()}"
+    implementation "androidx.lifecycle:lifecycle-common-java8:${libs.versions.androidx.lifecycle.get()}"
     implementation 'androidx.activity:activity-compose:1.3.1'
     implementation 'com.google.accompanist:accompanist-pager:0.19.0'
     implementation 'com.google.accompanist:accompanist-pager-indicators:0.19.0'
-    implementation deps.timber
+    implementation libs.timber
     implementation project(":sample-app-common")
     implementation project(":livekit-android-sdk")
     testImplementation 'junit:junit:4.+'
