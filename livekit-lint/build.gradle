@@ -18,23 +18,23 @@ dependencies {
 
     compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     // used for lint rules
-    compileOnly deps.lintApi
-    compileOnly deps.lintChecks
-    compileOnly deps.lintTests
+    compileOnly libs.lint.api
+    compileOnly libs.lint.checks
+    compileOnly libs.lint.tests
 
     // Handle creating manifests for lint checker
-    compileOnly deps.auto.serviceAnnotations
-    kapt deps.auto.service
+    compileOnly libs.auto.service.annotations
+    kapt libs.auto.service.compiler
 
     // test lint
-    testImplementation deps.lint
-    testImplementation deps.lintTests
+    testImplementation libs.lint.lib
+    testImplementation libs.lint.tests
 
     compileOnly "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     // test runners
-    testImplementation deps.junit
-    testImplementation deps.junitJupiterApi
-    testRuntimeOnly deps.junitJupiterEngine
+    testImplementation libs.junit
+    testImplementation libs.junitJupiterApi
+    testRuntimeOnly libs.junitJupiterEngine
 }
 test {
     environment "LINT_TEST_KOTLINC", ""
