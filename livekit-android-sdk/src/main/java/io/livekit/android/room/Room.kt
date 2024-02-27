@@ -268,9 +268,8 @@ constructor(
      * @throws IllegalStateException when connect is attempted while the room is not disconnected.
      * @throws Exception when connection fails
      */
-    @OptIn(InternalCoroutinesApi::class)
     @Throws(Exception::class)
-    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
+    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) = coroutineScope {
 
         if (state != State.DISCONNECTED) {
             throw IllegalStateException("Room.connect attempted while room is not disconnected!")
@@ -280,7 +279,7 @@ constructor(
             if (state != State.DISCONNECTED) {
                 throw IllegalStateException("Room.connect attempted while room is not disconnected!")
             }
-            if (this::coroutineScope.isInitialized) {
+            if (::coroutineScope.isInitialized) {
                 val job = coroutineScope.coroutineContext.job
                 coroutineScope.cancel()
                 job.join()
@@ -353,7 +352,12 @@ constructor(
             }
         }
 
-        val connectJob = coroutineScope.launch(ioDispatcher) {
+        // Use an empty coroutineExceptionHandler since we want to
+        // rethrow all throwables from the connect job.
+        val emptyCoroutineExceptionHandler = CoroutineExceptionHandler { _, _ -> }
+        val connectJob = coroutineScope.launch(
+            ioDispatcher + emptyCoroutineExceptionHandler,
+        ) {
             engine.join(url, token, options, roomOptions)
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val networkRequest = NetworkRequest.Builder()
@@ -373,8 +377,16 @@ constructor(
             }
         }
 
+        val outerHandler = coroutineContext.job.invokeOnCompletion { cause ->
+            // Cancel connect job if invoking coroutine is cancelled.
+            if (cause is CancellationException) {
+                connectJob.cancel(cause)
+            }
+        }
+
         var error: Throwable? = null
         connectJob.invokeOnCompletion { cause ->
+            outerHandler.dispose()
             error = cause
         }
         connectJob.join()
