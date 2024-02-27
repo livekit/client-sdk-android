@@ -270,7 +270,6 @@ constructor(
      */
     @Throws(Exception::class)
     suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) = coroutineScope {
-
         if (state != State.DISCONNECTED) {
             throw IllegalStateException("Room.connect attempted while room is not disconnected!")
         }

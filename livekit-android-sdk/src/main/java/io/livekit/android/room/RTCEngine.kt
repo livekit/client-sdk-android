@@ -258,7 +258,6 @@ internal constructor(
                 // data channels
                 val reliableInit = DataChannel.Init()
                 reliableInit.ordered = true
-                LKLog.e { "creating reliable datachannel, active? ${coroutineContext.isActive}, rtcengine scope active? ${coroutineScope.isActive}" }
                 reliableDataChannel = publisher?.withPeerConnection {
                     createDataChannel(
                         RELIABLE_DATA_CHANNEL_LABEL,
@@ -272,7 +271,6 @@ internal constructor(
                 val lossyInit = DataChannel.Init()
                 lossyInit.ordered = true
                 lossyInit.maxRetransmits = 0
-                LKLog.e { "creating lossy datachannel, active? ${coroutineContext.isActive}, rtcengine scope active? ${coroutineScope.isActive}" }
                 lossyDataChannel = publisher?.withPeerConnection {
                     createDataChannel(
                         LOSSY_DATA_CHANNEL_LABEL,

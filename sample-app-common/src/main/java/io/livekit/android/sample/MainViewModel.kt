@@ -1,10 +1,32 @@
+/*
+ * Copyright 2024 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.sample
 
+import android.annotation.SuppressLint
 import android.app.Application
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import io.livekit.android.sample.common.BuildConfig
+import io.livekit.android.util.LKLog
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -43,6 +65,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         preferences.edit { clear() }
     }
 
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(2000)
+                dumpReferenceTables()
+            }
+        }
+    }
+
+    @SuppressLint("DiscouragedPrivateApi")
+    private fun dumpReferenceTables() {
+        try {
+            val cls = Class.forName("android.os.Debug")
+            val method = cls.getDeclaredMethod("dumpReferenceTables")
+            val con = cls.getDeclaredConstructor().apply {
+                isAccessible = true
+            }
+            method.invoke(con.newInstance())
+        } catch (e: Exception) {
+            LKLog.e(e) { "Unable to dump reference tables, you can try `adb shell settings put global hidden_api_policy 1`" }
+        }
+    }
     companion object {
         private const val PREFERENCES_KEY_URL = "url"
         private const val PREFERENCES_KEY_TOKEN = "token"
