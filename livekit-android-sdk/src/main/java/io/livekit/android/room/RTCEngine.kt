@@ -35,13 +35,17 @@ import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
+import io.livekit.android.util.withCheckLock
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
@@ -134,6 +138,12 @@ internal constructor(
 
     private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
+    /**
+     * Note: If this lock is ever used in conjunction with the RTC thread,
+     * this must be grabbed on the RTC thread to prevent deadlocks.
+     */
+    private var configurationLock = Mutex()
+
     init {
         client.listener = this
     }
@@ -158,8 +168,10 @@ internal constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
-    ): JoinResponse {
+    ): JoinResponse = coroutineScope {
         val joinResponse = client.join(url, token, options, roomOptions)
+        ensureActive()
+
         listener?.onJoinResponse(joinResponse)
         isClosed = false
         listener?.onSignalConnected(false)
@@ -169,93 +181,106 @@ internal constructor(
         configure(joinResponse, options)
 
         // create offer
-        if (!this.isSubscriberPrimary) {
+        if (!isSubscriberPrimary) {
             negotiatePublisher()
         }
         client.onReadyForResponses()
-        return joinResponse
+
+        return@coroutineScope joinResponse
     }
 
     private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
-        if (publisher != null && subscriber != null) {
-            // already configured
-            return
-        }
-
-        participantSid = if (joinResponse.hasParticipant()) {
-            joinResponse.participant.sid
-        } else {
-            null
-        }
-
-        // Setup peer connections
-        val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
-
-        publisher?.close()
-        publisher = pctFactory.create(
-            rtcConfig,
-            publisherObserver,
-            publisherObserver,
-        )
-        subscriber?.close()
-        subscriber = pctFactory.create(
-            rtcConfig,
-            subscriberObserver,
-            null,
-        )
-
-        val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
-            LKLog.v { "onIceConnection new state: $newState" }
-            if (newState.isConnected()) {
-                connectionState = ConnectionState.CONNECTED
-            } else if (newState.isDisconnected()) {
-                connectionState = ConnectionState.DISCONNECTED
-            }
-        }
-
-        if (joinResponse.subscriberPrimary) {
-            // in subscriber primary mode, server side opens sub data channels.
-            subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
-                when (dataChannel.label()) {
-                    RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
-                    LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
-                    else -> return@onDataChannel
+        launchBlockingOnRTCThread {
+            configurationLock.withCheckLock(
+                {
+                    ensureActive()
+                    if (publisher != null && subscriber != null) {
+                        // already configured
+                        return@launchBlockingOnRTCThread
+                    }
+                },
+            ) {
+                participantSid = if (joinResponse.hasParticipant()) {
+                    joinResponse.participant.sid
+                } else {
+                    null
                 }
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
-            }
 
-            subscriberObserver.connectionChangeListener = connectionStateListener
-            // Also reconnect on publisher disconnect
-            publisherObserver.connectionChangeListener = { newState ->
-                if (newState.isDisconnected()) {
-                    reconnect()
+                // Setup peer connections
+                val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
+
+                publisher?.close()
+                publisher = pctFactory.create(
+                    rtcConfig,
+                    publisherObserver,
+                    publisherObserver,
+                )
+                subscriber?.close()
+                subscriber = pctFactory.create(
+                    rtcConfig,
+                    subscriberObserver,
+                    null,
+                )
+
+                val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
+                    LKLog.v { "onIceConnection new state: $newState" }
+                    if (newState.isConnected()) {
+                        connectionState = ConnectionState.CONNECTED
+                    } else if (newState.isDisconnected()) {
+                        connectionState = ConnectionState.DISCONNECTED
+                    }
                 }
-            }
-        } else {
-            publisherObserver.connectionChangeListener = connectionStateListener
-        }
 
-        // data channels
-        val reliableInit = DataChannel.Init()
-        reliableInit.ordered = true
-        reliableDataChannel = publisher?.withPeerConnection {
-            createDataChannel(
-                RELIABLE_DATA_CHANNEL_LABEL,
-                reliableInit,
-            ).also { dataChannel ->
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
-            }
-        }
+                if (joinResponse.subscriberPrimary) {
+                    // in subscriber primary mode, server side opens sub data channels.
+                    subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
+                        LKLog.e { "received datachannel for ${dataChannel.label()}, thread: ${Thread.currentThread().name}" }
+                        when (dataChannel.label()) {
+                            RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
+                            LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                            else -> return@onDataChannel
+                        }
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
 
-        val lossyInit = DataChannel.Init()
-        lossyInit.ordered = true
-        lossyInit.maxRetransmits = 0
-        lossyDataChannel = publisher?.withPeerConnection {
-            createDataChannel(
-                LOSSY_DATA_CHANNEL_LABEL,
-                lossyInit,
-            ).also { dataChannel ->
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    subscriberObserver.connectionChangeListener = connectionStateListener
+                    // Also reconnect on publisher disconnect
+                    publisherObserver.connectionChangeListener = { newState ->
+                        if (newState.isDisconnected()) {
+                            reconnect()
+                        }
+                    }
+                } else {
+                    publisherObserver.connectionChangeListener = connectionStateListener
+                }
+
+                ensureActive()
+                // data channels
+                val reliableInit = DataChannel.Init()
+                reliableInit.ordered = true
+                LKLog.e { "creating reliable datachannel, active? ${coroutineContext.isActive}, rtcengine scope active? ${coroutineScope.isActive}" }
+                reliableDataChannel = publisher?.withPeerConnection {
+                    createDataChannel(
+                        RELIABLE_DATA_CHANNEL_LABEL,
+                        reliableInit,
+                    ).also { dataChannel ->
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
+                }
+
+                ensureActive()
+                val lossyInit = DataChannel.Init()
+                lossyInit.ordered = true
+                lossyInit.maxRetransmits = 0
+                LKLog.e { "creating lossy datachannel, active? ${coroutineContext.isActive}, rtcengine scope active? ${coroutineScope.isActive}" }
+                lossyDataChannel = publisher?.withPeerConnection {
+                    createDataChannel(
+                        LOSSY_DATA_CHANNEL_LABEL,
+                        lossyInit,
+                    ).also { dataChannel ->
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
+                }
             }
         }
     }
@@ -327,27 +352,38 @@ internal constructor(
 
     private fun closeResources(reason: String) {
         executeBlockingOnRTCThread {
-            publisherObserver.connectionChangeListener = null
-            subscriberObserver.connectionChangeListener = null
-            publisher?.closeBlocking()
-            publisher = null
-            subscriber?.closeBlocking()
-            subscriber = null
+            runBlocking {
+                configurationLock.withLock {
+                    publisherObserver.connectionChangeListener = null
+                    subscriberObserver.connectionChangeListener = null
+                    LKLog.e { "closing publisher connection" }
+                    publisher?.closeBlocking()
+                    publisher = null
+                    LKLog.e { "closing subscriber connection" }
+                    subscriber?.closeBlocking()
+                    subscriber = null
 
-            fun DataChannel?.completeDispose() {
-                this?.unregisterObserver()
-                this?.close()
-                this?.dispose()
+                    fun DataChannel?.completeDispose() {
+                        this?.unregisterObserver()
+                        this?.close()
+                        this?.dispose()
+                    }
+
+                    LKLog.e { "disposing reliable datachannel" }
+                    reliableDataChannel?.completeDispose()
+                    reliableDataChannel = null
+                    LKLog.e { "disposing reliable sub datachannel" }
+                    reliableDataChannelSub?.completeDispose()
+                    reliableDataChannelSub = null
+                    LKLog.e { "disposing lossy datachannel" }
+                    lossyDataChannel?.completeDispose()
+                    lossyDataChannel = null
+                    LKLog.e { "disposing lossy sub datachannel" }
+                    lossyDataChannelSub?.completeDispose()
+                    lossyDataChannelSub = null
+                    isSubscriberPrimary = false
+                }
             }
-            reliableDataChannel?.completeDispose()
-            reliableDataChannel = null
-            reliableDataChannelSub?.completeDispose()
-            reliableDataChannelSub = null
-            lossyDataChannel?.completeDispose()
-            lossyDataChannel = null
-            lossyDataChannelSub?.completeDispose()
-            lossyDataChannelSub = null
-            isSubscriberPrimary = false
         }
         client.close(reason = reason)
     }
