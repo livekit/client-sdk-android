@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class CallActivity : AppCompatActivity() {
     val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, args.stressTest)
+        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey)
     }
     lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
@@ -202,5 +202,5 @@ class CallActivity : AppCompatActivity() {
     }
 
     @Parcelize
-    data class BundleArgs(val url: String, val token: String, val e2ee: Boolean, val e2eeKey: String, val stressTest: Boolean) : Parcelable
+    data class BundleArgs(val url: String, val token: String, val e2ee: Boolean, val e2eeKey: String) : Parcelable
 }
