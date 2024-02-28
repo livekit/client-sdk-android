@@ -234,7 +234,6 @@ internal constructor(
                 if (joinResponse.subscriberPrimary) {
                     // in subscriber primary mode, server side opens sub data channels.
                     subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
-                        LKLog.e { "received datachannel for ${dataChannel.label()}, thread: ${Thread.currentThread().name}" }
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
@@ -354,10 +353,8 @@ internal constructor(
                 configurationLock.withLock {
                     publisherObserver.connectionChangeListener = null
                     subscriberObserver.connectionChangeListener = null
-                    LKLog.e { "closing publisher connection" }
                     publisher?.closeBlocking()
                     publisher = null
-                    LKLog.e { "closing subscriber connection" }
                     subscriber?.closeBlocking()
                     subscriber = null
 
@@ -367,16 +364,12 @@ internal constructor(
                         this?.dispose()
                     }
 
-                    LKLog.e { "disposing reliable datachannel" }
                     reliableDataChannel?.completeDispose()
                     reliableDataChannel = null
-                    LKLog.e { "disposing reliable sub datachannel" }
                     reliableDataChannelSub?.completeDispose()
                     reliableDataChannelSub = null
-                    LKLog.e { "disposing lossy datachannel" }
                     lossyDataChannel?.completeDispose()
                     lossyDataChannel = null
-                    LKLog.e { "disposing lossy sub datachannel" }
                     lossyDataChannelSub?.completeDispose()
                     lossyDataChannelSub = null
                     isSubscriberPrimary = false
