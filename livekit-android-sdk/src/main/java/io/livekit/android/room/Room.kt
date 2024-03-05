@@ -629,7 +629,7 @@ constructor(
         eventBus.postEvent(RoomEvent.ActiveSpeakersChanged(this, mutableActiveSpeakers), coroutineScope)
     }
 
-    fun reconnect() {
+    private fun reconnect() {
         if (state == State.RECONNECTING) {
             return
         }
