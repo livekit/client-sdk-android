@@ -137,7 +137,7 @@ constructor(
         roomOptions: RoomOptions,
     ): Either<JoinResponse, Either<ReconnectResponse, Unit>> {
         // Clean up any pre-existing connection.
-        close(reason = "Starting new connection")
+        close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
         val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
@@ -152,6 +152,7 @@ constructor(
         val request = Request.Builder()
             .url(wsUrlString)
             .build()
+
 
         return suspendCancellableCoroutine {
             // Wait for join response through WebSocketListener
@@ -738,7 +739,7 @@ constructor(
      *
      * Can be reused afterwards.
      */
-    fun close(code: Int = CLOSE_REASON_NORMAL_CLOSURE, reason: String = "Normal Closure") {
+    fun close(code: Int = CLOSE_REASON_NORMAL_CLOSURE, reason: String = "Normal Closure", shouldClearQueuedRequests: Boolean = true) {
         LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
@@ -757,8 +758,9 @@ constructor(
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
-        // TODO: support calling this from connect without wiping any queued requests.
-        // requestFlow.resetReplayCache()
+        if (shouldClearQueuedRequests) {
+            requestFlow.resetReplayCache()
+        }
         responseFlow.resetReplayCache()
         lastUrl = null
         lastOptions = null
