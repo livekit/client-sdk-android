@@ -153,7 +153,6 @@ constructor(
             .url(wsUrlString)
             .build()
 
-
         return suspendCancellableCoroutine {
             // Wait for join response through WebSocketListener
             joinContinuation = it
