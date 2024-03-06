@@ -25,6 +25,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.util.CloseableCoroutineScope
+import io.livekit.android.util.LKLog
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -122,8 +123,11 @@ constructor(
 
         stop()
 
-        audioTrack?.stop()
-        audioTrack?.release()
+        audioTrack?.let { track ->
+            synchronized(track) {
+                track.release()
+            }
+        }
     }
 
     private fun onStateChanged(started: Boolean, playoutStopped: Boolean) {
@@ -170,7 +174,13 @@ constructor(
         }
 
         val audioTrack = audioTrack ?: buildAudioTrack().also { audioTrack = it }
-        audioTrack.play()
+        synchronized(audioTrack) {
+            if (audioTrack.state == AudioTrack.STATE_INITIALIZED) {
+                audioTrack.play()
+            } else {
+                LKLog.i { "Attempted to start communication workaround but track was not initialized." }
+            }
+        }
     }
 
     private fun pauseAudioTrackIfNeeded() {
@@ -180,7 +190,15 @@ constructor(
             return
         }
 
-        audioTrack?.pause()
+        audioTrack?.let { track ->
+            synchronized(track) {
+                if (track.state == AudioTrack.STATE_INITIALIZED) {
+                    track.pause()
+                } else {
+                    LKLog.d { "Attempted to stop communication workaround but track was not initialized." }
+                }
+            }
+        }
     }
 
     // Reference from Android code, AudioFormat.getBytesPerSample. BitPerSample / 8

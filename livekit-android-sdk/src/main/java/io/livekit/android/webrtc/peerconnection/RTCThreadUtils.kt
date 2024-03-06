@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.livekit.android.webrtc.peerconnection
 
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -41,7 +42,7 @@ private val threadFactory = object : ThreadFactory {
     }
 }
 
-// var only for testing purposes, do not alter!
+// var only for testing purposes, do not alter in production!
 private var executor = Executors.newSingleThreadExecutor(threadFactory)
 private var rtcDispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
 
@@ -82,12 +83,12 @@ fun <T> executeBlockingOnRTCThread(action: () -> T): T {
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
  */
-suspend fun <T> launchBlockingOnRTCThread(action: suspend () -> T): T = coroutineScope {
+suspend fun <T> launchBlockingOnRTCThread(action: suspend CoroutineScope.() -> T): T = coroutineScope {
     return@coroutineScope if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
-        action()
+        this.action()
     } else {
         async(rtcDispatcher) {
-            action()
+            this.action()
         }.await()
     }
 }

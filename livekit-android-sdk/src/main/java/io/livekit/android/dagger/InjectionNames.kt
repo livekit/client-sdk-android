@@ -55,4 +55,5 @@ internal object InjectionNames {
     internal const val OVERRIDE_AUDIO_OUTPUT_TYPE = "override_audio_output_type"
     internal const val OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND = "override_disable_communication_workaround"
     internal const val OVERRIDE_EGL_BASE = "override_egl_base"
+    internal const val OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS = "override_peer_connection_factory_options"
 }

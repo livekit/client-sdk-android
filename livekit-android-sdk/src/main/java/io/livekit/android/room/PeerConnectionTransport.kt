@@ -144,7 +144,7 @@ constructor(
                 restartingIce = true
             }
 
-            if (this.peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
+            if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
                 // we're waiting for the peer to accept our offer, so we'll just wait
                 // the only exception to this is when ICE restart is needed
                 val curSd = peerConnection.remoteDescription
@@ -313,7 +313,7 @@ constructor(
     }
 
     @OptIn(ExperimentalContracts::class)
-    private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend () -> T): T? {
+    private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend CoroutineScope.() -> T): T? {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
         if (isClosed()) {
             return null

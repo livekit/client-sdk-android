@@ -58,15 +58,15 @@ dependencies {
     // api "io.livekit:livekit-android:<version>"
     api project(":livekit-android-sdk")
 
-    api "androidx.core:core-ktx:${versions.androidx_core}"
+    api "androidx.core:core-ktx:${libs.versions.androidx.core.get()}"
     api 'androidx.appcompat:appcompat:1.4.0'
     api 'com.google.android.material:material:1.4.0'
-    api deps.coroutines.lib
-    api deps.timber
-    api "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
-    api "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
-    api "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"
-    api "com.google.protobuf:protobuf-javalite:${versions.protobuf}"
+    api libs.coroutines.lib
+    api libs.timber
+    api "androidx.lifecycle:lifecycle-runtime-ktx:${libs.versions.androidx.lifecycle.get()}"
+    api "androidx.lifecycle:lifecycle-viewmodel-ktx:${libs.versions.androidx.lifecycle.get()}"
+    api "androidx.lifecycle:lifecycle-common-java8:${libs.versions.androidx.lifecycle.get()}"
+    api libs.protobuf.javalite
     api 'androidx.preference:preference-ktx:1.1.1'
     // debugImplementation because LeakCanary should only run in debug builds.
     debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.8.1'

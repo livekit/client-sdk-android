@@ -284,6 +284,8 @@ internal object RTCModule {
         audioDeviceModule: AudioDeviceModule,
         videoEncoderFactory: VideoEncoderFactory,
         videoDecoderFactory: VideoDecoderFactory,
+        @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)
+        peerConnectionFactoryOptions: PeerConnectionFactory.Options?,
         memoryManager: CloseableManager,
         audioProcessingFactory: AudioProcessingFactory?,
     ): PeerConnectionFactory {
@@ -292,6 +294,11 @@ internal object RTCModule {
             .setAudioProcessingFactory(audioProcessingFactory)
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
+            .apply {
+                if (peerConnectionFactoryOptions != null) {
+                    setOptions(peerConnectionFactoryOptions)
+                }
+            }
             .createPeerConnectionFactory()
             .apply { memoryManager.registerClosable { dispose() } }
     }

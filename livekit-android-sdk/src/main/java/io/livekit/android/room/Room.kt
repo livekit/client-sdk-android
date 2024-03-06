@@ -51,6 +51,8 @@ import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -256,6 +258,8 @@ constructor(
     private var hasLostConnectivity: Boolean = false
     private var connectOptions: ConnectOptions = ConnectOptions()
 
+    private var stateLock = Mutex()
+
     private fun getCurrentRoomOptions(): RoomOptions =
         RoomOptions(
             adaptiveStream = adaptiveStream,
@@ -273,93 +277,133 @@ constructor(
      * @param url
      * @param token
      * @param options
+     *
+     * @throws IllegalStateException when connect is attempted while the room is not disconnected.
+     * @throws Exception when connection fails
      */
     @Throws(Exception::class)
-    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) {
-        if (this::coroutineScope.isInitialized) {
-            coroutineScope.cancel()
+    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) = coroutineScope {
+        if (state != State.DISCONNECTED) {
+            throw IllegalStateException("Room.connect attempted while room is not disconnected!")
         }
-        coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
+        val roomOptions: RoomOptions
+        stateLock.withLock {
+            if (state != State.DISCONNECTED) {
+                throw IllegalStateException("Room.connect attempted while room is not disconnected!")
+            }
+            if (::coroutineScope.isInitialized) {
+                val job = coroutineScope.coroutineContext.job
+                coroutineScope.cancel()
+                job.join()
+            }
 
-        val roomOptions = getCurrentRoomOptions()
+            state = State.CONNECTING
+            connectOptions = options
 
-        // Setup local participant.
-        localParticipant.reinitialize()
-        coroutineScope.launch {
-            localParticipant.events.collect {
-                when (it) {
-                    is ParticipantEvent.TrackPublished -> emitWhenConnected(
-                        RoomEvent.TrackPublished(
-                            room = this@Room,
-                            publication = it.publication,
-                            participant = it.participant,
-                        ),
-                    )
+            coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
 
-                    is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
-                        RoomEvent.ParticipantPermissionsChanged(
-                            room = this@Room,
-                            participant = it.participant,
-                            newPermissions = it.newPermissions,
-                            oldPermissions = it.oldPermissions,
-                        ),
-                    )
+            roomOptions = getCurrentRoomOptions()
 
-                    is ParticipantEvent.MetadataChanged -> {
-                        emitWhenConnected(
-                            RoomEvent.ParticipantMetadataChanged(
-                                this@Room,
-                                it.participant,
-                                it.prevMetadata,
+            // Setup local participant.
+            localParticipant.reinitialize()
+            coroutineScope.launch {
+                localParticipant.events.collect {
+                    when (it) {
+                        is ParticipantEvent.TrackPublished -> emitWhenConnected(
+                            RoomEvent.TrackPublished(
+                                room = this@Room,
+                                publication = it.publication,
+                                participant = it.participant,
                             ),
                         )
-                    }
 
-                    is ParticipantEvent.NameChanged -> {
-                        emitWhenConnected(
-                            RoomEvent.ParticipantNameChanged(
-                                this@Room,
-                                it.participant,
-                                it.name,
+                        is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
+                            RoomEvent.ParticipantPermissionsChanged(
+                                room = this@Room,
+                                participant = it.participant,
+                                newPermissions = it.newPermissions,
+                                oldPermissions = it.oldPermissions,
                             ),
                         )
-                    }
 
-                    else -> {
-                        // do nothing
+                        is ParticipantEvent.MetadataChanged -> {
+                            emitWhenConnected(
+                                RoomEvent.ParticipantMetadataChanged(
+                                    this@Room,
+                                    it.participant,
+                                    it.prevMetadata,
+                                ),
+                            )
+                        }
+
+                        is ParticipantEvent.NameChanged -> {
+                            emitWhenConnected(
+                                RoomEvent.ParticipantNameChanged(
+                                    this@Room,
+                                    it.participant,
+                                    it.name,
+                                ),
+                            )
+                        }
+
+                        else -> {
+                            // do nothing
+                        }
+                    }
+                }
+            }
+
+            if (roomOptions.e2eeOptions != null) {
+                e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
+                    setup(this@Room) { event ->
+                        coroutineScope.launch {
+                            emitWhenConnected(event)
+                        }
                     }
                 }
             }
         }
 
-        state = State.CONNECTING
-        connectOptions = options
+        // Use an empty coroutineExceptionHandler since we want to
+        // rethrow all throwables from the connect job.
+        val emptyCoroutineExceptionHandler = CoroutineExceptionHandler { _, _ -> }
+        val connectJob = coroutineScope.launch(
+            ioDispatcher + emptyCoroutineExceptionHandler,
+        ) {
+            engine.join(url, token, options, roomOptions)
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkRequest = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            cm.registerNetworkCallback(networkRequest, networkCallback)
 
-        if (roomOptions.e2eeOptions != null) {
-            e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
-                setup(this@Room) { event ->
-                    coroutineScope.launch {
-                        emitWhenConnected(event)
-                    }
-                }
+            ensureActive()
+            if (options.audio) {
+                val audioTrack = localParticipant.createAudioTrack()
+                localParticipant.publishAudioTrack(audioTrack)
+            }
+            ensureActive()
+            if (options.video) {
+                val videoTrack = localParticipant.createVideoTrack()
+                localParticipant.publishVideoTrack(videoTrack)
             }
         }
 
-        engine.join(url, token, options, roomOptions)
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        cm.registerNetworkCallback(networkRequest, networkCallback)
+        val outerHandler = coroutineContext.job.invokeOnCompletion { cause ->
+            // Cancel connect job if invoking coroutine is cancelled.
+            if (cause is CancellationException) {
+                connectJob.cancel(cause)
+            }
+        }
 
-        if (options.audio) {
-            val audioTrack = localParticipant.createAudioTrack()
-            localParticipant.publishAudioTrack(audioTrack)
+        var error: Throwable? = null
+        connectJob.invokeOnCompletion { cause ->
+            outerHandler.dispose()
+            error = cause
         }
-        if (options.video) {
-            val videoTrack = localParticipant.createVideoTrack()
-            localParticipant.publishVideoTrack(videoTrack)
-        }
+        connectJob.join()
+
+        error?.let { throw it }
     }
 
     /**
@@ -605,6 +649,35 @@ constructor(
         engine.reconnect()
     }
 
+    private fun handleDisconnect(reason: DisconnectReason) {
+        if (state == State.DISCONNECTED) {
+            return
+        }
+        runBlocking {
+            stateLock.withLock {
+                if (state == State.DISCONNECTED) {
+                    return@runBlocking
+                }
+                try {
+                    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                    cm.unregisterNetworkCallback(networkCallback)
+                } catch (e: IllegalArgumentException) {
+                    // do nothing, may happen on older versions if attempting to unregister twice.
+                }
+
+                state = State.DISCONNECTED
+                cleanupRoom()
+                engine.close()
+
+                localParticipant.dispose()
+
+                // Ensure all observers see the disconnected before closing scope.
+                eventBus.postEvent(RoomEvent.Disconnected(this@Room, null, reason), coroutineScope).join()
+                coroutineScope.cancel()
+            }
+        }
+    }
+
     /**
      * Removes all participants and tracks from the room.
      */
@@ -620,31 +693,6 @@ constructor(
         name = null
         isRecording = false
         sidToIdentity.clear()
-    }
-
-    private fun handleDisconnect(reason: DisconnectReason) {
-        if (state == State.DISCONNECTED) {
-            return
-        }
-
-        try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.unregisterNetworkCallback(networkCallback)
-        } catch (e: IllegalArgumentException) {
-            // do nothing, may happen on older versions if attempting to unregister twice.
-        }
-
-        state = State.DISCONNECTED
-        cleanupRoom()
-        engine.close()
-
-        localParticipant.dispose()
-
-        // Ensure all observers see the disconnected before closing scope.
-        runBlocking {
-            eventBus.postEvent(RoomEvent.Disconnected(this@Room, null, reason), coroutineScope).join()
-        }
-        coroutineScope.cancel()
     }
 
     private fun sendSyncState() {
