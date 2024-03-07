@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package io.livekit.android.composesample
+package io.livekit.android.sample.model
 
-import android.app.Application
-import io.livekit.android.LiveKit
-import io.livekit.android.util.LoggingLevel
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
-class SampleApplication : Application() {
+sealed class StressTest : Parcelable {
 
-    override fun onCreate() {
-        super.onCreate()
-        LiveKit.loggingLevel = LoggingLevel.VERBOSE
-        // LiveKit.enableWebRTCLogging = true
-    }
+    @Parcelize
+    data class SwitchRoom(
+        val firstToken: String,
+        val secondToken: String,
+    ) : StressTest()
+
+    @Parcelize
+    object None : StressTest()
 }
