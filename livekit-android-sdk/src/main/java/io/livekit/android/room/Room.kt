@@ -30,6 +30,8 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
@@ -63,7 +65,7 @@ constructor(
     @Assisted private val context: Context,
     private val engine: RTCEngine,
     private val eglBase: EglBase,
-    private val localParticipantFactory: LocalParticipant.Factory,
+    localParticipantFactory: LocalParticipant.Factory,
     private val defaultsManager: DefaultsManager,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val defaultDispatcher: CoroutineDispatcher,
@@ -73,6 +75,7 @@ constructor(
     private val closeableManager: CloseableManager,
     private val e2EEManagerFactory: E2EEManager.Factory,
     private val communicationWorkaround: CommunicationWorkaround,
+    val audioProcessingController: AudioProcessingController,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -181,6 +184,11 @@ constructor(
     var adaptiveStream: Boolean = false
 
     /**
+     *  audio processing is enabled
+     */
+    var audioProcessorIsEnabled: Boolean = false
+
+    /**
      * Dynamically pauses video layers that are not being consumed by any subscribers,
      * significantly reducing publishing CPU and bandwidth usage.
      *
@@ -201,6 +209,11 @@ constructor(
      * If null, e2ee will be disabled.
      */
     var e2eeOptions: E2EEOptions? = null
+
+    /**
+     * @see external audio processing options
+     */
+    var audioProcessorOptions: AudioProcessorOptions? = null
 
     /**
      * Default options to use when creating an audio track.

@@ -20,6 +20,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import io.livekit.android.audio.AudioFocusHandler
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
@@ -126,6 +127,11 @@ class AudioOptions(
      * [AudioManager.MODE_IN_COMMUNICATION].
      */
     val disableCommunicationModeWorkaround: Boolean = false,
+
+    /**
+     * Options for processing the mic and incoming audio.
+     */
+    val audioProcessorOptions: AudioProcessorOptions? = null,
 )
 
 /**

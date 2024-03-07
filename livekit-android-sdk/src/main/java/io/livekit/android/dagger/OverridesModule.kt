@@ -38,6 +38,11 @@ internal class OverridesModule(private val overrides: LiveKitOverrides) {
     fun audioDeviceModule() = overrides.audioOptions?.audioDeviceModule
 
     @Provides
+    @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSOR_OPTIONS)
+    @Nullable
+    fun audioProcessorOptions() = overrides.audioOptions?.audioProcessorOptions
+
+    @Provides
     @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
     @Nullable
     fun javaAudioDeviceModuleCustomizer() = overrides.audioOptions?.javaAudioDeviceModuleCustomizer

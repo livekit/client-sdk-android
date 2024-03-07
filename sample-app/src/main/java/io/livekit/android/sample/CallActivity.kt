@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import io.livekit.android.sample.model.StressTest
@@ -39,9 +40,10 @@ import kotlinx.parcelize.Parcelize
 
 class CallActivity : AppCompatActivity() {
 
-    val viewModel: CallViewModel by viewModelByFactory {
+    private val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
+
         CallViewModel(
             url = args.url,
             token = args.token,
@@ -51,7 +53,7 @@ class CallActivity : AppCompatActivity() {
             application = application,
         )
     }
-    lateinit var binding: CallActivityBinding
+    private lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult(),
@@ -152,6 +154,18 @@ class CallActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel") { _, _ -> }
                 .create()
                 .show()
+        }
+
+        viewModel.enhancedNsEnabled.observe(this) { enabled ->
+            binding.enhancedNs.visibility = if (enabled) {
+                android.view.View.VISIBLE
+            } else {
+                android.view.View.GONE
+            }
+        }
+
+        binding.enhancedNs.setOnClickListener {
+            showAudioProcessorSwitchDialog(viewModel)
         }
 
         binding.exit.setOnClickListener { finish() }
