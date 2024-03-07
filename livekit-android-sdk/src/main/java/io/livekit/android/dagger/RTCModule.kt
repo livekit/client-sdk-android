@@ -25,10 +25,13 @@ import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
+import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
+import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
 import livekit.org.webrtc.*
@@ -45,6 +48,22 @@ internal object RTCModule {
 
     /**
      * Certain classes require libwebrtc to be initialized prior to use.
+     *
+     * If your provision depends on libwebrtc initialization, just add it
+     * as a dependency in your method signature.
+     *
+     * Example:
+     *
+     * ```
+     * @Provides
+     * fun someFactory(
+     *     @Suppress("UNUSED_PARAMETER")
+     *     @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+     *     webrtcInitialization: LibWebrtcInitialization
+     * ): SomeFactory {
+     *     ...
+     * }
+     * ```
      */
     @Provides
     @Singleton
@@ -216,6 +235,28 @@ internal object RTCModule {
     }
 
     @Provides
+    @Singleton
+    fun customAudioProcessingFactory(
+        @Suppress("UNUSED_PARAMETER")
+        @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
+        webrtcInitialization: LibWebrtcInitialization,
+        @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSOR_OPTIONS)
+        audioProcessorOptions: AudioProcessorOptions?,
+    ): CustomAudioProcessingFactory {
+        return CustomAudioProcessingFactory(audioProcessorOptions ?: AudioProcessorOptions())
+    }
+
+    @Provides
+    fun audioProcessingController(customAudioProcessingFactory: CustomAudioProcessingFactory): AudioProcessingController {
+        return customAudioProcessingFactory
+    }
+
+    @Provides
+    fun audioProcessingFactory(customAudioProcessingFactory: CustomAudioProcessingFactory): AudioProcessingFactory {
+        return customAudioProcessingFactory.getAudioProcessingFactory()
+    }
+
+    @Provides
     fun videoDecoderFactory(
         @Suppress("UNUSED_PARAMETER")
         @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
@@ -246,9 +287,11 @@ internal object RTCModule {
         @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)
         peerConnectionFactoryOptions: PeerConnectionFactory.Options?,
         memoryManager: CloseableManager,
+        audioProcessingFactory: AudioProcessingFactory?,
     ): PeerConnectionFactory {
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
+            .setAudioProcessingFactory(audioProcessingFactory)
             .setVideoEncoderFactory(videoEncoderFactory)
             .setVideoDecoderFactory(videoDecoderFactory)
             .apply {

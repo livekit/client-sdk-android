@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,22 +28,55 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.GroupieAdapter
+import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
+import java.nio.ByteBuffer
 
 class CallActivity : AppCompatActivity() {
 
-    val viewModel: CallViewModel by viewModelByFactory {
+    private val viewModel: CallViewModel by viewModelByFactory {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
-        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey)
+
+        val audioProcessor = object : AudioProcessorInterface {
+            override fun isEnabled(): Boolean {
+                Timber.d { "${getName()} isEnabled" }
+                return true
+            }
+
+            override fun getName(): String {
+                return "fake_noise_cancellation"
+            }
+
+            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {
+                Timber.d { "${getName()} initialize" }
+            }
+
+            override fun resetAudioProcessing(newRate: Int) {
+                Timber.d { "${getName()} reset" }
+            }
+
+            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
+                Timber.d { "${getName()} process" }
+            }
+        }
+
+        val audioProcessorOptions = AudioProcessorOptions(
+            capturePostProcessor = audioProcessor,
+        )
+
+        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessorOptions)
     }
-    lateinit var binding: CallActivityBinding
+    private lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult(),
@@ -144,6 +177,18 @@ class CallActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel") { _, _ -> }
                 .create()
                 .show()
+        }
+
+        viewModel.enhancedNsEnabled.observe(this) { enabled ->
+            binding.enhancedNs.visibility = if (enabled) {
+                android.view.View.VISIBLE
+            } else {
+                android.view.View.GONE
+            }
+        }
+
+        binding.enhancedNs.setOnClickListener {
+            showAudioProcessorSwitchDialog(viewModel)
         }
 
         binding.exit.setOnClickListener { finish() }
