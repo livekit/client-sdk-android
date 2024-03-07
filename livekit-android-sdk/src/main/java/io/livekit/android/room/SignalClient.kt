@@ -84,13 +84,19 @@ constructor(
         >? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
+    /**
+     * @see [startRequestQueue]
+     */
+    private val requestFlow = MutableSharedFlow<LivekitRtc.SignalRequest>(Int.MAX_VALUE)
     private val requestFlowJobLock = Object()
     private var requestFlowJob: Job? = null
-    private val requestFlow = MutableSharedFlow<LivekitRtc.SignalRequest>(Int.MAX_VALUE)
 
+    /**
+     * @see [onReadyForResponses]
+     */
+    private val responseFlow = MutableSharedFlow<Pair<WebSocket, LivekitRtc.SignalResponse>>(Int.MAX_VALUE)
     private val responseFlowJobLock = Object()
     private var responseFlowJob: Job? = null
-    private val responseFlow = MutableSharedFlow<LivekitRtc.SignalResponse>(Int.MAX_VALUE)
 
     private var pingJob: Job? = null
     private var pongJob: Job? = null
@@ -210,9 +216,9 @@ constructor(
         synchronized(responseFlowJobLock) {
             if (responseFlowJob == null) {
                 responseFlowJob = coroutineScope.launch {
-                    responseFlow.collect {
+                    responseFlow.collect { (ws, response) ->
                         responseFlow.resetReplayCache()
-                        handleSignalResponseImpl(it)
+                        handleSignalResponseImpl(ws, response)
                     }
                 }
             }
@@ -246,19 +252,31 @@ constructor(
 
     // --------------------------------- WebSocket Listener --------------------------------------//
     override fun onMessage(webSocket: WebSocket, text: String) {
+        if (webSocket != currentWs) {
+            // Possibly message from old websocket, discard.
+            return
+        }
+
         LKLog.w { "received JSON message, unsupported in this version." }
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+        if (webSocket != currentWs) {
+            // Possibly message from old websocket, discard.
+            return
+        }
         val byteArray = bytes.toByteArray()
         val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
             .mergeFrom(byteArray)
         val response = signalResponseBuilder.build()
 
-        handleSignalResponse(response)
+        handleSignalResponse(webSocket, response)
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+        if (webSocket != currentWs) {
+            return
+        }
         handleWebSocketClose(reason, code)
     }
 
@@ -267,6 +285,9 @@ constructor(
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        if (webSocket != currentWs) {
+            return
+        }
         var reason: String? = null
         try {
             lastUrl?.let {
@@ -553,7 +574,11 @@ constructor(
         }
     }
 
-    private fun handleSignalResponse(response: LivekitRtc.SignalResponse) {
+    private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse) {
+        if (ws != currentWs) {
+            return
+        }
+
         LKLog.v { "response: $response" }
 
         if (!isConnected) {
@@ -574,7 +599,7 @@ constructor(
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
-                handleSignalResponseImpl(response)
+                handleSignalResponseImpl(ws, response)
             } else if (isReconnecting) {
                 // When reconnecting, any message received means signal reconnected.
                 // Newer servers will send a reconnect response first
@@ -598,10 +623,15 @@ constructor(
                 return
             }
         }
-        responseFlow.tryEmit(response)
+        responseFlow.tryEmit(ws to response)
     }
 
-    private fun handleSignalResponseImpl(response: LivekitRtc.SignalResponse) {
+    private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse) {
+        if (ws != currentWs) {
+            LKLog.v { "received message from old websocket, discarding." }
+            return
+        }
+
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
