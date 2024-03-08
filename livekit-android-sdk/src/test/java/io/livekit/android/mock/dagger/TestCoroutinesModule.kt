@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,11 @@ import dagger.Module
 import dagger.Provides
 import io.livekit.android.dagger.InjectionNames
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestCoroutineDispatcher
 import javax.inject.Named
 
 @Module
 class TestCoroutinesModule(
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val coroutineDispatcher: CoroutineDispatcher = TestCoroutineDispatcher(),
+    private val coroutineDispatcher: CoroutineDispatcher,
 ) {
 
     @Provides
