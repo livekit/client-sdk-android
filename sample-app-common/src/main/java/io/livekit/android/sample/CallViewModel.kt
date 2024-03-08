@@ -16,6 +16,7 @@
 
 package io.livekit.android.sample
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -42,8 +43,11 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,6 +55,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class CallViewModel(
@@ -60,6 +65,7 @@ class CallViewModel(
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
     val audioProcessorOptions: AudioProcessorOptions? = null,
+    val stressTest: StressTest = StressTest.None,
 ) : AndroidViewModel(application) {
 
     private fun getE2EEOptions(): E2EEOptions? {
@@ -169,7 +175,10 @@ class CallViewModel(
                 }
             }
 
-            connectToRoom()
+            when (stressTest) {
+                is StressTest.SwitchRoom -> launch { stressTest.execute() }
+                is StressTest.None -> connectToRoom()
+            }
         }
 
         // Start a foreground service to keep the call from being interrupted if the
@@ -381,6 +390,53 @@ class CallViewModel(
         room.disconnect()
         viewModelScope.launch {
             connectToRoom()
+        }
+    }
+
+    private suspend fun StressTest.SwitchRoom.execute() = coroutineScope {
+        launch {
+            while (isActive) {
+                delay(2000)
+                dumpReferenceTables()
+            }
+        }
+
+        while (isActive) {
+            Timber.d { "Stress test -> connect to first room" }
+            launch { quickConnectToRoom(firstToken) }
+            delay(200)
+            room.disconnect()
+            delay(50)
+            Timber.d { "Stress test -> connect to second room" }
+            launch { quickConnectToRoom(secondToken) }
+            delay(200)
+            room.disconnect()
+            delay(50)
+        }
+    }
+
+    private suspend fun quickConnectToRoom(token: String) {
+        try {
+            room.connect(
+                url = url,
+                token = token,
+            )
+        } catch (e: Throwable) {
+            Timber.e(e) { "Failed to connect to room" }
+        }
+    }
+
+    @SuppressLint("DiscouragedPrivateApi")
+    private fun dumpReferenceTables() {
+        try {
+            val cls = Class.forName("android.os.Debug")
+            val method = cls.getDeclaredMethod("dumpReferenceTables")
+            val con = cls.getDeclaredConstructor().apply {
+                isAccessible = true
+            }
+            method.invoke(con.newInstance())
+        } catch (e: Exception) {
+            LKLog.e(e) { "Unable to dump reference tables, you can try `adb shell settings put global hidden_api_policy 1`" }
         }
     }
 }

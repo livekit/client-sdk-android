@@ -48,6 +48,7 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.sample.CallViewModel
 import io.livekit.android.sample.common.R
+import io.livekit.android.sample.model.StressTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
@@ -62,6 +63,7 @@ class CallActivity : AppCompatActivity() {
             token = args.token,
             e2ee = args.e2eeOn,
             e2eeKey = args.e2eeKey,
+            stressTest = args.stressTest,
             application = application,
         )
     }
@@ -478,5 +480,6 @@ class CallActivity : AppCompatActivity() {
         val token: String,
         val e2eeKey: String,
         val e2eeOn: Boolean,
+        val stressTest: StressTest,
     ) : Parcelable
 }

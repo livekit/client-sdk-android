@@ -28,18 +28,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.audio.AudioProcessorInterface
-import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
+import io.livekit.android.sample.model.StressTest
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
-import java.nio.ByteBuffer
 
 class CallActivity : AppCompatActivity() {
 
@@ -47,34 +44,14 @@ class CallActivity : AppCompatActivity() {
         val args = intent.getParcelableExtra<BundleArgs>(KEY_ARGS)
             ?: throw NullPointerException("args is null!")
 
-        val audioProcessor = object : AudioProcessorInterface {
-            override fun isEnabled(): Boolean {
-                Timber.d { "${getName()} isEnabled" }
-                return true
-            }
-
-            override fun getName(): String {
-                return "fake_noise_cancellation"
-            }
-
-            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {
-                Timber.d { "${getName()} initialize" }
-            }
-
-            override fun resetAudioProcessing(newRate: Int) {
-                Timber.d { "${getName()} reset" }
-            }
-
-            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
-                Timber.d { "${getName()} process" }
-            }
-        }
-
-        val audioProcessorOptions = AudioProcessorOptions(
-            capturePostProcessor = audioProcessor,
+        CallViewModel(
+            url = args.url,
+            token = args.token,
+            e2ee = args.e2eeOn,
+            e2eeKey = args.e2eeKey,
+            stressTest = args.stressTest,
+            application = application,
         )
-
-        CallViewModel(args.url, args.token, application, args.e2ee, args.e2eeKey, audioProcessorOptions)
     }
     private lateinit var binding: CallActivityBinding
     private val screenCaptureIntentLauncher =
@@ -247,5 +224,11 @@ class CallActivity : AppCompatActivity() {
     }
 
     @Parcelize
-    data class BundleArgs(val url: String, val token: String, val e2ee: Boolean, val e2eeKey: String) : Parcelable
+    data class BundleArgs(
+        val url: String,
+        val token: String,
+        val e2eeKey: String,
+        val e2eeOn: Boolean,
+        val stressTest: StressTest,
+    ) : Parcelable
 }

@@ -20,9 +20,8 @@ package io.livekit.android.room
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -40,6 +39,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
+import io.livekit.android.room.network.NetworkCallbackManager
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.track.*
 import io.livekit.android.util.FlowObservable
@@ -371,11 +371,7 @@ constructor(
             ioDispatcher + emptyCoroutineExceptionHandler,
         ) {
             engine.join(url, token, options, roomOptions)
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networkRequest = NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .build()
-            cm.registerNetworkCallback(networkRequest, networkCallback)
+            networkCallbackManager.registerCallback()
 
             ensureActive()
             if (options.audio) {
@@ -658,12 +654,7 @@ constructor(
                 if (state == State.DISCONNECTED) {
                     return@runBlocking
                 }
-                try {
-                    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                    cm.unregisterNetworkCallback(networkCallback)
-                } catch (e: IllegalArgumentException) {
-                    // do nothing, may happen on older versions if attempting to unregister twice.
-                }
+                networkCallbackManager.unregisterCallback()
 
                 state = State.DISCONNECTED
                 cleanupRoom()
@@ -763,28 +754,25 @@ constructor(
     }
 
     // ------------------------------------- NetworkCallback -------------------------------------//
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        /**
-         * @suppress
-         */
-        override fun onLost(network: Network) {
-            // lost connection, flip to reconnecting
-            hasLostConnectivity = true
-        }
-
-        /**
-         * @suppress
-         */
-        override fun onAvailable(network: Network) {
-            // only actually reconnect after connection is re-established
-            if (!hasLostConnectivity) {
-                return
+    private val networkCallbackManager = NetworkCallbackManager(
+        object : NetworkCallback() {
+            override fun onLost(network: Network) {
+                // lost connection, flip to reconnecting
+                hasLostConnectivity = true
             }
-            LKLog.i { "network connection available, reconnecting" }
-            reconnect()
-            hasLostConnectivity = false
-        }
-    }
+
+            override fun onAvailable(network: Network) {
+                // only actually reconnect after connection is re-established
+                if (!hasLostConnectivity) {
+                    return
+                }
+                LKLog.i { "network connection available, reconnecting" }
+                reconnect()
+                hasLostConnectivity = false
+            }
+        },
+        connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+    ).apply { closeableManager.registerClosable(this) }
 
     // ----------------------------------- RTCEngine.Listener ------------------------------------//
 

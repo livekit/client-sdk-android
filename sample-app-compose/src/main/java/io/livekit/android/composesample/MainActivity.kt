@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package io.livekit.android.composesample
 
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -28,7 +30,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,11 +56,28 @@ import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.sample.MainViewModel
 import io.livekit.android.sample.common.R
+import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.util.requestNeededPermissions
+import io.livekit.android.util.LKLog
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {
 
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        /**
+         * @suppress
+         */
+        override fun onLost(network: Network) {
+            LKLog.i { "network connection lost" }
+        }
+
+        /**
+         * @suppress
+         */
+        override fun onAvailable(network: Network) {
+            LKLog.i { "network connection available, reconnecting" }
+        }
+    }
     val viewModel by viewModels<MainViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +89,7 @@ class MainActivity : ComponentActivity() {
                 defaultToken = viewModel.getSavedToken(),
                 defaultE2eeKey = viewModel.getSavedE2EEKey(),
                 defaultE2eeOn = viewModel.getE2EEOptionsOn(),
-                onConnect = { url, token, e2eeKey, e2eeOn ->
+                onConnect = { url, token, e2eeKey, e2eeOn, stressTest ->
                     val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                         putExtra(
                             CallActivity.KEY_ARGS,
@@ -80,7 +98,8 @@ class MainActivity : ComponentActivity() {
                                 token,
                                 e2eeKey,
                                 e2eeOn,
-                            )
+                                stressTest,
+                            ),
                         )
                     }
                     startActivity(intent)
@@ -94,7 +113,7 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(
                         this@MainActivity,
                         "Values saved.",
-                        Toast.LENGTH_SHORT
+                        Toast.LENGTH_SHORT,
                     ).show()
                 },
                 onReset = {
@@ -102,9 +121,9 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(
                         this@MainActivity,
                         "Values reset.",
-                        Toast.LENGTH_SHORT
+                        Toast.LENGTH_SHORT,
                     ).show()
-                }
+                },
             )
         }
     }
@@ -117,9 +136,10 @@ class MainActivity : ComponentActivity() {
     fun MainContent(
         defaultUrl: String = MainViewModel.URL,
         defaultToken: String = MainViewModel.TOKEN,
+        defaultSecondToken: String = MainViewModel.TOKEN,
         defaultE2eeKey: String = MainViewModel.E2EE_KEY,
         defaultE2eeOn: Boolean = false,
-        onConnect: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _ -> },
+        onConnect: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean, stressTest: StressTest) -> Unit = { _, _, _, _, _ -> },
         onSave: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _ -> },
         onReset: () -> Unit = {},
     ) {
@@ -128,21 +148,23 @@ class MainActivity : ComponentActivity() {
             var token by remember { mutableStateOf(defaultToken) }
             var e2eeKey by remember { mutableStateOf(defaultE2eeKey) }
             var e2eeOn by remember { mutableStateOf(defaultE2eeOn) }
+            var stressTest by remember { mutableStateOf(false) }
+            var secondToken by remember { mutableStateOf(defaultSecondToken) }
             val scrollState = rememberScrollState()
             // A surface container using the 'background' color from the theme
             Surface(
                 color = MaterialTheme.colors.background,
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxSize(),
             ) {
                 Box(
                     modifier = Modifier
-                        .verticalScroll(scrollState)
+                        .verticalScroll(scrollState),
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .padding(10.dp)
+                            .padding(10.dp),
                     ) {
                         Spacer(modifier = Modifier.height(50.dp))
                         Image(
@@ -171,7 +193,18 @@ class MainActivity : ComponentActivity() {
                                 onValueChange = { e2eeKey = it },
                                 label = { Text("E2EE Key") },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = e2eeOn
+                                enabled = e2eeOn,
+                            )
+                        }
+
+                        if (stressTest) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            OutlinedTextField(
+                                value = secondToken,
+                                onValueChange = { secondToken = it },
+                                label = { Text("Second token") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = stressTest,
                             )
                         }
 
@@ -179,18 +212,38 @@ class MainActivity : ComponentActivity() {
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("Enable E2EE")
                             Switch(
                                 checked = e2eeOn,
                                 onCheckedChange = { e2eeOn = it },
-                                modifier = Modifier.defaultMinSize(minHeight = 100.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = { onConnect(url, token, e2eeKey, e2eeOn) }) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Stress test")
+                            Switch(
+                                checked = stressTest,
+                                onCheckedChange = { stressTest = it },
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(40.dp))
+                        Button(
+                            onClick = {
+                                val stressTestCmd = if (stressTest) {
+                                    StressTest.SwitchRoom(token, secondToken)
+                                } else {
+                                    StressTest.None
+                                }
+                                onConnect(url, token, e2eeKey, e2eeOn, stressTestCmd)
+                            },
+                        ) {
                             Text("Connect")
                         }
 
@@ -200,11 +253,13 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = {
-                            onReset()
-                            url = MainViewModel.URL
-                            token = MainViewModel.TOKEN
-                        }) {
+                        Button(
+                            onClick = {
+                                onReset()
+                                url = MainViewModel.URL
+                                token = MainViewModel.TOKEN
+                            },
+                        ) {
                             Text("Reset Values")
                         }
                     }
