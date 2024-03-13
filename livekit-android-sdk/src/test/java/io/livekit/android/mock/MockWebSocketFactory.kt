@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,6 @@ class MockWebSocketFactory : WebSocket.Factory {
         this.listener = listener
         this.request = request
 
-        onOpen?.invoke(this)
         return ws
     }
 

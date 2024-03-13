@@ -38,19 +38,17 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RoomReconnectionMockE2ETest : MockE2ETest() {
 
-    private fun prepareForReconnect() {
-        wsFactory.onOpen = {
-            wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            val softReconnectParam = wsFactory.request.url
-                .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
-                ?.toIntOrNull()
-                ?: 0
+    private fun reconnectWebsocket() {
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        val softReconnectParam = wsFactory.request.url
+            .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+            ?.toIntOrNull()
+            ?: 0
 
-            if (softReconnectParam == 0) {
-                simulateMessageFromServer(SignalClientTest.JOIN)
-            } else {
-                simulateMessageFromServer(SignalClientTest.RECONNECT)
-            }
+        if (softReconnectParam == 0) {
+            simulateMessageFromServer(SignalClientTest.JOIN)
+        } else {
+            simulateMessageFromServer(SignalClientTest.RECONNECT)
         }
     }
 
@@ -59,10 +57,10 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
 
         connect()
-        prepareForReconnect()
         disconnectPeerConnection()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()
@@ -82,10 +80,10 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
     fun softReconnectConfiguration() = runTest {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
         connect()
-        prepareForReconnect()
         disconnectPeerConnection()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
         connectPeerConnection()
 
         val rtcConfig = getSubscriberPeerConnection().rtcConfig
@@ -109,10 +107,10 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
             ),
         )
 
-        prepareForReconnect()
         disconnectPeerConnection()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()

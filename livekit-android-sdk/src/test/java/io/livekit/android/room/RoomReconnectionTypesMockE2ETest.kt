@@ -45,19 +45,17 @@ class RoomReconnectionTypesMockE2ETest(
         )
     }
 
-    private fun prepareForReconnect() {
-        wsFactory.onOpen = {
-            wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            val softReconnectParam = wsFactory.request.url
-                .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
-                ?.toIntOrNull()
-                ?: 0
+    private fun reconnectWebsocket() {
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        val softReconnectParam = wsFactory.request.url
+            .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+            ?.toIntOrNull()
+            ?: 0
 
-            if (softReconnectParam == 0) {
-                simulateMessageFromServer(SignalClientTest.JOIN)
-            } else {
-                simulateMessageFromServer(SignalClientTest.RECONNECT)
-            }
+        if (softReconnectParam == 0) {
+            simulateMessageFromServer(SignalClientTest.JOIN)
+        } else {
+            simulateMessageFromServer(SignalClientTest.RECONNECT)
         }
     }
 
@@ -111,10 +109,10 @@ class RoomReconnectionTypesMockE2ETest(
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
-        prepareForReconnect()
         disconnectPeerConnection()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()
@@ -138,10 +136,10 @@ class RoomReconnectionTypesMockE2ETest(
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
         val stateCollector = FlowCollector(room::state.flow, coroutineRule.scope)
-        prepareForReconnect()
         wsFactory.ws.cancel()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
         connectPeerConnection()
 
         testScheduler.advanceUntilIdle()

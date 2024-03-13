@@ -35,6 +35,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okio.ByteString
+import org.junit.After
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -58,6 +59,11 @@ abstract class MockE2ETest : BaseTest() {
         room = component.roomFactory()
             .create(context)
         wsFactory = component.websocketFactory()
+    }
+
+    @After
+    fun tearDown() {
+        room.release()
     }
 
     suspend fun connect(joinResponse: LivekitRtc.SignalResponse = SignalClientTest.JOIN) {
