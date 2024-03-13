@@ -287,7 +287,7 @@ internal object RTCModule {
         @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)
         peerConnectionFactoryOptions: PeerConnectionFactory.Options?,
         memoryManager: CloseableManager,
-        audioProcessingFactory: AudioProcessingFactory?,
+        audioProcessingFactory: AudioProcessingFactory,
     ): PeerConnectionFactory {
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(audioDeviceModule)
