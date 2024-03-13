@@ -31,7 +31,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioProcessingController
-import io.livekit.android.audio.AudioProcessorOptions
+import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
@@ -41,6 +41,7 @@ import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.network.NetworkCallbackManager
 import io.livekit.android.room.participant.*
+import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.track.*
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
@@ -76,6 +77,7 @@ constructor(
     private val e2EEManagerFactory: E2EEManager.Factory,
     private val communicationWorkaround: CommunicationWorkaround,
     val audioProcessingController: AudioProcessingController,
+    val lkObjects: LKObjects,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -209,11 +211,6 @@ constructor(
      * If null, e2ee will be disabled.
      */
     var e2eeOptions: E2EEOptions? = null
-
-    /**
-     * @see external audio processing options
-     */
-    var audioProcessorOptions: AudioProcessorOptions? = null
 
     /**
      * Default options to use when creating an audio track.
@@ -370,10 +367,12 @@ constructor(
         val connectJob = coroutineScope.launch(
             ioDispatcher + emptyCoroutineExceptionHandler,
         ) {
+            if (audioProcessingController is AuthedAudioProcessingController) {
+                audioProcessingController.authenticate(url, token)
+            }
             engine.join(url, token, options, roomOptions)
-            networkCallbackManager.registerCallback()
-
             ensureActive()
+            networkCallbackManager.registerCallback()
             if (options.audio) {
                 val audioTrack = localParticipant.createAudioTrack()
                 localParticipant.publishAudioTrack(audioTrack)

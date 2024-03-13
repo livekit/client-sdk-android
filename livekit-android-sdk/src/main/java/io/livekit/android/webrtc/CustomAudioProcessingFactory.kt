@@ -16,21 +16,21 @@
 
 package io.livekit.android.webrtc
 
-import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessorOptions
+import io.livekit.android.audio.AuthedAudioProcessingController
+import io.livekit.android.audio.authenticateProcessors
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
 
-class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProcessorOptions) : AudioProcessingController {
+class CustomAudioProcessingFactory(private var audioProcessorOptions: AudioProcessorOptions) : AuthedAudioProcessingController {
 
     private val externalAudioProcessor = ExternalAudioProcessingFactory()
 
     init {
         if (audioProcessorOptions.capturePostProcessor != null) {
             setCapturePostProcessing(audioProcessorOptions.capturePostProcessor)
-            setBypassForCapturePostProcessing(audioProcessorOptions.capturePostBypass)
         } else {
             setCapturePostProcessing(null)
             setBypassForCapturePostProcessing(false)
@@ -48,23 +48,31 @@ class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProce
         return externalAudioProcessor
     }
 
+    override fun authenticate(url: String, token: String) {
+        audioProcessorOptions.authenticateProcessors(url, token)
+    }
+
     override fun setCapturePostProcessing(processing: AudioProcessorInterface?) {
+        audioProcessorOptions = audioProcessorOptions.copy(capturePostProcessor = processing)
         externalAudioProcessor.setCapturePostProcessing(
             processing.toAudioProcessing(),
         )
     }
 
     override fun setBypassForCapturePostProcessing(bypass: Boolean) {
+        audioProcessorOptions = audioProcessorOptions.copy(capturePostBypass = bypass)
         externalAudioProcessor.setBypassFlagForCapturePost(bypass)
     }
 
     override fun setRenderPreProcessing(processing: AudioProcessorInterface?) {
+        audioProcessorOptions = audioProcessorOptions.copy(renderPreProcessor = processing)
         externalAudioProcessor.setRenderPreProcessing(
             processing.toAudioProcessing(),
         )
     }
 
     override fun setBypassForRenderPreProcessing(bypass: Boolean) {
+        audioProcessorOptions = audioProcessorOptions.copy(renderPreBypass = bypass)
         externalAudioProcessor.setBypassFlagForRenderPre(bypass)
     }
 
@@ -76,7 +84,9 @@ class CustomAudioProcessingFactory(private val audioProcessorOptions: AudioProce
         }
 
         override fun reset(newRate: Int) {
-            audioProcessing?.resetAudioProcessing(newRate)
+            // bug in webrtc lib causes newRate to be off by a factor of 10
+            // TODO: remove divide by 10 when updating libwebrtc
+            audioProcessing?.resetAudioProcessing(newRate / 10)
         }
 
         override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {

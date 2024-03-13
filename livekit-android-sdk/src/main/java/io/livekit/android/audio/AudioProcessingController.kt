@@ -40,3 +40,13 @@ interface AudioProcessingController {
      */
     fun setBypassForRenderPreProcessing(bypass: Boolean)
 }
+
+/**
+ * @suppress
+ */
+interface AuthedAudioProcessingController : AudioProcessingController {
+    /**
+     * @suppress
+     */
+    fun authenticate(url: String, token: String)
+}

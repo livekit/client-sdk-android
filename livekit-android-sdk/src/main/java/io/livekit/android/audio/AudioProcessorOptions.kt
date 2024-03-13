@@ -38,3 +38,12 @@ data class AudioProcessorOptions(
      */
     val renderPreBypass: Boolean = false,
 )
+
+internal fun AudioProcessorOptions.authenticateProcessors(url: String, token: String) {
+    if (capturePostProcessor is AuthedAudioProcessorInterface) {
+        capturePostProcessor.authenticate(url, token)
+    }
+    if (renderPreProcessor is AuthedAudioProcessorInterface) {
+        renderPreProcessor.authenticate(url, token)
+    }
+}
