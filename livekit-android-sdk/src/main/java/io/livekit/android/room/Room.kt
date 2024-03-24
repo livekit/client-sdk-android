@@ -314,6 +314,14 @@ constructor(
                             ),
                         )
 
+                        is ParticipantEvent.TrackUnpublished -> emitWhenConnected(
+                            RoomEvent.TrackUnpublished(
+                                room = this@Room,
+                                publication = it.publication,
+                                participant = it.participant,
+                            ),
+                        )
+
                         is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
                             RoomEvent.ParticipantPermissionsChanged(
                                 room = this@Room,
