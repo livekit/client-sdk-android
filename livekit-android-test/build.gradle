@@ -1,0 +1,75 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
+}
+
+android {
+    namespace 'io.livekit.android.test'
+    compileSdkVersion androidSdk.compileVersion
+
+    defaultConfig {
+        minSdkVersion androidSdk.minVersion
+        targetSdkVersion androidSdk.targetVersion
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    lintOptions {
+        disable 'VisibleForTests'
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility java_version
+        targetCompatibility java_version
+    }
+    kotlinOptions {
+        freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
+        jvmTarget = java_version
+    }
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+}
+
+dependencies {
+
+    implementation(project(":livekit-android-sdk"))
+    implementation libs.timber
+    implementation libs.coroutines.lib
+    implementation libs.kotlinx.serialization.json
+    api libs.webrtc
+    api libs.okhttp
+    api libs.audioswitch
+    implementation libs.androidx.annotation
+    api libs.protobuf.javalite
+    implementation libs.android.jain.sip.ri
+    implementation libs.junit
+    implementation libs.robolectric
+    implementation libs.mockito.core
+    implementation libs.mockito.kotlin
+    implementation libs.mockito.inline
+    implementation libs.androidx.test.core
+    implementation libs.coroutines.test
+    implementation libs.dagger.lib
+    kapt libs.dagger.compiler
+
+    testImplementation libs.junit
+    testImplementation libs.robolectric
+    kaptTest libs.dagger.compiler
+
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.espresso
+}
+tasks.withType(Test).configureEach {
+    systemProperty "robolectric.logging.enabled", true
+}

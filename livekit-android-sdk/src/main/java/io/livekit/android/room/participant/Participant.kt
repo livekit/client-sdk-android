@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.participant
 
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
@@ -75,7 +76,7 @@ open class Participant(
     @FlowObservable
     @get:FlowObservable
     var identity: Identity? by flowDelegate(identity)
-        internal set
+        @VisibleForTesting set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
@@ -83,7 +84,7 @@ open class Participant(
     @FlowObservable
     @get:FlowObservable
     var audioLevel: Float by flowDelegate(0f)
-        internal set
+        @VisibleForTesting set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
@@ -99,7 +100,7 @@ open class Participant(
             }
         }
     }
-        internal set
+        @VisibleForTesting set
 
     @FlowObservable
     @get:FlowObservable
@@ -108,7 +109,7 @@ open class Participant(
             eventBus.postEvent(ParticipantEvent.NameChanged(this, newValue), scope)
         }
     }
-        internal set
+        @VisibleForTesting set
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
@@ -121,7 +122,7 @@ open class Participant(
             eventBus.postEvent(ParticipantEvent.MetadataChanged(this, oldMetadata), scope)
         }
     }
-        internal set
+        @VisibleForTesting set
 
     /**
      *
@@ -168,7 +169,8 @@ open class Participant(
      * @suppress
      */
     @Deprecated("Use events instead")
-    internal var internalListener: ParticipantListener? = null
+    @VisibleForTesting
+    var internalListener: ParticipantListener? = null
 
     val hasInfo
         get() = participantInfo != null
@@ -300,7 +302,8 @@ open class Participant(
     /**
      * @suppress
      */
-    internal open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
+    @VisibleForTesting
+    open fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         sid = Sid(info.sid)
         identity = Identity(info.identity)
         participantInfo = info
@@ -351,7 +354,11 @@ open class Participant(
         }
     }
 
-    internal open fun dispose() {
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    open fun dispose() {
         scope.cancel()
 
         sid = Sid("")

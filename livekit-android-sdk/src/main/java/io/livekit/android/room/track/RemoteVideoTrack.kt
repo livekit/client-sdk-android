@@ -17,6 +17,7 @@
 package io.livekit.android.room.track
 
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
@@ -41,9 +42,18 @@ class RemoteVideoTrack(
     private val sinkVisibilityMap = mutableMapOf<VideoSink, VideoSinkVisibility>()
     private val visibilities = sinkVisibilityMap.values
 
-    internal var lastVisibility = false
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    var lastVisibility = false
         private set
-    internal var lastDimensions: Dimensions = Dimensions(0, 0)
+
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    var lastDimensions: Dimensions = Dimensions(0, 0)
         private set
 
     internal var receiver: RtpReceiver

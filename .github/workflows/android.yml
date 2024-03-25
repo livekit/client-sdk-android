@@ -55,7 +55,7 @@ jobs:
         ./gradlew spotlessCheck
 
     - name: Build with Gradle
-      run: ./gradlew assembleRelease livekit-android-sdk:testRelease
+      run: ./gradlew assembleRelease livekit-android-test:testRelease
 
       # TODO: Figure out appropriate place to run this. Takes ~3 mins, so pretty slow.
 #    # generates coverage-report.md and publishes as checkrun

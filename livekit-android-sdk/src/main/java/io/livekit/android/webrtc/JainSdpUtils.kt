@@ -20,9 +20,15 @@ import android.gov.nist.javax.sdp.fields.AttributeField
 import android.javax.sdp.MediaDescription
 import io.livekit.android.util.LKLog
 
-internal data class SdpRtp(val payload: Long, val codec: String, val rate: Long?, val encoding: String?)
+/**
+ * @suppress
+ */
+data class SdpRtp(val payload: Long, val codec: String, val rate: Long?, val encoding: String?)
 
-internal fun MediaDescription.getRtps(): List<Pair<AttributeField, SdpRtp>> {
+/**
+ * @suppress
+ */
+fun MediaDescription.getRtps(): List<Pair<AttributeField, SdpRtp>> {
     return getAttributes(true)
         .filterIsInstance<AttributeField>()
         .filter { it.attribute.name == "rtpmap" }
@@ -43,17 +49,26 @@ internal fun tryParseRtp(string: String): SdpRtp? {
     return SdpRtp(payload.toLong(), codec, toOptionalLong(rate), toOptionalString(encoding))
 }
 
-internal data class SdpMsid(
+/**
+ * @suppress
+ */
+data class SdpMsid(
     /** holds the msid-id (and msid-appdata if available) */
     val value: String,
 )
 
-internal fun MediaDescription.getMsid(): SdpMsid? {
+/**
+ * @suppress
+ */
+fun MediaDescription.getMsid(): SdpMsid? {
     val attribute = getAttribute("msid") ?: return null
     return SdpMsid(attribute)
 }
 
-internal data class SdpFmtp(val payload: Long, val config: String) {
+/**
+ * @suppress
+ */
+data class SdpFmtp(val payload: Long, val config: String) {
     fun toAttributeField(): AttributeField {
         return AttributeField().apply {
             name = "fmtp"
@@ -62,7 +77,10 @@ internal data class SdpFmtp(val payload: Long, val config: String) {
     }
 }
 
-internal fun MediaDescription.getFmtps(): List<Pair<AttributeField, SdpFmtp>> {
+/**
+ * @suppress
+ */
+fun MediaDescription.getFmtps(): List<Pair<AttributeField, SdpFmtp>> {
     return getAttributes(true)
         .filterIsInstance<AttributeField>()
         .filter { it.attribute.name == "fmtp" }
@@ -83,7 +101,10 @@ internal fun tryParseFmtp(string: String): SdpFmtp? {
     return SdpFmtp(payload.toLong(), config)
 }
 
-internal data class SdpExt(val value: Long, val direction: String?, val encryptUri: String?, val uri: String, val config: String?) {
+/**
+ * @suppress
+ */
+data class SdpExt(val value: Long, val direction: String?, val encryptUri: String?, val uri: String, val config: String?) {
     fun toAttributeField(): AttributeField {
         return AttributeField().apply {
             name = "extmap"
@@ -104,7 +125,10 @@ internal data class SdpExt(val value: Long, val direction: String?, val encryptU
     }
 }
 
-internal fun MediaDescription.getExts(): List<Pair<AttributeField, SdpExt>> {
+/**
+ * @suppress
+ */
+fun MediaDescription.getExts(): List<Pair<AttributeField, SdpExt>> {
     return getAttributes(true)
         .filterIsInstance<AttributeField>()
         .filter { it.attribute.name == "extmap" }

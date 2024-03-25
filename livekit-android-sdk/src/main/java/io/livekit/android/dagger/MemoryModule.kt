@@ -21,8 +21,11 @@ import dagger.Provides
 import io.livekit.android.memory.CloseableManager
 import javax.inject.Singleton
 
+/**
+ * @suppress
+ */
 @Module
-internal object MemoryModule {
+object MemoryModule {
 
     @Singleton
     @Provides

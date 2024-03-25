@@ -41,8 +41,14 @@ import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
-internal typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
+/**
+ * @suppress
+ */
+typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType) -> RtpCapabilities
 
+/**
+ * @suppress
+ */
 @Module
 internal object RTCModule {
 

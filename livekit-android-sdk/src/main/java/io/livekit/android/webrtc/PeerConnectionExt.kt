@@ -43,13 +43,13 @@ internal fun PeerConnection.PeerConnectionState.isDisconnected(): Boolean {
     }
 }
 
-internal fun RTCConfiguration.copy(): RTCConfiguration {
+fun RTCConfiguration.copy(): RTCConfiguration {
     val newConfig = RTCConfiguration(emptyList())
     newConfig.copyFrom(this)
     return newConfig
 }
 
-internal fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
+fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
     iceTransportsType = config.iceTransportsType
     iceServers = config.iceServers
     bundlePolicy = config.bundlePolicy
