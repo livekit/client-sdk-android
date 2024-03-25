@@ -1,6 +1,6 @@
 plugins {
+    id "org.jetbrains.dokka"
     id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
     id 'kotlin-android'
     id 'kotlin-kapt'
 }
@@ -41,6 +41,37 @@ android {
     }
 }
 
+dokkaHtml {
+    moduleName.set("livekit-android-test")
+    dokkaSourceSets {
+        configureEach {
+            skipEmptyPackages.set(true)
+            includeNonPublic.set(false)
+            includes.from("module.md")
+            displayName.set("LiveKit Mocks")
+            sourceLink {
+                localDirectory.set(file("src/main/java"))
+
+                // URL showing where the source code can be accessed through the web browser
+                remoteUrl.set(new URL(
+                    "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-test/src/main/java"))
+                // Suffix which is used to append the line number to the URL. Use #L for GitHub
+                remoteLineSuffix.set("#L")
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.dagger.*")
+                suppress.set(true)
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.util.*")
+                suppress.set(true)
+            }
+        }
+    }
+}
+
 dependencies {
 
     implementation(project(":livekit-android-sdk"))
@@ -72,4 +103,23 @@ dependencies {
 }
 tasks.withType(Test).configureEach {
     systemProperty "robolectric.logging.enabled", true
+}
+
+apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
+
+afterEvaluate {
+    publishing {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                // Applies the component for the release build variant.
+                from components.release
+
+                // You can then customize attributes of the publication as shown below.
+                groupId = GROUP
+                artifactId = POM_ARTIFACT_ID
+                version = VERSION_NAME
+            }
+        }
+    }
 }
