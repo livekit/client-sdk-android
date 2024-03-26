@@ -16,10 +16,6 @@
 
 package io.livekit.android.room
 
-import io.livekit.android.room.ConnectionState
-import io.livekit.android.room.RTCEngine
-import io.livekit.android.room.SignalClient
-import io.livekit.android.room.toWebrtc
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.util.toOkioByteString

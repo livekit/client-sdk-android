@@ -86,7 +86,7 @@ object TestData {
     }
 
     // Signal Responses
-    ///////////////////////////////////
+    // /////////////////////////////////
 
     val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
         join = with(LivekitRtc.JoinResponse.newBuilder()) {
@@ -298,5 +298,4 @@ object TestData {
         }
         build()
     }
-
 }

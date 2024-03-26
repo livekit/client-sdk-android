@@ -17,10 +17,10 @@
 package io.livekit.android.room
 
 import com.google.protobuf.ByteString
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
-import io.livekit.android.events.RoomEvent
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockPeerConnection
 import kotlinx.coroutines.ExperimentalCoroutinesApi

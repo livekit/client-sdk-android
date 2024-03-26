@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,15 @@
 
 package io.livekit.android.test.mock.dagger
 
+import android.net.ConnectivityManager
 import dagger.Module
 import dagger.Provides
 import dagger.Reusable
-import io.livekit.android.test.mock.MockWebSocketFactory
+import io.livekit.android.room.network.NetworkCallbackManager
+import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.NetworkType
+import io.livekit.android.test.mock.MockWebSocketFactory
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -60,6 +63,20 @@ object TestWebModule {
     fun networkInfo(): NetworkInfo {
         return object : NetworkInfo {
             override fun getNetworkType() = NetworkType.WIFI
+        }
+    }
+
+    @Provides
+    @Reusable
+    fun networkCallbackManagerFactory(): NetworkCallbackManagerFactory {
+        return { _: ConnectivityManager.NetworkCallback ->
+            object : NetworkCallbackManager {
+                override fun registerCallback() {}
+
+                override fun unregisterCallback() {}
+
+                override fun close() {}
+            }
         }
     }
 }

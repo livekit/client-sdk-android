@@ -22,8 +22,8 @@ import dagger.Component
 import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
 import io.livekit.android.dagger.MemoryModule
-import io.livekit.android.test.mock.MockWebSocketFactory
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.test.mock.MockWebSocketFactory
 import javax.inject.Singleton
 
 @Singleton
@@ -37,7 +37,7 @@ import javax.inject.Singleton
         MemoryModule::class,
     ],
 )
-internal interface TestLiveKitComponent : LiveKitComponent {
+interface TestLiveKitComponent : LiveKitComponent {
 
     fun websocketFactory(): MockWebSocketFactory
 

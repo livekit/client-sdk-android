@@ -16,12 +16,12 @@
 
 package io.livekit.android.room.participant
 
-import io.livekit.android.test.BaseTest
-import io.livekit.android.test.events.EventCollector
-import io.livekit.android.test.events.FlowCollector
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.test.BaseTest
+import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.events.FlowCollector
 import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels

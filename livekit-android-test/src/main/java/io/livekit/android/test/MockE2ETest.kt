@@ -16,18 +16,16 @@
 
 package io.livekit.android.test
 
-import android.annotation.SuppressLint
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.protobuf.MessageLite
+import io.livekit.android.room.Room
 import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.MockWebSocketFactory
+import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.test.mock.dagger.TestCoroutinesModule
 import io.livekit.android.test.mock.dagger.TestLiveKitComponent
-import io.livekit.android.room.Room
-import io.livekit.android.test.mock.TestData
-import io.livekit.android.test.util.toOkioByteString
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -46,10 +44,10 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 abstract class MockE2ETest : BaseTest() {
 
-    internal lateinit var component: TestLiveKitComponent
-    internal lateinit var context: Context
-    internal lateinit var room: Room
-    internal lateinit var wsFactory: MockWebSocketFactory
+    lateinit var component: TestLiveKitComponent
+    lateinit var context: Context
+    lateinit var room: Room
+    lateinit var wsFactory: MockWebSocketFactory
 
     @Before
     fun mocksSetup() {
@@ -86,23 +84,23 @@ abstract class MockE2ETest : BaseTest() {
         job.join()
     }
 
-    suspend fun getSubscriberPeerConnection() =
+    fun getSubscriberPeerConnection() =
         component
             .rtcEngine()
             .getSubscriberPeerConnection() as MockPeerConnection
 
-    suspend fun getPublisherPeerConnection() =
+    fun getPublisherPeerConnection() =
         component
             .rtcEngine()
             .getPublisherPeerConnection() as MockPeerConnection
 
-    suspend fun connectPeerConnection() {
+    fun connectPeerConnection() {
         simulateMessageFromServer(TestData.OFFER)
         val subPeerConnection = getSubscriberPeerConnection()
         subPeerConnection.moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
     }
 
-    suspend fun disconnectPeerConnection() {
+    fun disconnectPeerConnection() {
         val subPeerConnection = component
             .rtcEngine()
             .getSubscriberPeerConnection() as MockPeerConnection

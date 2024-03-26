@@ -23,6 +23,15 @@ import io.livekit.android.util.LKLog
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
+typealias NetworkCallbackManagerFactory = @JvmSuppressWildcards (
+    networkCallback: ConnectivityManager.NetworkCallback,
+) -> NetworkCallbackManager
+
+interface NetworkCallbackManager : Closeable {
+    fun registerCallback()
+    fun unregisterCallback()
+}
+
 /**
  * Manages a [ConnectivityManager.NetworkCallback] so that it is never
  * registered multiple times. A NetworkCallback is allowed to be registered
@@ -31,15 +40,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * There's a 100 request hard limit, so leaks here are particularly dangerous.
  */
-class NetworkCallbackManager(
+internal class NetworkCallbackManagerImpl(
     private val networkCallback: ConnectivityManager.NetworkCallback,
     private val connectivityManager: ConnectivityManager,
-) : Closeable {
+) : NetworkCallbackManager {
     private val isRegistered = AtomicBoolean(false)
     private val isClosed = AtomicBoolean(false)
 
     @Synchronized
-    fun registerCallback() {
+    override fun registerCallback() {
         if (!isClosed.get() && isRegistered.compareAndSet(false, true)) {
             try {
                 val networkRequest = NetworkRequest.Builder()
@@ -53,7 +62,7 @@ class NetworkCallbackManager(
     }
 
     @Synchronized
-    fun unregisterCallback() {
+    override fun unregisterCallback() {
         if (!isClosed.get() && isRegistered.compareAndSet(true, false)) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback)

@@ -16,12 +16,12 @@
 
 package io.livekit.android.room.track
 
+import io.livekit.android.events.TrackEvent
+import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.events.EventCollector
-import io.livekit.android.events.TrackEvent
 import io.livekit.android.test.mock.MockRtpReceiver
 import io.livekit.android.test.mock.MockVideoStreamTrack
-import io.livekit.android.room.track.video.VideoSinkVisibility
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoSink

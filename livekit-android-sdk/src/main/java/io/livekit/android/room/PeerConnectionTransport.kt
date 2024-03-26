@@ -401,7 +401,6 @@ eliminate this issue.
 */
 private const val startBitrateForSVC = 0.7
 
-
 /**
  * @suppress
  */
@@ -471,7 +470,6 @@ data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
 )
-
 
 /**
  * @suppress

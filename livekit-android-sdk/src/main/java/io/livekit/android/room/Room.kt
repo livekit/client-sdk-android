@@ -19,7 +19,6 @@
 package io.livekit.android.room
 
 import android.content.Context
-import android.net.ConnectivityManager
 import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import androidx.annotation.VisibleForTesting
@@ -39,7 +38,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
-import io.livekit.android.room.network.NetworkCallbackManager
+import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.track.*
@@ -78,6 +77,7 @@ constructor(
     private val communicationWorkaround: CommunicationWorkaround,
     val audioProcessingController: AudioProcessingController,
     val lkObjects: LKObjects,
+    networkCallbackManagerFactory: NetworkCallbackManagerFactory,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -753,7 +753,7 @@ constructor(
     }
 
     // ------------------------------------- NetworkCallback -------------------------------------//
-    private val networkCallbackManager = NetworkCallbackManager(
+    private val networkCallbackManager = networkCallbackManagerFactory.invoke(
         object : NetworkCallback() {
             override fun onLost(network: Network) {
                 // lost connection, flip to reconnecting
@@ -770,8 +770,7 @@ constructor(
                 hasLostConnectivity = false
             }
         },
-        connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
-    ).apply { closeableManager.registerClosable(this) }
+    )
 
     // ----------------------------------- RTCEngine.Listener ------------------------------------//
 

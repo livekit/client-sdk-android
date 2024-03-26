@@ -16,11 +16,11 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.events.FlowCollector
-import io.livekit.android.events.RoomEvent
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.util.flow
 import junit.framework.Assert.assertEquals

@@ -16,7 +16,6 @@
 
 package io.livekit.android.room
 
-import io.livekit.android.room.SignalClient
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.NetworkType
 import io.livekit.android.test.BaseTest
@@ -332,6 +331,5 @@ class SignalClientTest : BaseTest() {
     }
 
     // mock data
-    companion object {
-    }
+    companion object
 }
