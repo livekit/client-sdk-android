@@ -18,8 +18,12 @@ package io.livekit.android.test.assert
 
 import org.junit.Assert
 
-fun assertIsClass(expectedClass: Class<*>, actual: Any) {
-    val klazz = actual::class.java
+fun assertIsClass(expectedClass: Class<*>, actual: Any?) {
+    val klazz = if (actual == null) {
+        Nothing::class.java
+    } else {
+        actual::class.java
+    }
 
     Assert.assertEquals(expectedClass, klazz)
 }

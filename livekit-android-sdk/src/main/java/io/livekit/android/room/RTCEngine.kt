@@ -80,7 +80,7 @@ internal constructor(
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
     @FlowObservable
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
         if (newVal == oldVal) {
             return@flowDelegate

@@ -20,7 +20,8 @@ import livekit.org.webrtc.DataChannel
 
 class MockDataChannel(private val label: String?) : DataChannel(1L) {
 
-    var observer: DataChannel.Observer? = null
+    var observer: Observer? = null
+    var sentBuffers = mutableListOf<Buffer?>()
     override fun registerObserver(observer: Observer?) {
         this.observer = observer
     }
@@ -46,6 +47,7 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
     }
 
     override fun send(buffer: Buffer?): Boolean {
+        sentBuffers.add(buffer)
         return true
     }
 

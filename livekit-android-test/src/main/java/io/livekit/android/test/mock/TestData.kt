@@ -26,23 +26,27 @@ object TestData {
     val LOCAL_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
         sid = "TR_local_audio_track_sid"
         type = LivekitModels.TrackType.AUDIO
+        source = LivekitModels.TrackSource.MICROPHONE
         build()
     }
     val LOCAL_VIDEO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
         sid = "TR_local_video_track_sid"
         type = LivekitModels.TrackType.VIDEO
+        source = LivekitModels.TrackSource.CAMERA
         build()
     }
 
     val REMOTE_AUDIO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
         sid = "TR_remote_audio_track_sid"
         type = LivekitModels.TrackType.AUDIO
+        source = LivekitModels.TrackSource.MICROPHONE
         build()
     }
 
     val REMOTE_VIDEO_TRACK = with(LivekitModels.TrackInfo.newBuilder()) {
         sid = "TR_remote_video_track_sid"
         type = LivekitModels.TrackType.VIDEO
+        source = LivekitModels.TrackSource.CAMERA
         build()
     }
 

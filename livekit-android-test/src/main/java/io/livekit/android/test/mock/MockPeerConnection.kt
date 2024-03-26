@@ -64,8 +64,13 @@ class MockPeerConnection(
         return null
     }
 
+    val dataChannels = mutableMapOf<String, DataChannel>()
     override fun createDataChannel(label: String?, init: DataChannel.Init?): DataChannel {
-        return MockDataChannel(label)
+        val dataChannel = MockDataChannel(label)
+        if (label != null) {
+            dataChannels[label] = dataChannel
+        }
+        return dataChannel
     }
 
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
