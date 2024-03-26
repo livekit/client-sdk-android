@@ -354,7 +354,11 @@ constructor(
 
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
-internal fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
+/**
+ * @suppress
+ */
+@VisibleForTesting
+fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     val codec = mediaDesc.getRtps()
         .firstOrNull()
         ?.second
@@ -397,7 +401,11 @@ eliminate this issue.
 */
 private const val startBitrateForSVC = 0.7
 
-internal fun ensureCodecBitrates(
+/**
+ * @suppress
+ */
+@VisibleForTesting
+fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
@@ -454,12 +462,20 @@ internal fun isSVCCodec(codec: String?): Boolean {
             "vp9".equals(codec, ignoreCase = true))
 }
 
-internal data class TrackBitrateInfo(
+/**
+ * @suppress
+ */
+@VisibleForTesting
+data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
 )
 
-internal sealed class TrackBitrateInfoKey {
+/**
+ * @suppress
+ */
+@VisibleForTesting
+sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }

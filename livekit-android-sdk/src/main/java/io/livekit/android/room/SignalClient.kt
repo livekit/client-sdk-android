@@ -16,6 +16,7 @@
 
 package io.livekit.android.room
 
+import androidx.annotation.VisibleForTesting
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
@@ -122,7 +123,8 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
-    internal suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
+    @VisibleForTesting
+    suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
         val reconnectResponse = connect(
             url,
             token,

@@ -23,9 +23,12 @@ import dagger.Provides
 import io.livekit.android.LiveKitOverrides
 import javax.inject.Named
 
+/**
+ * @suppress
+ */
 @SuppressLint("KotlinNullnessAnnotation")
 @Module
-internal class OverridesModule(private val overrides: LiveKitOverrides) {
+class OverridesModule(private val overrides: LiveKitOverrides) {
 
     @Provides
     @Named(InjectionNames.OVERRIDE_OKHTTP)

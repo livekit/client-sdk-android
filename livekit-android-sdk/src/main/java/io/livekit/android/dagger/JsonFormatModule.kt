@@ -21,8 +21,11 @@ import dagger.Provides
 import dagger.Reusable
 import kotlinx.serialization.json.Json
 
+/**
+ * @suppress
+ */
 @Module
-internal object JsonFormatModule {
+object JsonFormatModule {
     @Provides
     @Reusable
     fun kotlinSerializationJson(): Json =

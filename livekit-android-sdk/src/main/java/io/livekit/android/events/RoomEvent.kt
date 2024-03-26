@@ -232,7 +232,10 @@ enum class DisconnectReason {
     JOIN_FAILURE,
 }
 
-internal fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
+/**
+ * @suppress
+ */
+fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
     return when (this) {
         LivekitModels.DisconnectReason.CLIENT_INITIATED -> DisconnectReason.CLIENT_INITIATED
         LivekitModels.DisconnectReason.DUPLICATE_IDENTITY -> DisconnectReason.DUPLICATE_IDENTITY

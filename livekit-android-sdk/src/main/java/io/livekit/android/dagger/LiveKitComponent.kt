@@ -25,6 +25,9 @@ import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.PeerConnectionFactory
 import javax.inject.Singleton
 
+/**
+ * @suppress
+ */
 @Singleton
 @Component(
     modules = [
@@ -37,7 +40,7 @@ import javax.inject.Singleton
         MemoryModule::class,
     ],
 )
-internal interface LiveKitComponent {
+interface LiveKitComponent {
 
     fun roomFactory(): Room.Factory
 

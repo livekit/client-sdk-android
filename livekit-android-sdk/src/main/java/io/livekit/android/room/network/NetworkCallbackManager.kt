@@ -17,11 +17,39 @@
 package io.livekit.android.room.network
 
 import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import io.livekit.android.util.LKLog
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
+
+typealias NetworkCallbackManagerFactory = @JvmSuppressWildcards (
+    networkCallback: NetworkCallback,
+) -> NetworkCallbackManager
+
+/**
+ * @suppress
+ */
+interface NetworkCallbackRegistry {
+    fun registerNetworkCallback(networkRequest: NetworkRequest, networkCallback: NetworkCallback)
+    fun unregisterNetworkCallback(networkCallback: NetworkCallback)
+}
+
+internal class NetworkCallbackRegistryImpl(val connectivityManager: ConnectivityManager) : NetworkCallbackRegistry {
+    override fun registerNetworkCallback(networkRequest: NetworkRequest, networkCallback: NetworkCallback) {
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+    }
+
+    override fun unregisterNetworkCallback(networkCallback: NetworkCallback) {
+        connectivityManager.unregisterNetworkCallback(networkCallback)
+    }
+}
+
+interface NetworkCallbackManager : Closeable {
+    fun registerCallback()
+    fun unregisterCallback()
+}
 
 /**
  * Manages a [ConnectivityManager.NetworkCallback] so that it is never
@@ -30,16 +58,18 @@ import java.util.concurrent.atomic.AtomicBoolean
  * requests will leak on 8.0 and earlier.
  *
  * There's a 100 request hard limit, so leaks here are particularly dangerous.
+ *
+ * @suppress
  */
-class NetworkCallbackManager(
-    private val networkCallback: ConnectivityManager.NetworkCallback,
-    private val connectivityManager: ConnectivityManager,
-) : Closeable {
+class NetworkCallbackManagerImpl(
+    private val networkCallback: NetworkCallback,
+    private val connectivityManager: NetworkCallbackRegistry,
+) : NetworkCallbackManager {
     private val isRegistered = AtomicBoolean(false)
     private val isClosed = AtomicBoolean(false)
 
     @Synchronized
-    fun registerCallback() {
+    override fun registerCallback() {
         if (!isClosed.get() && isRegistered.compareAndSet(false, true)) {
             try {
                 val networkRequest = NetworkRequest.Builder()
@@ -53,7 +83,7 @@ class NetworkCallbackManager(
     }
 
     @Synchronized
-    fun unregisterCallback() {
+    override fun unregisterCallback() {
         if (!isClosed.get() && isRegistered.compareAndSet(true, false)) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback)

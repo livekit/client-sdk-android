@@ -20,7 +20,7 @@ import com.google.protobuf.MessageLite
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-internal fun MessageLite.toOkioByteString(): ByteString {
+fun MessageLite.toOkioByteString(): ByteString {
     val byteArray = toByteArray()
     return byteArray.toByteString(0, byteArray.size)
 }

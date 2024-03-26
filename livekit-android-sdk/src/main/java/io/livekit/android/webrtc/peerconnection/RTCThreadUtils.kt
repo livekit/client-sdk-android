@@ -46,8 +46,14 @@ private val threadFactory = object : ThreadFactory {
 private var executor = Executors.newSingleThreadExecutor(threadFactory)
 private var rtcDispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
 
+/**
+ * Overrides how RTC thread calls are executed and dispatched.
+ *
+ * This should absolutely not be used in production environments and is
+ * only to be used for testing.
+ */
 @VisibleForTesting
-internal fun overrideExecutorAndDispatcher(executorService: ExecutorService, dispatcher: CoroutineDispatcher) {
+fun overrideExecutorAndDispatcher(executorService: ExecutorService, dispatcher: CoroutineDispatcher) {
     executor = executorService
     rtcDispatcher = dispatcher
 }
@@ -56,8 +62,10 @@ internal fun overrideExecutorAndDispatcher(executorService: ExecutorService, dis
  * Execute [action] on the RTC thread. The PeerConnection API
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
+ *
+ * @suppress
  */
-fun <T> executeOnRTCThread(action: () -> T) {
+internal fun <T> executeOnRTCThread(action: () -> T) {
     if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
@@ -69,8 +77,10 @@ fun <T> executeOnRTCThread(action: () -> T) {
  * Execute [action] synchronously on the RTC thread. The PeerConnection API
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
+ *
+ * @suppress
  */
-fun <T> executeBlockingOnRTCThread(action: () -> T): T {
+internal fun <T> executeBlockingOnRTCThread(action: () -> T): T {
     return if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
@@ -83,7 +93,7 @@ fun <T> executeBlockingOnRTCThread(action: () -> T): T {
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
  */
-suspend fun <T> launchBlockingOnRTCThread(action: suspend CoroutineScope.() -> T): T = coroutineScope {
+internal suspend fun <T> launchBlockingOnRTCThread(action: suspend CoroutineScope.() -> T): T = coroutineScope {
     return@coroutineScope if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
         this.action()
     } else {

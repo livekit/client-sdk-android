@@ -80,7 +80,8 @@ internal constructor(
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
     @FlowObservable
-    internal var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
         if (newVal == oldVal) {
             return@flowDelegate
         }
@@ -383,7 +384,8 @@ internal constructor(
      * reconnect Signal and PeerConnections
      */
     @Synchronized
-    internal fun reconnect() {
+    @VisibleForTesting
+    fun reconnect() {
         if (reconnectingJob?.isActive == true) {
             LKLog.d { "Reconnection is already in progress" }
             return
@@ -740,11 +742,18 @@ internal constructor(
     }
 
     companion object {
-        @VisibleForTesting
-        internal const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
 
+        /**
+         * @suppress
+         */
         @VisibleForTesting
-        internal const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+        const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+
+        /**
+         * @suppress
+         */
+        @VisibleForTesting
+        const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_RECONNECT_RETRIES = 10
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
@@ -1056,11 +1065,11 @@ internal constructor(
     }
 
     @VisibleForTesting
-    internal fun getPublisherPeerConnection() =
+    fun getPublisherPeerConnection() =
         publisher!!.peerConnection
 
     @VisibleForTesting
-    internal fun getSubscriberPeerConnection() =
+    fun getSubscriberPeerConnection() =
         subscriber!!.peerConnection
 }
 
@@ -1073,7 +1082,7 @@ enum class ReconnectType {
     FORCE_FULL_RECONNECT,
 }
 
-internal fun LivekitRtc.ICEServer.toWebrtc() = PeerConnection.IceServer.builder(urlsList)
+fun LivekitRtc.ICEServer.toWebrtc(): PeerConnection.IceServer = PeerConnection.IceServer.builder(urlsList)
     .setUsername(username ?: "")
     .setPassword(credential ?: "")
     .setTlsAlpnProtocols(emptyList())
