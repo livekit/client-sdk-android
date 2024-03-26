@@ -20,10 +20,12 @@ import android.net.ConnectivityManager
 import dagger.Module
 import dagger.Provides
 import dagger.Reusable
-import io.livekit.android.room.network.NetworkCallbackManager
+import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
+import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.NetworkType
+import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.MockWebSocketFactory
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -67,16 +69,20 @@ object TestWebModule {
     }
 
     @Provides
+    @Singleton
+    fun networkCallbackRegistrar(): MockNetworkCallbackRegistry {
+        return MockNetworkCallbackRegistry()
+    }
+
+    @Provides
     @Reusable
-    fun networkCallbackManagerFactory(): NetworkCallbackManagerFactory {
-        return { _: ConnectivityManager.NetworkCallback ->
-            object : NetworkCallbackManager {
-                override fun registerCallback() {}
-
-                override fun unregisterCallback() {}
-
-                override fun close() {}
-            }
+    fun networkCallbackManagerFactory(
+        closeableManager: CloseableManager,
+        registrar: MockNetworkCallbackRegistry,
+    ): NetworkCallbackManagerFactory {
+        return { networkCallback: ConnectivityManager.NetworkCallback ->
+            NetworkCallbackManagerImpl(networkCallback, registrar)
+                .apply { closeableManager.registerClosable(this) }
         }
     }
 }

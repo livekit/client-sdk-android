@@ -23,6 +23,7 @@ import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
 import io.livekit.android.dagger.MemoryModule
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.MockWebSocketFactory
 import javax.inject.Singleton
 
@@ -42,6 +43,8 @@ interface TestLiveKitComponent : LiveKitComponent {
     fun websocketFactory(): MockWebSocketFactory
 
     fun rtcEngine(): RTCEngine
+
+    fun networkCallbackRegistry(): MockNetworkCallbackRegistry
 
     @Component.Factory
     interface Factory {

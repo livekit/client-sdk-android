@@ -17,6 +17,7 @@
 package io.livekit.android.room.network
 
 import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import io.livekit.android.util.LKLog
@@ -24,8 +25,26 @@ import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
 typealias NetworkCallbackManagerFactory = @JvmSuppressWildcards (
-    networkCallback: ConnectivityManager.NetworkCallback,
+    networkCallback: NetworkCallback,
 ) -> NetworkCallbackManager
+
+/**
+ * @suppress
+ */
+interface NetworkCallbackRegistry {
+    fun registerNetworkCallback(networkRequest: NetworkRequest, networkCallback: NetworkCallback)
+    fun unregisterNetworkCallback(networkCallback: NetworkCallback)
+}
+
+internal class NetworkCallbackRegistryImpl(val connectivityManager: ConnectivityManager) : NetworkCallbackRegistry {
+    override fun registerNetworkCallback(networkRequest: NetworkRequest, networkCallback: NetworkCallback) {
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+    }
+
+    override fun unregisterNetworkCallback(networkCallback: NetworkCallback) {
+        connectivityManager.unregisterNetworkCallback(networkCallback)
+    }
+}
 
 interface NetworkCallbackManager : Closeable {
     fun registerCallback()
@@ -39,10 +58,12 @@ interface NetworkCallbackManager : Closeable {
  * requests will leak on 8.0 and earlier.
  *
  * There's a 100 request hard limit, so leaks here are particularly dangerous.
+ *
+ * @suppress
  */
-internal class NetworkCallbackManagerImpl(
-    private val networkCallback: ConnectivityManager.NetworkCallback,
-    private val connectivityManager: ConnectivityManager,
+class NetworkCallbackManagerImpl(
+    private val networkCallback: NetworkCallback,
+    private val connectivityManager: NetworkCallbackRegistry,
 ) : NetworkCallbackManager {
     private val isRegistered = AtomicBoolean(false)
     private val isClosed = AtomicBoolean(false)

@@ -25,6 +25,8 @@ import dagger.Reusable
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
+import io.livekit.android.room.network.NetworkCallbackRegistry
+import io.livekit.android.room.network.NetworkCallbackRegistryImpl
 import io.livekit.android.stats.AndroidNetworkInfo
 import io.livekit.android.stats.NetworkInfo
 import okhttp3.OkHttpClient
@@ -61,10 +63,15 @@ internal object WebModule {
     }
 
     @Provides
+    fun networkCallbackRegistrar(connectivityManager: ConnectivityManager): NetworkCallbackRegistry {
+        return NetworkCallbackRegistryImpl(connectivityManager)
+    }
+
+    @Provides
     @Reusable
-    fun networkCallbackManagerFactory(closeableManager: CloseableManager, connectivityManager: ConnectivityManager): NetworkCallbackManagerFactory {
+    fun networkCallbackManagerFactory(closeableManager: CloseableManager, registrar: NetworkCallbackRegistry): NetworkCallbackManagerFactory {
         return { networkCallback: ConnectivityManager.NetworkCallback ->
-            NetworkCallbackManagerImpl(networkCallback, connectivityManager)
+            NetworkCallbackManagerImpl(networkCallback, registrar)
                 .apply { closeableManager.registerClosable(this) }
         }
     }

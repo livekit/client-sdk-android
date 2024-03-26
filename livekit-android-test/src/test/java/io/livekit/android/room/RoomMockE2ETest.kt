@@ -16,10 +16,7 @@
 
 package io.livekit.android.room
 
-import android.content.Context
-import android.net.ConnectivityManager
 import android.net.Network
-import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.events.*
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.track.LocalAudioTrack
@@ -47,8 +44,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
-import org.robolectric.shadows.ShadowConnectivityManager
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -299,15 +294,12 @@ class RoomMockE2ETest : MockE2ETest() {
         val eventCollector = FlowCollector(engine::connectionState.flow, coroutineRule.scope)
         val network = Mockito.mock(Network::class.java)
 
-        val connectivityManager = InstrumentationRegistry.getInstrumentation()
-            .context
-            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val shadowConnectivityManager: ShadowConnectivityManager = shadowOf(connectivityManager)
+        val networkCallbackRegistry = component.networkCallbackRegistry()
 
-        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+        networkCallbackRegistry.networkCallbacks.forEach { callback ->
             callback.onLost(network)
         }
-        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+        networkCallbackRegistry.networkCallbacks.forEach { callback ->
             callback.onAvailable(network)
         }
 

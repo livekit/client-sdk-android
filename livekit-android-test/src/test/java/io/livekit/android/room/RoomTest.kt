@@ -17,15 +17,15 @@
 package io.livekit.android.room
 
 import android.content.Context
-import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.platform.app.InstrumentationRegistry
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.audio.NoopCommunicationWorkaround
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.TestCoroutineRule
@@ -33,6 +33,7 @@ import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockLKObjects
+import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.TestData
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -52,8 +53,6 @@ import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.*
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows
-import org.robolectric.shadows.ShadowConnectivityManager
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -72,6 +71,8 @@ class RoomTest {
 
     @Mock
     lateinit var e2EEManagerFactory: E2EEManager.Factory
+
+    lateinit var networkCallbackRegistry: MockNetworkCallbackRegistry
 
     var eglBase: EglBase = MockEglBase()
 
@@ -93,6 +94,7 @@ class RoomTest {
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
+        networkCallbackRegistry = MockNetworkCallbackRegistry()
         room = Room(
             context = context,
             engine = rtcEngine,
@@ -107,6 +109,9 @@ class RoomTest {
             communicationWorkaround = NoopCommunicationWorkaround(),
             audioProcessingController = MockAudioProcessingController(),
             lkObjects = MockLKObjects.get(),
+            networkCallbackManagerFactory = { networkCallback: NetworkCallback ->
+                NetworkCallbackManagerImpl(networkCallback, networkCallbackRegistry)
+            },
         )
     }
 
@@ -168,15 +173,10 @@ class RoomTest {
 
         val network = Mockito.mock(Network::class.java)
 
-        val connectivityManager = InstrumentationRegistry.getInstrumentation()
-            .context
-            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val shadowConnectivityManager: ShadowConnectivityManager = Shadows.shadowOf(connectivityManager)
-
-        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+        networkCallbackRegistry.networkCallbacks.forEach { callback ->
             callback.onLost(network)
         }
-        shadowConnectivityManager.networkCallbacks.forEach { callback ->
+        networkCallbackRegistry.networkCallbacks.forEach { callback ->
             callback.onAvailable(network)
         }
 
