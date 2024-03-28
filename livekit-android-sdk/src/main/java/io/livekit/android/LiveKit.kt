@@ -86,23 +86,7 @@ object LiveKit {
             .create(ctx, overrides)
 
         val room = component.roomFactory().create(ctx)
-
-        options.audioTrackCaptureDefaults?.let {
-            room.audioTrackCaptureDefaults = it
-        }
-        options.videoTrackCaptureDefaults?.let {
-            room.videoTrackCaptureDefaults = it
-        }
-
-        options.audioTrackPublishDefaults?.let {
-            room.audioTrackPublishDefaults = it
-        }
-        options.videoTrackPublishDefaults?.let {
-            room.videoTrackPublishDefaults = it
-        }
-        room.adaptiveStream = options.adaptiveStream
-        room.dynacast = options.dynacast
-        room.e2eeOptions = options.e2eeOptions
+        room.setRoomOptions(options)
 
         return room
     }
