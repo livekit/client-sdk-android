@@ -410,6 +410,32 @@ constructor(
     }
 
     /**
+     * Copies all the options to the Room object.
+     *
+     * Any null values in [options] will not overwrite existing values.
+     * To clear existing values on the Room object, explicitly set the value
+     * directly instead of using this method.
+     */
+    fun setRoomOptions(options: RoomOptions) {
+        options.audioTrackCaptureDefaults?.let {
+            audioTrackCaptureDefaults = it
+        }
+        options.videoTrackCaptureDefaults?.let {
+            videoTrackCaptureDefaults = it
+        }
+
+        options.audioTrackPublishDefaults?.let {
+            audioTrackPublishDefaults = it
+        }
+        options.videoTrackPublishDefaults?.let {
+            videoTrackPublishDefaults = it
+        }
+        adaptiveStream = options.adaptiveStream
+        dynacast = options.dynacast
+        e2eeOptions = options.e2eeOptions
+    }
+
+    /**
      * Release all resources held by this object.
      *
      * Once called, this room object must not be used to connect to a server and a new one
