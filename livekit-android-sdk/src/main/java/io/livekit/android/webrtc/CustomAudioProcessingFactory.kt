@@ -84,9 +84,7 @@ class CustomAudioProcessingFactory(private var audioProcessorOptions: AudioProce
         }
 
         override fun reset(newRate: Int) {
-            // bug in webrtc lib causes newRate to be off by a factor of 10
-            // TODO: remove divide by 10 when updating libwebrtc
-            audioProcessing?.resetAudioProcessing(newRate / 10)
+            audioProcessing?.resetAudioProcessing(newRate)
         }
 
         override fun process(numBands: Int, numFrames: Int, buffer: ByteBuffer?) {
