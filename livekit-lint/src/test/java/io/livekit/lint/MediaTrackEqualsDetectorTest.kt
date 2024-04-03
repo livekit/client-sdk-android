@@ -252,7 +252,7 @@ class MediaTrackEqualsDetectorTest {
 fun mediaStreamTrack(): TestFile {
     return java(
         """
-        package livekit.org.webrtc.;
+        package livekit.org.webrtc;
 
         class MediaStreamTrack {
             int getId(){
