@@ -92,4 +92,5 @@ fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
     turnLoggingId = config.turnLoggingId
     enableImplicitRollback = config.enableImplicitRollback
     offerExtmapAllowMixed = config.offerExtmapAllowMixed
+    enableIceGatheringOnAnyAddressPorts = config.enableIceGatheringOnAnyAddressPorts
 }
