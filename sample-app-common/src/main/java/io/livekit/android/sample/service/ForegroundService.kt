@@ -11,9 +11,15 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 
 /**
- * A foreground service is required for screen capture on API level Q (29) and up.
- * This a simple default foreground service to display a notification while screen
- * capturing.
+ * A foreground service will keep the app alive in the background.
+ *
+ * Beginning with Android 14, foreground service types are required.
+ * This service declares the mediaPlayback, camera, and microphone types
+ * in the AndroidManifest.xml.
+ *
+ * This ensures that the app will continue to be able to playback media and
+ * access the camera/microphone in the background. Apps that don't declare
+ * these will run into issues when trying to access them from the background.
  */
 
 open class ForegroundService : Service() {
