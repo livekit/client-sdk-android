@@ -23,13 +23,17 @@ import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.audio.NoopCommunicationWorkaround
 import io.livekit.android.e2ee.E2EEManager
-import io.livekit.android.events.*
+import io.livekit.android.events.DisconnectReason
+import io.livekit.android.events.EventListenable
+import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.TestCoroutineRule
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockLKObjects
@@ -43,7 +47,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import livekit.LivekitRtc.JoinResponse
 import livekit.org.webrtc.EglBase
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -51,7 +58,12 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
-import org.mockito.kotlin.*
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doSuspendableAnswer
+import org.mockito.kotlin.stub
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 @ExperimentalCoroutinesApi
@@ -112,6 +124,7 @@ class RoomTest {
             networkCallbackManagerFactory = { networkCallback: NetworkCallback ->
                 NetworkCallbackManagerImpl(networkCallback, networkCallbackRegistry)
             },
+            audioDeviceModule = MockAudioDeviceModule(),
         )
     }
 
