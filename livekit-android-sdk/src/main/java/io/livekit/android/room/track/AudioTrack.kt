@@ -26,6 +26,5 @@ abstract class AudioTrack(
     /**
      * The underlying WebRTC audio track.
      */
-    override val rtcTrack: AudioTrack
-) :
-    Track(name, Kind.AUDIO, rtcTrack)
+    override val rtcTrack: AudioTrack,
+) : Track(name, Kind.AUDIO, rtcTrack)
