@@ -49,4 +49,18 @@ class RemoteAudioTrack(
             rtcTrack.removeSink(sink)
         }
     }
+
+    /**
+     * Sets the volume.
+     *
+     * @param volume a gain value in the range 0 to 10.
+     * * 0 will mute the track
+     * * 1 will play the track normally
+     * * values greater than 1 will boost the volume of the track.
+     */
+    fun setVolume(volume: Double) {
+        executeBlockingOnRTCThread {
+            rtcTrack.setVolume(volume)
+        }
+    }
 }

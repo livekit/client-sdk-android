@@ -57,6 +57,7 @@ import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.*
+import livekit.org.webrtc.audio.AudioDeviceModule
 import javax.inject.Named
 
 class Room
@@ -78,6 +79,7 @@ constructor(
     val audioProcessingController: AudioProcessingController,
     val lkObjects: LKObjects,
     networkCallbackManagerFactory: NetworkCallbackManagerFactory,
+    private val audioDeviceModule: AudioDeviceModule,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -776,6 +778,30 @@ constructor(
     @AssistedFactory
     interface Factory {
         fun create(context: Context): Room
+    }
+
+    // ------------------------------------- General Utility functions -------------------------------------//
+
+    /**
+     * Control muting/unmuting all audio output.
+     *
+     * Note: using this mute will only mute local audio output, and will still receive the data from
+     * remote audio tracks. Consider turning off [ConnectOptions.autoSubscribe] and manually unsubscribing
+     * if you need more fine-grained control over the data usage.
+     **/
+    fun setSpeakerMute(muted: Boolean) {
+        audioDeviceModule.setSpeakerMute(muted)
+    }
+
+    /**
+     * Control muting/unmuting the audio input.
+     *
+     * Note: using this mute will only zero the microphone audio data, and will still send data to
+     * remote participants (although they will not hear anything). Consider using [TrackPublication.muted]
+     * for more fine-grained control over the data usage.
+     */
+    fun setMicrophoneMute(muted: Boolean) {
+        audioDeviceModule.setMicrophoneMute(muted)
     }
 
     // ------------------------------------- NetworkCallback -------------------------------------//

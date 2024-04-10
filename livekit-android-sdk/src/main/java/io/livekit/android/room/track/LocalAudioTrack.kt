@@ -20,17 +20,18 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
-import java.util.*
+import java.util.UUID
 
 /**
  * Represents a local audio track (generally using the microphone as input).
  *
- * This class should not be constructed directly, but rather through [LocalParticipant]
+ * This class should not be constructed directly, but rather through [LocalParticipant.createAudioTrack].
  */
 class LocalAudioTrack(
     name: String,

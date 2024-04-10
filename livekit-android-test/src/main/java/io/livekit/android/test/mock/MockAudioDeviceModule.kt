@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-package io.livekit.android.room.track
+package io.livekit.android.test.mock
 
-import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.audio.AudioDeviceModule
 
-/**
- * A class representing an audio track.
- */
-abstract class AudioTrack(
-    name: String,
-    /**
-     * The underlying WebRTC audio track.
-     */
-    override val rtcTrack: AudioTrack,
-) : Track(name, Kind.AUDIO, rtcTrack)
+class MockAudioDeviceModule : AudioDeviceModule {
+    override fun getNativeAudioDeviceModulePointer(): Long {
+        return 1
+    }
+
+    override fun release() {
+    }
+
+    override fun setSpeakerMute(muted: Boolean) {
+    }
+
+    override fun setMicrophoneMute(muted: Boolean) {
+    }
+}

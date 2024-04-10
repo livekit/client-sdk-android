@@ -23,9 +23,15 @@ import dagger.Provides
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
-import livekit.org.webrtc.*
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.MockPeerConnectionFactory
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.WebRTCInitializer
+import livekit.org.webrtc.audio.AudioDeviceModule
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -44,6 +50,12 @@ object TestRTCModule {
     @Provides
     fun audioProcessingController(): AudioProcessingController {
         return MockAudioProcessingController()
+    }
+
+    @Provides
+    @Singleton
+    fun audioDeviceModule(): AudioDeviceModule {
+        return MockAudioDeviceModule()
     }
 
     @Provides
