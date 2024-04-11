@@ -141,15 +141,19 @@ internal constructor(
     fun createScreencastTrack(
         name: String = "",
         mediaProjectionPermissionResultData: Intent,
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+        videoProcessor: VideoProcessor? = null,
     ): LocalScreencastVideoTrack {
+        val screencastOptions = options.copy(isScreencast = true)
         return LocalScreencastVideoTrack.createTrack(
             mediaProjectionPermissionResultData,
             peerConnectionFactory,
             context,
             name,
-            LocalVideoTrackOptions(isScreencast = true),
+            screencastOptions,
             eglBase,
             screencastVideoTrackFactory,
+            videoProcessor,
         )
     }
 
