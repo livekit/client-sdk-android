@@ -129,8 +129,10 @@ constructor(
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
             screencastVideoTrackFactory: Factory,
+            videoProcessor: VideoProcessor?
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
+            source.setVideoProcessor(videoProcessor)
             val callback = MediaProjectionCallback()
             val capturer = createScreenCapturer(mediaProjectionPermissionResultData, callback)
             capturer.initialize(
