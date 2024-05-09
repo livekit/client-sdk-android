@@ -43,16 +43,35 @@ import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
-import livekit.org.webrtc.*
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.SessionDescription
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -955,6 +974,14 @@ internal constructor(
 
             LivekitModels.DataPacket.ValueCase.USER -> {
                 listener?.onUserPacket(dp.user, dp.kind)
+            }
+
+            LivekitModels.DataPacket.ValueCase.SIP_DTMF -> {
+                // TODO
+            }
+
+            LivekitModels.DataPacket.ValueCase.TRANSCRIPTION -> {
+                // TODO
             }
 
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,

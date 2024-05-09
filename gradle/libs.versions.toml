@@ -2,7 +2,9 @@
 webrtc = "114.5735.09"
 
 androidJainSipRi = "1.3.0-91"
-androidx-core = "1.10.1"
+androidx-activity = "1.9.0"
+androidx-core = "1.13.1"
+androidx-fragment = "1.5.1"
 androidx-lifecycle = "2.5.1"
 audioswitch = "89582c47c9a04c62f90aa5e57251af4800a62c9a"
 autoService = '1.0.1'
@@ -19,15 +21,18 @@ preferenceKtx = "1.2.1"
 protobuf = "3.22.0"
 protobufJavalite = "3.22.0"
 semver4j = "3.1.0"
-core-ktx = "1.12.0"
 appcompat = "1.6.1"
-material = "1.11.0"
+material = "1.12.0"
+viewpager2 = "1.0.0"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
 androidx-core = { module = "androidx.core:core", version.ref = "androidx-core" }
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "androidx-fragment" }
 androidx-preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtx" }
+androidx-viewpager2 = { module = "androidx.viewpager2:viewpager2", version.ref = "viewpager2" }
 audioswitch = { module = "com.github.davidliu:audioswitch", version.ref = "audioswitch" }
 dagger-lib = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
@@ -43,8 +48,8 @@ protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 webrtc = { module = "io.github.webrtc-sdk:android-prefixed", version.ref = "webrtc" }
 
-androidx-annotation = { module = "androidx.annotation:annotation", version = "1.6.0" }
-androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.7.1" }
+androidx-annotation = { module = "androidx.annotation:annotation", version = "1.7.1" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.9.0" }
 androidx-constraintlayout-compose = { module = "androidx.constraintlayout:constraintlayout-compose", version = "1.0.1" }
 auto-service-compiler = { module = "com.google.auto.service:auto-service", version.ref = "autoService" }
 auto-service-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoService" }

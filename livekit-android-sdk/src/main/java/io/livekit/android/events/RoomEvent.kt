@@ -230,6 +230,8 @@ enum class DisconnectReason {
     ROOM_DELETED,
     STATE_MISMATCH,
     JOIN_FAILURE,
+    MIGRATION,
+    SIGNAL_CLOSE,
 }
 
 /**
@@ -244,6 +246,8 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.ROOM_DELETED -> DisconnectReason.ROOM_DELETED
         LivekitModels.DisconnectReason.STATE_MISMATCH -> DisconnectReason.STATE_MISMATCH
         LivekitModels.DisconnectReason.JOIN_FAILURE -> DisconnectReason.JOIN_FAILURE
+        LivekitModels.DisconnectReason.MIGRATION -> DisconnectReason.MIGRATION
+        LivekitModels.DisconnectReason.SIGNAL_CLOSE -> DisconnectReason.SIGNAL_CLOSE
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,

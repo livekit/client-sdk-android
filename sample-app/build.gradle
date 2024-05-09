@@ -42,20 +42,19 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation libs.coroutines.lib
-    implementation 'com.google.android.material:material:1.6.1'
-    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation libs.appcompat
+    implementation libs.material
     implementation libs.androidx.core
-    implementation "androidx.activity:activity-ktx:1.5.1"
-    implementation 'androidx.fragment:fragment-ktx:1.5.1'
-    implementation "androidx.viewpager2:viewpager2:1.0.0"
+    implementation libs.androidx.activity.ktx
+    implementation libs.androidx.fragment.ktx
+    implementation libs.androidx.viewpager2
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.lifecycle.viewmodel.ktx
     implementation libs.androidx.lifecycle.common.java8
-    implementation 'com.google.android.material:material:1.6.1'
     implementation libs.groupie
     implementation libs.groupie.viewbinding
     implementation libs.timber
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    testImplementation libs.junit
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.espresso
 }

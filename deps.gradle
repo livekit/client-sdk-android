@@ -11,6 +11,6 @@ ext {
         minVersion    : 21,
     ]
     generated = [
-        protoSrc: "$projectDir/protocol",
+        protoSrc: "$projectDir/protocol/protobufs",
     ]
 }
