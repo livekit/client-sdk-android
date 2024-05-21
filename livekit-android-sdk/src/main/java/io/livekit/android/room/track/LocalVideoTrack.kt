@@ -31,6 +31,7 @@ import io.livekit.android.room.track.video.CameraCapturerUtils.createCameraEnume
 import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
 import io.livekit.android.room.track.video.CameraCapturerWithSize
+import io.livekit.android.room.track.video.CaptureDispatchObserver
 import io.livekit.android.room.track.video.VideoCapturerWithSize
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
@@ -50,6 +51,7 @@ import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
+import livekit.org.webrtc.VideoSink
 import livekit.org.webrtc.VideoSource
 import java.util.UUID
 import livekit.LivekitModels.VideoQuality as ProtoVideoQuality
@@ -72,6 +74,11 @@ constructor(
     private val eglBase: EglBase,
     private val defaultsManager: DefaultsManager,
     private val trackFactory: Factory,
+    /**
+     * If this is assigned, you must ensure that this observer is associated with the [capturer],
+     * as this will be used to receive frames in [addRenderer].
+     **/
+    @Assisted private var dispatchObserver: CaptureDispatchObserver? = null,
 ) : VideoTrack(name, rtcTrack) {
 
     override var rtcTrack: livekit.org.webrtc.VideoTrack = rtcTrack
@@ -124,6 +131,22 @@ constructor(
         super.dispose()
         capturer.dispose()
         closeableManager.close()
+    }
+
+    override fun addRenderer(renderer: VideoSink) {
+        if (dispatchObserver != null) {
+            dispatchObserver?.registerSink(renderer)
+        } else {
+            super.addRenderer(renderer)
+        }
+    }
+
+    override fun removeRenderer(renderer: VideoSink) {
+        if (dispatchObserver != null) {
+            dispatchObserver?.unregisterSink(renderer)
+        } else {
+            super.removeRenderer(renderer)
+        }
     }
 
     fun setDeviceId(deviceId: String) {
@@ -239,7 +262,7 @@ constructor(
         val oldCloseable = closeableManager.unregisterResource(oldRtcTrack)
         oldCloseable?.close()
 
-        val newTrack = createTrack(
+        val newTrack = createCameraTrack(
             peerConnectionFactory,
             context,
             name,
@@ -386,47 +409,13 @@ constructor(
             name: String,
             options: LocalVideoTrackOptions,
             rtcTrack: livekit.org.webrtc.VideoTrack,
+            dispatchObserver: CaptureDispatchObserver?,
         ): LocalVideoTrack
     }
 
     companion object {
 
-        internal fun createTrack(
-            peerConnectionFactory: PeerConnectionFactory,
-            context: Context,
-            name: String,
-            capturer: VideoCapturer,
-            options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
-            rootEglBase: EglBase,
-            trackFactory: Factory,
-            videoProcessor: VideoProcessor? = null,
-        ): LocalVideoTrack {
-            val source = peerConnectionFactory.createVideoSource(false)
-            source.setVideoProcessor(videoProcessor)
-            val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
-            capturer.initialize(
-                surfaceTextureHelper,
-                context,
-                source.capturerObserver,
-            )
-            val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
-
-            val track = trackFactory.create(
-                capturer = capturer,
-                source = source,
-                options = options,
-                name = name,
-                rtcTrack = rtcTrack,
-            )
-
-            track.closeableManager.registerResource(
-                rtcTrack,
-                SurfaceTextureHelperCloser(surfaceTextureHelper),
-            )
-            return track
-        }
-
-        internal fun createTrack(
+        internal fun createCameraTrack(
             peerConnectionFactory: PeerConnectionFactory,
             context: Context,
             name: String,
@@ -441,30 +430,57 @@ constructor(
                 throw SecurityException("Camera permissions are required to create a camera video track.")
             }
 
+            val (capturer, newOptions) = CameraCapturerUtils.createCameraCapturer(context, options) ?: TODO()
+
+            return createTrack(
+                peerConnectionFactory = peerConnectionFactory,
+                context = context,
+                name = name,
+                capturer = capturer,
+                options = newOptions,
+                rootEglBase = rootEglBase,
+                trackFactory = trackFactory,
+                videoProcessor = videoProcessor,
+            )
+        }
+
+        internal fun createTrack(
+            peerConnectionFactory: PeerConnectionFactory,
+            context: Context,
+            name: String,
+            capturer: VideoCapturer,
+            options: LocalVideoTrackOptions = LocalVideoTrackOptions(),
+            rootEglBase: EglBase,
+            trackFactory: Factory,
+            videoProcessor: VideoProcessor? = null,
+        ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             source.setVideoProcessor(videoProcessor)
-            val (capturer, newOptions) = CameraCapturerUtils.createCameraCapturer(context, options) ?: TODO()
+
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
+            val dispatchObserver = CaptureDispatchObserver()
+            dispatchObserver.registerObserver(source.capturerObserver)
+
             capturer.initialize(
                 surfaceTextureHelper,
                 context,
-                source.capturerObserver,
+                dispatchObserver,
             )
             val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
             val track = trackFactory.create(
                 capturer = capturer,
                 source = source,
-                options = newOptions,
+                options = options,
                 name = name,
                 rtcTrack = rtcTrack,
+                dispatchObserver = dispatchObserver,
             )
 
             track.closeableManager.registerResource(
                 rtcTrack,
                 SurfaceTextureHelperCloser(surfaceTextureHelper),
             )
-
             return track
         }
     }
