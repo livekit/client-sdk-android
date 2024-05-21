@@ -121,7 +121,7 @@ internal constructor(
         options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
         videoProcessor: VideoProcessor? = null,
     ): LocalVideoTrack {
-        return LocalVideoTrack.createTrack(
+        return LocalVideoTrack.createCameraTrack(
             peerConnectionFactory,
             context,
             name,
