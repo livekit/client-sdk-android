@@ -31,7 +31,19 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.isSVCCodec
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.DataPublishReliability
+import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.LocalScreencastVideoTrack
+import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
+import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.track.VideoCaptureParameter
+import io.livekit.android.room.track.VideoCodec
+import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.sortVideoCodecPreferences
@@ -41,8 +53,14 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
-import livekit.org.webrtc.*
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
+import livekit.org.webrtc.VideoProcessor
 import javax.inject.Named
 import kotlin.math.max
 
@@ -412,10 +430,14 @@ internal constructor(
             }
         }
 
-        // Set preferred video codec order
         if (options is VideoTrackPublishOptions) {
+            // Set preferred video codec order
             transceiver.sortVideoCodecPreferences(options.videoCodec, capabilitiesGetter)
             (track as LocalVideoTrack).codec = options.videoCodec
+
+            val rtpParameters = transceiver.sender.parameters
+            rtpParameters.degradationPreference = options.degradationPreference
+            transceiver.sender.parameters = rtpParameters
         }
 
         val publication = LocalTrackPublication(
@@ -877,6 +899,14 @@ abstract class BaseVideoTrackPublishOptions {
      * will automatically publish a secondary track encoded with the backup codec.
      */
     abstract val backupCodec: BackupVideoCodec?
+
+    /**
+     * When bandwidth is constrained, this preference indicates which is preferred
+     * between degrading resolution vs. framerate.
+     *
+     * null value indicates default value (maintain framerate).
+     */
+    abstract val degradationPreference: RtpParameters.DegradationPreference?
 }
 
 data class VideoTrackPublishDefaults(
@@ -885,6 +915,7 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
+    override val degradationPreference: RtpParameters.DegradationPreference? = null,
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
@@ -896,6 +927,7 @@ data class VideoTrackPublishOptions(
     override val backupCodec: BackupVideoCodec? = null,
     override val source: Track.Source? = null,
     override val stream: String? = null,
+    override val degradationPreference: RtpParameters.DegradationPreference? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
@@ -911,6 +943,7 @@ data class VideoTrackPublishOptions(
         backupCodec = base.backupCodec,
         source = source,
         stream = stream,
+        degradationPreference = base.degradationPreference,
     )
 
     fun createBackupOptions(): VideoTrackPublishOptions? {
