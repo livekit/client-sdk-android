@@ -335,7 +335,6 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         )
     }
 
-
     @Test
     fun publishDegradationPreferences() = runTest {
         val preference = RtpParameters.DegradationPreference.DISABLED
