@@ -465,7 +465,6 @@ internal fun isSVCCodec(codec: String?): Boolean {
 /**
  * @suppress
  */
-@VisibleForTesting
 data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
@@ -474,7 +473,6 @@ data class TrackBitrateInfo(
 /**
  * @suppress
  */
-@VisibleForTesting
 sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
