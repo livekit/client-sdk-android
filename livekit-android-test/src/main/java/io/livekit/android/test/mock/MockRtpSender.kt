@@ -16,11 +16,30 @@
 
 package io.livekit.android.test.mock
 
+import livekit.org.webrtc.MockRtpParameters
+import livekit.org.webrtc.RtpParameters
 import livekit.org.webrtc.RtpSender
 import org.mockito.Mockito
+import org.mockito.kotlin.any
+import org.mockito.kotlin.whenever
+import java.util.UUID
 
 object MockRtpSender {
     fun create(): RtpSender {
-        return Mockito.mock(RtpSender::class.java)
+        var rtpParameters: RtpParameters = MockRtpParameters(
+            transactionId = UUID.randomUUID().toString(),
+            degradationPreference = null,
+            rtcp = MockRtpParameters.MockRtcp("", false),
+            headerExtensions = mutableListOf(),
+            encodings = mutableListOf(),
+            codecs = mutableListOf(),
+        )
+        return Mockito.mock(RtpSender::class.java).apply {
+            whenever(this.parameters).thenAnswer { rtpParameters }
+            whenever(this.setParameters(any())).thenAnswer {
+                rtpParameters = it.getArgument(0)
+                true
+            }
+        }
     }
 }

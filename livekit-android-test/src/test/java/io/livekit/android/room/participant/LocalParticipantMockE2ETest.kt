@@ -40,6 +40,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.LivekitRtc.SubscribedQuality
+import livekit.org.webrtc.RtpParameters
 import livekit.org.webrtc.VideoSource
 import org.junit.Assert.*
 import org.junit.Test
@@ -332,5 +333,20 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
                 return@argThat preferredCodec.name.lowercase() == "vp8"
             },
         )
+    }
+
+
+    @Test
+    fun publishDegradationPreferences() = runTest {
+        val preference = RtpParameters.DegradationPreference.DISABLED
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(degradationPreference = preference)
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(preference, transceiver.sender.parameters.degradationPreference)
     }
 }
