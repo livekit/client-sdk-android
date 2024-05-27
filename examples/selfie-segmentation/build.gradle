@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'io.livekit.android.selfie'
+    compileSdk androidSdk.compileVersion
+
+    defaultConfig {
+        applicationId "io.livekit.android.selfie"
+        minSdk androidSdk.minVersion
+        targetSdk androidSdk.targetVersion
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility java_version
+        targetCompatibility java_version
+    }
+    kotlinOptions {
+        jvmTarget = java_version
+    }
+}
+
+dependencies {
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta4'
+
+    api project(":livekit-android-sdk")
+
+    api "androidx.core:core-ktx:${libs.versions.androidx.core.get()}"
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    api libs.coroutines.lib
+    api "androidx.lifecycle:lifecycle-runtime-ktx:${libs.versions.androidx.lifecycle.get()}"
+    api "androidx.lifecycle:lifecycle-viewmodel-ktx:${libs.versions.androidx.lifecycle.get()}"
+    api "androidx.lifecycle:lifecycle-common-java8:${libs.versions.androidx.lifecycle.get()}"
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}

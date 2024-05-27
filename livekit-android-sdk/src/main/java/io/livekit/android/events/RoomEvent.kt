@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -230,8 +230,13 @@ enum class DisconnectReason {
     ROOM_DELETED,
     STATE_MISMATCH,
     JOIN_FAILURE,
+    MIGRATION,
+    SIGNAL_CLOSE,
 }
 
+/**
+ * @suppress
+ */
 fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
     return when (this) {
         LivekitModels.DisconnectReason.CLIENT_INITIATED -> DisconnectReason.CLIENT_INITIATED
@@ -241,6 +246,8 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.ROOM_DELETED -> DisconnectReason.ROOM_DELETED
         LivekitModels.DisconnectReason.STATE_MISMATCH -> DisconnectReason.STATE_MISMATCH
         LivekitModels.DisconnectReason.JOIN_FAILURE -> DisconnectReason.JOIN_FAILURE
+        LivekitModels.DisconnectReason.MIGRATION -> DisconnectReason.MIGRATION
+        LivekitModels.DisconnectReason.SIGNAL_CLOSE -> DisconnectReason.SIGNAL_CLOSE
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,

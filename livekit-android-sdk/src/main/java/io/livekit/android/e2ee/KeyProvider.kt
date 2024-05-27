@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package io.livekit.android.e2ee
 
 import io.livekit.android.util.LKLog
-import org.webrtc.FrameCryptorFactory
-import org.webrtc.FrameCryptorKeyProvider
+import livekit.org.webrtc.FrameCryptorFactory
+import livekit.org.webrtc.FrameCryptorKeyProvider
 
 class KeyInfo
 constructor(var participantId: String, var keyIndex: Int, var key: String) {

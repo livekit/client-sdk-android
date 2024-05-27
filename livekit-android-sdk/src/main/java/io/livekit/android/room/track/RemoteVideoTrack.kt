@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,25 @@
 package io.livekit.android.room.track
 
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
-import kotlinx.coroutines.*
-import org.webrtc.RtpReceiver
-import org.webrtc.VideoSink
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max
 
 class RemoteVideoTrack(
     name: String,
-    rtcTrack: org.webrtc.VideoTrack,
+    rtcTrack: livekit.org.webrtc.VideoTrack,
     val autoManageVideo: Boolean = false,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
@@ -39,11 +44,21 @@ class RemoteVideoTrack(
 
     private var coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
     private val sinkVisibilityMap = mutableMapOf<VideoSink, VideoSinkVisibility>()
-    private val visibilities = sinkVisibilityMap.values
+    private val visibilities
+        get() = sinkVisibilityMap.values
 
-    internal var lastVisibility = false
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    var lastVisibility = false
         private set
-    internal var lastDimensions: Dimensions = Dimensions(0, 0)
+
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    var lastDimensions: Dimensions = Dimensions(0, 0)
         private set
 
     internal var receiver: RtpReceiver
@@ -70,7 +85,9 @@ class RemoteVideoTrack(
     fun addRenderer(renderer: VideoSink, visibility: VideoSinkVisibility) {
         super.addRenderer(renderer)
         if (autoManageVideo) {
-            sinkVisibilityMap[renderer] = visibility
+            synchronized(sinkVisibilityMap) {
+                sinkVisibilityMap[renderer] = visibility
+            }
             visibility.addObserver { _, _ -> recalculateVisibility() }
             recalculateVisibility()
         } else {
@@ -80,7 +97,11 @@ class RemoteVideoTrack(
 
     override fun removeRenderer(renderer: VideoSink) {
         super.removeRenderer(renderer)
-        val visibility = sinkVisibilityMap.remove(renderer)
+
+        val visibility = synchronized(sinkVisibilityMap) {
+            sinkVisibilityMap.remove(renderer)
+        }
+
         visibility?.close()
         if (autoManageVideo && visibility != null) {
             recalculateVisibility()
@@ -89,29 +110,40 @@ class RemoteVideoTrack(
 
     override fun stop() {
         super.stop()
-        sinkVisibilityMap.values.forEach { it.close() }
-        sinkVisibilityMap.clear()
+        synchronized(sinkVisibilityMap) {
+            sinkVisibilityMap.values.forEach { it.close() }
+            sinkVisibilityMap.clear()
+        }
     }
 
     private fun hasVisibleSinks(): Boolean {
-        return visibilities.any { it.isVisible() }
+        synchronized(sinkVisibilityMap) {
+            return visibilities.any { it.isVisible() }
+        }
     }
 
     private fun largestVideoViewSize(): Dimensions {
         var maxWidth = 0
         var maxHeight = 0
-        visibilities.forEach { visibility ->
-            val size = visibility.size()
-            maxWidth = max(maxWidth, size.width)
-            maxHeight = max(maxHeight, size.height)
-        }
 
+        synchronized(sinkVisibilityMap) {
+            visibilities.forEach { visibility ->
+                val size = visibility.size()
+                maxWidth = max(maxWidth, size.width)
+                maxHeight = max(maxHeight, size.height)
+            }
+        }
         return Dimensions(maxWidth, maxHeight)
     }
 
     private fun recalculateVisibility() {
-        val isVisible = hasVisibleSinks()
-        val newDimensions = largestVideoViewSize()
+        var isVisible: Boolean
+        var newDimensions: Dimensions
+
+        synchronized(sinkVisibilityMap) {
+            isVisible = hasVisibleSinks()
+            newDimensions = largestVideoViewSize()
+        }
 
         val eventsToPost = mutableListOf<TrackEvent>()
         if (isVisible != lastVisibility) {

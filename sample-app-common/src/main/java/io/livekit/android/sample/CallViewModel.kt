@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.livekit.android.sample
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -25,8 +26,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
+import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
+import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
@@ -39,8 +43,11 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -48,6 +55,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class CallViewModel(
@@ -56,6 +64,8 @@ class CallViewModel(
     application: Application,
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
+    val audioProcessorOptions: AudioProcessorOptions? = null,
+    val stressTest: StressTest = StressTest.None,
 ) : AndroidViewModel(application) {
 
     private fun getE2EEOptions(): E2EEOptions? {
@@ -67,9 +77,20 @@ class CallViewModel(
         return e2eeOptions
     }
 
+    private fun getRoomOptions(): RoomOptions {
+        return RoomOptions(
+            adaptiveStream = true,
+            dynacast = true,
+            e2eeOptions = getE2EEOptions(),
+        )
+    }
+
     val room = LiveKit.create(
         appContext = application,
-        options = RoomOptions(adaptiveStream = true, dynacast = true),
+        options = getRoomOptions(),
+        overrides = LiveKitOverrides(
+            audioOptions = AudioOptions(audioProcessorOptions = audioProcessorOptions),
+        ),
     )
 
     val audioHandler = room.audioHandler as AudioSwitchHandler
@@ -79,7 +100,7 @@ class CallViewModel(
             listOf<Participant>(room.localParticipant) +
                 remoteParticipants
                     .keys
-                    .sortedBy { it }
+                    .sortedBy { it.value }
                     .mapNotNull { remoteParticipants[it] }
         }
 
@@ -102,6 +123,12 @@ class CallViewModel(
 
     private val mutableScreencastEnabled = MutableLiveData(false)
     val screenshareEnabled = mutableScreencastEnabled.hide()
+
+    private val mutableEnhancedNsEnabled = MutableLiveData(false)
+    val enhancedNsEnabled = mutableEnhancedNsEnabled.hide()
+
+    private val mutableEnableAudioProcessor = MutableLiveData(true)
+    val enableAudioProcessor = mutableEnableAudioProcessor.hide()
 
     // Emits a string whenever a data message is received.
     private val mutableDataReceived = MutableSharedFlow<String>()
@@ -148,7 +175,10 @@ class CallViewModel(
                 }
             }
 
-            connectToRoom()
+            when (stressTest) {
+                is StressTest.SwitchRoom -> launch { stressTest.execute() }
+                is StressTest.None -> connectToRoom()
+            }
         }
 
         // Start a foreground service to keep the call from being interrupted if the
@@ -176,13 +206,34 @@ class CallViewModel(
         }
     }
 
+    fun toggleEnhancedNs(enabled: Boolean? = null) {
+        if (enabled != null) {
+            mutableEnableAudioProcessor.postValue(enabled)
+            room.audioProcessingController.setBypassForCapturePostProcessing(!enabled)
+            return
+        }
+
+        if (room.audioProcessorIsEnabled) {
+            if (enableAudioProcessor.value == true) {
+                room.audioProcessingController.setBypassForCapturePostProcessing(true)
+                mutableEnableAudioProcessor.postValue(false)
+            } else {
+                room.audioProcessingController.setBypassForCapturePostProcessing(false)
+                mutableEnableAudioProcessor.postValue(true)
+            }
+        }
+    }
+
     private suspend fun connectToRoom() {
         try {
+            room.e2eeOptions = getE2EEOptions()
             room.connect(
                 url = url,
                 token = token,
-                roomOptions = RoomOptions(e2eeOptions = getE2EEOptions()),
             )
+
+            mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
+            mutableEnableAudioProcessor.postValue(true)
 
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
@@ -338,6 +389,53 @@ class CallViewModel(
         room.disconnect()
         viewModelScope.launch {
             connectToRoom()
+        }
+    }
+
+    private suspend fun StressTest.SwitchRoom.execute() = coroutineScope {
+        launch {
+            while (isActive) {
+                delay(2000)
+                dumpReferenceTables()
+            }
+        }
+
+        while (isActive) {
+            Timber.d { "Stress test -> connect to first room" }
+            launch { quickConnectToRoom(firstToken) }
+            delay(200)
+            room.disconnect()
+            delay(50)
+            Timber.d { "Stress test -> connect to second room" }
+            launch { quickConnectToRoom(secondToken) }
+            delay(200)
+            room.disconnect()
+            delay(50)
+        }
+    }
+
+    private suspend fun quickConnectToRoom(token: String) {
+        try {
+            room.connect(
+                url = url,
+                token = token,
+            )
+        } catch (e: Throwable) {
+            Timber.e(e) { "Failed to connect to room" }
+        }
+    }
+
+    @SuppressLint("DiscouragedPrivateApi")
+    private fun dumpReferenceTables() {
+        try {
+            val cls = Class.forName("android.os.Debug")
+            val method = cls.getDeclaredMethod("dumpReferenceTables")
+            val con = cls.getDeclaredConstructor().apply {
+                isAccessible = true
+            }
+            method.invoke(con.newInstance())
+        } catch (e: Exception) {
+            LKLog.e(e) { "Unable to dump reference tables, you can try `adb shell settings put global hidden_api_policy 1`" }
         }
     }
 }

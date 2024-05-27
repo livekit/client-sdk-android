@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,12 @@
 package io.livekit.android
 
 import io.livekit.android.room.ProtocolVersion
-import org.webrtc.PeerConnection
+import io.livekit.android.room.Room
+import livekit.org.webrtc.PeerConnection
 
+/**
+ * Options for using with [Room.connect].
+ */
 data class ConnectOptions(
     /** Auto subscribe to room tracks upon connect, defaults to true */
     val autoSubscribe: Boolean = true,
@@ -48,7 +52,7 @@ data class ConnectOptions(
     /**
      * the protocol version to use with the server.
      */
-    val protocolVersion: ProtocolVersion = ProtocolVersion.v9
+    val protocolVersion: ProtocolVersion = ProtocolVersion.v12,
 ) {
     internal var reconnect: Boolean = false
     internal var participantSid: String? = null

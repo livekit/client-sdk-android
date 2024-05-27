@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,19 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.isSVCCodec
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.DataPublishReliability
+import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.LocalScreencastVideoTrack
+import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
+import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.track.VideoCaptureParameter
+import io.livekit.android.room.track.VideoCodec
+import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.sortVideoCodecPreferences
@@ -41,8 +53,14 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
-import org.webrtc.*
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpParameters
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
+import livekit.org.webrtc.VideoProcessor
 import javax.inject.Named
 import kotlin.math.max
 
@@ -62,16 +80,16 @@ internal constructor(
     coroutineDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
-) : Participant("", null, coroutineDispatcher) {
+) : Participant(Sid(""), null, coroutineDispatcher) {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
-    var republishes: List<LocalTrackPublication>? = null
+    private var republishes: List<LocalTrackPublication>? = null
     private val localTrackPublications
-        get() = tracks.values
+        get() = trackPublications.values
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
@@ -121,7 +139,7 @@ internal constructor(
         options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
         videoProcessor: VideoProcessor? = null,
     ): LocalVideoTrack {
-        return LocalVideoTrack.createTrack(
+        return LocalVideoTrack.createCameraTrack(
             peerConnectionFactory,
             context,
             name,
@@ -141,15 +159,19 @@ internal constructor(
     fun createScreencastTrack(
         name: String = "",
         mediaProjectionPermissionResultData: Intent,
+        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+        videoProcessor: VideoProcessor? = null,
     ): LocalScreencastVideoTrack {
+        val screencastOptions = options.copy(isScreencast = true)
         return LocalScreencastVideoTrack.createTrack(
             mediaProjectionPermissionResultData,
             peerConnectionFactory,
             context,
             name,
-            LocalVideoTrackOptions(isScreencast = true),
+            screencastOptions,
             eglBase,
             screencastVideoTrackFactory,
+            videoProcessor,
         )
     }
 
@@ -259,7 +281,7 @@ internal constructor(
             requestConfig = {
                 disableDtx = !options.dtx
                 disableRed = !options.red
-                source = LivekitModels.TrackSource.MICROPHONE
+                source = options.source?.toProto() ?: LivekitModels.TrackSource.MICROPHONE
             },
             encodings = encodings,
             publishListener = publishListener,
@@ -295,7 +317,7 @@ internal constructor(
             requestConfig = {
                 width = track.dimensions.width
                 height = track.dimensions.height
-                source = if (track.options.isScreencast) {
+                source = options.source?.toProto() ?: if (track.options.isScreencast) {
                     LivekitModels.TrackSource.SCREEN_SHARE
                 } else {
                     LivekitModels.TrackSource.CAMERA
@@ -350,8 +372,9 @@ internal constructor(
         }
         val trackInfo = engine.addTrack(
             cid = cid,
-            name = track.name,
+            name = options.name ?: track.name,
             kind = track.kind.toProto(),
+            stream = options.stream,
             builder = builder,
         )
 
@@ -374,7 +397,7 @@ internal constructor(
 
         val transInit = RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid),
+            listOf(this.sid.value),
             encodings,
         )
         val transceiver = engine.createSenderTransceiver(track.rtcTrack, transInit)
@@ -407,10 +430,14 @@ internal constructor(
             }
         }
 
-        // Set preferred video codec order
         if (options is VideoTrackPublishOptions) {
+            // Set preferred video codec order
             transceiver.sortVideoCodecPreferences(options.videoCodec, capabilitiesGetter)
             (track as LocalVideoTrack).codec = options.videoCodec
+
+            val rtpParameters = transceiver.sender.parameters
+            rtpParameters.degradationPreference = options.degradationPreference
+            transceiver.sender.parameters = rtpParameters
         }
 
         val publication = LocalTrackPublication(
@@ -552,7 +579,7 @@ internal constructor(
         }
 
         val sid = publication.sid
-        tracks = tracks.toMutableMap().apply { remove(sid) }
+        trackPublications = trackPublications.toMutableMap().apply { remove(sid) }
 
         if (engine.connectionState == ConnectionState.CONNECTED) {
             engine.removeTrack(track.rtcTrack)
@@ -570,15 +597,15 @@ internal constructor(
      *
      * @param data payload to send
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
-     * @param destination list of participant SIDs to deliver the payload, null to deliver to everyone
      * @param topic the topic under which the message was published
+     * @param identities list of participant identities to deliver the payload, null to deliver to everyone
      */
     @Suppress("unused")
     suspend fun publishData(
         data: ByteArray,
         reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
-        destination: List<String>? = null,
         topic: String? = null,
+        identities: List<Identity>? = null,
     ) {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
@@ -590,12 +617,12 @@ internal constructor(
         }
         val packetBuilder = LivekitModels.UserPacket.newBuilder().apply {
             payload = ByteString.copyFrom(data)
-            participantSid = sid
+            participantSid = sid.value
             if (topic != null) {
                 setTopic(topic)
             }
-            if (destination != null) {
-                addAllDestinationSids(destination)
+            if (identities != null) {
+                addAllDestinationIdentities(identities.map { it.value })
             }
         }
         val dataPacket = LivekitModels.DataPacket.newBuilder()
@@ -611,10 +638,10 @@ internal constructor(
 
         // detect tracks that have mute status mismatched on server
         for (ti in info.tracksList) {
-            val publication = this.tracks[ti.sid] as? LocalTrackPublication ?: continue
+            val publication = this.trackPublications[ti.sid] as? LocalTrackPublication ?: continue
             val localMuted = publication.muted
             if (ti.muted != localMuted) {
-                engine.updateMuteStatus(sid, localMuted)
+                engine.updateMuteStatus(sid.value, localMuted)
             }
         }
     }
@@ -640,7 +667,7 @@ internal constructor(
     }
 
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
-        val pub = tracks[trackSid]
+        val pub = trackPublications[trackSid]
         pub?.muted = muted
     }
 
@@ -652,7 +679,7 @@ internal constructor(
         val trackSid = subscribedQualityUpdate.trackSid
         val subscribedCodecs = subscribedQualityUpdate.subscribedCodecsList
         val qualities = subscribedQualityUpdate.subscribedQualitiesList
-        val pub = tracks[trackSid] as? LocalTrackPublication ?: return
+        val pub = trackPublications[trackSid] as? LocalTrackPublication ?: return
         val track = pub.track as? LocalVideoTrack ?: return
         val options = pub.options as? VideoTrackPublishOptions ?: return
 
@@ -671,7 +698,7 @@ internal constructor(
     }
 
     private fun publishAdditionalCodecForTrack(track: LocalVideoTrack, codec: VideoCodec, options: VideoTrackPublishOptions) {
-        val existingPublication = tracks[track.sid] ?: run {
+        val existingPublication = trackPublications[track.sid] ?: run {
             LKLog.w { "attempting to publish additional codec for non-published track?!" }
             return
         }
@@ -685,7 +712,7 @@ internal constructor(
 
         val transceiverInit = RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid),
+            listOf(this.sid.value),
             newEncodings,
         )
 
@@ -725,6 +752,7 @@ internal constructor(
                 cid = simulcastTrack.rtcTrack.id(),
                 name = existingPublication.name,
                 kind = existingPublication.kind.toProto(),
+                stream = options.stream,
                 builder = trackRequest,
             )
 
@@ -735,7 +763,7 @@ internal constructor(
     }
 
     internal fun handleLocalTrackUnpublished(unpublishedResponse: LivekitRtc.TrackUnpublishedResponse) {
-        val pub = tracks[unpublishedResponse.trackSid]
+        val pub = trackPublications[unpublishedResponse.trackSid]
         val track = pub?.track
         if (track == null) {
             LKLog.w { "Received unpublished track response for unknown or non-published track: ${unpublishedResponse.trackSid}" }
@@ -753,7 +781,7 @@ internal constructor(
             republishes = pubs
         }
 
-        tracks = tracks.toMutableMap().apply { clear() }
+        trackPublications = trackPublications.toMutableMap().apply { clear() }
 
         for (publication in pubs) {
             internalListener?.onTrackUnpublished(publication, this)
@@ -780,15 +808,19 @@ internal constructor(
     }
 
     fun cleanup() {
-        for (pub in tracks.values) {
+        for (pub in trackPublications.values) {
             val track = pub.track
 
             if (track != null) {
                 track.stop()
-                unpublishTrack(track)
+                unpublishTrack(track, stopOnUnpublish = false)
 
                 // We have the original track object reference, meaning we own it. Dispose here.
-                track.dispose()
+                try {
+                    track.dispose()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception thrown when cleaning up local participant track $pub:" }
+                }
             }
         }
     }
@@ -810,7 +842,7 @@ internal constructor(
 }
 
 internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishedResponse> {
-    return tracks.values.mapNotNull { trackPub ->
+    return trackPublications.values.mapNotNull { trackPub ->
         val track = trackPub.track ?: return@mapNotNull null
 
         LivekitRtc.TrackPublishedResponse.newBuilder()
@@ -821,7 +853,23 @@ internal fun LocalParticipant.publishTracksInfo(): List<LivekitRtc.TrackPublishe
 }
 
 interface TrackPublishOptions {
+    /**
+     * The name of the track.
+     */
     val name: String?
+
+    /**
+     * The source of a track, camera, microphone or screen.
+     */
+    val source: Track.Source?
+
+    /**
+     * The stream name for the track. Audio and video tracks with the same stream
+     * name will be placed in the same `MediaStream` and offer better synchronization.
+     *
+     * By default, camera and microphone will be placed in the same stream.
+     */
+    val stream: String?
 }
 
 abstract class BaseVideoTrackPublishOptions {
@@ -851,6 +899,14 @@ abstract class BaseVideoTrackPublishOptions {
      * will automatically publish a secondary track encoded with the backup codec.
      */
     abstract val backupCodec: BackupVideoCodec?
+
+    /**
+     * When bandwidth is constrained, this preference indicates which is preferred
+     * between degrading resolution vs. framerate.
+     *
+     * null value indicates default value (maintain framerate).
+     */
+    abstract val degradationPreference: RtpParameters.DegradationPreference?
 }
 
 data class VideoTrackPublishDefaults(
@@ -859,6 +915,7 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
+    override val degradationPreference: RtpParameters.DegradationPreference? = null,
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
@@ -868,17 +925,25 @@ data class VideoTrackPublishOptions(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
+    override val source: Track.Source? = null,
+    override val stream: String? = null,
+    override val degradationPreference: RtpParameters.DegradationPreference? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
         base: BaseVideoTrackPublishOptions,
+        source: Track.Source? = null,
+        stream: String? = null,
     ) : this(
-        name,
-        base.videoEncoding,
-        base.simulcast,
-        base.videoCodec,
-        base.scalabilityMode,
-        base.backupCodec,
+        name = name,
+        videoEncoding = base.videoEncoding,
+        simulcast = base.simulcast,
+        videoCodec = base.videoCodec,
+        scalabilityMode = base.scalabilityMode,
+        backupCodec = base.backupCodec,
+        source = source,
+        stream = stream,
+        degradationPreference = base.degradationPreference,
     )
 
     fun createBackupOptions(): VideoTrackPublishOptions? {
@@ -913,25 +978,38 @@ abstract class BaseAudioTrackPublishOptions {
     abstract val red: Boolean
 }
 
+/**
+ * Default options for publishing an audio track.
+ */
 data class AudioTrackPublishDefaults(
     override val audioBitrate: Int? = 20_000,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
 ) : BaseAudioTrackPublishOptions()
 
+/**
+ * Options for publishing an audio track.
+ */
 data class AudioTrackPublishOptions(
     override val name: String? = null,
     override val audioBitrate: Int? = null,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
+    override val source: Track.Source? = null,
+    override val stream: String? = null,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
         base: BaseAudioTrackPublishOptions,
+        source: Track.Source? = null,
+        stream: String? = null,
     ) : this(
-        name,
-        base.audioBitrate,
-        base.dtx,
+        name = name,
+        audioBitrate = base.audioBitrate,
+        dtx = base.dtx,
+        red = base.red,
+        source = source,
+        stream = stream,
     )
 }
 
@@ -962,7 +1040,7 @@ data class ParticipantTrackPermission(
         }
     }
 
-    fun toProto(): LivekitRtc.TrackPermission {
+    internal fun toProto(): LivekitRtc.TrackPermission {
         return LivekitRtc.TrackPermission.newBuilder()
             .setParticipantIdentity(participantIdentity)
             .setParticipantSid(participantSid)

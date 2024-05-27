@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.PeerConnection.SignalingState
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnection.SignalingState
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts
@@ -144,7 +144,7 @@ constructor(
                 restartingIce = true
             }
 
-            if (this.peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
+            if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
                 // we're waiting for the peer to accept our offer, so we'll just wait
                 // the only exception to this is when ICE restart is needed
                 val curSd = peerConnection.remoteDescription
@@ -313,7 +313,7 @@ constructor(
     }
 
     @OptIn(ExperimentalContracts::class)
-    private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend () -> T): T? {
+    private suspend inline fun <T> launchRTCIfNotClosed(noinline action: suspend CoroutineScope.() -> T): T? {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
         if (isClosed()) {
             return null
@@ -354,7 +354,11 @@ constructor(
 
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
-internal fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
+/**
+ * @suppress
+ */
+@VisibleForTesting
+fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     val codec = mediaDesc.getRtps()
         .firstOrNull()
         ?.second
@@ -397,7 +401,11 @@ eliminate this issue.
 */
 private const val startBitrateForSVC = 0.7
 
-internal fun ensureCodecBitrates(
+/**
+ * @suppress
+ */
+@VisibleForTesting
+fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
@@ -454,11 +462,17 @@ internal fun isSVCCodec(codec: String?): Boolean {
             "vp9".equals(codec, ignoreCase = true))
 }
 
-internal data class TrackBitrateInfo(
+/**
+ * @suppress
+ */
+data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
 )
 
+/**
+ * @suppress
+ */
 sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()

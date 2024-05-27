@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package io.livekit.android.webrtc
 
-import org.webrtc.EglBase
-import org.webrtc.SoftwareVideoDecoderFactory
-import org.webrtc.VideoCodecInfo
-import org.webrtc.VideoDecoder
-import org.webrtc.VideoDecoderFactory
-import org.webrtc.WrappedVideoDecoderFactory
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.SoftwareVideoDecoderFactory
+import livekit.org.webrtc.VideoCodecInfo
+import livekit.org.webrtc.VideoDecoder
+import livekit.org.webrtc.VideoDecoderFactory
+import livekit.org.webrtc.WrappedVideoDecoderFactory
 
 open class CustomVideoDecoderFactory(
     sharedContext: EglBase.Context?,
@@ -31,10 +31,16 @@ open class CustomVideoDecoderFactory(
     private val softwareVideoDecoderFactory = SoftwareVideoDecoderFactory()
     private val wrappedVideoDecoderFactory = WrappedVideoDecoderFactory(sharedContext)
 
+    /**
+     * Set to true to force software codecs.
+     */
     fun setForceSWCodec(forceSWCodec: Boolean) {
         this.forceSWCodec = forceSWCodec
     }
 
+    /**
+     * Set a list of codecs for which to use software codecs.
+     */
     fun setForceSWCodecList(forceSWCodecs: List<String>) {
         this.forceSWCodecs = forceSWCodecs
     }

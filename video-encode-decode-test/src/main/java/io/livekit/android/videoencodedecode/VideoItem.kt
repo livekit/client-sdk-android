@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ fun VideoItemTrackSelector(
     participant: Participant,
     modifier: Modifier = Modifier
 ) {
-    val videoTrackMap by participant::videoTracks.flow.collectAsState(initial = emptyList())
+    val videoTrackMap by participant::videoTrackPublications.flow.collectAsState(initial = emptyList())
     val videoPubs = videoTrackMap.filter { (pub) -> pub.subscribed }
         .map { (pub) -> pub }
     val videoTrack = videoPubs.firstOrNull { pub -> pub.source == Track.Source.SCREEN_SHARE }?.track as? VideoTrack

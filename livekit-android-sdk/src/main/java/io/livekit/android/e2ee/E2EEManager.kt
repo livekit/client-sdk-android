@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
@@ -30,13 +31,13 @@ import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.LKLog
-import org.webrtc.FrameCryptor
-import org.webrtc.FrameCryptor.FrameCryptionState
-import org.webrtc.FrameCryptorAlgorithm
-import org.webrtc.FrameCryptorFactory
-import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpReceiver
-import org.webrtc.RtpSender
+import livekit.org.webrtc.FrameCryptor
+import livekit.org.webrtc.FrameCryptor.FrameCryptionState
+import livekit.org.webrtc.FrameCryptorAlgorithm
+import livekit.org.webrtc.FrameCryptorFactory
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
 
 class E2EEManager
 @AssistedInject
@@ -47,7 +48,7 @@ constructor(
     private var room: Room? = null
     private var keyProvider: KeyProvider
     private var peerConnectionFactory: PeerConnectionFactory
-    private var frameCryptors = mutableMapOf<Pair<String, String>, FrameCryptor>()
+    private var frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
     var enabled: Boolean = false
@@ -69,7 +70,7 @@ constructor(
         this.enabled = true
         this.room = room
         this.emitEvent = emitEvent
-        this.room?.localParticipant?.tracks?.forEach() { item ->
+        this.room?.localParticipant?.trackPublications?.forEach() { item ->
             var participant = this.room!!.localParticipant
             var publication = item.value
             if (publication.track != null) {
@@ -78,7 +79,7 @@ constructor(
         }
         this.room?.remoteParticipants?.forEach() { item ->
             var participant = item.value
-            participant.tracks.forEach() { item ->
+            participant.trackPublications.forEach() { item ->
                 var publication = item.value
                 if (publication.track != null) {
                     addSubscribedTrack(publication.track!!, publication, participant, room)
@@ -169,11 +170,11 @@ constructor(
         }
     }
 
-    private fun addRtpSender(sender: RtpSender, participantId: String, trackId: String, kind: String): FrameCryptor {
+    private fun addRtpSender(sender: RtpSender, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
             peerConnectionFactory,
             sender,
-            participantId,
+            participantId.value,
             algorithm,
             keyProvider.rtcKeyProvider,
         )
@@ -183,11 +184,11 @@ constructor(
         return frameCryptor
     }
 
-    private fun addRtpReceiver(receiver: RtpReceiver, participantId: String, trackId: String, kind: String): FrameCryptor {
+    private fun addRtpReceiver(receiver: RtpReceiver, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
         var frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
             peerConnectionFactory,
             receiver,
-            participantId,
+            participantId.value,
             algorithm,
             keyProvider.rtcKeyProvider,
         )

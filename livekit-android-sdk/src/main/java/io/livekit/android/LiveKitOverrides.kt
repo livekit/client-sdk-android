@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,17 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import io.livekit.android.audio.AudioFocusHandler
 import io.livekit.android.audio.AudioHandler
+import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.VideoDecoderFactory
+import livekit.org.webrtc.VideoEncoderFactory
+import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import okhttp3.OkHttpClient
-import org.webrtc.EglBase
-import org.webrtc.VideoDecoderFactory
-import org.webrtc.VideoEncoderFactory
-import org.webrtc.audio.AudioDeviceModule
-import org.webrtc.audio.JavaAudioDeviceModule
 
 /**
  * Overrides to replace LiveKit internally used components with custom implementations.
@@ -63,8 +65,16 @@ data class LiveKitOverrides(
      * with it to prevent memory leaks.
      */
     val eglBase: EglBase? = null,
+
+    /**
+     * Override the options passed into the PeerConnectionFactory when building it.
+     */
+    val peerConnectionFactoryOptions: PeerConnectionFactory.Options? = null,
 )
 
+/**
+ * Options for customizing the audio settings of LiveKit.
+ */
 class AudioOptions(
     /**
      * Override the default output [AudioType].
@@ -101,8 +111,32 @@ class AudioOptions(
      * Not used if [audioDeviceModule] is provided.
      */
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
+
+    /**
+     * On Android 11+, the audio mode will reset itself from [AudioManager.MODE_IN_COMMUNICATION] if
+     * there is no audio playback or capture for 6 seconds (for example when joining a room with
+     * no speakers and the local mic is muted.) This mode reset will cause unexpected
+     * behavior when trying to change the volume, causing it to not properly change the volume.
+     *
+     * We use a workaround by playing a silent audio track to keep the communication mode from
+     * resetting.
+     *
+     * Setting this flag to true will disable the workaround.
+     *
+     * This flag is a no-op when the audio mode is set to anything other than
+     * [AudioManager.MODE_IN_COMMUNICATION].
+     */
+    val disableCommunicationModeWorkaround: Boolean = false,
+
+    /**
+     * Options for processing the mic and incoming audio.
+     */
+    val audioProcessorOptions: AudioProcessorOptions? = null,
 )
 
+/**
+ * Audio types for customizing the audio of LiveKit.
+ */
 sealed class AudioType(
     val audioMode: Int,
     val audioAttributes: AudioAttributes,

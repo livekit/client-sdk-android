@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'io.livekit.android.sample.basic'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "io.livekit.android.sample.basic"
         minSdk 21
-        targetSdk 33
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
@@ -38,14 +38,14 @@ dependencies {
     // implementation "io.livekit:livekit-android:<version>"
     implementation project(":livekit-android-sdk")
 
-    implementation "androidx.core:core-ktx:${versions.androidx_core}"
+    implementation "androidx.core:core-ktx:1.10.1"
     implementation 'androidx.appcompat:appcompat:1.4.2'
     implementation "androidx.activity:activity-ktx:1.5.1"
     implementation 'androidx.fragment:fragment-ktx:1.5.1'
     implementation "androidx.viewpager2:viewpager2:1.0.0"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.androidx_lifecycle}"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.androidx_lifecycle}"
-    implementation "androidx.lifecycle:lifecycle-common-java8:${versions.androidx_lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.5.1"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1"
+    implementation "androidx.lifecycle:lifecycle-common-java8:2.5.1"
     implementation 'com.google.android.material:material:1.6.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 

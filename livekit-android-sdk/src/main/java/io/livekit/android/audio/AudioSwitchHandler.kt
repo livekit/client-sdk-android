@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,12 +183,21 @@ constructor(private val context: Context) : AudioHandler {
         }
     }
 
+    /**
+     * The currently selected audio device, or null if none (or this handler is not started).
+     */
     val selectedAudioDevice: AudioDevice?
         get() = audioSwitch?.selectedAudioDevice
 
+    /**
+     * The available audio devices. This requires calling [start] before it is populated.
+     */
     val availableAudioDevices: List<AudioDevice>
         get() = audioSwitch?.availableAudioDevices ?: listOf()
 
+    /**
+     * Select a specific audio device.
+     */
     fun selectDevice(audioDevice: AudioDevice?) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             audioSwitch?.selectDevice(audioDevice)

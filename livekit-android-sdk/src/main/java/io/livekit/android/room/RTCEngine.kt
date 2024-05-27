@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,22 +31,47 @@ import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
+import io.livekit.android.util.withCheckLock
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
-import org.webrtc.*
-import org.webrtc.PeerConnection.RTCConfiguration
-import org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RTCStatsReport
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpSender
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
+import livekit.org.webrtc.SessionDescription
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -73,36 +98,36 @@ internal constructor(
     /**
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
-    internal var connectionState: ConnectionState = ConnectionState.DISCONNECTED
-        set(value) {
-            val oldVal = field
-            field = value
-            if (value == oldVal) {
-                return
+    @FlowObservable
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
+        if (newVal == oldVal) {
+            return@flowDelegate
+        }
+        when (newVal) {
+            ConnectionState.CONNECTED -> {
+                if (oldVal == ConnectionState.DISCONNECTED) {
+                    LKLog.d { "primary ICE connected" }
+                    listener?.onEngineConnected()
+                } else if (oldVal == ConnectionState.RECONNECTING) {
+                    LKLog.d { "primary ICE reconnected" }
+                    listener?.onEngineReconnected()
+                } else if (oldVal == ConnectionState.RESUMING) {
+                    listener?.onEngineResumed()
+                }
             }
-            when (value) {
-                ConnectionState.CONNECTED -> {
-                    if (oldVal == ConnectionState.DISCONNECTED) {
-                        LKLog.d { "primary ICE connected" }
-                        listener?.onEngineConnected()
-                    } else if (oldVal == ConnectionState.RECONNECTING) {
-                        LKLog.d { "primary ICE reconnected" }
-                        listener?.onEngineReconnected()
-                    }
-                }
 
-                ConnectionState.DISCONNECTED -> {
-                    LKLog.d { "primary ICE disconnected" }
-                    if (oldVal == ConnectionState.CONNECTED) {
-                        reconnect()
-                    }
+            ConnectionState.DISCONNECTED -> {
+                LKLog.d { "primary ICE disconnected" }
+                if (oldVal == ConnectionState.CONNECTED) {
+                    reconnect()
                 }
+            }
 
-                else -> {
-                }
+            else -> {
             }
         }
-
+    }
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
     private var fullReconnectOnNext = false
@@ -133,6 +158,12 @@ internal constructor(
 
     private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
 
+    /**
+     * Note: If this lock is ever used in conjunction with the RTC thread,
+     * this must be grabbed on the RTC thread to prevent deadlocks.
+     */
+    private var configurationLock = Mutex()
+
     init {
         client.listener = this
     }
@@ -157,8 +188,10 @@ internal constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
-    ): JoinResponse {
+    ): JoinResponse = coroutineScope {
         val joinResponse = client.join(url, token, options, roomOptions)
+        ensureActive()
+
         listener?.onJoinResponse(joinResponse)
         isClosed = false
         listener?.onSignalConnected(false)
@@ -168,93 +201,103 @@ internal constructor(
         configure(joinResponse, options)
 
         // create offer
-        if (!this.isSubscriberPrimary) {
+        if (!isSubscriberPrimary) {
             negotiatePublisher()
         }
         client.onReadyForResponses()
-        return joinResponse
+
+        return@coroutineScope joinResponse
     }
 
     private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
-        if (publisher != null && subscriber != null) {
-            // already configured
-            return
-        }
-
-        participantSid = if (joinResponse.hasParticipant()) {
-            joinResponse.participant.sid
-        } else {
-            null
-        }
-
-        // Setup peer connections
-        val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
-
-        publisher?.close()
-        publisher = pctFactory.create(
-            rtcConfig,
-            publisherObserver,
-            publisherObserver,
-        )
-        subscriber?.close()
-        subscriber = pctFactory.create(
-            rtcConfig,
-            subscriberObserver,
-            null,
-        )
-
-        val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
-            LKLog.v { "onIceConnection new state: $newState" }
-            if (newState.isConnected()) {
-                connectionState = ConnectionState.CONNECTED
-            } else if (newState.isDisconnected()) {
-                connectionState = ConnectionState.DISCONNECTED
-            }
-        }
-
-        if (joinResponse.subscriberPrimary) {
-            // in subscriber primary mode, server side opens sub data channels.
-            subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
-                when (dataChannel.label()) {
-                    RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
-                    LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
-                    else -> return@onDataChannel
+        launchBlockingOnRTCThread {
+            configurationLock.withCheckLock(
+                {
+                    ensureActive()
+                    if (publisher != null && subscriber != null) {
+                        // already configured
+                        return@launchBlockingOnRTCThread
+                    }
+                },
+            ) {
+                participantSid = if (joinResponse.hasParticipant()) {
+                    joinResponse.participant.sid
+                } else {
+                    null
                 }
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
-            }
 
-            subscriberObserver.connectionChangeListener = connectionStateListener
-            // Also reconnect on publisher disconnect
-            publisherObserver.connectionChangeListener = { newState ->
-                if (newState.isDisconnected()) {
-                    reconnect()
+                // Setup peer connections
+                val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
+
+                publisher?.close()
+                publisher = pctFactory.create(
+                    rtcConfig,
+                    publisherObserver,
+                    publisherObserver,
+                )
+                subscriber?.close()
+                subscriber = pctFactory.create(
+                    rtcConfig,
+                    subscriberObserver,
+                    null,
+                )
+
+                val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
+                    LKLog.v { "onIceConnection new state: $newState" }
+                    if (newState.isConnected()) {
+                        connectionState = ConnectionState.CONNECTED
+                    } else if (newState.isDisconnected()) {
+                        connectionState = ConnectionState.DISCONNECTED
+                    }
                 }
-            }
-        } else {
-            publisherObserver.connectionChangeListener = connectionStateListener
-        }
 
-        // data channels
-        val reliableInit = DataChannel.Init()
-        reliableInit.ordered = true
-        reliableDataChannel = publisher?.withPeerConnection {
-            createDataChannel(
-                RELIABLE_DATA_CHANNEL_LABEL,
-                reliableInit,
-            ).also { dataChannel ->
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
-            }
-        }
+                if (joinResponse.subscriberPrimary) {
+                    // in subscriber primary mode, server side opens sub data channels.
+                    subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
+                        when (dataChannel.label()) {
+                            RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
+                            LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                            else -> return@onDataChannel
+                        }
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
 
-        val lossyInit = DataChannel.Init()
-        lossyInit.ordered = true
-        lossyInit.maxRetransmits = 0
-        lossyDataChannel = publisher?.withPeerConnection {
-            createDataChannel(
-                LOSSY_DATA_CHANNEL_LABEL,
-                lossyInit,
-            ).also { dataChannel ->
-                dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    subscriberObserver.connectionChangeListener = connectionStateListener
+                    // Also reconnect on publisher disconnect
+                    publisherObserver.connectionChangeListener = { newState ->
+                        if (newState.isDisconnected()) {
+                            reconnect()
+                        }
+                    }
+                } else {
+                    publisherObserver.connectionChangeListener = connectionStateListener
+                }
+
+                ensureActive()
+                // data channels
+                val reliableInit = DataChannel.Init()
+                reliableInit.ordered = true
+                reliableDataChannel = publisher?.withPeerConnection {
+                    createDataChannel(
+                        RELIABLE_DATA_CHANNEL_LABEL,
+                        reliableInit,
+                    ).also { dataChannel ->
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
+                }
+
+                ensureActive()
+                val lossyInit = DataChannel.Init()
+                lossyInit.ordered = true
+                lossyInit.maxRetransmits = 0
+                lossyDataChannel = publisher?.withPeerConnection {
+                    createDataChannel(
+                        LOSSY_DATA_CHANNEL_LABEL,
+                        lossyInit,
+                    ).also { dataChannel ->
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                    }
+                }
             }
         }
     }
@@ -266,6 +309,7 @@ internal constructor(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
+        stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
     ): LivekitModels.TrackInfo {
         if (pendingTrackResolvers[cid] != null) {
@@ -274,7 +318,13 @@ internal constructor(
         // Suspend until signal client receives message confirming track publication.
         return suspendCoroutine { cont ->
             pendingTrackResolvers[cid] = cont
-            client.sendAddTrack(cid, name, kind, builder)
+            client.sendAddTrack(
+                cid = cid,
+                name = name,
+                type = kind,
+                stream = stream,
+                builder = builder,
+            )
         }
     }
 
@@ -319,27 +369,32 @@ internal constructor(
 
     private fun closeResources(reason: String) {
         executeBlockingOnRTCThread {
-            publisherObserver.connectionChangeListener = null
-            subscriberObserver.connectionChangeListener = null
-            publisher?.closeBlocking()
-            publisher = null
-            subscriber?.closeBlocking()
-            subscriber = null
+            runBlocking {
+                configurationLock.withLock {
+                    publisherObserver.connectionChangeListener = null
+                    subscriberObserver.connectionChangeListener = null
+                    publisher?.closeBlocking()
+                    publisher = null
+                    subscriber?.closeBlocking()
+                    subscriber = null
 
-            fun DataChannel?.completeDispose() {
-                this?.unregisterObserver()
-                this?.close()
-                this?.dispose()
+                    fun DataChannel?.completeDispose() {
+                        this?.unregisterObserver()
+                        this?.close()
+                        this?.dispose()
+                    }
+
+                    reliableDataChannel?.completeDispose()
+                    reliableDataChannel = null
+                    reliableDataChannelSub?.completeDispose()
+                    reliableDataChannelSub = null
+                    lossyDataChannel?.completeDispose()
+                    lossyDataChannel = null
+                    lossyDataChannelSub?.completeDispose()
+                    lossyDataChannelSub = null
+                    isSubscriberPrimary = false
+                }
             }
-            reliableDataChannel?.completeDispose()
-            reliableDataChannel = null
-            reliableDataChannelSub?.completeDispose()
-            reliableDataChannelSub = null
-            lossyDataChannel?.completeDispose()
-            lossyDataChannel = null
-            lossyDataChannelSub?.completeDispose()
-            lossyDataChannelSub = null
-            isSubscriberPrimary = false
         }
         client.close(reason = reason)
     }
@@ -348,7 +403,8 @@ internal constructor(
      * reconnect Signal and PeerConnections
      */
     @Synchronized
-    internal fun reconnect() {
+    @VisibleForTesting
+    fun reconnect() {
         if (reconnectingJob?.isActive == true) {
             LKLog.d { "Reconnection is already in progress" }
             return
@@ -366,8 +422,8 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         val job = coroutineScope.launch {
-            connectionState = ConnectionState.RECONNECTING
-            listener?.onEngineReconnecting()
+            var hasResumedOnce = false
+            var hasReconnectedOnce = false
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
@@ -399,6 +455,12 @@ internal constructor(
                 val connectOptions = connectOptions ?: ConnectOptions()
                 if (isFullReconnect) {
                     LKLog.v { "Attempting full reconnect." }
+
+                    if (!hasReconnectedOnce) {
+                        hasReconnectedOnce = true
+                        listener?.onEngineReconnecting()
+                    }
+                    connectionState = ConnectionState.RECONNECTING
                     try {
                         closeResources("Full Reconnecting")
                         listener?.onFullReconnecting()
@@ -409,6 +471,11 @@ internal constructor(
                         continue
                     }
                 } else {
+                    if (!hasResumedOnce) {
+                        hasResumedOnce = true
+                        listener?.onEngineResuming()
+                    }
+                    connectionState = ConnectionState.RESUMING
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber?.prepareForIceRestart()
                     try {
@@ -581,7 +648,7 @@ internal constructor(
                         MediaConstraintKeys.FALSE,
                     ),
                 )
-                if (connectionState == ConnectionState.RECONNECTING) {
+                if (connectionState == ConnectionState.RECONNECTING || connectionState == ConnectionState.RESUMING) {
                     add(
                         MediaConstraints.KeyValuePair(
                             MediaConstraintKeys.ICE_RESTART,
@@ -671,6 +738,8 @@ internal constructor(
         fun onEngineConnected()
         fun onEngineReconnected()
         fun onEngineReconnecting()
+        fun onEngineResuming() {}
+        fun onEngineResumed() {}
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: JoinResponse)
@@ -692,11 +761,18 @@ internal constructor(
     }
 
     companion object {
-        @VisibleForTesting
-        internal const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
 
+        /**
+         * @suppress
+         */
         @VisibleForTesting
-        internal const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+        const val RELIABLE_DATA_CHANNEL_LABEL = "_reliable"
+
+        /**
+         * @suppress
+         */
+        @VisibleForTesting
+        const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
         private const val MAX_RECONNECT_RETRIES = 10
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
@@ -900,6 +976,14 @@ internal constructor(
                 listener?.onUserPacket(dp.user, dp.kind)
             }
 
+            LivekitModels.DataPacket.ValueCase.SIP_DTMF -> {
+                // TODO
+            }
+
+            LivekitModels.DataPacket.ValueCase.TRANSCRIPTION -> {
+                // TODO
+            }
+
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
             -> {
@@ -1008,11 +1092,11 @@ internal constructor(
     }
 
     @VisibleForTesting
-    internal fun getPublisherPeerConnection() =
+    fun getPublisherPeerConnection() =
         publisher!!.peerConnection
 
     @VisibleForTesting
-    internal fun getSubscriberPeerConnection() =
+    fun getSubscriberPeerConnection() =
         subscriber!!.peerConnection
 }
 
@@ -1025,7 +1109,7 @@ enum class ReconnectType {
     FORCE_FULL_RECONNECT,
 }
 
-internal fun LivekitRtc.ICEServer.toWebrtc() = PeerConnection.IceServer.builder(urlsList)
+fun LivekitRtc.ICEServer.toWebrtc(): PeerConnection.IceServer = PeerConnection.IceServer.builder(urlsList)
     .setUsername(username ?: "")
     .setPassword(credential ?: "")
     .setTlsAlpnProtocols(emptyList())

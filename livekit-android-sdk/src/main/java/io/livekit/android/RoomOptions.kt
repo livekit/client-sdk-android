@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ data class RoomOptions(
     val dynacast: Boolean = false,
 
     /**
-     * Options for end-to-end encryption.
+     * @see [Room.e2eeOptions]
      */
     val e2eeOptions: E2EEOptions? = null,
 

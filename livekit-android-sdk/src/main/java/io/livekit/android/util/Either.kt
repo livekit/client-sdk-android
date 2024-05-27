@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 package io.livekit.android.util
 
+/**
+ * @suppress
+ */
 sealed class Either<out A, out B> {
     class Left<out A>(val value: A) : Either<A, Nothing>()
     class Right<out B>(val value: B) : Either<Nothing, B>()
 }
 
-fun <A> Either<A, String?>?.nullSafe(): Either<A, String?> {
+internal fun <A> Either<A, String?>?.nullSafe(): Either<A, String?> {
     return this ?: Either.Right("null")
 }

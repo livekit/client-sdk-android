@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ import dagger.Provides
 import io.livekit.android.LiveKitOverrides
 import javax.inject.Named
 
-@SuppressLint("KotlinNullnessAnnotation")
 /**
  * @suppress
  */
+@SuppressLint("KotlinNullnessAnnotation")
 @Module
 class OverridesModule(private val overrides: LiveKitOverrides) {
 
@@ -39,6 +39,11 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE)
     @Nullable
     fun audioDeviceModule() = overrides.audioOptions?.audioDeviceModule
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_AUDIO_PROCESSOR_OPTIONS)
+    @Nullable
+    fun audioProcessorOptions() = overrides.audioOptions?.audioProcessorOptions
 
     @Provides
     @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
@@ -63,6 +68,14 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)
+    fun peerConnectionFactoryOptions() = overrides.peerConnectionFactoryOptions
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_DISABLE_COMMUNICATION_WORKAROUND)
+    fun disableCommunicationWorkAround() = overrides.audioOptions?.disableCommunicationModeWorkaround ?: false
 
     @Provides
     @Named(InjectionNames.OVERRIDE_EGL_BASE)

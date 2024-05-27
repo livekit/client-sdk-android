@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
 import io.livekit.android.room.track.screencapture.ScreenCaptureService
-import org.webrtc.*
+import livekit.org.webrtc.*
 import java.util.*
 
 class LocalScreencastVideoTrack
@@ -38,7 +38,7 @@ constructor(
     @Assisted source: VideoSource,
     @Assisted name: String,
     @Assisted options: LocalVideoTrackOptions,
-    @Assisted rtcTrack: org.webrtc.VideoTrack,
+    @Assisted rtcTrack: livekit.org.webrtc.VideoTrack,
     @Assisted mediaProjectionCallback: MediaProjectionCallback,
     peerConnectionFactory: PeerConnectionFactory,
     context: Context,
@@ -104,7 +104,7 @@ constructor(
             source: VideoSource,
             name: String,
             options: LocalVideoTrackOptions,
-            rtcTrack: org.webrtc.VideoTrack,
+            rtcTrack: livekit.org.webrtc.VideoTrack,
             mediaProjectionCallback: MediaProjectionCallback,
         ): LocalScreencastVideoTrack
     }
@@ -129,8 +129,10 @@ constructor(
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
             screencastVideoTrackFactory: Factory,
+            videoProcessor: VideoProcessor?
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
+            source.setVideoProcessor(videoProcessor)
             val callback = MediaProjectionCallback()
             val capturer = createScreenCapturer(mediaProjectionPermissionResultData, callback)
             capturer.initialize(

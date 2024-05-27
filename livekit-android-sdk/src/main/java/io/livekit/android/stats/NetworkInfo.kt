@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ interface NetworkInfo {
     fun getNetworkType(): NetworkType
 }
 
-class AndroidNetworkInfo(private val context: Context) : NetworkInfo {
+internal class AndroidNetworkInfo(private val context: Context) : NetworkInfo {
     override fun getNetworkType(): NetworkType {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return NetworkType.UNKNOWN

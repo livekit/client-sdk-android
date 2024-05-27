@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:OptIn(ExperimentalCoroutinesApi::class)
 
 package io.livekit.android.sample
@@ -44,7 +60,7 @@ class ParticipantItem(
         ensureCoroutineScope()
         coroutineScope?.launch {
             participant::identity.flow.collect { identity ->
-                viewBinding.identityText.text = identity
+                viewBinding.identityText.text = identity?.value
             }
         }
         coroutineScope?.launch {
@@ -57,7 +73,7 @@ class ParticipantItem(
             }
         }
         coroutineScope?.launch {
-            participant::audioTracks.flow
+            participant::audioTrackPublications.flow
                 .flatMapLatest { tracks ->
                     val audioTrack = tracks.firstOrNull()?.first
                     if (audioTrack != null) {
@@ -79,7 +95,7 @@ class ParticipantItem(
         }
 
         // observe videoTracks changes.
-        val videoTrackPubFlow = participant::videoTracks.flow
+        val videoTrackPubFlow = participant::videoTrackPublications.flow
             .map { participant to it }
             .flatMapLatest { (participant, videoTracks) ->
                 // Prioritize any screenshare streams.
@@ -182,7 +198,7 @@ private fun hideFocus(binding: ParticipantItemBinding) {
 }
 
 private inline fun <T, R> Flow<T?>.flatMapLatestOrNull(
-    crossinline transform: suspend (value: T) -> Flow<R>
+    crossinline transform: suspend (value: T) -> Flow<R>,
 ): Flow<R?> {
     return flatMapLatest {
         if (it == null) {

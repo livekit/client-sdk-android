@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package io.livekit.android.room.track
 
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
-import org.webrtc.AudioTrack
-import org.webrtc.AudioTrackSink
-import org.webrtc.RtpReceiver
+import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrackSink
+import livekit.org.webrtc.RtpReceiver
 
 class RemoteAudioTrack(
     name: String,
@@ -47,6 +47,20 @@ class RemoteAudioTrack(
     fun removeSink(sink: AudioTrackSink) {
         executeBlockingOnRTCThread {
             rtcTrack.removeSink(sink)
+        }
+    }
+
+    /**
+     * Sets the volume.
+     *
+     * @param volume a gain value in the range 0 to 10.
+     * * 0 will mute the track
+     * * 1 will play the track normally
+     * * values greater than 1 will boost the volume of the track.
+     */
+    fun setVolume(volume: Double) {
+        executeBlockingOnRTCThread {
+            rtcTrack.setVolume(volume)
         }
     }
 }
