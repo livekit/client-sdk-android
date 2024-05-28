@@ -97,7 +97,6 @@ class CallActivity : AppCompatActivity() {
             }
         }
 
-
         // Audience row setup
         val audienceAdapter = GroupieAdapter()
         binding.audienceRow.apply {

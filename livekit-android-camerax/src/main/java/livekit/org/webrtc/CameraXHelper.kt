@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package livekit.org.webrtc;
+package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
@@ -63,7 +63,6 @@ class CameraXHelper {
             }
 
             override fun isSupported(context: Context) = Camera2Enumerator.isSupported(context)
-
         }
 
         private fun getSupportedFormats(
