@@ -147,7 +147,7 @@ class CallViewModel(
 
     init {
 
-        CameraXHelper.getCameraProvider(ProcessLifecycleOwner.get()).let {
+        CameraXHelper.createCameraProvider(ProcessLifecycleOwner.get()).let {
             if (it.isSupported(application)) {
                 CameraCapturerUtils.registerCameraProvider(it)
                 cameraProvider = it

@@ -29,12 +29,14 @@ class CameraXHelper {
     companion object {
 
         /**
-         * Gets a CameraProvider that uses CameraX for its sessions.
+         * Creates a CameraProvider that uses CameraX for its sessions.
          *
          * For use with [CameraCapturerUtils.registerCameraProvider].
+         * Remember to unregister the provider when outside the lifecycle
+         * of [lifecycleOwner].
          */
         @ExperimentalCamera2Interop
-        fun getCameraProvider(
+        fun createCameraProvider(
             lifecycleOwner: LifecycleOwner,
         ) = object : CameraCapturerUtils.CameraProvider {
 
