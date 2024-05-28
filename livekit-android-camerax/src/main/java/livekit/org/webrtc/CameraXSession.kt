@@ -24,13 +24,13 @@ import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_OFF
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON
 import android.hardware.camera2.CaptureRequest
+import android.os.Handler
 import android.util.Range
 import android.util.Size
 import android.view.Surface
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -60,7 +60,7 @@ internal constructor(
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
-    private var cameraThreadHandler = surfaceTextureHelper.handler
+    private var cameraThreadHandler: Handler = surfaceTextureHelper.handler
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var surfaceProvider: SurfaceProvider
     var camera: Camera? = null
@@ -228,8 +228,11 @@ internal constructor(
 
         ContextCompat.getMainExecutor(context).execute {
             cameraProvider.unbindAll()
+            cameraThreadHandler.postAtFrontOfQueue {
+                events.onCameraClosed(this)
+                Logging.d(TAG, "Stop done")
+            }
         }
-        Logging.d(TAG, "Stop done")
     }
 
     private fun reportError(error: String) {
@@ -310,9 +313,5 @@ internal constructor(
 
     internal enum class StabilizationMode {
         OPTICAL, VIDEO, NONE
-    }
-
-    interface CameraControlListener {
-        fun onCameraControlAvailable(control: CameraControl)
     }
 }
