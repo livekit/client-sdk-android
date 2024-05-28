@@ -19,6 +19,7 @@ package livekit.org.webrtc
 import android.content.Context
 import android.hardware.camera2.CameraManager
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.video.CameraCapturerUtils
@@ -64,7 +65,9 @@ class CameraXHelper {
                 )
             }
 
-            override fun isSupported(context: Context) = Camera2Enumerator.isSupported(context)
+            override fun isSupported(context: Context): Boolean {
+                return Camera2Enumerator.isSupported(context) && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)
+            }
         }
 
         private fun getSupportedFormats(
