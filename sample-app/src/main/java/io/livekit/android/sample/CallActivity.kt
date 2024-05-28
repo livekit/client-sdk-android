@@ -39,8 +39,8 @@ import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import io.livekit.android.sample.model.StressTest
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.parcelize.Parcelize
-import org.webrtc.CameraXHelper
-import org.webrtc.CameraXSession
+import livekit.org.webrtc.CameraXHelper
+import livekit.org.webrtc.CameraXSession
 
 class CallActivity : AppCompatActivity() {
 

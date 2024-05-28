@@ -1,4 +1,4 @@
-package org.webrtc
+package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
@@ -7,11 +7,12 @@ import androidx.lifecycle.LifecycleOwner
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 
-@ExperimentalCamera2Interop internal class CameraXCapturer(
+@ExperimentalCamera2Interop
+internal class CameraXCapturer(
     context: Context,
     private val lifecycleOwner: LifecycleOwner,
     cameraName: String?,
-    eventsHandler: CameraVideoCapturer.CameraEventsHandler?
+    eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
 ) : CameraCapturer(cameraName, eventsHandler, Camera2Enumerator(context)) {
 
     var cameraControlListener: CameraXSession.CameraControlListener? = null
@@ -36,11 +37,12 @@ import io.livekit.android.room.track.video.CameraEventsDispatchHandler
             width,
             height,
             framerate,
-            cameraControlListener
+            cameraControlListener,
         )
     }
 }
 
+@ExperimentalCamera2Interop
 internal class CameraXCapturerWithSize(
     private val capturer: CameraXCapturer,
     private val cameraManager: CameraManager,

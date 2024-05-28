@@ -58,6 +58,7 @@ dependencies {
     // If building the sample app outside the context of this repo, replace the following with:
     // api "io.livekit:livekit-android:<version>"
     api project(":livekit-android-sdk")
+    api project(":livekit-android-camerax")
 
     api libs.androidx.core.ktx
     api libs.appcompat
@@ -67,6 +68,7 @@ dependencies {
     api libs.androidx.lifecycle.runtime.ktx
     api libs.androidx.lifecycle.viewmodel.ktx
     api libs.androidx.lifecycle.common.java8
+    api libs.androidx.lifecycle.process
     api libs.protobuf.javalite
     api libs.androidx.preference.ktx
     // debugImplementation because LeakCanary should only run in debug builds.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.webrtc
+package livekit.org.webrtc;
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
@@ -25,11 +25,14 @@ import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 
-internal class CameraXHelper {
+class CameraXHelper {
     companion object {
 
         @ExperimentalCamera2Interop
-        fun getCameraProvider(lifecycleOwner: LifecycleOwner, controlListener: CameraXSession.CameraControlListener?) =  object: CameraCapturerUtils.CameraProvider {
+        fun getCameraProvider(
+            lifecycleOwner: LifecycleOwner,
+            controlListener: CameraXSession.CameraControlListener?,
+        ) = object : CameraCapturerUtils.CameraProvider {
 
             private var enumerator: CameraXEnumerator? = null
 
@@ -43,7 +46,7 @@ internal class CameraXHelper {
             override fun provideCapturer(
                 context: Context,
                 options: LocalVideoTrackOptions,
-                eventsHandler: CameraEventsDispatchHandler
+                eventsHandler: CameraEventsDispatchHandler,
             ): VideoCapturer {
                 val enumerator = provideEnumerator(context)
                 val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
@@ -62,6 +65,7 @@ internal class CameraXHelper {
             override fun isSupported(context: Context) = Camera2Enumerator.isSupported(context)
 
         }
+
         private fun getSupportedFormats(
             cameraManager: CameraManager,
             cameraId: String?,

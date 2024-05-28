@@ -1,4 +1,4 @@
-package org.webrtc
+package livekit.org.webrtc
 
 import android.content.Context
 import android.graphics.Rect
@@ -14,7 +14,7 @@ import androidx.lifecycle.LifecycleOwner
 @ExperimentalCamera2Interop
 class CameraXEnumerator(
     context: Context,
-    private val lifecycleOwner: LifecycleOwner
+    private val lifecycleOwner: LifecycleOwner,
 ) : Camera2Enumerator(context) {
 
     override fun createCapturer(deviceName: String?, eventsHandler: CameraVideoCapturer.CameraEventsHandler?): CameraVideoCapturer {
@@ -26,7 +26,7 @@ class CameraXEnumerator(
             val streamMap = camera.getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             val supportLevel = camera.getCameraCharacteristic(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)
             val nativeSizes = streamMap!!.getOutputSizes(SurfaceTexture::class.java)
-            val sizes = convertSizes(nativeSizes)!!
+            val sizes = convertSizes(nativeSizes)
             val activeArraySize: Rect? = camera.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
             return if (VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP_MR1 && supportLevel == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY && activeArraySize != null) {
                 val filteredSizes = ArrayList<Size>()
@@ -41,7 +41,7 @@ class CameraXEnumerator(
             }
         }
 
-        private fun convertSizes(cameraSizes: Array<android.util.Size>): List<Size>? {
+        private fun convertSizes(cameraSizes: Array<android.util.Size>): List<Size> {
             val sizes: MutableList<Size> = ArrayList()
             for (size in cameraSizes) {
                 sizes.add(Size(size.width, size.height))

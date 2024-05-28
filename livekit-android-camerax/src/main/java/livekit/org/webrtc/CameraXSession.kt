@@ -1,4 +1,4 @@
-package org.webrtc
+package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
@@ -22,15 +22,15 @@ import androidx.camera.core.Preview.SurfaceProvider
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import org.webrtc.CameraEnumerationAndroid.CaptureFormat
-import org.webrtc.CameraSession.CreateSessionCallback
+import livekit.org.webrtc.CameraEnumerationAndroid.CaptureFormat
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 
 @androidx.camera.camera2.interop.ExperimentalCamera2Interop
-internal class CameraXSession(
-    private val sessionCallback: CreateSessionCallback,
+class CameraXSession
+internal constructor(
+    private val sessionCallback: CameraSession.CreateSessionCallback,
     private val events: CameraSession.Events,
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
@@ -39,7 +39,7 @@ internal class CameraXSession(
     private val width: Int,
     private val height: Int,
     private val frameRate: Int,
-    private val cameraControlListener: CameraControlListener? = null
+    private val cameraControlListener: CameraControlListener? = null,
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
@@ -163,7 +163,7 @@ internal class CameraXSession(
                     reportError("Failed to open camera: $e")
                 }
             },
-            helperExecutor
+            helperExecutor,
         )
     }
 
@@ -186,10 +186,12 @@ internal class CameraXSession(
                         cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_ON)
                         cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_OFF)
                     }
+
                     StabilizationMode.VIDEO -> {
                         cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_ON)
                         cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_OFF)
                     }
+
                     else -> Unit
                 }
             }
