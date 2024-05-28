@@ -29,7 +29,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
-import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
 import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
@@ -218,9 +217,6 @@ class CallActivity : AppCompatActivity() {
     override fun onDestroy() {
         binding.audienceRow.adapter = null
         binding.speakerView.adapter = null
-        cameraProvider?.let {
-            CameraCapturerUtils.unregisterCameraProvider(it)
-        }
         super.onDestroy()
     }
 
