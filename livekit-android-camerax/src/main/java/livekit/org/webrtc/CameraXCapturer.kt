@@ -82,7 +82,6 @@ internal class CameraXCapturer(
                 override fun onFrameCaptured(session: CameraSession, frame: VideoFrame) {
                     events.onFrameCaptured(session, frame)
                 }
-
             },
             applicationContext,
             lifecycleOwner,

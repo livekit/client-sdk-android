@@ -96,7 +96,6 @@ fun VideoRenderer(
                 videoTrack.addRenderer(view, videoSinkVisibility)
             } else {
                 videoTrack.addRenderer(view)
-
             }
         }
     }
