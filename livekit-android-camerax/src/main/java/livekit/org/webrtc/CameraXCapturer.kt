@@ -18,10 +18,16 @@ package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
+import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.Camera
 import androidx.lifecycle.LifecycleOwner
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CameraEventsDispatchHandler
+import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.flow
+import io.livekit.android.util.flowDelegate
+import kotlinx.coroutines.flow.StateFlow
 
 @ExperimentalCamera2Interop
 internal class CameraXCapturer(
@@ -29,9 +35,11 @@ internal class CameraXCapturer(
     private val lifecycleOwner: LifecycleOwner,
     cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
-) : CameraCapturer(cameraName, eventsHandler, Camera2Enumerator(context)) {
+) : CameraCapturer(cameraName, eventsHandler, CameraXEnumerator(context, lifecycleOwner)) {
 
-    var cameraControlListener: CameraXSession.CameraControlListener? = null
+    @FlowObservable
+    @get:FlowObservable
+    var currentCamera by flowDelegate<Camera?>(null)
 
     override fun createCameraSession(
         createSessionCallback: CameraSession.CreateSessionCallback,
@@ -44,8 +52,38 @@ internal class CameraXCapturer(
         framerate: Int,
     ) {
         CameraXSession(
-            createSessionCallback,
-            events,
+            object : CameraSession.CreateSessionCallback {
+                override fun onDone(session: CameraSession) {
+                    createSessionCallback.onDone(session)
+                    currentCamera = (session as CameraXSession).camera
+                }
+
+                override fun onFailure(failureType: CameraSession.FailureType, error: String) {
+                    createSessionCallback.onFailure(failureType, error)
+                }
+            },
+            object : CameraSession.Events {
+                override fun onCameraOpening() {
+                    events.onCameraOpening()
+                }
+
+                override fun onCameraError(session: CameraSession, error: String) {
+                    events.onCameraError(session, error)
+                }
+
+                override fun onCameraDisconnected(session: CameraSession) {
+                    events.onCameraDisconnected(session)
+                }
+
+                override fun onCameraClosed(session: CameraSession) {
+                    events.onCameraClosed(session)
+                }
+
+                override fun onFrameCaptured(session: CameraSession, frame: VideoFrame) {
+                    events.onFrameCaptured(session, frame)
+                }
+
+            },
             applicationContext,
             lifecycleOwner,
             surfaceTextureHelper,
@@ -53,14 +91,13 @@ internal class CameraXCapturer(
             width,
             height,
             framerate,
-            cameraControlListener,
         )
     }
 }
 
 @ExperimentalCamera2Interop
 internal class CameraXCapturerWithSize(
-    private val capturer: CameraXCapturer,
+    internal val capturer: CameraXCapturer,
     private val cameraManager: CameraManager,
     private val deviceName: String?,
     cameraEventsDispatchHandler: CameraEventsDispatchHandler,
@@ -68,4 +105,21 @@ internal class CameraXCapturerWithSize(
     override fun findCaptureFormat(width: Int, height: Int): Size {
         return CameraXHelper.findClosestCaptureFormat(cameraManager, deviceName, width, height)
     }
+}
+
+/**
+ * Gets the [androidx.camera.core.Camera] from the VideoCapturer if it's using CameraX.
+ */
+@OptIn(ExperimentalCamera2Interop::class)
+fun VideoCapturer.getCameraX(): StateFlow<Camera?>? {
+    val actualCapturer = if (this is CameraXCapturerWithSize) {
+        this.capturer
+    } else {
+        this
+    }
+
+    if (actualCapturer is CameraXCapturer) {
+        return actualCapturer::currentCamera.flow
+    }
+    return null
 }

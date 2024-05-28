@@ -73,8 +73,11 @@ val <T> KProperty0<T>.flow: StateFlow<T>
 @MustBeDocumented
 annotation class FlowObservable
 
+/**
+ * @suppress
+ */
 @FlowObservable
-internal class MutableStateFlowDelegate<T>
+class MutableStateFlowDelegate<T>
 internal constructor(
     private val flow: MutableStateFlow<T>,
     private val onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null,
@@ -94,8 +97,11 @@ internal constructor(
     }
 }
 
+/**
+ * @suppress
+ */
 @FlowObservable
-internal class StateFlowDelegate<T>
+class StateFlowDelegate<T>
 internal constructor(
     private val flow: StateFlow<T>,
 ) : StateFlow<T> by flow {
@@ -108,14 +114,20 @@ internal constructor(
     }
 }
 
-internal fun <T> flowDelegate(
+/**
+ * @suppress
+ */
+fun <T> flowDelegate(
     initialValue: T,
     onSetValue: ((newValue: T, oldValue: T) -> Unit)? = null,
 ): MutableStateFlowDelegate<T> {
     return MutableStateFlowDelegate(MutableStateFlow(initialValue), onSetValue)
 }
 
-internal fun <T> flowDelegate(
+/**
+ * @suppress
+ */
+fun <T> flowDelegate(
     stateFlow: StateFlow<T>,
 ): StateFlowDelegate<T> {
     return StateFlowDelegate(stateFlow)
