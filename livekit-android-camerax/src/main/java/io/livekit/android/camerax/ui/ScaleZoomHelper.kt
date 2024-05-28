@@ -20,11 +20,44 @@ import android.content.Context
 import android.view.ScaleGestureDetector
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
+import io.livekit.android.camerax.ui.ScaleZoomHelper.Companion.createGestureDetector
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.flow.StateFlow
 import livekit.org.webrtc.getCameraX
 
+/**
+ * A helper class that handles zoom for a CameraX video capturer.
+ *
+ * For view based apps, [createGestureDetector] can be used to create a
+ * GestureDetector that attaches to your views to provide pinch-to-zoom
+ * functionality.
+ *
+ * For compose based apps, similar functionality can be implemented using
+ * Modifier.pointerInput:
+ *
+ * ```
+ * val scaleZoomHelper = remember(room, videoTrack) {
+ *     if (videoTrack is LocalVideoTrack) {
+ *         ScaleZoomHelper(videoTrack)
+ *     } else {
+ *         null
+ *     }
+ * }
+ *
+ * VideoRenderer(
+ *     modifier = modifier
+ *         .pointerInput(Unit) {
+ *             detectTransformGestures(
+ *                 onGesture = { _, _, zoom, _ ->
+ *                     scaleZoomHelper.zoom(zoom)
+ *                 },
+ *             )
+ *         },
+ * )
+ * ```
+ */
 class ScaleZoomHelper(
     private val cameraFlow: StateFlow<Camera?>?,
 ) {
@@ -32,10 +65,19 @@ class ScaleZoomHelper(
 
     init {
         if (cameraFlow != null) {
-            LKLog.w { "null camera flow passed in to ScaleZoomHelper, zoom is disabled." }
+            LKLog.i { "null camera flow passed in to ScaleZoomHelper, zoom is disabled." }
         }
     }
 
+    /**
+     * Scales the current zoom value by [factor].
+     *
+     * This method handles clamping the resulting zoom value to within the camera's
+     * minimum and maximum zoom. Best used with a scale gesture detector.
+     *
+     * @see CameraControl.setZoomRatio
+     * @see createGestureDetector
+     */
     fun zoom(factor: Float) {
         val camera = cameraFlow?.value ?: return
         val zoomState = camera.cameraInfo.zoomState.value ?: return
@@ -48,10 +90,35 @@ class ScaleZoomHelper(
     }
 
     companion object {
+
+        /**
+         * Creates a ScaleGestureDetector that can be used with a view to provide pinch-to-zoom functionality.
+         *
+         * Example:
+         * ```
+         * val scaleGestureDetector = ScaleZoomHelper.createGestureDetector(viewBinding.renderer.context, localVideoTrack)
+         * viewBinding.renderer.setOnTouchListener { _, event ->
+         *     scaleGestureDetector?.onTouchEvent(event)
+         *     return@setOnTouchListener true
+         * }
+         * ```
+         */
         fun createGestureDetector(context: Context, localVideoTrack: LocalVideoTrack): ScaleGestureDetector {
             return createGestureDetector(context, localVideoTrack.capturer.getCameraX())
         }
 
+        /**
+         * Creates a ScaleGestureDetector that can be used with a view to provide pinch-to-zoom functionality.
+         *
+         * Example:
+         * ```
+         * val scaleGestureDetector = ScaleZoomHelper.createGestureDetector(viewBinding.renderer.context, localVideoTrack)
+         * viewBinding.renderer.setOnTouchListener { _, event ->
+         *     scaleGestureDetector?.onTouchEvent(event)
+         *     return@setOnTouchListener true
+         * }
+         * ```
+         */
         fun createGestureDetector(context: Context, cameraFlow: StateFlow<Camera?>?): ScaleGestureDetector {
             val helper = ScaleZoomHelper(cameraFlow)
 
