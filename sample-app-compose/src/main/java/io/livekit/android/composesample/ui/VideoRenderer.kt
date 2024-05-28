@@ -17,6 +17,7 @@
 package io.livekit.android.composesample.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -27,11 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
+import io.livekit.android.camerax.ui.ScaleZoomHelper
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.VideoTrack
 import livekit.org.webrtc.RendererCommon
@@ -63,6 +67,13 @@ fun VideoRenderer(
         return
     }
 
+    val scaleZoomHelper = remember(room, videoTrack) {
+        if (videoTrack is LocalVideoTrack) {
+            ScaleZoomHelper(videoTrack)
+        } else {
+            null
+        }
+    }
     val videoSinkVisibility = remember(room, videoTrack) { ComposeVisibility() }
     var boundVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
     var view: TextureViewRenderer? by remember { mutableStateOf(null) }
@@ -127,6 +138,13 @@ fun VideoRenderer(
         },
         update = { v -> setupVideoIfNeeded(videoTrack, v) },
         modifier = modifier
-            .onGloballyPositioned { videoSinkVisibility.onGloballyPositioned(it) },
+            .onGloballyPositioned { videoSinkVisibility.onGloballyPositioned(it) }
+            .pointerInput(Unit) {
+                detectTransformGestures(
+                    onGesture = { _, _, zoom, _ ->
+                        scaleZoomHelper?.zoom(zoom)
+                    },
+                )
+            },
     )
 }

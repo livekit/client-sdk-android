@@ -64,7 +64,7 @@ import livekit.LivekitModels.VideoQuality as ProtoVideoQuality
 open class LocalVideoTrack
 @AssistedInject
 constructor(
-    @Assisted private var capturer: VideoCapturer,
+    @Assisted capturer: VideoCapturer,
     @Assisted private var source: VideoSource,
     @Assisted name: String,
     @Assisted options: LocalVideoTrackOptions,
@@ -80,6 +80,9 @@ constructor(
      **/
     @Assisted private var dispatchObserver: CaptureDispatchObserver? = null,
 ) : VideoTrack(name, rtcTrack) {
+
+    var capturer = capturer
+        private set
 
     override var rtcTrack: livekit.org.webrtc.VideoTrack = rtcTrack
         internal set

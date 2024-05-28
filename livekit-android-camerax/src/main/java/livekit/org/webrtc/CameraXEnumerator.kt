@@ -26,6 +26,9 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.lifecycle.LifecycleOwner
 
+/**
+ * @suppress
+ */
 @ExperimentalCamera2Interop
 class CameraXEnumerator(
     context: Context,

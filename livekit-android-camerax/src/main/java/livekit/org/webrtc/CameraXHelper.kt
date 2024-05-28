@@ -28,10 +28,14 @@ import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 class CameraXHelper {
     companion object {
 
+        /**
+         * Gets a CameraProvider that uses CameraX for its sessions.
+         *
+         * For use with [CameraCapturerUtils.registerCameraProvider].
+         */
         @ExperimentalCamera2Interop
         fun getCameraProvider(
             lifecycleOwner: LifecycleOwner,
-            controlListener: CameraXSession.CameraControlListener?,
         ) = object : CameraCapturerUtils.CameraProvider {
 
             private var enumerator: CameraXEnumerator? = null
@@ -51,9 +55,7 @@ class CameraXHelper {
                 val enumerator = provideEnumerator(context)
                 val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
                 val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler) as CameraXCapturer
-                controlListener?.let {
-                    targetVideoCapturer.cameraControlListener = it
-                }
+
                 return CameraXCapturerWithSize(
                     targetVideoCapturer,
                     context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,

@@ -21,9 +21,12 @@ import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.github.ajalt.timberkt.Timber
 import io.livekit.android.AudioOptions
@@ -43,6 +46,7 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.LKLog
@@ -57,7 +61,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import livekit.org.webrtc.CameraXHelper
 
+@OptIn(ExperimentalCamera2Interop::class)
 class CallViewModel(
     val url: String,
     val token: String,
@@ -93,6 +99,7 @@ class CallViewModel(
         ),
     )
 
+    private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
     val audioHandler = room.audioHandler as AudioSwitchHandler
 
     val participants = room::remoteParticipants.flow
@@ -139,6 +146,14 @@ class CallViewModel(
     val permissionAllowed = mutablePermissionAllowed.hide()
 
     init {
+
+        CameraXHelper.getCameraProvider(ProcessLifecycleOwner.get()).let {
+            if (it.isSupported(application)) {
+                CameraCapturerUtils.registerCameraProvider(it)
+                cameraProvider = it
+            }
+        }
+
         viewModelScope.launch {
             // Collect any errors.
             launch {
@@ -329,6 +344,9 @@ class CallViewModel(
         val application = getApplication<Application>()
         val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
         application.stopService(foregroundServiceIntent)
+        cameraProvider?.let {
+            CameraCapturerUtils.unregisterCameraProvider(it)
+        }
     }
 
     fun setMicEnabled(enabled: Boolean) {

@@ -42,6 +42,9 @@ import livekit.org.webrtc.CameraEnumerationAndroid.CaptureFormat
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
+/**
+ * @suppress
+ */
 @androidx.camera.camera2.interop.ExperimentalCamera2Interop
 class CameraXSession
 internal constructor(
@@ -54,14 +57,14 @@ internal constructor(
     private val width: Int,
     private val height: Int,
     private val frameRate: Int,
-    private val cameraControlListener: CameraControlListener? = null,
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
     private var cameraThreadHandler = surfaceTextureHelper.handler
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var surfaceProvider: SurfaceProvider
-    private var camera: Camera? = null
+    var camera: Camera? = null
+        private set
     private var surface: Surface? = null
     private var cameraOrientation: Int = 0
     private var isCameraFrontFacing: Boolean = true
@@ -168,11 +171,12 @@ internal constructor(
                         cameraProvider.unbindAll()
 
                         // Bind use cases to camera
-                        camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, imageAnalysis, preview).apply {
-                            cameraControlListener?.onCameraControlAvailable(this.cameraControl)
+                        camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, imageAnalysis, preview)
+
+                        cameraThreadHandler.post {
+                            sessionCallback.onDone(this@CameraXSession)
                         }
                     }
-                    sessionCallback.onDone(this@CameraXSession)
                 } catch (e: Exception) {
                     reportError("Failed to open camera: $e")
                 }
