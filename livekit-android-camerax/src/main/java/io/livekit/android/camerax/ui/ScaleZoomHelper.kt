@@ -35,10 +35,10 @@ import livekit.org.webrtc.getCameraX
  * functionality.
  *
  * For compose based apps, similar functionality can be implemented using
- * Modifier.pointerInput:
+ * Modifier.pointerInput and detectTransformGestures:
  *
  * ```
- * val scaleZoomHelper = remember(room, videoTrack) {
+ * val scaleZoomHelper = remember(videoTrack) {
  *     if (videoTrack is LocalVideoTrack) {
  *         ScaleZoomHelper(videoTrack)
  *     } else {
@@ -48,10 +48,10 @@ import livekit.org.webrtc.getCameraX
  *
  * VideoRenderer(
  *     modifier = modifier
- *         .pointerInput(Unit) {
+ *         .pointerInput(scaleZoomHelper) {
  *             detectTransformGestures(
  *                 onGesture = { _, _, zoom, _ ->
- *                     scaleZoomHelper.zoom(zoom)
+ *                     scaleZoomHelper?.zoom(zoom)
  *                 },
  *             )
  *         },
