@@ -306,7 +306,6 @@ internal constructor(
         )
     }
 
-
     /**
      * Publishes an video track.
      */
