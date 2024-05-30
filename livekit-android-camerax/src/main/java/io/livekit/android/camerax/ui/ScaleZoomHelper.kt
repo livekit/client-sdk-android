@@ -72,6 +72,7 @@ class ScaleZoomHelper(
     }
 
     private var targetZoom: Float? = null
+
     /**
      * Scales the current zoom value by [factor].
      *
@@ -85,7 +86,6 @@ class ScaleZoomHelper(
     fun zoom(factor: Float) {
         val camera = cameraFlow?.value ?: return
         val zoomState = camera.cameraInfo.zoomState.value ?: return
-
 
         val currentZoom = targetZoom ?: zoomState.zoomRatio
         val newZoom = (currentZoom * factor).coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
