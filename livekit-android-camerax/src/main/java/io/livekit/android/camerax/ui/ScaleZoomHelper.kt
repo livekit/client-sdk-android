@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("unused")
+
 package io.livekit.android.camerax.ui
 
 import android.content.Context
@@ -69,6 +71,8 @@ class ScaleZoomHelper(
         }
     }
 
+    private var targetZoom: Float? = null
+
     /**
      * Scales the current zoom value by [factor].
      *
@@ -78,14 +82,25 @@ class ScaleZoomHelper(
      * @see CameraControl.setZoomRatio
      * @see createGestureDetector
      */
+    @Synchronized
     fun zoom(factor: Float) {
         val camera = cameraFlow?.value ?: return
         val zoomState = camera.cameraInfo.zoomState.value ?: return
-        val currentZoom = zoomState.zoomRatio
+
+        val currentZoom = targetZoom ?: zoomState.zoomRatio
         val newZoom = (currentZoom * factor).coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
 
         if (newZoom != currentZoom) {
+            targetZoom = newZoom
             camera.cameraControl.setZoomRatio(newZoom)
+                .addListener(
+                    {
+                        synchronized(this) {
+                            targetZoom = null
+                        }
+                    },
+                    { it.run() },
+                )
         }
     }
 
