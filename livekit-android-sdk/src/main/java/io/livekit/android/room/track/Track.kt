@@ -149,18 +149,27 @@ abstract class Track(
 
     data class Dimensions(val width: Int, val height: Int)
 
+    /**
+     * Starts the track.
+     */
     open fun start() {
         executeBlockingOnRTCThread {
             rtcTrack.setEnabled(true)
         }
     }
 
+    /**
+     * Stops the track.
+     */
     open fun stop() {
         executeBlockingOnRTCThread {
             rtcTrack.setEnabled(false)
         }
     }
 
+    /**
+     * Disposes the track. LiveKit will generally take care of disposing tracks for you.
+     */
     open fun dispose() {
         executeBlockingOnRTCThread {
             rtcTrack.dispose()

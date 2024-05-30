@@ -113,6 +113,9 @@ constructor(
 
     private val closeableManager = CloseableManager()
 
+    /**
+     * Starts the [capturer] with the capture params contained in [options].
+     */
     open fun startCapture() {
         capturer.startCapture(
             options.captureParams.width,
@@ -121,6 +124,9 @@ constructor(
         )
     }
 
+    /**
+     * Stops the [capturer].
+     */
     open fun stopCapture() {
         capturer.stopCapture()
     }
@@ -152,6 +158,10 @@ constructor(
         }
     }
 
+    /**
+     * If this is a camera track, switches to the new camera determined by [deviceId]
+     */
+    @Deprecated("Use LocalVideoTrack.switchCamera instead.", ReplaceWith("switchCamera(deviceId = deviceId)"))
     fun setDeviceId(deviceId: String) {
         restartTrack(options.copy(deviceId = deviceId))
     }
@@ -346,7 +356,7 @@ constructor(
         }
     }
 
-    fun setPublishingCodecs(codecs: List<SubscribedCodec>): List<VideoCodec> {
+    internal fun setPublishingCodecs(codecs: List<SubscribedCodec>): List<VideoCodec> {
         LKLog.v { "setting publishing codecs: $codecs" }
 
         // only enable simulcast codec for preferred codec set

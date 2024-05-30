@@ -77,6 +77,10 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
         scheduleRecalculate()
     }
 
+    /**
+     * Declares that this [View] will override [View.onVisibilityChanged] and call through to [recalculate],
+     * partaking in the [VideoSinkVisibility] system.
+     */
     interface Notifier {
         var viewVisibility: ViewVisibility?
     }
@@ -103,6 +107,9 @@ class ViewVisibility(private val view: View) : VideoSinkVisibility() {
         )
     }
 
+    /**
+     * Recalculates whether this view's visibility has changed, and notifies observers if it has.
+     */
     fun recalculate() {
         var shouldNotify = false
         val newVisibility = isVisible()

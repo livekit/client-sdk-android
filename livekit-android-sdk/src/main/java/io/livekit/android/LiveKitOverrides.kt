@@ -17,7 +17,9 @@
 package io.livekit.android
 
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.AudioTrack
 import io.livekit.android.audio.AudioFocusHandler
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioProcessorOptions
@@ -31,7 +33,6 @@ import livekit.org.webrtc.VideoEncoderFactory
 import livekit.org.webrtc.audio.AudioDeviceModule
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import okhttp3.OkHttpClient
-
 /**
  * Overrides to replace LiveKit internally used components with custom implementations.
  */
@@ -138,8 +139,25 @@ class AudioOptions(
  * Audio types for customizing the audio of LiveKit.
  */
 sealed class AudioType(
+    /**
+     * The audio mode to use when playing audio through LiveKit.
+     *
+     * @see [AudioManager.setMode]
+     */
     val audioMode: Int,
+    /**
+     * The audio attributes to use when playing audio through LiveKit.
+     *
+     * @see [AudioTrack]
+     * @see [AudioFocusRequest]
+     */
     val audioAttributes: AudioAttributes,
+    /**
+     * The audio attributes to use when playing audio through LiveKit on pre-O devices.
+     *
+     * @see [AudioTrack]
+     * @see [AudioManager.requestAudioFocus]
+     */
     val audioStreamType: Int,
 ) {
     /**

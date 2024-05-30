@@ -16,6 +16,9 @@
 
 package io.livekit.android.audio
 
+/**
+ * Options for audio processing.
+ */
 data class AudioProcessorOptions(
     /**
      * Audio processor for captured audio.

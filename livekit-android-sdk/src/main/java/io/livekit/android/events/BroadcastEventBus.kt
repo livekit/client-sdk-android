@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
+/**
+ * @suppress
+ */
 class BroadcastEventBus<T> : EventListenable<T> {
     private val mutableEvents = MutableSharedFlow<T>(extraBufferCapacity = Int.MAX_VALUE)
     override val events = mutableEvents.asSharedFlow()

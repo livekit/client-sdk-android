@@ -1002,6 +1002,9 @@ data class BackupVideoCodec(
 )
 
 abstract class BaseAudioTrackPublishOptions {
+    /**
+     * The target audioBitrate to use.
+     */
     abstract val audioBitrate: Int?
 
     /**

@@ -19,6 +19,10 @@ package io.livekit.android.events
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 
+/**
+ * An interface declaring that this object emits events that can be collected.
+ * @see [EventListenable.collect]
+ */
 interface EventListenable<out T> {
     val events: SharedFlow<T>
 }
