@@ -19,6 +19,7 @@ package io.livekit.android.room.participant
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -183,15 +184,29 @@ internal constructor(
         return super.getTrackPublicationByName(name) as? LocalTrackPublication
     }
 
+    /**
+     * If set to enabled, creates and publishes a camera video track if not already done, and starts the camera.
+     *
+     * If set to disabled, mutes and stops the camera.
+     */
     suspend fun setCameraEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.CAMERA, enabled)
     }
 
+    /**
+     * If set to enabled, creates and publishes a microphone audio track if not already done, and unmutes the mic.
+     *
+     * If set to disabled, mutes the mic.
+     */
     suspend fun setMicrophoneEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.MICROPHONE, enabled)
     }
 
     /**
+     * If set to enabled, creates and publishes a screenshare video track.
+     *
+     * If set to disabled, unpublishes the screenshare video track.
+     *
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
@@ -260,6 +275,9 @@ internal constructor(
         }
     }
 
+    /**
+     * Publishes an audio track.
+     */
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
         options: AudioTrackPublishOptions = AudioTrackPublishOptions(
@@ -288,6 +306,9 @@ internal constructor(
         )
     }
 
+    /**
+     * Publishes an video track.
+     */
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
@@ -571,6 +592,11 @@ internal constructor(
         engine.updateSubscriptionPermissions(allParticipantsAllowed, participantTrackPermissions)
     }
 
+    /**
+     * Unpublish a track.
+     *
+     * @param stopOnUnpublish if true, stops the track after unpublishing the track. Defaults to true.
+     */
     fun unpublishTrack(track: Track, stopOnUnpublish: Boolean = true) {
         val publication = localTrackPublications.firstOrNull { it.track == track }
         if (publication === null) {
@@ -633,6 +659,10 @@ internal constructor(
         engine.sendData(dataPacket)
     }
 
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
     override fun updateFromInfo(info: LivekitModels.ParticipantInfo) {
         super.updateFromInfo(info)
 
@@ -773,7 +803,7 @@ internal constructor(
         unpublishTrack(track)
     }
 
-    fun prepareForFullReconnect() {
+    internal fun prepareForFullReconnect() {
         val pubs = localTrackPublications.toList() // creates a copy, so is safe from the following removal.
 
         // Only set the first time we start a full reconnect.
@@ -789,7 +819,7 @@ internal constructor(
         }
     }
 
-    suspend fun republishTracks() {
+    internal suspend fun republishTracks() {
         val publish = republishes?.toList() ?: emptyList()
         republishes = null
 
@@ -807,6 +837,9 @@ internal constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     fun cleanup() {
         for (pub in trackPublications.values) {
             val track = pub.track
@@ -825,6 +858,9 @@ internal constructor(
         }
     }
 
+    /**
+     * @suppress
+     */
     override fun dispose() {
         cleanup()
         super.dispose()
@@ -965,6 +1001,9 @@ data class BackupVideoCodec(
 )
 
 abstract class BaseAudioTrackPublishOptions {
+    /**
+     * The target audioBitrate to use.
+     */
     abstract val audioBitrate: Int?
 
     /**

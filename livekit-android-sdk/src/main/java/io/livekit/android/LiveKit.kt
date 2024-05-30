@@ -26,6 +26,11 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import timber.log.Timber
 
+/**
+ * The main entry point into using LiveKit.
+ *
+ * @see [LiveKit.create]
+ */
 object LiveKit {
     /**
      * [LoggingLevel] to use for Livekit logs. Set to [LoggingLevel.OFF] to turn off logs.

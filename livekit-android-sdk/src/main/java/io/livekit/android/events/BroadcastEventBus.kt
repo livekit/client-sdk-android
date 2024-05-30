@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
+/**
+ * @suppress
+ */
 class BroadcastEventBus<T> : EventListenable<T> {
     private val mutableEvents = MutableSharedFlow<T>(extraBufferCapacity = Int.MAX_VALUE)
     override val events = mutableEvents.asSharedFlow()

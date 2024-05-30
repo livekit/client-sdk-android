@@ -37,10 +37,13 @@ import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.VideoTrack
 
+/**
+ * A representation of a remote participant.
+ */
 class RemoteParticipant(
     sid: Sid,
     identity: Identity? = null,
-    val signalClient: SignalClient,
+    internal val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
     defaultDispatcher: CoroutineDispatcher,
 ) : Participant(sid, identity, defaultDispatcher) {
@@ -68,6 +71,9 @@ class RemoteParticipant(
 
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
 
+    /**
+     * Get a track publication with the corresponding sid.
+     */
     fun getTrackPublication(sid: String): RemoteTrackPublication? = trackPublications[sid] as? RemoteTrackPublication
 
     /**

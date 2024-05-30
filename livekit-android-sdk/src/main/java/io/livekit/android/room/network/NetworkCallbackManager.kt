@@ -46,6 +46,9 @@ internal class NetworkCallbackRegistryImpl(val connectivityManager: Connectivity
     }
 }
 
+/**
+ * @suppress
+ */
 interface NetworkCallbackManager : Closeable {
     fun registerCallback()
     fun unregisterCallback()

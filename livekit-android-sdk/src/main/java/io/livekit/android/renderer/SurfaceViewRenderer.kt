@@ -27,6 +27,7 @@ open class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
 
     override var viewVisibility: ViewVisibility? = null
+
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
         viewVisibility?.recalculate()

@@ -21,6 +21,9 @@ import livekit.org.webrtc.AudioTrack
 import livekit.org.webrtc.AudioTrackSink
 import livekit.org.webrtc.RtpReceiver
 
+/**
+ * A representation of a remote audio track.
+ */
 class RemoteAudioTrack(
     name: String,
     rtcTrack: AudioTrack,

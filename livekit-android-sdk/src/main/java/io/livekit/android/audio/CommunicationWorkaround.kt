@@ -51,6 +51,9 @@ interface CommunicationWorkaround {
     fun dispose()
 }
 
+/**
+ * @suppress
+ */
 class NoopCommunicationWorkaround
 @Inject
 constructor() : CommunicationWorkaround {
@@ -77,7 +80,7 @@ constructor() : CommunicationWorkaround {
  */
 @Singleton
 @RequiresApi(Build.VERSION_CODES.R)
-class CommunicationWorkaroundImpl
+internal class CommunicationWorkaroundImpl
 @Inject
 constructor(
     @Named(InjectionNames.DISPATCHER_MAIN)

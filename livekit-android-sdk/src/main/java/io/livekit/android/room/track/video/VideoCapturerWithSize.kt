@@ -19,6 +19,9 @@ package io.livekit.android.room.track.video
 import android.hardware.camera2.CameraManager
 import livekit.org.webrtc.*
 
+/**
+ * A [VideoCapturer] that declares that it can determine the actual size of the capture format it will use.
+ */
 interface VideoCapturerWithSize : VideoCapturer {
     fun findCaptureFormat(width: Int, height: Int): Size
 }

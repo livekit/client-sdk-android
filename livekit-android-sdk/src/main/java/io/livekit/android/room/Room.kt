@@ -77,6 +77,9 @@ constructor(
     private val e2EEManagerFactory: E2EEManager.Factory,
     private val communicationWorkaround: CommunicationWorkaround,
     val audioProcessingController: AudioProcessingController,
+    /**
+     * A holder for objects that are used internally within LiveKit.
+     */
     val lkObjects: LKObjects,
     networkCallbackManagerFactory: NetworkCallbackManagerFactory,
     private val audioDeviceModule: AudioDeviceModule,

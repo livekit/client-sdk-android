@@ -20,6 +20,9 @@ import livekit.org.webrtc.CapturerObserver
 import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoSink
 
+/**
+ * @suppress
+ */
 class CaptureDispatchObserver : CapturerObserver {
     private val observers = linkedSetOf<CapturerObserver>()
     private val sinks = linkedSetOf<VideoSink>()

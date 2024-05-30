@@ -237,10 +237,20 @@ object CameraCapturerUtils {
         return null
     }
 
+    /**
+     * An interface declaring a provider of camera capturers.
+     */
     interface CameraProvider {
+        /**
+         * This acts as the priority of the CameraProvider when determining which provider to use (in order of highest to lowest).
+         */
         val cameraVersion: Int
         fun provideEnumerator(context: Context): CameraEnumerator
         fun provideCapturer(context: Context, options: LocalVideoTrackOptions, eventsHandler: CameraEventsDispatchHandler): VideoCapturer
+
+        /**
+         * If the return value of this method is false, this provider will be skipped when querying providers to use.
+         */
         fun isSupported(context: Context): Boolean
     }
 }
