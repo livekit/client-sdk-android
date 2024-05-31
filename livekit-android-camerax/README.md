@@ -1,4 +1,4 @@
-# CameraX support for LiveKit SDK
+# CameraX support for LiveKit Android SDK
 
 This library provides an CameraX integration for use with the Android LiveKit SDK. This provides access to more camera functionality such as custom zoom and torch control.
 

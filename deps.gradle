@@ -4,7 +4,7 @@ ext {
     compose_compiler_version = '1.4.5'
     kotlin_version = '1.8.20'
     java_version = JavaVersion.VERSION_1_8
-    dokka_version = '1.5.0'
+    dokka_version = '1.8.20'
     androidSdk = [
         compileVersion: 34,
         targetVersion : 34,

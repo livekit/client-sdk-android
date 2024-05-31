@@ -106,6 +106,7 @@ tasks.withType(Test).configureEach {
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
+apply from: rootProject.file('gradle/dokka-kotlin-dep-fix.gradle')
 
 afterEvaluate {
     publishing {
