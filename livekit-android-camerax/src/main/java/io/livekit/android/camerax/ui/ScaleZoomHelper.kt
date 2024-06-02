@@ -23,6 +23,7 @@ import android.view.ScaleGestureDetector
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraControl
+import com.google.common.util.concurrent.ListenableFuture
 import io.livekit.android.camerax.ui.ScaleZoomHelper.Companion.createGestureDetector
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.util.LKLog
@@ -71,7 +72,15 @@ class ScaleZoomHelper(
         }
     }
 
+    /**
+     * Track the current target zoom, since cameraInfo.zoomState is on LiveData timers and can be out of date.
+     */
     private var targetZoom: Float? = null
+
+    /**
+     * Track the current active zoom futures; only clear targetZoom when all futures are completed.
+     */
+    private var activeZoomFutures = mutableSetOf<ListenableFuture<Void>>()
 
     /**
      * Scales the current zoom value by [factor].
@@ -92,15 +101,20 @@ class ScaleZoomHelper(
 
         if (newZoom != currentZoom) {
             targetZoom = newZoom
-            camera.cameraControl.setZoomRatio(newZoom)
-                .addListener(
-                    {
-                        synchronized(this) {
+            val future = camera.cameraControl.setZoomRatio(newZoom)
+
+            activeZoomFutures.add(future)
+            future.addListener(
+                {
+                    synchronized(this) {
+                        activeZoomFutures.remove(future)
+                        if (activeZoomFutures.isEmpty()) {
                             targetZoom = null
                         }
-                    },
-                    { it.run() },
-                )
+                    }
+                },
+                { it.run() },
+            )
         }
     }
 
