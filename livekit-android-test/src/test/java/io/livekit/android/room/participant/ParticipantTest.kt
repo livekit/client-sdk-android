@@ -56,6 +56,7 @@ class ParticipantTest {
         assertEquals(INFO.identity, participant.identity?.value)
         assertEquals(INFO.metadata, participant.metadata)
         assertEquals(INFO.name, participant.name)
+        assertEquals(Participant.Kind.fromProto(INFO.kind), participant.kind)
         assertEquals(INFO, participant.participantInfo)
     }
 
@@ -169,6 +170,7 @@ class ParticipantTest {
             .setIdentity("identity")
             .setMetadata("metadata")
             .setName("name")
+            .setKind(LivekitModels.ParticipantInfo.Kind.STANDARD)
             .build()
 
         val TRACK_INFO = LivekitModels.TrackInfo.newBuilder()

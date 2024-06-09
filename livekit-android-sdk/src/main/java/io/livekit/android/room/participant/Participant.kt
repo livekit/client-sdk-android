@@ -176,6 +176,14 @@ open class Participant(
         internal set
 
     /**
+     * The kind of participant (i.e. a standard client participant, AI agent, etc.)
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var kind by flowDelegate(Kind.UNKNOWN)
+        internal set
+
+    /**
      * @suppress
      */
     @Deprecated("Use events instead")
@@ -318,6 +326,7 @@ open class Participant(
         participantInfo = info
         metadata = info.metadata
         name = info.name
+        kind = Kind.fromProto(info.kind)
         if (info.hasPermission()) {
             permissions = ParticipantPermission.fromProto(info.permission)
         }
@@ -377,6 +386,33 @@ open class Participant(
         participantInfo = null
         permissions = null
         connectionQuality = ConnectionQuality.UNKNOWN
+    }
+
+
+    enum class Kind {
+        AGENT,
+        STANDARD,
+        INGRESS,
+        EGRESS,
+        SIP,
+        UNKNOWN,
+        ;
+
+        companion object {
+            /**
+             * @suppress
+             */
+            fun fromProto(proto: LivekitModels.ParticipantInfo.Kind): Kind {
+                return when (proto) {
+                    LivekitModels.ParticipantInfo.Kind.AGENT -> AGENT
+                    LivekitModels.ParticipantInfo.Kind.STANDARD -> STANDARD
+                    LivekitModels.ParticipantInfo.Kind.INGRESS -> INGRESS
+                    LivekitModels.ParticipantInfo.Kind.EGRESS -> EGRESS
+                    LivekitModels.ParticipantInfo.Kind.SIP -> SIP
+                    LivekitModels.ParticipantInfo.Kind.UNRECOGNIZED -> UNKNOWN
+                }
+            }
+        }
     }
 }
 
