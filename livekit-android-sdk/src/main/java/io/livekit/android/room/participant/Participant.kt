@@ -388,7 +388,6 @@ open class Participant(
         connectionQuality = ConnectionQuality.UNKNOWN
     }
 
-
     enum class Kind {
         AGENT,
         STANDARD,
