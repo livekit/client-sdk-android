@@ -82,12 +82,10 @@ fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
     enableCpuOveruseDetection = config.enableCpuOveruseDetection
     suspendBelowMinBitrate = config.suspendBelowMinBitrate
     screencastMinBitrate = config.screencastMinBitrate
-    combinedAudioVideoBwe = config.combinedAudioVideoBwe
     networkPreference = config.networkPreference
     sdpSemantics = config.sdpSemantics
     turnCustomizer = config.turnCustomizer
     activeResetSrtpParams = config.activeResetSrtpParams
-    allowCodecSwitching = config.allowCodecSwitching
     cryptoOptions = config.cryptoOptions
     turnLoggingId = config.turnLoggingId
     enableImplicitRollback = config.enableImplicitRollback
