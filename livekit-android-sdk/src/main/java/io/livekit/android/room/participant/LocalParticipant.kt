@@ -250,6 +250,8 @@ internal constructor(
                         }
                         val track =
                             createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+                        track.startForegroundService(null, null)
+                        track.startCapture()
                         publishVideoTrack(track)
                     }
 
