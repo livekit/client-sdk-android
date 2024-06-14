@@ -308,18 +308,10 @@ class CallViewModel(
     fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
         val localParticipant = room.localParticipant
         viewModelScope.launch {
-            val screencastTrack =
-                localParticipant.createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
-            localParticipant.publishVideoTrack(
-                screencastTrack,
-            )
-
-            // Must start the foreground prior to startCapture.
-            screencastTrack.startForegroundService(null, null)
-            screencastTrack.startCapture()
-
+            localParticipant.setScreenShareEnabled(true, mediaProjectionPermissionResultData)
+            val screencastTrack = localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalScreencastVideoTrack
             this@CallViewModel.localScreencastTrack = screencastTrack
-            mutableScreencastEnabled.postValue(screencastTrack.enabled)
+            mutableScreencastEnabled.postValue(screencastTrack?.enabled)
         }
     }
 
