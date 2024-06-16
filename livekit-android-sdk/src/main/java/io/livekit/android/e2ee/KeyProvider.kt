@@ -43,13 +43,14 @@ public interface KeyProvider {
 
 class BaseKeyProvider
 constructor(
-    private var ratchetSalt: String,
-    private var uncryptedMagicBytes: String,
-    private var ratchetWindowSize: Int,
+    private var ratchetSalt: String = defaultRatchetSalt,
+    private var uncryptedMagicBytes: String = defaultMagicBytes,
+    private var ratchetWindowSize: Int = defaultRatchetWindowSize,
     override var enableSharedKey: Boolean = true,
-    private var failureTolerance: Int,
-) :
-    KeyProvider {
+    private var failureTolerance: Int = defaultFailureTolerance,
+    private var keyRingSize: Int = defaultKeyRingSize,
+    private var discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady,
+) : KeyProvider {
     private var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
         return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
@@ -109,6 +110,8 @@ constructor(
             ratchetWindowSize,
             uncryptedMagicBytes.toByteArray(),
             failureTolerance,
+            keyRingSize,
+            discardFrameWhenCryptorNotReady,
         )
     }
 }

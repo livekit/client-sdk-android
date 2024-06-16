@@ -78,7 +78,6 @@ dependencies {
     implementation libs.timber
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
-    api libs.webrtc
     api libs.okhttp
     api libs.audioswitch
     implementation libs.androidx.annotation

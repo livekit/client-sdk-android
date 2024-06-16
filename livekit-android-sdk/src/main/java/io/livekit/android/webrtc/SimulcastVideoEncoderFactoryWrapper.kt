@@ -17,7 +17,17 @@
 package io.livekit.android.webrtc
 
 import io.livekit.android.util.LKLog
-import livekit.org.webrtc.*
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.HardwareVideoEncoderFactory
+import livekit.org.webrtc.SimulcastVideoEncoderFactory
+import livekit.org.webrtc.SoftwareVideoEncoderFactory
+import livekit.org.webrtc.VideoCodecInfo
+import livekit.org.webrtc.VideoCodecStatus
+import livekit.org.webrtc.VideoEncoder
+import livekit.org.webrtc.VideoEncoderFactory
+import livekit.org.webrtc.VideoEncoderFallback
+import livekit.org.webrtc.VideoFrame
+import livekit.org.webrtc.WrappedNativeVideoEncoder
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -194,8 +204,8 @@ open class SimulcastVideoEncoderFactoryWrapper(
             return future.get()
         }
 
-        override fun createNativeVideoEncoder(): Long {
-            val future = executor.submit(Callable { return@Callable encoder.createNativeVideoEncoder() })
+        override fun createNative(webrtcEnvRef: Long): Long {
+            val future = executor.submit(Callable { return@Callable encoder.createNative(webrtcEnvRef) })
             return future.get()
         }
 

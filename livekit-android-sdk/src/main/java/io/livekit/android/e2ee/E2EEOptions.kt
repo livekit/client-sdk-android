@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,12 @@ package io.livekit.android.e2ee
 
 import livekit.LivekitModels.Encryption
 
-var defaultRatchetSalt = "LKFrameEncryptionKey"
-var defaultMagicBytes = "LK-ROCKS"
-var defaultRatchetWindowSize = 0
-var defaultFaultTolerance = -1
+internal const val defaultRatchetSalt = "LKFrameEncryptionKey"
+internal const val defaultMagicBytes = "LK-ROCKS"
+internal const val defaultRatchetWindowSize = 16
+internal const val defaultFailureTolerance = -1
+internal const val defaultKeyRingSize = 16
+internal const val defaultDiscardFrameWhenCryptorNotReady = false
 
 class E2EEOptions
 constructor(
@@ -30,7 +32,9 @@ constructor(
         defaultMagicBytes,
         defaultRatchetWindowSize,
         true,
-        defaultFaultTolerance,
+        defaultFailureTolerance,
+        defaultKeyRingSize,
+        defaultDiscardFrameWhenCryptorNotReady,
     ),
     encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
