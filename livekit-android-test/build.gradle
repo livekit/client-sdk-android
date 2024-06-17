@@ -31,7 +31,7 @@ android {
         targetCompatibility java_version
     }
     kotlinOptions {
-        freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
+        freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn", "-opt-in=io.livekit.android.annotations.Beta"]
         jvmTarget = java_version
     }
     testOptions {

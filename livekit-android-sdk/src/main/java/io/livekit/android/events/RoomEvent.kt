@@ -16,6 +16,7 @@
 
 package io.livekit.android.events
 
+import io.livekit.android.annotations.Beta
 import io.livekit.android.e2ee.E2EEState
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.ConnectionQuality
@@ -27,6 +28,7 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.types.TranscriptionSegment
 import livekit.LivekitModels
 
 sealed class RoomEvent(val room: Room) : Event() {
@@ -218,6 +220,23 @@ sealed class RoomEvent(val room: Room) : Event() {
         val publication: TrackPublication,
         val participant: Participant,
         var state: E2EEState,
+    ) : RoomEvent(room)
+
+    @Beta
+    class TranscriptionReceived(
+        room: Room,
+        /**
+         * The transcription segments.
+         */
+        val transcriptionSegments: List<TranscriptionSegment>,
+        /**
+         * The applicable participant these transcriptions apply to.
+         */
+        val participant: Participant?,
+        /**
+         * The applicable track publication these transcriptions apply to.
+         */
+        val publication: TrackPublication?,
     ) : RoomEvent(room)
 }
 

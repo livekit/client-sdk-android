@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.types.TranscriptionSegment
 
 sealed class ParticipantEvent(open val participant: Participant) : Event() {
     // all participants
@@ -151,5 +152,17 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
         override val participant: Participant,
         val newPermissions: ParticipantPermission?,
         val oldPermissions: ParticipantPermission?,
+    ) : ParticipantEvent(participant)
+
+    class TranscriptionReceived(
+        override val participant: Participant,
+        /**
+         * The transcription segments.
+         */
+        val transcriptions: List<TranscriptionSegment>,
+        /**
+         * The applicable track publication these transcriptions apply to.
+         */
+        val publication: TrackPublication?,
     ) : ParticipantEvent(participant)
 }
