@@ -20,6 +20,7 @@ import androidx.annotation.VisibleForTesting
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
@@ -362,6 +363,20 @@ open class Participant(
         val trackPublication = trackPublications[trackEvent.track.sid] ?: return
         eventBus.postEvent(
             ParticipantEvent.TrackStreamStateChanged(this, trackPublication, trackEvent.streamState),
+            scope,
+        )
+    }
+
+    internal fun onTranscriptionReceived(transcription: RoomEvent.TranscriptionReceived) {
+        if (transcription.participant != this) {
+            return
+        }
+        eventBus.postEvent(
+            ParticipantEvent.TranscriptionReceived(
+                this,
+                transcriptions = transcription.transcriptionSegments,
+                publication = transcription.publication,
+            ),
             scope,
         )
     }

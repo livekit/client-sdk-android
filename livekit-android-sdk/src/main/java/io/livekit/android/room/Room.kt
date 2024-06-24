@@ -42,6 +42,7 @@ import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.track.*
+import io.livekit.android.room.types.toSDKType
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
@@ -1002,6 +1003,26 @@ constructor(
 
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant, topic), coroutineScope)
         participant?.onDataReceived(data, topic)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onTranscriptionReceived(transcription: LivekitModels.Transcription) {
+        val participant = getParticipantByIdentity(transcription.transcribedParticipantIdentity)
+        val publication = participant?.trackPublications?.get(transcription.trackId)
+        val segments = transcription.segmentsList
+            .map { it.toSDKType() }
+
+        val event = RoomEvent.TranscriptionReceived(
+            room = this,
+            transcriptionSegments = segments,
+            participant = participant,
+            publication = publication,
+        )
+        eventBus.tryPostEvent(event)
+        participant?.onTranscriptionReceived(event)
+        // TODO: Emit for publication
     }
 
     /**

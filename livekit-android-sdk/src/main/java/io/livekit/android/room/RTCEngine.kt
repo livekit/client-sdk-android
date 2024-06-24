@@ -758,6 +758,7 @@ internal constructor(
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
+        fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
     }
 
     companion object {
@@ -981,7 +982,7 @@ internal constructor(
             }
 
             LivekitModels.DataPacket.ValueCase.TRANSCRIPTION -> {
-                // TODO
+                listener?.onTranscriptionReceived(dp.transcription)
             }
 
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,

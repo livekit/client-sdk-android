@@ -302,4 +302,25 @@ object TestData {
         }
         build()
     }
+
+    // Data packets
+
+    val DATA_PACKET_TRANSCRIPTION = with(LivekitModels.DataPacket.newBuilder()) {
+        transcription = with(LivekitModels.Transcription.newBuilder()) {
+            transcribedParticipantIdentity = JOIN.join.participant.identity // Local participant's identity
+            addSegments(
+                with(LivekitModels.TranscriptionSegment.newBuilder()) {
+                    id = "id"
+                    language = "enUS"
+                    text = "This is a transcription."
+                    startTime = 1
+                    endTime = 10
+                    final = true
+                    build()
+                },
+            )
+            build()
+        }
+        build()
+    }
 }
