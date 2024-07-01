@@ -33,7 +33,7 @@ class LocalTrackPublication(
      */
     override var muted: Boolean
         get() = super.muted
-        set(muted) {
+        public set(muted) {
             if (muted == this.muted) {
                 return
             }
