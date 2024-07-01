@@ -52,6 +52,16 @@ abstract class Track(
     var statsGetter: RTCStatsGetter? = null
 
     /**
+     * [MediaStreamTrack] doesn't expose a way to tell if it's disposed. Track it here.
+     * This can only be safely accessed on the rtc thread.
+     *
+     * Note: [MediaStreamTrack] can still be disposed if we don't own it, so this isn't necessarily safe,
+     * however generally all the tracks passed into this class are owned by this class.
+     */
+    internal var isDisposed = false
+        private set
+
+    /**
      * Return the [RTCStatsReport] for this track, or null if none is available.
      */
     suspend fun getRTCStats(): RTCStatsReport? = statsGetter?.getStats()
@@ -172,6 +182,7 @@ abstract class Track(
      */
     open fun dispose() {
         executeBlockingOnRTCThread {
+            isDisposed = true
             rtcTrack.dispose()
         }
     }
