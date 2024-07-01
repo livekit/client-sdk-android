@@ -35,8 +35,10 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
      */
     open fun addRenderer(renderer: VideoSink) {
         executeBlockingOnRTCThread {
-            sinks.add(renderer)
-            rtcTrack.addSink(renderer)
+            if (!isDisposed) {
+                sinks.add(renderer)
+                rtcTrack.addSink(renderer)
+            }
         }
     }
 
@@ -45,15 +47,19 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
      */
     open fun removeRenderer(renderer: VideoSink) {
         executeBlockingOnRTCThread {
-            rtcTrack.removeSink(renderer)
-            sinks.remove(renderer)
+            if (!isDisposed) {
+                rtcTrack.removeSink(renderer)
+                sinks.remove(renderer)
+            }
         }
     }
 
     override fun stop() {
         executeBlockingOnRTCThread {
-            for (sink in sinks) {
-                rtcTrack.removeSink(sink)
+            if (!isDisposed) {
+                for (sink in sinks) {
+                    rtcTrack.removeSink(sink)
+                }
             }
             sinks.clear()
         }
