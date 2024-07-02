@@ -9,7 +9,7 @@
 <!--END_BANNER_IMAGE-->
 
 # Android Kotlin SDK for LiveKit
-
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.livekit/livekit-android/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.livekit/livekit-android)
 <!--BEGIN_DESCRIPTION-->
 Use this SDK to add real-time video, audio and data features to your Android/Kotlin app. By connecting to a self- or cloud-hosted <a href="https://livekit.io/">LiveKit</a> server, you can quickly build applications like interactive live streaming or video calls with just a few lines of code.
 <!--END_DESCRIPTION-->
@@ -44,11 +44,15 @@ at [https://docs.livekit.io/client-sdk-android/index.html](https://docs.livekit.
 ## Installation
 
 LiveKit for Android is available as a Maven package.
-
 ```groovy title="build.gradle"
 ...
 dependencies {
-  implementation "io.livekit:livekit-android:2.5.0"
+  def livekit_version = "2.5.0"
+
+  implementation "io.livekit:livekit-android:$livekit_version"
+  // CameraX support with pinch to zoom, torch control, etc.
+  implementation "io.livekit:livekit-android-camerax:$livekit_version"
+
   // Snapshots of the latest development version are available at:
   // implementation "io.livekit:livekit-android:2.5.1-SNAPSHOT"
 }
