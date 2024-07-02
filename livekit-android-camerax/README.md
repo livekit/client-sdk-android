@@ -1,4 +1,5 @@
 # CameraX support for LiveKit Android SDK
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.livekit/livekit-android-camerax/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.livekit/livekit-android-camerax)
 
 This library provides an CameraX integration for use with the Android LiveKit SDK. This provides access to more camera functionality such as custom zoom and torch control.
 
