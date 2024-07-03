@@ -16,6 +16,9 @@
 
 package io.livekit.android.room.track
 
+import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.TrackPublicationEvent
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flowDelegate
@@ -43,6 +46,9 @@ open class TrackPublication(
         get() {
             return trackInfo?.encryption ?: LivekitModels.Encryption.Type.NONE
         }
+
+    protected val eventBus = BroadcastEventBus<TrackPublicationEvent>()
+    val events = eventBus.readOnly()
 
     @FlowObservable
     @get:FlowObservable
@@ -86,5 +92,18 @@ open class TrackPublication(
         mimeType = info.mimeType
 
         trackInfo = info
+    }
+
+
+    internal fun onTranscriptionReceived(transcription: RoomEvent.TranscriptionReceived) {
+        if (transcription.publication != this) {
+            return
+        }
+        eventBus.tryPostEvent(
+            TrackPublicationEvent.TranscriptionReceived(
+                publication = this,
+                transcriptions = transcription.transcriptionSegments,
+            ),
+        )
     }
 }

@@ -1022,7 +1022,7 @@ constructor(
         )
         eventBus.tryPostEvent(event)
         participant?.onTranscriptionReceived(event)
-        // TODO: Emit for publication
+        publication?.onTranscriptionReceived(event)
     }
 
     /**
