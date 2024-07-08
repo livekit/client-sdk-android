@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,26 @@
 
 package io.livekit.android.util
 
-import android.util.Log
+import io.livekit.android.LiveKit
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
-enum class LoggingLevel {
-    VERBOSE,
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR,
-    WTF,
-    OFF,
-    ;
+class LKLogTest {
 
-    fun toAndroidLogPriority(): Int {
-        return when (this) {
-            VERBOSE -> Log.VERBOSE
-            INFO -> Log.INFO
-            DEBUG -> Log.DEBUG
-            WARN -> Log.WARN
-            ERROR -> Log.ERROR
-            WTF -> Log.ERROR
-            OFF -> 0
-        }
+    @Test
+    fun log() {
+        var called = false
+        LiveKit.loggingLevel = LoggingLevel.INFO
+        LKLog.log(LoggingLevel.ERROR) { called = true }
+        assertTrue(called)
+    }
+
+    @Test
+    fun noLog() {
+        var called = false
+        LiveKit.loggingLevel = LoggingLevel.OFF
+        LKLog.log(LoggingLevel.VERBOSE) { called = true }
+        assertFalse(called)
     }
 }
