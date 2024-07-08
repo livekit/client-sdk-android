@@ -60,7 +60,7 @@ dependencies {
 
 Compose-based apps should check out our [Android Components SDK](https://github.com/livekit/components-android) for composables support.
 
-You'll also need jitpack as one of your repositories.
+You'll also need JitPack as one of your repositories. In your `settings.gradle` file:
 
 ```groovy title="settings.gradle"
 dependencyResolutionManagement {

@@ -28,12 +28,6 @@ subprojects {
         return
     }
 
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
-
     apply plugin: "com.diffplug.spotless"
     spotless {
         // optional: limit format enforcement to just the files changed by this feature branch
