@@ -109,10 +109,7 @@ internal class CustomAudioProcessingFactory() : AuthedAudioProcessingController 
         }
     }
 
-    private fun AudioProcessorInterface?.toAudioProcessing(): ExternalAudioProcessingFactory.AudioProcessing? {
-        if (this == null) {
-            return null
-        }
+    private fun AudioProcessorInterface?.toAudioProcessing(): ExternalAudioProcessingFactory.AudioProcessing {
         return AudioProcessingBridge(this)
     }
 }
