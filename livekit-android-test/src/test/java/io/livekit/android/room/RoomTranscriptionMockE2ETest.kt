@@ -16,10 +16,16 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.TrackPublicationEvent
+import io.livekit.android.room.participant.AudioTrackPublishOptions
+import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.TestData
@@ -33,26 +39,57 @@ class RoomTranscriptionMockE2ETest : MockE2ETest() {
     @Test
     fun transcriptionReceived() = runTest {
         connect()
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                "",
+                MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+            ),
+            options = AudioTrackPublishOptions(
+                source = Track.Source.MICROPHONE,
+            ),
+        )
         val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
         val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
         subPeerConnection.observer?.onDataChannel(subDataChannel)
 
-        val collector = EventCollector(room.events, coroutineRule.scope)
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
+        val publicationCollector = EventCollector(room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)!!.events, coroutineRule.scope)
+
         val dataBuffer = TestData.DATA_PACKET_TRANSCRIPTION.toDataChannelBuffer()
 
         subDataChannel.observer?.onMessage(dataBuffer)
-        val events = collector.stopCollecting()
 
-        assertEquals(1, events.size)
-        assertIsClass(RoomEvent.TranscriptionReceived::class.java, events[0])
+        val roomEvents = roomCollector.stopCollecting()
+        val participantEvents = participantCollector.stopCollecting()
+        val publicationEvents = publicationCollector.stopCollecting()
 
-        val event = events.first() as RoomEvent.TranscriptionReceived
-        assertEquals(room, event.room)
-        assertEquals(room.localParticipant, event.participant)
+        // Verify room events
+        run {
+            assertEquals(1, roomEvents.size)
+            assertIsClass(RoomEvent.TranscriptionReceived::class.java, roomEvents[0])
 
-        val expectedSegment = TestData.DATA_PACKET_TRANSCRIPTION.transcription.getSegments(0)
-        val receivedSegment = event.transcriptionSegments.first()
-        assertEquals(expectedSegment.id, receivedSegment.id)
-        assertEquals(expectedSegment.text, receivedSegment.text)
+            val event = roomEvents.first() as RoomEvent.TranscriptionReceived
+            assertEquals(room, event.room)
+            assertEquals(room.localParticipant, event.participant)
+            assertEquals(room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)!!, event.publication)
+
+            val expectedSegment = TestData.DATA_PACKET_TRANSCRIPTION.transcription.getSegments(0)
+            val receivedSegment = event.transcriptionSegments.first()
+            assertEquals(expectedSegment.id, receivedSegment.id)
+            assertEquals(expectedSegment.text, receivedSegment.text)
+        }
+
+        // Verify participant events
+        run {
+            assertEquals(1, participantEvents.size)
+            assertIsClass(ParticipantEvent.TranscriptionReceived::class.java, participantEvents[0])
+        }
+
+        // Verify publication events
+        run {
+            assertEquals(1, publicationEvents.size)
+            assertIsClass(TrackPublicationEvent.TranscriptionReceived::class.java, publicationEvents[0])
+        }
     }
 }

@@ -316,6 +316,7 @@ object TestData {
                     startTime = 1
                     endTime = 10
                     final = true
+                    trackId = LOCAL_AUDIO_TRACK.sid
                     build()
                 },
             )
