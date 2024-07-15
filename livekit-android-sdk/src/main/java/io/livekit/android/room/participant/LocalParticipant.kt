@@ -47,8 +47,10 @@ import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flow
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
@@ -76,6 +78,7 @@ internal constructor(
     private val eglBase: EglBase,
     private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory,
     private val videoTrackFactory: LocalVideoTrack.Factory,
+    private val audioTrackFactory: LocalAudioTrack.Factory,
     private val defaultsManager: DefaultsManager,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     coroutineDispatcher: CoroutineDispatcher,
@@ -94,6 +97,8 @@ internal constructor(
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
+    private val jobs = mutableMapOf<Any, Job>()
+
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
      *
@@ -103,7 +108,7 @@ internal constructor(
         name: String = "",
         options: LocalAudioTrackOptions = audioTrackCaptureDefaults,
     ): LocalAudioTrack {
-        return LocalAudioTrack.createTrack(context, peerConnectionFactory, options, name)
+        return LocalAudioTrack.createTrack(context, peerConnectionFactory, options, audioTrackFactory, name)
     }
 
     /**
@@ -295,7 +300,7 @@ internal constructor(
                 }
             },
         )
-        publishTrackImpl(
+        val publication = publishTrackImpl(
             track = track,
             options = options,
             requestConfig = {
@@ -306,6 +311,15 @@ internal constructor(
             encodings = encodings,
             publishListener = publishListener,
         )
+
+        if (publication != null) {
+            val job = scope.launch {
+                track::features.flow.collect {
+                    engine.updateLocalAudioTrack(publication.sid, it)
+                }
+            }
+            jobs[publication] = job
+        }
     }
 
     /**
@@ -379,14 +393,14 @@ internal constructor(
         requestConfig: AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null,
-    ): Boolean {
+    ): LocalTrackPublication? {
         @Suppress("NAME_SHADOWING") var options = options
 
         @Suppress("NAME_SHADOWING") var encodings = encodings
 
         if (localTrackPublications.any { it.track == track }) {
             publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
-            return false
+            return null
         }
 
         val cid = track.rtcTrack.id()
@@ -435,7 +449,7 @@ internal constructor(
 
         if (transceiver == null) {
             publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
-            return false
+            return null
         }
 
         track.statsGetter = engine.createStatsGetter(transceiver.sender)
@@ -475,7 +489,7 @@ internal constructor(
         internalListener?.onTrackPublished(publication, this)
         eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
 
-        return true
+        return publication
     }
 
     private fun computeVideoEncodings(
@@ -604,6 +618,12 @@ internal constructor(
         if (publication === null) {
             LKLog.d { "this track was never published." }
             return
+        }
+
+        val publicationJob = jobs[publication]
+        if (publicationJob != null) {
+            publicationJob.cancel()
+            jobs.remove(publicationJob)
         }
 
         val sid = publication.sid

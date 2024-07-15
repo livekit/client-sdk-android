@@ -17,14 +17,18 @@
 package io.livekit.android.room
 
 import android.net.Network
-import io.livekit.android.events.*
+import io.livekit.android.events.DisconnectReason
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.convert
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.events.FlowCollector
+import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockMediaStream
 import io.livekit.android.test.mock.MockRtpReceiver
@@ -335,8 +339,11 @@ class RoomMockE2ETest : MockE2ETest() {
 
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
-                "",
-                MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                name = "",
+                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                options = LocalAudioTrackOptions(),
+                audioProcessingController = MockAudioProcessingController(),
+                dispatcher = coroutineRule.dispatcher,
             ),
         )
 
@@ -381,8 +388,11 @@ class RoomMockE2ETest : MockE2ETest() {
         }
         room.localParticipant.publishAudioTrack(
             LocalAudioTrack(
-                "",
-                MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                name = "",
+                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                options = LocalAudioTrackOptions(),
+                audioProcessingController = MockAudioProcessingController(),
+                dispatcher = coroutineRule.dispatcher,
             ),
         )
 

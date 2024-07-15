@@ -20,23 +20,50 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.flow
+import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import livekit.LivekitModels.AudioTrackFeature
 import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import java.util.UUID
+import javax.inject.Named
 
 /**
  * Represents a local audio track (generally using the microphone as input).
  *
  * This class should not be constructed directly, but rather through [LocalParticipant.createAudioTrack].
  */
-class LocalAudioTrack(
-    name: String,
-    mediaTrack: livekit.org.webrtc.AudioTrack
+class LocalAudioTrack
+@AssistedInject
+constructor(
+    @Assisted name: String,
+    @Assisted mediaTrack: livekit.org.webrtc.AudioTrack,
+    @Assisted private val options: LocalAudioTrackOptions,
+    private val audioProcessingController: AudioProcessingController,
+    @Named(InjectionNames.DISPATCHER_DEFAULT)
+    private val dispatcher: CoroutineDispatcher,
 ) : AudioTrack(name, mediaTrack) {
+    /**
+     * To only be used for flow delegate scoping, and should not be cancelled.
+     **/
+    private val delegateScope = CoroutineScope(dispatcher + SupervisorJob())
     var enabled: Boolean
         get() = executeBlockingOnRTCThread { rtcTrack.enabled() }
         set(value) {
@@ -47,12 +74,52 @@ class LocalAudioTrack(
     internal val sender: RtpSender?
         get() = transceiver?.sender
 
+    /**
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    @FlowObservable
+    @get:FlowObservable
+    val features by flowDelegate(
+        stateFlow = combine(
+            audioProcessingController::capturePostProcessor.flow,
+            audioProcessingController::bypassCapturePostProcessing.flow,
+        ) { processor, bypass ->
+            processor to bypass
+        }
+            .map {
+                val features = getConstantFeatures()
+                val (processor, bypass) = it
+                if (!bypass && processor?.getName() == "krisp_noise_cancellation") {
+                    features.add(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION)
+                }
+                return@map features
+            }
+            .stateIn(delegateScope, SharingStarted.Eagerly, emptySet()),
+    )
+
+    private fun getConstantFeatures(): MutableSet<AudioTrackFeature> {
+        val features = mutableSetOf<AudioTrackFeature>()
+
+        if (options.echoCancellation) {
+            features.add(AudioTrackFeature.TF_ECHO_CANCELLATION)
+        }
+        if (options.noiseSuppression) {
+            features.add(AudioTrackFeature.TF_NOISE_SUPPRESSION)
+        }
+        if (options.autoGainControl) {
+            features.add(AudioTrackFeature.TF_AUTO_GAIN_CONTROL)
+        }
+        // TODO: Handle getting other info from JavaAudioDeviceModule
+        return features
+    }
+
     companion object {
         internal fun createTrack(
             context: Context,
             factory: PeerConnectionFactory,
             options: LocalAudioTrackOptions = LocalAudioTrackOptions(),
-            name: String = ""
+            audioTrackFactory: Factory,
+            name: String = "",
         ): LocalAudioTrack {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
                 PackageManager.PERMISSION_GRANTED
@@ -74,7 +141,16 @@ class LocalAudioTrack(
             val rtcAudioTrack =
                 factory.createAudioTrack(UUID.randomUUID().toString(), audioSource)
 
-            return LocalAudioTrack(name = name, mediaTrack = rtcAudioTrack)
+            return audioTrackFactory.create(name = name, mediaTrack = rtcAudioTrack, options = options)
         }
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            name: String,
+            mediaTrack: livekit.org.webrtc.AudioTrack,
+            options: LocalAudioTrackOptions,
+        ): LocalAudioTrack
     }
 }
