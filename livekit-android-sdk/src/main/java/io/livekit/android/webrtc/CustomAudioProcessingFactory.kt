@@ -20,6 +20,7 @@ import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.AuthedAudioProcessorInterface
+import io.livekit.android.util.flowDelegate
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
@@ -37,32 +38,25 @@ internal class CustomAudioProcessingFactory() : AuthedAudioProcessingController 
 
     private val externalAudioProcessor = ExternalAudioProcessingFactory()
 
-    override var capturePostProcessor: AudioProcessorInterface? = null
-        set(value) {
-            field = value
-            externalAudioProcessor.setCapturePostProcessing(
-                value.toAudioProcessing(),
-            )
-        }
-    override var renderPreProcessor: AudioProcessorInterface? = null
-        set(value) {
-            field = value
-            externalAudioProcessor.setRenderPreProcessing(
-                value.toAudioProcessing(),
-            )
-        }
+    override var capturePostProcessor: AudioProcessorInterface? by flowDelegate(null) { value, _ ->
+        externalAudioProcessor.setCapturePostProcessing(
+            value.toAudioProcessing(),
+        )
+    }
 
-    override var bypassCapturePostProcessing: Boolean = false
-        set(value) {
-            field = value
-            externalAudioProcessor.setBypassFlagForCapturePost(value)
-        }
+    override var renderPreProcessor: AudioProcessorInterface? by flowDelegate(null) { value, _ ->
+        externalAudioProcessor.setRenderPreProcessing(
+            value.toAudioProcessing(),
+        )
+    }
 
-    override var bypassRenderPreProcessing: Boolean = false
-        set(value) {
-            field = value
-            externalAudioProcessor.setBypassFlagForRenderPre(value)
-        }
+    override var bypassCapturePostProcessing: Boolean by flowDelegate(false) { value, _ ->
+        externalAudioProcessor.setBypassFlagForCapturePost(value)
+    }
+
+    override var bypassRenderPreProcessing: Boolean by flowDelegate(false) { value, _ ->
+        externalAudioProcessor.setBypassFlagForRenderPre(value)
+    }
 
     fun getAudioProcessingFactory(): AudioProcessingFactory {
         return externalAudioProcessor
