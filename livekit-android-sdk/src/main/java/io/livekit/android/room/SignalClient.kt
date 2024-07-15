@@ -29,22 +29,34 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.toProtoSessionDescription
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import livekit.LivekitModels
+import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
 import livekit.org.webrtc.IceCandidate
 import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.SessionDescription
-import okhttp3.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import java.util.*
+import java.util.Date
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -550,6 +562,19 @@ constructor(
         )
 
         return time
+    }
+
+    fun sendUpdateLocalAudioTrack(trackSid: String, features: Collection<AudioTrackFeature>) {
+        val request = with(LivekitRtc.SignalRequest.newBuilder()) {
+            updateAudioTrack = with(LivekitRtc.UpdateLocalAudioTrack.newBuilder()) {
+                setTrackSid(trackSid)
+                addAllFeatures(features)
+                build()
+            }
+            build()
+        }
+
+        sendRequest(request)
     }
 
     private fun sendRequest(request: LivekitRtc.SignalRequest) {

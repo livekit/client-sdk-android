@@ -55,6 +55,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.yield
 import livekit.LivekitModels
+import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
 import livekit.LivekitRtc.ReconnectResponse
@@ -346,6 +347,10 @@ internal constructor(
 
     fun updateMuteStatus(sid: String, muted: Boolean) {
         client.sendMuteTrack(sid, muted)
+    }
+
+    fun updateLocalAudioTrack(sid: String, features: Collection<AudioTrackFeature>) {
+        client.sendUpdateLocalAudioTrack(sid, features)
     }
 
     fun close(reason: String = "Normal Closure") {

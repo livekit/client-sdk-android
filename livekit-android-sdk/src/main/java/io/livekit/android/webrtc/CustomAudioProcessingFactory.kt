@@ -19,61 +19,78 @@ package io.livekit.android.webrtc
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AuthedAudioProcessingController
-import io.livekit.android.audio.authenticateProcessors
+import io.livekit.android.audio.AuthedAudioProcessorInterface
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.ExternalAudioProcessingFactory
 import java.nio.ByteBuffer
 
-class CustomAudioProcessingFactory(private var audioProcessorOptions: AudioProcessorOptions) : AuthedAudioProcessingController {
+/**
+ * @suppress
+ */
+internal class CustomAudioProcessingFactory() : AuthedAudioProcessingController {
+    constructor(audioProcessorOptions: AudioProcessorOptions) : this() {
+        capturePostProcessor = audioProcessorOptions.capturePostProcessor
+        renderPreProcessor = audioProcessorOptions.renderPreProcessor
+        bypassCapturePostProcessing = audioProcessorOptions.capturePostBypass
+        bypassRenderPreProcessing = audioProcessorOptions.renderPreBypass
+    }
 
     private val externalAudioProcessor = ExternalAudioProcessingFactory()
 
-    init {
-        if (audioProcessorOptions.capturePostProcessor != null) {
-            setCapturePostProcessing(audioProcessorOptions.capturePostProcessor)
-        } else {
-            setCapturePostProcessing(null)
-            setBypassForCapturePostProcessing(false)
+    override var capturePostProcessor: AudioProcessorInterface? = null
+        set(value) {
+            field = value
+            externalAudioProcessor.setCapturePostProcessing(
+                value.toAudioProcessing(),
+            )
         }
-        if (audioProcessorOptions.renderPreProcessor != null) {
-            setRenderPreProcessing(audioProcessorOptions.renderPreProcessor)
-            setBypassForRenderPreProcessing(audioProcessorOptions.renderPreBypass)
-        } else {
-            setRenderPreProcessing(null)
-            setBypassForRenderPreProcessing(false)
+    override var renderPreProcessor: AudioProcessorInterface? = null
+        set(value) {
+            field = value
+            externalAudioProcessor.setRenderPreProcessing(
+                value.toAudioProcessing(),
+            )
         }
-    }
+
+    override var bypassCapturePostProcessing: Boolean = false
+        set(value) {
+            field = value
+            externalAudioProcessor.setBypassFlagForCapturePost(value)
+        }
+
+    override var bypassRenderPreProcessing: Boolean = false
+        set(value) {
+            field = value
+            externalAudioProcessor.setBypassFlagForRenderPre(value)
+        }
 
     fun getAudioProcessingFactory(): AudioProcessingFactory {
         return externalAudioProcessor
     }
 
     override fun authenticate(url: String, token: String) {
-        audioProcessorOptions.authenticateProcessors(url, token)
+        (capturePostProcessor as? AuthedAudioProcessorInterface)?.authenticate(url, token)
+        (renderPreProcessor as? AuthedAudioProcessorInterface)?.authenticate(url, token)
     }
 
+    @Deprecated("Use the capturePostProcessing variable directly instead", ReplaceWith("capturePostProcessor = processing"))
     override fun setCapturePostProcessing(processing: AudioProcessorInterface?) {
-        audioProcessorOptions = audioProcessorOptions.copy(capturePostProcessor = processing)
-        externalAudioProcessor.setCapturePostProcessing(
-            processing.toAudioProcessing(),
-        )
+        capturePostProcessor = processing
     }
 
-    override fun setBypassForCapturePostProcessing(bypass: Boolean) {
-        audioProcessorOptions = audioProcessorOptions.copy(capturePostBypass = bypass)
-        externalAudioProcessor.setBypassFlagForCapturePost(bypass)
-    }
-
+    @Deprecated("Use the renderPreProcessing variable directly instead", ReplaceWith("renderPreProcessor = processing"))
     override fun setRenderPreProcessing(processing: AudioProcessorInterface?) {
-        audioProcessorOptions = audioProcessorOptions.copy(renderPreProcessor = processing)
-        externalAudioProcessor.setRenderPreProcessing(
-            processing.toAudioProcessing(),
-        )
+        renderPreProcessor = processing
     }
 
+    @Deprecated("Use the bypassCapturePostProcessing variable directly instead", ReplaceWith("bypassCapturePostProcessing = bypass"))
+    override fun setBypassForCapturePostProcessing(bypass: Boolean) {
+        bypassCapturePostProcessing = bypass
+    }
+
+    @Deprecated("Use the bypassRendererPreProcessing variable directly instead", ReplaceWith("bypassRenderPreProcessing = bypass"))
     override fun setBypassForRenderPreProcessing(bypass: Boolean) {
-        audioProcessorOptions = audioProcessorOptions.copy(renderPreBypass = bypass)
-        externalAudioProcessor.setBypassFlagForRenderPre(bypass)
+        bypassRenderPreProcessing = bypass
     }
 
     private class AudioProcessingBridge(
@@ -92,7 +109,10 @@ class CustomAudioProcessingFactory(private var audioProcessorOptions: AudioProce
         }
     }
 
-    private fun AudioProcessorInterface?.toAudioProcessing(): ExternalAudioProcessingFactory.AudioProcessing {
+    private fun AudioProcessorInterface?.toAudioProcessing(): ExternalAudioProcessingFactory.AudioProcessing? {
+        if (this == null) {
+            return null
+        }
         return AudioProcessingBridge(this)
     }
 }

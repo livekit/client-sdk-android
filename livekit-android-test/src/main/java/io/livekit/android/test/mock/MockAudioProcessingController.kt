@@ -18,8 +18,27 @@ package io.livekit.android.test.mock
 
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorInterface
+import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.flowDelegate
 
 class MockAudioProcessingController : AudioProcessingController {
+
+    @FlowObservable
+    @get:FlowObservable
+    override var capturePostProcessor: AudioProcessorInterface? by flowDelegate(null)
+
+    @FlowObservable
+    @get:FlowObservable
+    override var renderPreProcessor: AudioProcessorInterface? by flowDelegate(null)
+
+    @FlowObservable
+    @get:FlowObservable
+    override var bypassRenderPreProcessing: Boolean by flowDelegate(false)
+
+    @FlowObservable
+    @get:FlowObservable
+    override var bypassCapturePostProcessing: Boolean by flowDelegate(false)
+
     override fun setCapturePostProcessing(processing: AudioProcessorInterface?) {
     }
 
