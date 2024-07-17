@@ -30,6 +30,6 @@ interface EventListenable<out T> {
 /**
  * @see [Flow.collect]
  */
-suspend inline fun <T> EventListenable<T>.collect(crossinline action: suspend (value: T) -> Unit) {
+suspend inline fun <T> EventListenable<T>.collect(crossinline action: suspend (value: T) -> Unit): Nothing {
     events.collect { value -> action(value) }
 }
