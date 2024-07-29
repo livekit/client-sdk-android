@@ -29,6 +29,7 @@ import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
+import io.livekit.android.room.util.waitUntilConnected
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
@@ -49,10 +50,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
@@ -66,6 +69,7 @@ import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.MediaStream
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.PeerConnection
+import livekit.org.webrtc.PeerConnection.PeerConnectionState
 import livekit.org.webrtc.PeerConnection.RTCConfiguration
 import livekit.org.webrtc.RTCStatsCollectorCallback
 import livekit.org.webrtc.RTCStatsReport
@@ -246,7 +250,7 @@ internal constructor(
                     null,
                 )
 
-                val connectionStateListener: (PeerConnection.PeerConnectionState) -> Unit = { newState ->
+                val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
                     if (newState.isConnected()) {
                         connectionState = ConnectionState.CONNECTED
@@ -528,31 +532,21 @@ internal constructor(
                 }
 
                 // wait until publisher ICE connected
-                val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
+                var publisherWaitJob: Job? = null
                 if (hasPublished) {
-                    while (SystemClock.elapsedRealtime() < endTime) {
-                        if (publisher?.isConnected() == true) {
-                            LKLog.v { "publisher reconnected to ICE" }
-                            break
-                        }
-                        delay(100)
+                    publisherWaitJob = launch {
+                        publisherObserver.waitUntilConnected()
                     }
-                }
-
-                ensureActive()
-                if (isClosed) {
-                    LKLog.v { "RTCEngine closed, aborting reconnection" }
-                    break
                 }
 
                 // wait until subscriber ICE connected
-                while (SystemClock.elapsedRealtime() < endTime) {
-                    if (subscriber?.isConnected() == true) {
-                        LKLog.v { "reconnected to ICE" }
-                        connectionState = ConnectionState.CONNECTED
-                        break
-                    }
-                    delay(100)
+                val subscriberWaitJob = launch {
+                    subscriberObserver.waitUntilConnected()
+                }
+
+                withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
+                    listOfNotNull(publisherWaitJob, subscriberWaitJob)
+                        .joinAll()
                 }
 
                 ensureActive()
@@ -1160,3 +1154,5 @@ fun LivekitRtc.ICEServer.toWebrtc(): PeerConnection.IceServer = PeerConnection.I
     .setTlsAlpnProtocols(emptyList())
     .setTlsEllipticCurves(emptyList())
     .createIceServer()
+
+typealias PeerConnectionStateListener = (PeerConnectionState) -> Unit

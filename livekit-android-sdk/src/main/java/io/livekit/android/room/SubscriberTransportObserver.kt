@@ -16,7 +16,10 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.room.util.PeerConnectionStateObservable
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitRtc
 import livekit.org.webrtc.CandidatePairChangeEvent
@@ -34,10 +37,15 @@ import livekit.org.webrtc.RtpTransceiver
 class SubscriberTransportObserver(
     private val engine: RTCEngine,
     private val client: SignalClient,
-) : PeerConnection.Observer {
+) : PeerConnection.Observer, PeerConnectionStateObservable {
 
     var dataChannelListener: ((DataChannel) -> Unit)? = null
-    var connectionChangeListener: ((PeerConnection.PeerConnectionState) -> Unit)? = null
+    var connectionChangeListener: PeerConnectionStateListener? = null
+
+    @FlowObservable
+    @get:FlowObservable
+    override var connectionState by flowDelegate(PeerConnection.PeerConnectionState.NEW)
+        private set
 
     override fun onIceCandidate(candidate: IceCandidate) {
         executeOnRTCThread {
@@ -75,6 +83,7 @@ class SubscriberTransportObserver(
         executeOnRTCThread {
             LKLog.v { "onConnectionChange new state: $newState" }
             connectionChangeListener?.invoke(newState)
+            connectionState = newState
         }
     }
 
