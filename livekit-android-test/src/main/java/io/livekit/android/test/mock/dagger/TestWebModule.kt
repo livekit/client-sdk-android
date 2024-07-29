@@ -23,6 +23,7 @@ import dagger.Reusable
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
+import io.livekit.android.room.util.ConnectionWarmer
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.NetworkType
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
@@ -46,6 +47,15 @@ object TestWebModule {
                     .build()
             }
             .build()
+    }
+
+    @Provides
+    fun connectionWarmer(): ConnectionWarmer {
+        return object : ConnectionWarmer {
+            override suspend fun fetch(url: String): Response {
+                return Response.Builder().code(200).build()
+            }
+        }
     }
 
     @Provides

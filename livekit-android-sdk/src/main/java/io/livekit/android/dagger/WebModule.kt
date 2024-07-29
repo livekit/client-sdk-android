@@ -27,6 +27,8 @@ import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.network.NetworkCallbackRegistry
 import io.livekit.android.room.network.NetworkCallbackRegistryImpl
+import io.livekit.android.room.util.ConnectionWarmer
+import io.livekit.android.room.util.OkHttpConnectionWarmer
 import io.livekit.android.stats.AndroidNetworkInfo
 import io.livekit.android.stats.NetworkInfo
 import okhttp3.OkHttpClient
@@ -45,6 +47,9 @@ internal object WebModule {
     ): OkHttpClient {
         return okHttpClientOverride ?: OkHttpClient()
     }
+
+    @Provides
+    fun connectionWarmer(okHttpConnectionWarmer: OkHttpConnectionWarmer): ConnectionWarmer = okHttpConnectionWarmer
 
     @Provides
     fun websocketFactory(okHttpClient: OkHttpClient): WebSocket.Factory {

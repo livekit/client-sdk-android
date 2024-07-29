@@ -43,6 +43,7 @@ import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.track.*
 import io.livekit.android.room.types.toSDKType
+import io.livekit.android.room.util.ConnectionWarmer
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
@@ -59,6 +60,7 @@ import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.*
 import livekit.org.webrtc.audio.AudioDeviceModule
+import java.net.URI
 import javax.inject.Named
 
 class Room
@@ -84,6 +86,8 @@ constructor(
     val lkObjects: LKObjects,
     networkCallbackManagerFactory: NetworkCallbackManagerFactory,
     private val audioDeviceModule: AudioDeviceModule,
+    private val regionUrlProviderFactory: RegionUrlProvider.Factory,
+    private val connectionWarmer: ConnectionWarmer,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -263,6 +267,9 @@ constructor(
 
     private var stateLock = Mutex()
 
+    private var regionUrlProvider: RegionUrlProvider? = null
+    private var regionUrl: String? = null
+
     private fun getCurrentRoomOptions(): RoomOptions =
         RoomOptions(
             adaptiveStream = adaptiveStream,
@@ -273,6 +280,44 @@ constructor(
             videoTrackPublishDefaults = videoTrackPublishDefaults,
             e2eeOptions = e2eeOptions,
         )
+
+    /**
+     * prepareConnection should be called as soon as the page is loaded, in order
+     * to speed up the connection attempt. This function will
+     * - perform DNS resolution and pre-warm the DNS cache
+     * - establish TLS connection and cache TLS keys
+     *
+     * With LiveKit Cloud, it will also determine the best edge data center for
+     * the current client to connect to if a token is provided.
+     */
+    suspend fun prepareConnection(url: String, token: String? = null) {
+        if (state != State.DISCONNECTED) {
+            LKLog.i { "Room is not in disconnected state, ignoring prepareConnection call." }
+            return
+        }
+        LKLog.d { "preparing connection to $url" }
+
+        try {
+            val urlActual = URI(url)
+            if (urlActual.isLKCloud() && token != null) {
+                val regionUrlProvider = regionUrlProviderFactory.create(urlActual, token)
+                this.regionUrlProvider = regionUrlProvider
+
+                val regionUrl = regionUrlProvider.getNextBestRegionUrl()
+                // we will not replace the regionUrl if an attempt had already started
+                // to avoid overriding regionUrl after a new connection attempt had started
+                if (regionUrl != null && state == State.DISCONNECTED) {
+                    this.regionUrl = regionUrl
+                    connectionWarmer.fetch(regionUrl)
+                    LKLog.d { "prepared connection to $regionUrl" }
+                }
+            } else {
+                connectionWarmer.fetch(url)
+            }
+        } catch (e: Exception) {
+            LKLog.e(e) { "Error while preparing connection:" }
+        }
+    }
 
     /**
      * Connect to a LiveKit Room.
@@ -309,60 +354,7 @@ constructor(
 
             // Setup local participant.
             localParticipant.reinitialize()
-            coroutineScope.launch {
-                localParticipant.events.collect {
-                    when (it) {
-                        is ParticipantEvent.TrackPublished -> emitWhenConnected(
-                            RoomEvent.TrackPublished(
-                                room = this@Room,
-                                publication = it.publication,
-                                participant = it.participant,
-                            ),
-                        )
-
-                        is ParticipantEvent.TrackUnpublished -> emitWhenConnected(
-                            RoomEvent.TrackUnpublished(
-                                room = this@Room,
-                                publication = it.publication,
-                                participant = it.participant,
-                            ),
-                        )
-
-                        is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
-                            RoomEvent.ParticipantPermissionsChanged(
-                                room = this@Room,
-                                participant = it.participant,
-                                newPermissions = it.newPermissions,
-                                oldPermissions = it.oldPermissions,
-                            ),
-                        )
-
-                        is ParticipantEvent.MetadataChanged -> {
-                            emitWhenConnected(
-                                RoomEvent.ParticipantMetadataChanged(
-                                    this@Room,
-                                    it.participant,
-                                    it.prevMetadata,
-                                ),
-                            )
-                        }
-
-                        is ParticipantEvent.NameChanged -> {
-                            emitWhenConnected(
-                                RoomEvent.ParticipantNameChanged(
-                                    this@Room,
-                                    it.participant,
-                                    it.name,
-                                ),
-                            )
-                        }
-
-                        else -> {
-                            // do nothing
-                        }
-                    }
-                }
-            }
+            setupLocalParticipantEventHandling()
 
             if (roomOptions.e2eeOptions != null) {
                 e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
@@ -384,7 +376,55 @@ constructor(
             if (audioProcessingController is AuthedAudioProcessingController) {
                 audioProcessingController.authenticate(url, token)
             }
-            engine.join(url, token, options, roomOptions)
+
+            // Don't use URL equals.
+            if (regionUrlProvider?.serverUrl.toString() != url) {
+                regionUrl = null
+                regionUrlProvider = null
+            }
+
+            val urlObj = URI(url)
+            if (urlObj.isLKCloud()) {
+                if (regionUrlProvider == null) {
+                    regionUrlProvider = regionUrlProviderFactory.create(urlObj, token)
+                } else {
+                    regionUrlProvider?.token = token
+                }
+
+                // trigger the first fetch without waiting for a response
+                // if initial connection fails, this will speed up picking regional url
+                // on subsequent runs
+                launch {
+                    try {
+                        regionUrlProvider?.fetchRegionSettings()
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "could not fetch region settings" }
+                    }
+                }
+            }
+
+
+            var nextUrl: String? = regionUrl ?: url
+            regionUrl = null
+
+            while (nextUrl != null) {
+                val connectUrl = nextUrl
+                nextUrl = null
+                try {
+                    engine.regionUrlProvider = regionUrlProvider
+                    engine.join(connectUrl, token, options, roomOptions)
+                } catch (e: Exception) {
+                    if (e is CancellationException) {
+                        throw e // rethrow to properly cancel.
+                    }
+
+                    nextUrl = regionUrlProvider?.getNextBestRegionUrl()
+                    if (nextUrl != null) {
+                        LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
+                    }
+                }
+            }
+
             ensureActive()
             networkCallbackManager.registerCallback()
             if (options.audio) {
@@ -491,6 +531,63 @@ constructor(
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach { info ->
                 getOrCreateRemoteParticipant(Participant.Identity(info.identity), info)
+            }
+        }
+    }
+
+    private fun setupLocalParticipantEventHandling() {
+        coroutineScope.launch {
+            localParticipant.events.collect {
+                when (it) {
+                    is ParticipantEvent.TrackPublished -> emitWhenConnected(
+                        RoomEvent.TrackPublished(
+                            room = this@Room,
+                            publication = it.publication,
+                            participant = it.participant,
+                        ),
+                    )
+
+                    is ParticipantEvent.TrackUnpublished -> emitWhenConnected(
+                        RoomEvent.TrackUnpublished(
+                            room = this@Room,
+                            publication = it.publication,
+                            participant = it.participant,
+                        ),
+                    )
+
+                    is ParticipantEvent.ParticipantPermissionsChanged -> emitWhenConnected(
+                        RoomEvent.ParticipantPermissionsChanged(
+                            room = this@Room,
+                            participant = it.participant,
+                            newPermissions = it.newPermissions,
+                            oldPermissions = it.oldPermissions,
+                        ),
+                    )
+
+                    is ParticipantEvent.MetadataChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantMetadataChanged(
+                                this@Room,
+                                it.participant,
+                                it.prevMetadata,
+                            ),
+                        )
+                    }
+
+                    is ParticipantEvent.NameChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantNameChanged(
+                                this@Room,
+                                it.participant,
+                                it.name,
+                            ),
+                        )
+                    }
+
+                    else -> {
+                        // do nothing
+                    }
+                }
             }
         }
     }

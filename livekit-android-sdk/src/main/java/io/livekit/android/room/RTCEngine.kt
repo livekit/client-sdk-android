@@ -135,6 +135,9 @@ internal constructor(
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
+
+
+    internal var regionUrlProvider: RegionUrlProvider? = null
     private var sessionUrl: String? = null
     private var sessionToken: String? = null
     private var connectOptions: ConnectOptions? = null
@@ -368,6 +371,7 @@ internal constructor(
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
+        regionUrlProvider = null
         closeResources(reason)
         connectionState = ConnectionState.DISCONNECTED
     }
@@ -418,7 +422,7 @@ internal constructor(
             LKLog.d { "Skip reconnection - engine is closed" }
             return
         }
-        val url = sessionUrl
+        var url = sessionUrl
         val token = sessionToken
         if (url == null || token == null) {
             LKLog.w { "couldn't reconnect, no url or no token" }
@@ -432,6 +436,15 @@ internal constructor(
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
+                // First try use previously valid url.
+                if (retries != 0) {
+                    try {
+                        url = regionUrlProvider?.getNextBestRegionUrl() ?: url
+                    } catch (e: Exception) {
+                        LKLog.d(e) { "Exception while getting next best region url while reconnecting." }
+                    }
+                }
+
                 ensureActive()
                 if (retries != 0) {
                     yield()
@@ -469,7 +482,7 @@ internal constructor(
                     try {
                         closeResources("Full Reconnecting")
                         listener?.onFullReconnecting()
-                        joinImpl(url, token, connectOptions, lastRoomOptions ?: RoomOptions())
+                        joinImpl(url!!, token, connectOptions, lastRoomOptions ?: RoomOptions())
                     } catch (e: Exception) {
                         LKLog.w(e) { "Error during reconnection." }
                         // reconnect failed, retry.
@@ -484,7 +497,7 @@ internal constructor(
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber?.prepareForIceRestart()
                     try {
-                        val response = client.reconnect(url, token, participantSid)
+                        val response = client.reconnect(url!!, token, participantSid)
                         if (response is Either.Left) {
                             val reconnectResponse = response.value
                             val rtcConfig = makeRTCConfig(Either.Right(reconnectResponse), connectOptions)
@@ -514,7 +527,7 @@ internal constructor(
                     break
                 }
 
-                // wait until ICE connected
+                // wait until publisher ICE connected
                 val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
                 if (hasPublished) {
                     while (SystemClock.elapsedRealtime() < endTime) {
@@ -532,6 +545,7 @@ internal constructor(
                     break
                 }
 
+                // wait until subscriber ICE connected
                 while (SystemClock.elapsedRealtime() < endTime) {
                     if (subscriber?.isConnected() == true) {
                         LKLog.v { "reconnected to ICE" }
@@ -546,14 +560,18 @@ internal constructor(
                     LKLog.v { "RTCEngine closed, aborting reconnection" }
                     break
                 }
+
                 if (connectionState == ConnectionState.CONNECTED &&
                     (!hasPublished || publisher?.isConnected() == true)
                 ) {
+                    // Is connected, notify and return.
+                    regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
 
+                // Didn't manage to reconnect, check if should continue to next attempt.
                 val curReconnectTime = SystemClock.elapsedRealtime() - reconnectStartTime
                 if (curReconnectTime > MAX_RECONNECT_TIMEOUT) {
                     break
@@ -954,6 +972,7 @@ internal constructor(
 
     override fun onRefreshToken(token: String) {
         sessionToken = token
+        regionUrlProvider?.token = token
     }
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {

@@ -39,6 +39,7 @@ import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockLKObjects
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.room.util.MockConnectionWarmer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -84,6 +85,9 @@ class RoomTest {
     @Mock
     lateinit var e2EEManagerFactory: E2EEManager.Factory
 
+    @Mock
+    lateinit var regionUrlProviderFactory: RegionUrlProvider.Factory
+
     lateinit var networkCallbackRegistry: MockNetworkCallbackRegistry
 
     var eglBase: EglBase = MockEglBase()
@@ -125,6 +129,8 @@ class RoomTest {
                 NetworkCallbackManagerImpl(networkCallback, networkCallbackRegistry)
             },
             audioDeviceModule = MockAudioDeviceModule(),
+            regionUrlProviderFactory = regionUrlProviderFactory,
+            connectionWarmer = MockConnectionWarmer(),
         )
     }
 

@@ -122,6 +122,7 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
+    @Throws(Exception::class)
     suspend fun join(
         url: String,
         token: String,
@@ -135,6 +136,7 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
+    @Throws(Exception::class)
     @VisibleForTesting
     suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
         val reconnectResponse = connect(
