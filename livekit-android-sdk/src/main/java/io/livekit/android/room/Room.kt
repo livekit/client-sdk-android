@@ -113,6 +113,7 @@ constructor(
         NODE_FAILURE,
         MIGRATION,
         SERVER_LEAVE,
+        SERVER_LEAVE_FULL_RECONNECT,
     }
 
     @Serializable
@@ -878,6 +879,7 @@ constructor(
             SimulateScenario.NODE_FAILURE -> builder.nodeFailure = true
             SimulateScenario.MIGRATION -> builder.migration = true
             SimulateScenario.SERVER_LEAVE -> builder.serverLeave = true
+            SimulateScenario.SERVER_LEAVE_FULL_RECONNECT -> builder.leaveRequestFullReconnect = true
         }
         sendSimulateScenario(builder.build())
     }

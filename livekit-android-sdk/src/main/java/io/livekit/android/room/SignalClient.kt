@@ -540,9 +540,16 @@ constructor(
     }
 
     fun sendLeave() {
-        val request = LivekitRtc.SignalRequest.newBuilder()
-            .setLeave(LivekitRtc.LeaveRequest.newBuilder().build())
-            .build()
+        val request = with(LivekitRtc.SignalRequest.newBuilder()) {
+            leave = with(LivekitRtc.LeaveRequest.newBuilder()) {
+                reason = LivekitModels.DisconnectReason.CLIENT_INITIATED
+                // server doesn't process this field, keeping it here to indicate the intent of a full disconnect
+                action = LivekitRtc.LeaveRequest.Action.DISCONNECT
+                build()
+            }
+            build()
+        }
+
         sendRequest(request)
     }
 
@@ -906,4 +913,7 @@ enum class ProtocolVersion(val value: Int) {
     v10(10),
     v11(11),
     v12(12),
+
+    // new leave request handling
+    v13(13),
 }

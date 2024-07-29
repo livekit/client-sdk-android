@@ -393,6 +393,10 @@ class CallViewModel(
         room.sendSimulateScenario(Room.SimulateScenario.NODE_FAILURE)
     }
 
+    fun simulateServerLeaveFullReconnect() {
+        room.sendSimulateScenario(Room.SimulateScenario.SERVER_LEAVE_FULL_RECONNECT)
+    }
+
     fun reconnect() {
         Timber.e { "Reconnecting." }
         mutablePrimarySpeaker.value = null

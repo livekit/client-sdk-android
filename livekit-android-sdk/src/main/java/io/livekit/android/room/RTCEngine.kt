@@ -58,6 +58,7 @@ import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitRtc
 import livekit.LivekitRtc.JoinResponse
+import livekit.LivekitRtc.LeaveRequest
 import livekit.LivekitRtc.ReconnectResponse
 import livekit.org.webrtc.DataChannel
 import livekit.org.webrtc.IceCandidate
@@ -939,14 +940,34 @@ internal constructor(
         listener?.onConnectionQuality(updates)
     }
 
-    override fun onLeave(leave: LivekitRtc.LeaveRequest) {
-        if (leave.canReconnect) {
-            // reconnect will be triggered on close.
-            fullReconnectOnNext = true
-        } else {
-            close()
-            val disconnectReason = leave.reason.convert()
-            listener?.onEngineDisconnected(disconnectReason)
+    override fun onLeave(leave: LeaveRequest) {
+        LKLog.d { "leave request received: reason = ${leave.reason.name}" }
+        if (leave.hasRegions()) {
+            regionUrlProvider?.let {
+                it.setServerReportedRegions(RegionSettings.fromProto(leave.regions))
+            }
+        }
+
+        when {
+            leave.action == LeaveRequest.Action.RESUME -> {
+                // resume will be triggered on close.
+                // TODO: trigger immediately.
+                fullReconnectOnNext = false
+            }
+
+            leave.action == LeaveRequest.Action.RECONNECT ||
+                // canReconnect is deprecated protocol version >= 13
+                leave.canReconnect -> {
+                // resume will be triggered on close.
+                // TODO: trigger immediately.
+                fullReconnectOnNext = true
+            }
+
+            else -> {
+                close()
+                val disconnectReason = leave.reason.convert()
+                listener?.onEngineDisconnected(disconnectReason)
+            }
         }
     }
 

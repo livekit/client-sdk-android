@@ -109,6 +109,7 @@ class CallActivity : AppCompatActivity() {
                 onSendMessage = { viewModel.sendData(it) },
                 onSimulateMigration = { viewModel.simulateMigration() },
                 onSimulateNodeFailure = { viewModel.simulateNodeFailure() },
+                onSimulateLeaveFullReconnect = { viewModel.simulateServerLeaveFullReconnect() },
                 fullReconnect = { viewModel.reconnect() },
             )
         }
@@ -164,6 +165,7 @@ class CallActivity : AppCompatActivity() {
         onSimulateMigration: () -> Unit = {},
         onSimulateNodeFailure: () -> Unit = {},
         fullReconnect: () -> Unit = {},
+        onSimulateLeaveFullReconnect: () -> Unit,
     ) {
         AppTheme(darkTheme = true) {
             ConstraintLayout(
@@ -432,6 +434,7 @@ class CallActivity : AppCompatActivity() {
                                 onDismissRequest = { showDebugDialog = false },
                                 simulateMigration = { onSimulateMigration() },
                                 simulateNodeFailure = { onSimulateNodeFailure() },
+                                simulateLeaveFullReconnect = { onSimulateLeaveFullReconnect() },
                                 fullReconnect = { fullReconnect() },
                             )
                         }

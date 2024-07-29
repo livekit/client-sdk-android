@@ -28,6 +28,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import livekit.LivekitRtc
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URI
@@ -100,6 +101,11 @@ constructor(
         attemptedRegions.clear()
     }
 
+    fun setServerReportedRegions(regionSettings: RegionSettings) {
+        this.regionSettings = regionSettings
+        this.lastUpdateAt = SystemClock.elapsedRealtime()
+    }
+
     @AssistedFactory
     interface Factory {
         fun create(serverUrl: URI, token: String): RegionUrlProvider
@@ -136,7 +142,17 @@ fun setRegionUrlProviderTesting(enable: Boolean) {
  * @suppress
  */
 @Serializable
-data class RegionSettings(val regions: List<RegionInfo>)
+data class RegionSettings(val regions: List<RegionInfo>) {
+    companion object {
+        fun fromProto(proto: LivekitRtc.RegionSettings): RegionSettings {
+            return RegionSettings(
+                proto.regionsList.map { region ->
+                    RegionInfo(region.region, region.url, region.distance)
+                },
+            )
+        }
+    }
+}
 
 /**
  * @suppress
