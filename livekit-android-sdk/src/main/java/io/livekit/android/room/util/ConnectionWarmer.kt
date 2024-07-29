@@ -17,6 +17,7 @@
 package io.livekit.android.room.util
 
 import io.livekit.android.util.executeAsync
+import io.livekit.android.util.toHttpUrl
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,7 +36,7 @@ constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun fetch(url: String): Response {
         val request = Request.Builder()
-            .url(url)
+            .url(url.toHttpUrl())
             .method("HEAD", null)
             .build()
         return okHttpClient.newCall(request)
