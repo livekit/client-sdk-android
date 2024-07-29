@@ -420,6 +420,8 @@ constructor(
                     nextUrl = regionUrlProvider?.getNextBestRegionUrl()
                     if (nextUrl != null) {
                         LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
+                    } else {
+                        throw e // rethrow since no more regions to try.
                     }
                 }
             }
