@@ -144,7 +144,8 @@ dependencies {
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
     api libs.webrtc
-    api libs.okhttp
+    api libs.okhttp.lib
+    implementation libs.okhttp.coroutines
     api libs.audioswitch
     implementation libs.androidx.annotation
     implementation libs.androidx.core

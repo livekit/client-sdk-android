@@ -28,6 +28,8 @@ import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.toHttpUrl
+import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineDispatcher
@@ -122,6 +124,7 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
+    @Throws(Exception::class)
     suspend fun join(
         url: String,
         token: String,
@@ -135,6 +138,7 @@ constructor(
     /**
      * @throws Exception if fails to connect.
      */
+    @Throws(Exception::class)
     @VisibleForTesting
     suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
         val reconnectResponse = connect(
@@ -159,7 +163,7 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "$url/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
+        val wsUrlString = "${url.toWebsocketUrl()}/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
@@ -305,7 +309,7 @@ constructor(
         var reason: String? = null
         try {
             lastUrl?.let {
-                val validationUrl = "http" + it.substring(2).replaceFirst("/rtc?", "/rtc/validate?")
+                val validationUrl = it.toHttpUrl().replaceFirst("/rtc?", "/rtc/validate?")
                 val request = Request.Builder().url(validationUrl).build()
                 val resp = okHttpClient.newCall(request).execute()
                 val body = resp.body
