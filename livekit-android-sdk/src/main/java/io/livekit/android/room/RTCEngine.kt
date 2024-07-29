@@ -136,7 +136,6 @@ internal constructor(
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
 
-
     internal var regionUrlProvider: RegionUrlProvider? = null
     private var sessionUrl: String? = null
     private var sessionToken: String? = null
