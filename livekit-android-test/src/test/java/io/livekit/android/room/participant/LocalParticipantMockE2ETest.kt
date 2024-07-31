@@ -387,6 +387,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateAudioTrack())
         val features = sentRequest.updateAudioTrack.featuresList
+        assertEquals(3, features.size)
         assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
         assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
         assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
@@ -431,9 +432,60 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateAudioTrack())
         val features = sentRequest.updateAudioTrack.featuresList
+        assertEquals(4, features.size)
         assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
         assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
         assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
         assertTrue(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
+    }
+
+    @Test
+    fun bypassUpdatesAudioFeatures() = runTest {
+        connect()
+
+        val audioProcessingController = MockAudioProcessingController()
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                name = "",
+                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                options = LocalAudioTrackOptions(),
+                audioProcessingController = audioProcessingController,
+                dispatcher = coroutineRule.dispatcher,
+            ),
+        )
+
+        advanceUntilIdle()
+        wsFactory.ws.clearRequests()
+
+        audioProcessingController.capturePostProcessor = object : AudioProcessorInterface {
+            override fun isEnabled(): Boolean = true
+
+            override fun getName(): String = "krisp_noise_cancellation"
+
+            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {}
+
+            override fun resetAudioProcessing(newRate: Int) {}
+
+            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {}
+        }
+        assertEquals(1, wsFactory.ws.sentRequests.size)
+
+        wsFactory.ws.clearRequests()
+
+        audioProcessingController.bypassCapturePostProcessing = true
+        assertEquals(1, wsFactory.ws.sentRequests.size)
+        // Verify the update audio track request gets the proper publish options set.
+        val requestString = wsFactory.ws.sentRequests[0].toPBByteString()
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(requestString)
+            .build()
+
+        assertTrue(sentRequest.hasUpdateAudioTrack())
+        val features = sentRequest.updateAudioTrack.featuresList
+        assertEquals(3, features.size)
+        assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
+        assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
+        assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
+        assertFalse(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 }
