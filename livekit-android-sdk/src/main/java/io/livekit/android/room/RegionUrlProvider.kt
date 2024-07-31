@@ -90,7 +90,6 @@ constructor(
                 return@use response.body?.string() ?: return null
             }
 
-        LKLog.e { bodyString }
         return json.decodeFromString<RegionSettings>(bodyString).also {
             regionSettings = it
             lastUpdateAt = SystemClock.elapsedRealtime()
