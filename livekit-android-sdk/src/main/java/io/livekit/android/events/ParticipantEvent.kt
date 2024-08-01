@@ -39,6 +39,21 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class NameChanged(participant: Participant, val name: String?) : ParticipantEvent(participant)
 
     /**
+     * When a participant's attributes are changed, fired for all participants
+     */
+    class AttributesChanged(
+        participant: Participant,
+        /**
+         * The attributes that have changed and their new associated values.
+         */
+        val changedAttributes: Map<String, String>,
+        /**
+         * The old attributes prior to change.
+         */
+        val oldAttributes: Map<String, String>,
+    ) : ParticipantEvent(participant)
+
+    /**
      * Fired when the current participant's isSpeaking property changes. (including LocalParticipant)
      */
     class SpeakingChanged(participant: Participant, val isSpeaking: Boolean) : ParticipantEvent(participant)
