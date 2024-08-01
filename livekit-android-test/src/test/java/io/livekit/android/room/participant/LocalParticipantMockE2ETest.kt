@@ -152,6 +152,23 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun updateAttributes() = runTest {
+        connect()
+        wsFactory.ws.clearRequests()
+
+        val newAttributes = mapOf("attribute" to "changedValue")
+        room.localParticipant.updateAttributes(newAttributes)
+
+        val requestString = wsFactory.ws.sentRequests.first().toPBByteString()
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(requestString)
+            .build()
+
+        assertTrue(sentRequest.hasUpdateMetadata())
+        assertEquals(newAttributes, sentRequest.updateMetadata.attributesMap)
+    }
+
+    @Test
     fun participantMetadataChanged() = runTest {
         connect()
 
@@ -183,6 +200,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             listOf(
                 ParticipantEvent.MetadataChanged::class.java,
                 ParticipantEvent.NameChanged::class.java,
+                ParticipantEvent.AttributesChanged::class.java,
             ),
             participantEvents,
         )

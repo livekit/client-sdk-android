@@ -718,6 +718,19 @@ internal constructor(
         this.engine.client.sendUpdateLocalMetadata(metadata, name)
     }
 
+    /**
+     * Set or update participant attributes. It will make updates only to keys that
+     * are present in [attributes], and will not override others.
+     *
+     * To delete a value, set the value to an empty string.
+     *
+     * Note: this requires `canUpdateOwnMetadata` permission.
+     * @param attributes attributes to update
+     */
+    fun updateAttributes(attributes: Map<String, String>) {
+        this.engine.client.sendUpdateLocalMetadata(metadata, name, attributes)
+    }
+
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = trackPublications[trackSid]
         pub?.muted = muted
