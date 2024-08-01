@@ -765,6 +765,10 @@ constructor(
                 // TODO
             }
 
+            LivekitRtc.SignalResponse.MessageCase.ERROR_RESPONSE -> {
+                // TODO
+            }
+
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null,
             -> {
