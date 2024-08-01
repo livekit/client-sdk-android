@@ -27,6 +27,7 @@ import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.diffMapChange
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
@@ -82,6 +83,8 @@ open class Participant(
         private set
 
     /**
+     * The participant's identity on the server. [name] should be preferred for UI usecases.
+     *
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
     @FlowObservable
@@ -99,6 +102,9 @@ open class Participant(
 
     /**
      * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.SpeakingChanged] event is emitted from [events] whenever
+     * this changes.
      */
     @FlowObservable
     @get:FlowObservable
@@ -113,6 +119,14 @@ open class Participant(
     }
         @VisibleForTesting set
 
+    /**
+     * The participant's name. To be used for user-facing purposes (i.e. when displayed in the UI).
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.NameChanged] event is emitted from [events] whenever
+     * this changes.
+     */
     @FlowObservable
     @get:FlowObservable
     var name by flowDelegate<String?>(null) { newValue, oldValue ->
@@ -123,7 +137,12 @@ open class Participant(
         @VisibleForTesting set
 
     /**
+     * The metadata for this participant.
+     *
      * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.MetadataChanged] event is emitted from [events] whenever
+     * this changes.
      */
     @FlowObservable
     @get:FlowObservable
@@ -136,7 +155,33 @@ open class Participant(
         @VisibleForTesting set
 
     /**
+     * The attributes set on this participant.
      *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.AttributesChanged] event is emitted from [events] whenever
+     * this changes.
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var attributes: Map<String, String> by flowDelegate(emptyMap()) { newAttributes, oldAttributes ->
+        if (newAttributes != oldAttributes) {
+            val diff = diffMapChange(newAttributes, oldAttributes, "")
+
+            if (diff.isNotEmpty()) {
+                eventBus.postEvent(ParticipantEvent.AttributesChanged(this, diff, oldAttributes), scope)
+            }
+        }
+    }
+        @VisibleForTesting set
+
+    /**
+     * The permissions for this participant.
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.ParticipantPermissionsChanged] event is emitted from [events] whenever
+     * this changes.
      */
     @FlowObservable
     @get:FlowObservable
@@ -331,6 +376,7 @@ open class Participant(
         if (info.hasPermission()) {
             permissions = ParticipantPermission.fromProto(info.permission)
         }
+        attributes = info.attributesMap
     }
 
     override fun equals(other: Any?): Boolean {

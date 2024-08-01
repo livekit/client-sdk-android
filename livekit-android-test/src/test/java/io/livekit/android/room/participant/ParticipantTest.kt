@@ -57,6 +57,8 @@ class ParticipantTest {
         assertEquals(INFO.metadata, participant.metadata)
         assertEquals(INFO.name, participant.name)
         assertEquals(Participant.Kind.fromProto(INFO.kind), participant.kind)
+        assertEquals(INFO.attributesMap, participant.attributes)
+
         assertEquals(INFO, participant.participantInfo)
     }
 
@@ -105,6 +107,29 @@ class ParticipantTest {
         val event = events[0] as ParticipantEvent.MetadataChanged
 
         assertEquals(prevMetadata, event.prevMetadata)
+        assertEquals(participant, event.participant)
+    }
+
+    @Test
+    fun setAttributesChangedEvent() = runTest {
+        participant.attributes = INFO.attributesMap
+
+        val eventCollector = EventCollector(participant.events, coroutineRule.scope)
+        val oldAttributes = participant.attributes
+
+        val newAttributes = mapOf("newAttribute" to "newValue")
+        participant.attributes = newAttributes
+
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is ParticipantEvent.AttributesChanged)
+
+        val event = events[0] as ParticipantEvent.AttributesChanged
+
+        val expectedDiff = mapOf("attribute" to "", "newAttribute" to "newValue")
+        assertEquals(expectedDiff, event.changedAttributes)
+        assertEquals(oldAttributes, event.oldAttributes)
         assertEquals(participant, event.participant)
     }
 
@@ -171,6 +196,7 @@ class ParticipantTest {
             .setMetadata("metadata")
             .setName("name")
             .setKind(LivekitModels.ParticipantInfo.Kind.STANDARD)
+            .putAttributes("attribute", "value")
             .build()
 
         val TRACK_INFO = LivekitModels.TrackInfo.newBuilder()

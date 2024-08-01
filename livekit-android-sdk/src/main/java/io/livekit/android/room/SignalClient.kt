@@ -511,10 +511,11 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendUpdateLocalMetadata(metadata: String?, name: String?) {
+    fun sendUpdateLocalMetadata(metadata: String?, name: String?, attributes: Map<String, String>? = emptyMap()) {
         val update = LivekitRtc.UpdateParticipantMetadata.newBuilder()
             .setMetadata(metadata ?: "")
             .setName(name ?: "")
+            .putAllAttributes(attributes)
 
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setUpdateMetadata(update)
@@ -762,6 +763,10 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.ERROR_RESPONSE -> {
                 // TODO
             }
 
