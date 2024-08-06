@@ -62,6 +62,7 @@ object TestData {
             .setHidden(true)
             .setRecorder(false)
             .build()
+        putAttributes("attribute", "value")
         build()
     }
 
@@ -79,6 +80,7 @@ object TestData {
         }
         addTracks(REMOTE_AUDIO_TRACK)
         addTracks(REMOTE_VIDEO_TRACK)
+        putAttributes("attribute", "value")
         build()
     }
 
@@ -225,6 +227,7 @@ object TestData {
             val participantMetadataChanged = LOCAL_PARTICIPANT.toBuilder()
                 .setMetadata("changed_metadata")
                 .setName("changed_name")
+                .putAttributes("attribute", "changed_value")
                 .build()
 
             addParticipants(participantMetadataChanged)
