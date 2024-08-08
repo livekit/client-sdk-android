@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2024 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-package io.livekit.android.test.util
+package io.livekit.android.test.mock
 
-import com.google.protobuf.ByteString
-import livekit.LivekitRtc
-import okio.ByteString.Companion.toByteString
+import livekit.org.webrtc.AudioSource
 
-fun com.google.protobuf.ByteString.toOkioByteString() = toByteArray().toByteString()
-
-fun okio.ByteString.toPBByteString() = ByteString.copyFrom(toByteArray())
-
-fun okio.ByteString.toSignalRequest() = LivekitRtc.SignalRequest.newBuilder()
-    .mergeFrom(toPBByteString())
-    .build()
+class MockAudioSource : AudioSource(100L)

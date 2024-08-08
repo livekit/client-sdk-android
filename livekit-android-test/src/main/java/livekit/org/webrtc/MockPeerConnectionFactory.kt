@@ -16,6 +16,8 @@
 
 package livekit.org.webrtc
 
+import io.livekit.android.test.mock.MockAudioSource
+import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.MockVideoSource
 import io.livekit.android.test.mock.MockVideoStreamTrack
@@ -28,6 +30,14 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
         sslCertificateVerifier: SSLCertificateVerifier?,
     ): PeerConnection {
         return MockPeerConnection(rtcConfig, observer)
+    }
+
+    override fun createAudioSource(constraints: MediaConstraints?): AudioSource {
+        return MockAudioSource()
+    }
+
+    override fun createAudioTrack(id: String, source: AudioSource?): AudioTrack {
+        return MockAudioStreamTrack(id = id)
     }
 
     override fun createVideoSource(isScreencast: Boolean, alignTimestamps: Boolean): VideoSource {

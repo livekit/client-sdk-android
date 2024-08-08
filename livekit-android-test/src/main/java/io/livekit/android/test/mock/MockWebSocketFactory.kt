@@ -17,7 +17,6 @@
 package io.livekit.android.test.mock
 
 import com.google.protobuf.MessageLite
-import io.livekit.android.test.util.toOkioByteString
 import io.livekit.android.test.util.toPBByteString
 import io.livekit.android.util.toOkioByteString
 import livekit.LivekitModels
@@ -56,12 +55,19 @@ class MockWebSocketFactory : WebSocket.Factory {
         return ws
     }
 
-    private val signalRequestHandlers = mutableListOf<SignalRequestHandler>(
-        { signalRequest -> defaultHandleSignalRequest(signalRequest) },
-    )
+    val defaultSignalRequestHandler: SignalRequestHandler = { signalRequest -> defaultHandleSignalRequest(signalRequest) }
 
+    private val signalRequestHandlers = mutableListOf(defaultSignalRequestHandler)
+
+    /**
+     * Adds a handler to the front of the list.
+     */
     fun registerSignalRequestHandler(handler: SignalRequestHandler) {
         signalRequestHandlers.add(0, handler)
+    }
+
+    fun unregisterSignalRequestHandler(handler: SignalRequestHandler) {
+        signalRequestHandlers.remove(handler)
     }
 
     private fun handleSignalRequest(signalRequest: SignalRequest) {

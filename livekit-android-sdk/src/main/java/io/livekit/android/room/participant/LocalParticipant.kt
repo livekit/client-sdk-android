@@ -52,6 +52,8 @@ import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
@@ -98,6 +100,12 @@ internal constructor(
             .toList()
 
     private val jobs = mutableMapOf<Any, Job>()
+
+    // For ensuring that only one caller can execute setTrackEnabled at a time.
+    // Without it, there's a potential to create multiple of the same source,
+    // Camera has deadlock issues with multiple CameraCapturers trying to activate/stop.
+    private val sourcePubLocks = Track.Source.values()
+        .associate { source -> source to Mutex() }
 
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
@@ -228,57 +236,60 @@ internal constructor(
         enabled: Boolean,
         mediaProjectionPermissionResultData: Intent? = null,
     ) {
-        val pub = getTrackPublication(source)
-        if (enabled) {
-            if (pub != null) {
-                pub.muted = false
+        val pubLock = sourcePubLocks[source]!!
+        pubLock.withLock {
+            val pub = getTrackPublication(source)
+            if (enabled) {
+                if (pub != null) {
+                    pub.muted = false
+                    if (source == Track.Source.CAMERA && pub.track is LocalVideoTrack) {
+                        (pub.track as? LocalVideoTrack)?.startCapture()
+                    }
+                } else {
+                    when (source) {
+                        Track.Source.CAMERA -> {
+                            val track = createVideoTrack()
+                            track.startCapture()
+                            publishVideoTrack(track)
+                        }
 
-                if (source == Track.Source.CAMERA && pub.track is LocalVideoTrack) {
-                    (pub.track as? LocalVideoTrack)?.startCapture()
+                        Track.Source.MICROPHONE -> {
+                            val track = createAudioTrack()
+                            publishAudioTrack(track)
+                        }
+
+                        Track.Source.SCREEN_SHARE -> {
+                            if (mediaProjectionPermissionResultData == null) {
+                                throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
+                            }
+                            val track =
+                                createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+                            track.startForegroundService(null, null)
+                            track.startCapture()
+                            publishVideoTrack(track)
+                        }
+
+                        else -> {
+                            LKLog.w { "Attempting to enable an unknown source, ignoring." }
+                        }
+                    }
                 }
             } else {
-                when (source) {
-                    Track.Source.CAMERA -> {
-                        val track = createVideoTrack()
-                        track.startCapture()
-                        publishVideoTrack(track)
-                    }
+                pub?.track?.let { track ->
+                    // screenshare cannot be muted, unpublish instead
+                    if (pub.source == Track.Source.SCREEN_SHARE) {
+                        unpublishTrack(track)
+                    } else {
+                        pub.muted = true
 
-                    Track.Source.MICROPHONE -> {
-                        val track = createAudioTrack()
-                        publishAudioTrack(track)
-                    }
-
-                    Track.Source.SCREEN_SHARE -> {
-                        if (mediaProjectionPermissionResultData == null) {
-                            throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
+                        // Release camera session so other apps can use.
+                        if (pub.source == Track.Source.CAMERA && track is LocalVideoTrack) {
+                            track.stopCapture()
                         }
-                        val track =
-                            createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
-                        track.startForegroundService(null, null)
-                        track.startCapture()
-                        publishVideoTrack(track)
-                    }
-
-                    else -> {
-                        LKLog.w { "Attempting to enable an unknown source, ignoring." }
                     }
                 }
             }
-        } else {
-            pub?.track?.let { track ->
-                // screenshare cannot be muted, unpublish instead
-                if (pub.source == Track.Source.SCREEN_SHARE) {
-                    unpublishTrack(track)
-                } else {
-                    pub.muted = true
-
-                    // Release camera session so other apps can use.
-                    if (pub.source == Track.Source.CAMERA && track is LocalVideoTrack) {
-                        track.stopCapture()
-                    }
-                }
-            }
+            return@withLock
         }
     }
 
@@ -484,6 +495,7 @@ internal constructor(
             options = options,
         )
         addTrackPublication(publication)
+        LKLog.e { "add track publication $publication" }
 
         publishListener?.onPublishSuccess(publication)
         internalListener?.onTrackPublished(publication, this)
