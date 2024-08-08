@@ -17,8 +17,13 @@
 package io.livekit.android.test.util
 
 import com.google.protobuf.ByteString
+import livekit.LivekitRtc
 import okio.ByteString.Companion.toByteString
 
 fun com.google.protobuf.ByteString.toOkioByteString() = toByteArray().toByteString()
 
 fun okio.ByteString.toPBByteString() = ByteString.copyFrom(toByteArray())
+
+fun okio.ByteString.toSignalRequest() = LivekitRtc.SignalRequest.newBuilder()
+    .mergeFrom(toPBByteString())
+    .build()

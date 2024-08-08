@@ -16,6 +16,10 @@
 
 package io.livekit.android.room.participant
 
+import android.Manifest
+import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
@@ -36,9 +40,15 @@ import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockVideoCapturer
 import io.livekit.android.test.mock.MockVideoStreamTrack
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.camera.MockCameraProvider
 import io.livekit.android.test.util.toPBByteString
+import io.livekit.android.test.util.toSignalRequest
 import io.livekit.android.util.toOkioByteString
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
@@ -57,7 +67,9 @@ import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import java.nio.ByteBuffer
+
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -108,6 +120,50 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         assertTrue(sentRequest.hasUpdateMetadata())
         assertEquals(newName, sentRequest.updateMetadata.name)
+    }
+
+    @Test
+    fun setTrackEnabledIsSynchronizedSingleSource() = runTest {
+        connect()
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val shadowApplication = Shadows.shadowOf(context as Application)
+        shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO)
+        wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
+        wsFactory.ws.clearRequests()
+
+
+        val backgroundScope = CoroutineScope(coroutineContext + Job())
+        try {
+            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
+            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
+
+            assertEquals(1, wsFactory.ws.sentRequests.size)
+        } finally {
+            backgroundScope.cancel()
+        }
+    }
+
+    @Test
+    fun setTrackEnabledIsSynchronizedMultipleSource() = runTest {
+        connect()
+
+        MockCameraProvider.register()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val shadowApplication = Shadows.shadowOf(context as Application)
+        shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
+        wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
+        wsFactory.ws.clearRequests()
+
+        val backgroundScope = CoroutineScope(coroutineContext + Job())
+        try {
+            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
+            backgroundScope.launch { room.localParticipant.setCameraEnabled(true) }
+
+            assertEquals(2, wsFactory.ws.sentRequests.size)
+        } finally {
+            backgroundScope.cancel()
+        }
     }
 
     @Test
