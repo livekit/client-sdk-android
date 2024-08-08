@@ -42,7 +42,6 @@ import io.livekit.android.test.mock.MockVideoStreamTrack
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.camera.MockCameraProvider
 import io.livekit.android.test.util.toPBByteString
-import io.livekit.android.test.util.toSignalRequest
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,7 +68,6 @@ import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import java.nio.ByteBuffer
-
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -131,7 +129,6 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO)
         wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
         wsFactory.ws.clearRequests()
-
 
         val backgroundScope = CoroutineScope(coroutineContext + Job())
         try {
