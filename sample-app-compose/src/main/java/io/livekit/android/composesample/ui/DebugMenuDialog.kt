@@ -41,6 +41,7 @@ fun DebugMenuDialog(
     fullReconnect: () -> Unit = {},
     simulateNodeFailure: () -> Unit = {},
     simulateLeaveFullReconnect: () -> Unit = {},
+    onUpdateAttribute: (key: String, value: String) -> Unit = { _, _ -> },
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
@@ -79,6 +80,19 @@ fun DebugMenuDialog(
             }) {
                 Text("Reconnect to room")
             }
+
+            Button(
+                onClick = {
+                    attributeValue++
+                    onUpdateAttribute(attributeKey, attributeValue.toString())
+                    onDismissRequest()
+                },
+            ) {
+                Text("Update Attribute")
+            }
         }
     }
 }
+
+val attributeKey = "key"
+var attributeValue = 0

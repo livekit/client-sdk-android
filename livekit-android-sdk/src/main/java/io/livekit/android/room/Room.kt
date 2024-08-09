@@ -576,6 +576,17 @@ constructor(
                         )
                     }
 
+                    is ParticipantEvent.AttributesChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantAttributesChanged(
+                                this@Room,
+                                it.participant,
+                                it.changedAttributes,
+                                it.oldAttributes,
+                            ),
+                        )
+                    }
+
                     is ParticipantEvent.NameChanged -> {
                         emitWhenConnected(
                             RoomEvent.ParticipantNameChanged(
@@ -680,6 +691,17 @@ constructor(
                                 this@Room,
                                 it.participant,
                                 it.prevMetadata,
+                            ),
+                        )
+                    }
+
+                    is ParticipantEvent.AttributesChanged -> {
+                        emitWhenConnected(
+                            RoomEvent.ParticipantAttributesChanged(
+                                this@Room,
+                                it.participant,
+                                it.changedAttributes,
+                                it.oldAttributes,
                             ),
                         )
                     }

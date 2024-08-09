@@ -245,6 +245,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             listOf(
                 RoomEvent.ParticipantMetadataChanged::class.java,
                 RoomEvent.ParticipantNameChanged::class.java,
+                RoomEvent.ParticipantAttributesChanged::class.java,
             ),
             roomEvents,
         )
