@@ -397,6 +397,10 @@ class CallViewModel(
         room.sendSimulateScenario(Room.SimulateScenario.SERVER_LEAVE_FULL_RECONNECT)
     }
 
+    fun updateAttribute(key: String, value: String) {
+        room.localParticipant.updateAttributes(mapOf(key to value))
+    }
+
     fun reconnect() {
         Timber.e { "Reconnecting." }
         mutablePrimarySpeaker.value = null

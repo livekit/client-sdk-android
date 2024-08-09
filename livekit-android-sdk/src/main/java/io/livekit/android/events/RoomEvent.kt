@@ -89,6 +89,22 @@ sealed class RoomEvent(val room: Room) : Event() {
         val prevMetadata: String?,
     ) : RoomEvent(room)
 
+    /**
+     * When a participant's attributes are changed, fired for all participants
+     */
+    class ParticipantAttributesChanged(
+        room: Room,
+        participant: Participant,
+        /**
+         * The attributes that have changed and their new associated values.
+         */
+        val changedAttributes: Map<String, String>,
+        /**
+         * The old attributes prior to change.
+         */
+        val oldAttributes: Map<String, String>,
+    ) : RoomEvent(room)
+
     class ParticipantNameChanged(
         room: Room,
         val participant: Participant,
