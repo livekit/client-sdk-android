@@ -111,7 +111,7 @@ constructor(
     }
 }
 
-internal fun URI.isLKCloud() = regionUrlProviderTesting || host.endsWith(".livekit.cloud") || host.endsWith(".livekit.run")
+internal fun URI.isLKCloud() = regionUrlProviderTesting || host != null && (host.endsWith(".livekit.cloud") || host.endsWith(".livekit.run"))
 
 internal fun URI.getCloudConfigUrl(appendPath: String = ""): URI {
     val scheme = if (this.scheme.startsWith("ws")) {
