@@ -16,17 +16,45 @@
 
 package io.livekit.android.renderer
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
+import io.livekit.android.util.LKLog
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.RendererCommon
 import livekit.org.webrtc.SurfaceViewRenderer
+import livekit.org.webrtc.VideoFrame
 
 open class SurfaceViewRenderer : SurfaceViewRenderer, ViewVisibility.Notifier {
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
 
     override var viewVisibility: ViewVisibility? = null
+    private var initialized = false
+
+    override fun init(sharedContext: EglBase.Context?, rendererEvents: RendererCommon.RendererEvents?, configAttributes: IntArray?, drawer: RendererCommon.GlDrawer?) {
+        if (initialized) {
+            LKLog.w { "Reinitializing already initialized SurfaceViewRenderer." }
+        }
+        initialized = true
+        super.init(sharedContext, rendererEvents, configAttributes, drawer)
+    }
+
+    override fun release() {
+        initialized = false
+        super.release()
+    }
+
+    @SuppressLint("LogNotTimber")
+    override fun onFrame(frame: VideoFrame) {
+        if (!initialized) {
+            Log.e("SurfaceViewRenderer", "Received frame when not initialized! You must call Room.initVideoRenderer(view) before using this view!")
+        }
+        super.onFrame(frame)
+    }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
