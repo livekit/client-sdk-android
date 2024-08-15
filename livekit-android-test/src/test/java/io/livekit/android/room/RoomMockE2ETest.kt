@@ -18,6 +18,7 @@ package io.livekit.android.room
 
 import android.net.Network
 import io.livekit.android.events.DisconnectReason
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.convert
 import io.livekit.android.room.participant.ConnectionQuality
@@ -37,6 +38,7 @@ import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import junit.framework.Assert.assertEquals
+import junit.framework.Assert.assertNotNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -176,6 +178,45 @@ class RoomMockE2ETest : MockE2ETest() {
             ),
             events,
         )
+    }
+
+
+    @Test
+    fun participantSubscribesRemoteTrack() = runTest {
+        connect()
+
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid)!!
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantEventsCollector = EventCollector(remoteParticipant.events, coroutineRule.scope)
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockAudioStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_AUDIO_TRACK.sid,
+                    ),
+                ),
+            ),
+        )
+        val events = eventCollector.stopCollecting()
+        val participantEvents = participantEventsCollector.stopCollecting()
+
+        assertIsClassList(
+            listOf(RoomEvent.TrackSubscribed::class.java),
+            events,
+        )
+
+        assertIsClassList(
+            listOf(ParticipantEvent.TrackSubscribed::class.java),
+            participantEvents,
+        )
+
+        val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
+        assertNotNull(micPub)
+        assertNotNull(micPub?.track)
     }
 
     @Test
