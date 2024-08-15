@@ -9,16 +9,19 @@
  */
 package io.livekit.android.renderer
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources.NotFoundException
 import android.graphics.Matrix
 import android.graphics.SurfaceTexture
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.TextureView
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
+import io.livekit.android.util.LKLog
 import livekit.org.webrtc.*
 import livekit.org.webrtc.RendererCommon.*
 import java.util.concurrent.CountDownLatch
@@ -47,6 +50,7 @@ open class TextureViewRenderer :
     private var enableFixedSize = false
     private var surfaceWidth = 0
     private var surfaceHeight = 0
+    private var initialized = false
 
     /**
      * Standard View constructor. In order to render something, you must first call init().
@@ -85,6 +89,12 @@ open class TextureViewRenderer :
         drawer: GlDrawer? = GlRectDrawer(),
     ) {
         ThreadUtils.checkIsOnMainThread()
+
+        if (initialized) {
+            LKLog.w { "Reinitializing already initialized TextureViewRenderer." }
+        }
+        initialized = true
+
         this.rendererEvents = rendererEvents
         rotatedFrameWidth = 0
         rotatedFrameHeight = 0
@@ -98,6 +108,7 @@ open class TextureViewRenderer :
      * don't call this function, the GL resources might leak.
      */
     fun release() {
+        initialized = false
         eglRenderer.release()
     }
 
@@ -192,7 +203,11 @@ open class TextureViewRenderer :
     }
 
     // VideoSink interface.
+    @SuppressLint("LogNotTimber")
     override fun onFrame(frame: VideoFrame) {
+        if (!initialized) {
+            Log.e("TextureViewRenderer", "Received frame when not initialized! You must call Room.initVideoRenderer(view) before using this view!")
+        }
         eglRenderer.onFrame(frame)
     }
 
@@ -360,7 +375,7 @@ open class TextureViewRenderer :
     }
 
     companion object {
-        private const val TAG = "SurfaceViewRenderer"
+        private const val TAG = "TextureViewRenderer"
     }
 
     override var viewVisibility: ViewVisibility? = null
