@@ -10,6 +10,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+
+    <io.livekit.android.renderer.TextureViewRenderer
+        android:id="@+id/local_camera"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="10dp" />
+
     <ProgressBar
         android:id="@+id/progress"
         android:layout_width="wrap_content"
