@@ -180,7 +180,6 @@ class RoomMockE2ETest : MockE2ETest() {
         )
     }
 
-
     @Test
     fun participantSubscribesRemoteTrack() = runTest {
         connect()
