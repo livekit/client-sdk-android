@@ -13,7 +13,9 @@ import io.livekit.android.LiveKit
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.renderer.SurfaceViewRenderer
+import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.Room
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import kotlinx.coroutines.launch
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity() {
 
         // Setup the video renderer
         room.initVideoRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
+        room.initVideoRenderer(findViewById<TextureViewRenderer>(R.id.local_camera))
 
         requestNeededPermissions { connectToRoom() }
     }
@@ -62,6 +65,12 @@ class MainActivity : AppCompatActivity() {
             localParticipant.setMicrophoneEnabled(true)
             localParticipant.setCameraEnabled(true)
 
+            // Attach local video camera
+            val localTrack = localParticipant.getTrackPublication(Track.Source.CAMERA)?.track as? LocalVideoTrack
+            if (localTrack != null) {
+                attachLocalVideo(localTrack)
+            }
+
             // Attach video of remote participant if already available.
             val remoteVideoTrack = room.remoteParticipants.values.firstOrNull()
                 ?.getTrackPublication(Track.Source.CAMERA)
@@ -83,6 +92,10 @@ class MainActivity : AppCompatActivity() {
     private fun attachVideo(videoTrack: VideoTrack) {
         videoTrack.addRenderer(findViewById<SurfaceViewRenderer>(R.id.renderer))
         findViewById<View>(R.id.progress).visibility = View.GONE
+    }
+
+    private fun attachLocalVideo(videoTrack: VideoTrack) {
+        videoTrack.addRenderer(findViewById<SurfaceViewRenderer>(R.id.local_camera))
     }
 
     private fun requestNeededPermissions(onHasPermissions: () -> Unit) {
