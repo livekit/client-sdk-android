@@ -11,6 +11,6 @@
   "scripts": {
     "changeset": "changeset",
     "ci:publish": "changeset publish",
-    "ci:version": "changeset version && ./scripts/update_android_gradle_version.sh"
+    "ci:version": "changeset version && ./ci/update_android_gradle_version.sh"
   }
 }
