@@ -1,19 +1,16 @@
-name: Update SNAPSHOT PR action
+name: Manually create SNAPSHOT update PR
 
 on:
   workflow_dispatch:
-  push:
-    # only need on new version tags
-    tags:
-      - v*
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
-  release:
+  update-snapshot:
     name: Update SNAPSHOT
     runs-on: ubuntu-latest
 
@@ -21,7 +18,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Update snapshot 
+      - name: Update snapshot
         id: update
         run: echo "SNAPSHOT_VERSION=$(./ci/update_snapshot_version.sh)" >> "$GITHUB_OUTPUT"
 

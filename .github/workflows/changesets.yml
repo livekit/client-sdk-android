@@ -10,6 +10,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
@@ -33,17 +34,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Make PR title
+        id: getver
+        run: echo "TITLE=v$(./ci/get_version.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Create Release Pull Request
         id: changesets
         uses: changesets/action@v1
         with:
+          title: ${{ steps.getver.outputs.TITLE }}
+          commit: ${{ steps.getver.outputs.TITLE }}
           version: pnpm ci:version
           publish: pnpm ci:publish
         env:
           # requires repo and read:user access
           GITHUB_TOKEN: ${{ secrets.CHANGESET_GH_TOKEN }}
     outputs:
-      hasPublishedKotlin: ${{ steps.changesets.outputs.published == 'true' }}
+      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+      hasPublished: ${{ steps.changesets.outputs.published == 'true' }}
 
   debug-outputs:
     needs: release
@@ -52,4 +60,30 @@ jobs:
     steps:
       - name: "echo outputs"
         run: |
-          echo ${{ steps.changesets.outputs.publishedPackages }}
+          echo ${{ needs.release.outputs.publishedPackages }}
+          echo ${{ needs.release.outputs.hasPublished }}
+
+  update-snapshot:
+    needs: release
+    name: Update SNAPSHOT
+    if: ${{ needs.release.outputs.hasPublished == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Update snapshot
+        id: update
+        run: echo "SNAPSHOT_VERSION=$(./ci/update_snapshot_version.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Log version
+        env:
+          SNAPSHOT_VERSION: ${{ steps.update.outputs.SNAPSHOT_VERSION }}
+        run: echo $SNAPSHOT_VERSION
+
+      - name: Create Update SNAPSHOT Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: dl/update_snapshot_ver
+          title: Prepare snapshot version ${{ steps.update.outputs.SNAPSHOT_VERSION }}
