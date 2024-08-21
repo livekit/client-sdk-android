@@ -18,27 +18,69 @@ package io.livekit.android.room.types
 
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels
+import java.util.Date
 
 data class TranscriptionSegment(
+    /**
+     * The id of the transcription segment.
+     */
     val id: String,
+    /**
+     * The text of the transcription.
+     */
     val text: String,
+    /**
+     * Language
+     */
     val language: String,
-    val startTime: Long,
-    val endTime: Long,
+    /**
+     * If false, the user can expect this transcription to update in the future.
+     */
     val final: Boolean,
+    /**
+     * When this client first locally received this segment.
+     *
+     * Defined as milliseconds from epoch date (using [Date.getTime])
+     */
+    val firstReceivedTime: Long = Date().time,
+    /**
+     * When this client last locally received this segment.
+     *
+     * Defined as milliseconds from epoch date (using [Date.getTime])
+     */
+    val lastReceivedTime: Long = Date().time,
 ) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as TranscriptionSegment
-
-        return id == other.id
-    }
-
     override fun hashCode(): Int {
         return id.hashCode()
     }
+}
+
+/**
+ * Merges [newSegment] info into this segment if the ids are equal.
+ *
+ * Returns `this` if a different segment is passed.
+ */
+fun TranscriptionSegment?.merge(newSegment: TranscriptionSegment): TranscriptionSegment {
+    if (this == null) {
+        return newSegment
+    }
+
+    if (this.id != newSegment.id) {
+        return this
+    }
+
+    if (this.final) {
+        LKLog.d { "new segment for $id overwriting final segment?" }
+    }
+
+    return copy(
+        id = this.id,
+        text = newSegment.text,
+        language = newSegment.language,
+        final = newSegment.final,
+        firstReceivedTime = this.firstReceivedTime,
+        lastReceivedTime = newSegment.lastReceivedTime,
+    )
 }
 
 /**
@@ -47,22 +89,18 @@ data class TranscriptionSegment(
 fun MutableMap<String, TranscriptionSegment>.mergeNewSegments(newSegments: Collection<TranscriptionSegment>) {
     for (segment in newSegments) {
         val existingSegment = get(segment.id)
-        if (existingSegment?.final == true) {
-            LKLog.d { "new segment for ${segment.id} overwriting final segment?" }
-        }
-        put(segment.id, segment)
+        put(segment.id, existingSegment.merge(segment))
     }
 }
 
 /**
  * @suppress
  */
-fun LivekitModels.TranscriptionSegment.toSDKType() =
+fun LivekitModels.TranscriptionSegment.toSDKType(firstReceivedTime: Long = Date().time) =
     TranscriptionSegment(
         id = id,
         text = text,
         language = language,
-        startTime = startTime,
-        endTime = endTime,
         final = final,
+        firstReceivedTime = firstReceivedTime,
     )

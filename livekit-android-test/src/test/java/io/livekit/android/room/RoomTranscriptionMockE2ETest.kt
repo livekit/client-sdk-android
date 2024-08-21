@@ -33,7 +33,10 @@ import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.util.toDataChannelBuffer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -96,5 +99,61 @@ class RoomTranscriptionMockE2ETest : MockE2ETest() {
             assertEquals(1, publicationEvents.size)
             assertIsClass(TrackPublicationEvent.TranscriptionReceived::class.java, publicationEvents[0])
         }
+    }
+
+    @Test
+    fun transcriptionFirstReceivedStaysSame() = runTest {
+        connect()
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                name = "",
+                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                options = LocalAudioTrackOptions(),
+                audioProcessingController = MockAudioProcessingController(),
+                dispatcher = coroutineRule.dispatcher,
+            ),
+            options = AudioTrackPublishOptions(
+                source = Track.Source.MICROPHONE,
+            ),
+        )
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+
+        val firstDataBuffer = with(TestData.DATA_PACKET_TRANSCRIPTION.toBuilder()) {
+            transcription = with(transcription.toBuilder()) {
+                val firstSegment = with(getSegments(0).toBuilder()) {
+                    text = "first_text"
+                    language = "first_enUS"
+                    text = "This is a not a final transcription."
+                    final = false
+                    build()
+                }
+                clearSegments()
+                addSegments(firstSegment)
+                build()
+            }
+            build()
+        }.toDataChannelBuffer()
+        subDataChannel.observer?.onMessage(firstDataBuffer)
+
+        runBlocking {
+            delay(2) // to ensure start and end received times are different.
+        }
+        val dataBuffer = TestData.DATA_PACKET_TRANSCRIPTION.toDataChannelBuffer()
+        subDataChannel.observer?.onMessage(dataBuffer)
+
+        val roomEvents = roomCollector.stopCollecting()
+
+        assertEquals(2, roomEvents.size)
+
+        val first = (roomEvents[0] as RoomEvent.TranscriptionReceived).transcriptionSegments[0]
+        val final = (roomEvents[1] as RoomEvent.TranscriptionReceived).transcriptionSegments[0]
+        val expectedSegment = TestData.DATA_PACKET_TRANSCRIPTION.transcription.getSegments(0)
+        assertEquals(expectedSegment.id, final.id)
+        assertEquals(final.firstReceivedTime, first.firstReceivedTime)
+        assertTrue(final.lastReceivedTime > final.firstReceivedTime)
     }
 }

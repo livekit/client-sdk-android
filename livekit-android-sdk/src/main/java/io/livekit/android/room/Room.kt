@@ -61,6 +61,7 @@ import livekit.LivekitRtc
 import livekit.org.webrtc.*
 import livekit.org.webrtc.audio.AudioDeviceModule
 import java.net.URI
+import java.util.Date
 import javax.inject.Named
 
 class Room
@@ -270,6 +271,8 @@ constructor(
 
     private var regionUrlProvider: RegionUrlProvider? = null
     private var regionUrl: String? = null
+
+    private var transcriptionReceivedTimes = mutableMapOf<String, Long>()
 
     private fun getCurrentRoomOptions(): RoomOptions =
         RoomOptions(
@@ -1131,10 +1134,24 @@ constructor(
      * @suppress
      */
     override fun onTranscriptionReceived(transcription: LivekitModels.Transcription) {
+        if (transcription.segmentsList.isEmpty()) {
+            LKLog.d { "Received transcription segments are empty." }
+            return
+        }
+
         val participant = getParticipantByIdentity(transcription.transcribedParticipantIdentity)
         val publication = participant?.trackPublications?.get(transcription.trackId)
         val segments = transcription.segmentsList
-            .map { it.toSDKType() }
+            .map { it.toSDKType(firstReceivedTime = transcriptionReceivedTimes[it.id] ?: Date().time) }
+
+        // Update receive times
+        for (segment in segments) {
+            if (segment.final) {
+                transcriptionReceivedTimes.remove(segment.id)
+            } else {
+                transcriptionReceivedTimes[segment.id] = segment.firstReceivedTime
+            }
+        }
 
         val event = RoomEvent.TranscriptionReceived(
             room = this,
