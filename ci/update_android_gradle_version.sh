@@ -3,10 +3,10 @@ set -e
 set -x
 
 PACKAGE_VERSION=$(cat ./package.json | jq -r '.version')
-echo "updating gradle version name to $PACKAGE_VERSION"
+>&2 echo "updating gradle version name to $PACKAGE_VERSION"
 
 SNAPSHOT_VERSION=$(./ci/increment_semver.sh -p $PACKAGE_VERSION)"-SNAPSHOT"
-echo "next snapshot version to $SNAPSHOT_VERSION"
+>&2 echo "next snapshot version to $SNAPSHOT_VERSION"
 
 # sed command works only on linux based systems as macOS version expects a backup file passed additionally
 
