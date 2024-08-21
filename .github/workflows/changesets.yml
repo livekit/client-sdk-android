@@ -1,0 +1,55 @@
+name: Changeset action
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Create Release Pull Request
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm ci:version
+          publish: pnpm ci:publish
+        env:
+          # requires repo and read:user access
+          GITHUB_TOKEN: ${{ secrets.CHANGESET_GH_TOKEN }}
+    outputs:
+      hasPublishedKotlin: ${{ steps.changesets.outputs.published == 'true' }}
+
+  debug-outputs:
+    needs: release
+    name: Debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: "echo outputs"
+        run: |
+          echo ${{ steps.changesets.outputs.publishedPackages }}

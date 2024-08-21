@@ -1,0 +1,16 @@
+{
+  "name": "client-sdk-android",
+  "version": "2.7.0",
+  "repository": "https://github.com/livekit/client-sdk-android.git",
+  "license": "Apache License 2.0",
+  "private": true,
+  "devDependencies": {
+    "@changesets/cli": "^2.27.7",
+    "@livekit/changesets-changelog-github": "^0.0.4"
+  },
+  "scripts": {
+    "changeset": "changeset",
+    "ci:publish": "changeset publish",
+    "ci:version": "changeset version && ./scripts/update_android_gradle_version.sh"
+  }
+}
