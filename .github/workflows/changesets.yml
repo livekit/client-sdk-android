@@ -85,5 +85,7 @@ jobs:
       - name: Create Update SNAPSHOT Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.CHANGESET_GH_TOKEN }}
           branch: dl/update_snapshot_ver
           title: Prepare snapshot version ${{ steps.update.outputs.SNAPSHOT_VERSION }}
+          commit-message: Prepare snapshot version ${{ steps.update.outputs.SNAPSHOT_VERSION }}
