@@ -40,6 +40,9 @@ jobs:
           pnpm ci:version
           echo "TITLE=v$(./ci/get_version.sh)" >> "$GITHUB_OUTPUT"
           git restore .
+        env:
+          # requires repo and read:user access
+          GITHUB_TOKEN: ${{ secrets.CHANGESET_GH_TOKEN }}
 
       - name: Create Release Pull Request
         id: changesets
