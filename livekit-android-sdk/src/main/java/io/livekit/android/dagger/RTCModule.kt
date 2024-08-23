@@ -34,7 +34,17 @@ import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
-import livekit.org.webrtc.*
+import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import livekit.org.webrtc.AudioProcessingFactory
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.Logging
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpCapabilities
+import livekit.org.webrtc.SoftwareVideoDecoderFactory
+import livekit.org.webrtc.SoftwareVideoEncoderFactory
+import livekit.org.webrtc.VideoDecoderFactory
+import livekit.org.webrtc.VideoEncoderFactory
 import livekit.org.webrtc.audio.AudioDeviceModule
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import timber.log.Timber
@@ -295,18 +305,20 @@ internal object RTCModule {
         memoryManager: CloseableManager,
         audioProcessingFactory: AudioProcessingFactory,
     ): PeerConnectionFactory {
-        return PeerConnectionFactory.builder()
-            .setAudioDeviceModule(audioDeviceModule)
-            .setAudioProcessingFactory(audioProcessingFactory)
-            .setVideoEncoderFactory(videoEncoderFactory)
-            .setVideoDecoderFactory(videoDecoderFactory)
-            .apply {
-                if (peerConnectionFactoryOptions != null) {
-                    setOptions(peerConnectionFactoryOptions)
+        return executeBlockingOnRTCThread {
+            PeerConnectionFactory.builder()
+                .setAudioDeviceModule(audioDeviceModule)
+                .setAudioProcessingFactory(audioProcessingFactory)
+                .setVideoEncoderFactory(videoEncoderFactory)
+                .setVideoDecoderFactory(videoDecoderFactory)
+                .apply {
+                    if (peerConnectionFactoryOptions != null) {
+                        setOptions(peerConnectionFactoryOptions)
+                    }
                 }
-            }
-            .createPeerConnectionFactory()
-            .apply { memoryManager.registerClosable { dispose() } }
+                .createPeerConnectionFactory()
+                .apply { memoryManager.registerClosable { dispose() } }
+        }
     }
 
     @Provides

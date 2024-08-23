@@ -254,6 +254,11 @@ constructor(
      * Restart a track with new options.
      */
     fun restartTrack(options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy()) {
+        if (isDisposed) {
+            LKLog.e { "Attempting to restart track that was already disposed, aborting." }
+            return
+        }
+
         val oldCapturer = capturer
         val oldSource = source
         val oldRtcTrack = rtcTrack

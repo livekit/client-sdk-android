@@ -18,6 +18,8 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
+import io.livekit.android.room.track.KIND_AUDIO
+import io.livekit.android.room.track.KIND_VIDEO
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.RemoteVideoTrack
@@ -214,10 +216,5 @@ class RemoteParticipant(
     // Internal methods just for posting events.
     internal fun onDataReceived(data: ByteArray, topic: String?) {
         eventBus.postEvent(ParticipantEvent.DataReceived(this, data, topic), scope)
-    }
-
-    companion object {
-        private const val KIND_AUDIO = "audio"
-        private const val KIND_VIDEO = "video"
     }
 }
