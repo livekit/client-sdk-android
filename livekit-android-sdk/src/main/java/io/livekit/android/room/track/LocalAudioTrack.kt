@@ -29,7 +29,6 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
-import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -64,11 +63,6 @@ constructor(
      * To only be used for flow delegate scoping, and should not be cancelled.
      **/
     private val delegateScope = CoroutineScope(dispatcher + SupervisorJob())
-    var enabled: Boolean
-        get() = executeBlockingOnRTCThread { rtcTrack.enabled() }
-        set(value) {
-            executeBlockingOnRTCThread { rtcTrack.setEnabled(value) }
-        }
 
     internal var transceiver: RtpTransceiver? = null
     internal val sender: RtpSender?

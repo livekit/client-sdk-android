@@ -40,7 +40,7 @@ class LocalTrackPublication(
 
             val mediaTrack = track ?: return
 
-            mediaTrack.rtcTrack.setEnabled(!muted)
+            mediaTrack.enabled =!muted
             super.muted = muted
 
             // send updates to server

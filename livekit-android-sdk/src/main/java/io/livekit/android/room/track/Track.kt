@@ -49,6 +49,22 @@ abstract class Track(
     }
         internal set
 
+    var enabled: Boolean
+        get() = executeBlockingOnRTCThread {
+            if (!isDisposed) {
+                rtcTrack.enabled()
+            } else {
+                false
+            }
+        }
+        set(value) {
+            executeBlockingOnRTCThread {
+                if (!isDisposed) {
+                    rtcTrack.setEnabled(value)
+                }
+            }
+        }
+
     var statsGetter: RTCStatsGetter? = null
 
     /**
@@ -163,18 +179,14 @@ abstract class Track(
      * Starts the track.
      */
     open fun start() {
-        executeBlockingOnRTCThread {
-            rtcTrack.setEnabled(true)
-        }
+        enabled = true
     }
 
     /**
      * Stops the track.
      */
     open fun stop() {
-        executeBlockingOnRTCThread {
-            rtcTrack.setEnabled(false)
-        }
+        enabled = false
     }
 
     /**
@@ -205,3 +217,6 @@ sealed class TrackException(message: String? = null, cause: Throwable? = null) :
     class PublishException(message: String? = null, cause: Throwable? = null) :
         TrackException(message, cause)
 }
+
+public const val KIND_AUDIO = "audio"
+public const val KIND_VIDEO = "video"

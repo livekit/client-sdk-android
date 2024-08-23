@@ -40,7 +40,9 @@ class RemoteAudioTrack(
      */
     fun addSink(sink: AudioTrackSink) {
         executeBlockingOnRTCThread {
-            rtcTrack.addSink(sink)
+            if (!isDisposed) {
+                rtcTrack.addSink(sink)
+            }
         }
     }
 
@@ -49,7 +51,9 @@ class RemoteAudioTrack(
      */
     fun removeSink(sink: AudioTrackSink) {
         executeBlockingOnRTCThread {
-            rtcTrack.removeSink(sink)
+            if (!isDisposed) {
+                rtcTrack.removeSink(sink)
+            }
         }
     }
 
@@ -63,7 +67,9 @@ class RemoteAudioTrack(
      */
     fun setVolume(volume: Double) {
         executeBlockingOnRTCThread {
-            rtcTrack.setVolume(volume)
+            if (!isDisposed) {
+                rtcTrack.setVolume(volume)
+            }
         }
     }
 }

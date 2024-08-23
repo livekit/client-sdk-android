@@ -23,7 +23,11 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.InjectionNames
-import io.livekit.android.room.util.*
+import io.livekit.android.room.util.MediaConstraintKeys
+import io.livekit.android.room.util.createOffer
+import io.livekit.android.room.util.findConstraint
+import io.livekit.android.room.util.setLocalDescription
+import io.livekit.android.room.util.setRemoteDescription
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.debounce
@@ -40,9 +44,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
-import livekit.org.webrtc.*
+import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.MediaConstraints
+import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.PeerConnection.RTCConfiguration
 import livekit.org.webrtc.PeerConnection.SignalingState
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SessionDescription
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts
@@ -67,10 +76,12 @@ constructor(
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
     @VisibleForTesting
-    internal val peerConnection: PeerConnection = connectionFactory.createPeerConnection(
+    internal val peerConnection: PeerConnection = executeBlockingOnRTCThread {
+        connectionFactory.createPeerConnection(
         config,
         pcObserver,
-    ) ?: throw IllegalStateException("peer connection creation failed?")
+        ) ?: throw IllegalStateException("peer connection creation failed?")
+    }
     private val pendingCandidates = mutableListOf<IceCandidate>()
     private var restartingIce: Boolean = false
 
