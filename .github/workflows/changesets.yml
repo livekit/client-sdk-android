@@ -36,7 +36,10 @@ jobs:
 
       - name: Make PR title
         id: getver
-        run: echo "TITLE=v$(./ci/get_version.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          pnpm ci:version
+          echo "TITLE=v$(./ci/get_version.sh)" >> "$GITHUB_OUTPUT"
+          git restore .
 
       - name: Create Release Pull Request
         id: changesets
