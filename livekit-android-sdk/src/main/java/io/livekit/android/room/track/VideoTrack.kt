@@ -24,7 +24,6 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     Track(name, Kind.VIDEO, rtcTrack) {
     protected val sinks: MutableList<VideoSink> = ArrayList()
 
-
     /**
      * Add a [VideoSink] that will receive frames.
      */

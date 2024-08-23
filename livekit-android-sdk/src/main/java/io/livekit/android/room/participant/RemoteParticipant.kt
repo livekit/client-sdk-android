@@ -217,5 +217,4 @@ class RemoteParticipant(
     internal fun onDataReceived(data: ByteArray, topic: String?) {
         eventBus.postEvent(ParticipantEvent.DataReceived(this, data, topic), scope)
     }
-
 }

@@ -78,8 +78,8 @@ constructor(
     @VisibleForTesting
     internal val peerConnection: PeerConnection = executeBlockingOnRTCThread {
         connectionFactory.createPeerConnection(
-        config,
-        pcObserver,
+            config,
+            pcObserver,
         ) ?: throw IllegalStateException("peer connection creation failed?")
     }
     private val pendingCandidates = mutableListOf<IceCandidate>()
