@@ -1249,6 +1249,23 @@ constructor(
     /**
      * @suppress
      */
+    override fun onLocalTrackSubscribed(response: LivekitRtc.TrackSubscribed) {
+        val publication = localParticipant.trackPublications[response.trackSid] as? LocalTrackPublication
+
+        if (publication == null) {
+            LKLog.w { "Could not find local track publication for subscribed event " }
+            return
+        }
+
+        coroutineScope.launch {
+            emitWhenConnected(RoomEvent.LocalTrackSubscribed(this@Room, publication, this@Room.localParticipant))
+        }
+        this.localParticipant.onLocalTrackSubscribed(publication)
+    }
+
+    /**
+     * @suppress
+     */
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
         localParticipant.handleLocalTrackUnpublished(trackUnpublished)
     }

@@ -884,6 +884,15 @@ internal constructor(
         }
     }
 
+    internal fun onLocalTrackSubscribed(publication: LocalTrackPublication) {
+        if (!trackPublications.containsKey(publication.sid)) {
+            LKLog.w { "Could not find local track publication for subscribed event " }
+            return
+        }
+
+        eventBus.postEvent(ParticipantEvent.LocalTrackSubscribed(this, publication), scope)
+    }
+
     /**
      * @suppress
      */

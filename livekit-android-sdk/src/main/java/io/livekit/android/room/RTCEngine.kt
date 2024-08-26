@@ -776,6 +776,7 @@ internal constructor(
         suspend fun onPostReconnect(isFullReconnect: Boolean)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
+        fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
     }
 
     companion object {
@@ -907,6 +908,10 @@ internal constructor(
             return
         }
         cont.resume(response.track)
+    }
+
+    override fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed) {
+        listener?.onLocalTrackSubscribed(trackSubscribed)
     }
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {

@@ -75,6 +75,13 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
     class TrackUnmuted(participant: Participant, val publication: TrackPublication) : ParticipantEvent(participant)
 
     // local participants
+
+    /**
+     * Fired when the first remote participant has subscribed to the localParticipant's track
+     */
+    class LocalTrackSubscribed(override val participant: LocalParticipant, val publication: LocalTrackPublication) :
+        ParticipantEvent(participant)
+
     /**
      * When a new track is published by the local participant.
      */
