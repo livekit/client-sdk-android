@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.8.0
+
+### Minor Changes
+
+- Implement LocalTrackSubscribed event - [#489](https://github.com/livekit/client-sdk-android/pull/489) ([@davidliu](https://github.com/davidliu))
+
+- Add first and last received times to TranscriptionSegment - [#485](https://github.com/livekit/client-sdk-android/pull/485) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- More guarding of rtc api usages to prevent crashes - [#488](https://github.com/livekit/client-sdk-android/pull/488) ([@davidliu](https://github.com/davidliu))
+
 ## 2.7.1
 
 ### Patch Changes
