@@ -128,6 +128,11 @@ sealed class RoomEvent(val room: Room) : Event() {
     class TrackUnmuted(room: Room, val publication: TrackPublication, val participant: Participant) : RoomEvent(room)
 
     /**
+     * Fired when the first remote participant has subscribed to the localParticipant's track
+     */
+    class LocalTrackSubscribed(room: Room, val publication: LocalTrackPublication, val participant: LocalParticipant) : RoomEvent(room)
+
+    /**
      * When a new track is published to room after the local participant has joined. It will
      * not fire for tracks that are already published
      */
@@ -267,6 +272,7 @@ enum class DisconnectReason {
     JOIN_FAILURE,
     MIGRATION,
     SIGNAL_CLOSE,
+    ROOM_CLOSED,
 }
 
 /**
@@ -283,6 +289,7 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.JOIN_FAILURE -> DisconnectReason.JOIN_FAILURE
         LivekitModels.DisconnectReason.MIGRATION -> DisconnectReason.MIGRATION
         LivekitModels.DisconnectReason.SIGNAL_CLOSE -> DisconnectReason.SIGNAL_CLOSE
+        LivekitModels.DisconnectReason.ROOM_CLOSED -> DisconnectReason.ROOM_CLOSED
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,

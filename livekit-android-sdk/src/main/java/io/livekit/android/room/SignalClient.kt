@@ -697,6 +697,10 @@ constructor(
                 listener?.onParticipantUpdate(response.update.participantsList)
             }
 
+            LivekitRtc.SignalResponse.MessageCase.TRACK_SUBSCRIBED -> {
+                listener?.onLocalTrackSubscribed(response.trackSubscribed)
+            }
+
             LivekitRtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
                 listener?.onLocalTrackPublished(response.trackPublished)
             }
@@ -766,7 +770,7 @@ constructor(
                 // TODO
             }
 
-            LivekitRtc.SignalResponse.MessageCase.ERROR_RESPONSE -> {
+            LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
                 // TODO
             }
 
@@ -857,6 +861,7 @@ constructor(
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
+        fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
     }
 
     companion object {

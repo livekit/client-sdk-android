@@ -16,12 +16,20 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.room.participant.AudioTrackPublishOptions
+import io.livekit.android.room.track.LocalAudioTrack
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockAudioProcessingController
+import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.TestData
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitRtc
 import livekit.LivekitRtc.ParticipantUpdate
 import livekit.LivekitRtc.SignalResponse
 import org.junit.Assert.assertEquals
@@ -66,5 +74,54 @@ class RoomParticipantEventMockE2ETest : MockE2ETest() {
 
         assertEquals(1, events.size)
         assertIsClass(RoomEvent.ParticipantAttributesChanged::class.java, events.first())
+    }
+
+    @Test
+    fun localTrackSubscribed() = runTest {
+        connect()
+        room.localParticipant.publishAudioTrack(
+            LocalAudioTrack(
+                name = "",
+                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+                options = LocalAudioTrackOptions(),
+                audioProcessingController = MockAudioProcessingController(),
+                dispatcher = coroutineRule.dispatcher,
+            ),
+            options = AudioTrackPublishOptions(
+                source = Track.Source.MICROPHONE,
+            ),
+        )
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
+
+        wsFactory.receiveMessage(
+            with(SignalResponse.newBuilder()) {
+                trackSubscribed = with(LivekitRtc.TrackSubscribed.newBuilder()) {
+                    trackSid = TestData.LOCAL_AUDIO_TRACK.sid
+                    build()
+                }
+                build()
+            },
+        )
+
+        val roomEvents = roomCollector.stopCollecting()
+        val participantEvents = participantCollector.stopCollecting()
+
+        // Verify room events
+        run {
+            assertEquals(1, roomEvents.size)
+            assertIsClass(RoomEvent.LocalTrackSubscribed::class.java, roomEvents[0])
+
+            val event = roomEvents.first() as RoomEvent.LocalTrackSubscribed
+            assertEquals(room, event.room)
+            assertEquals(room.localParticipant, event.participant)
+            assertEquals(room.localParticipant.getTrackPublication(Track.Source.MICROPHONE), event.publication)
+        }
+
+        // Verify participant events
+        run {
+            assertEquals(1, participantEvents.size)
+            assertIsClass(ParticipantEvent.LocalTrackSubscribed::class.java, participantEvents[0])
+        }
     }
 }
