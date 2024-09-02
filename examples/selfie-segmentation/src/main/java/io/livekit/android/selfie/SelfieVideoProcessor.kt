@@ -21,17 +21,17 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
+import io.livekit.android.room.track.video.NoDropVideoProcessor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import livekit.org.webrtc.VideoFrame
-import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSink
 import java.nio.ByteBuffer
 
-class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : VideoProcessor {
+class SelfieVideoProcessor(dispatcher: CoroutineDispatcher) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter

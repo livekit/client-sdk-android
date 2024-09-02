@@ -476,13 +476,20 @@ constructor(
             source.setVideoProcessor(videoProcessor)
 
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
-            val dispatchObserver = CaptureDispatchObserver()
-            dispatchObserver.registerObserver(source.capturerObserver)
+
+            // Dispatch raw frames to local renderer only if not using a VideoProcessor.
+            val dispatchObserver = if (videoProcessor == null) {
+                CaptureDispatchObserver().apply {
+                    registerObserver(source.capturerObserver)
+                }
+            } else {
+                null
+            }
 
             capturer.initialize(
                 surfaceTextureHelper,
                 context,
-                dispatchObserver,
+                dispatchObserver ?: source.capturerObserver,
             )
             val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
