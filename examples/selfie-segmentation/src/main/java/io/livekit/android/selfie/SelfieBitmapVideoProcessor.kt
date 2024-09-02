@@ -31,6 +31,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
+import io.livekit.android.room.track.video.NoDropVideoProcessor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -41,13 +42,12 @@ import kotlinx.coroutines.sync.Mutex
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoFrame
-import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSink
 import livekit.org.webrtc.YuvHelper
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
-class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatcher) : VideoProcessor {
+class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatcher) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter
@@ -138,6 +138,7 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
         frameBuffer.release()
         frame.release()
 
+        // Ready for segementation processing.
         val inputImage = InputImage.fromBitmap(bitmap, 0)
         val task = segmenter.process(inputImage)
 
@@ -156,6 +157,7 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
                 }
             }
 
+            // Prepare for creating the processed video frame.
             if (lastRotation != rotationDegrees) {
                 surfaceTextureHelper?.setFrameRotation(rotationDegrees)
                 lastRotation = rotationDegrees
@@ -175,6 +177,7 @@ class SelfieBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
                 }
 
                 if (canvas != null) {
+                    // Create the video frame.
                     canvas.drawBitmap(bitmap, Matrix(), Paint())
                     surface.unlockCanvasAndPost(canvas)
                 }
