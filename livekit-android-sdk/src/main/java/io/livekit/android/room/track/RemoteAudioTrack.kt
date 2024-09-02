@@ -16,7 +16,6 @@
 
 package io.livekit.android.room.track
 
-import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.org.webrtc.AudioTrack
 import livekit.org.webrtc.AudioTrackSink
 import livekit.org.webrtc.RtpReceiver
@@ -40,7 +39,7 @@ class RemoteAudioTrack(
      */
     fun addSink(sink: AudioTrackSink) {
         withRTCTrack {
-                rtcTrack.addSink(sink)
+            rtcTrack.addSink(sink)
         }
     }
 
@@ -49,8 +48,8 @@ class RemoteAudioTrack(
      */
     fun removeSink(sink: AudioTrackSink) {
         withRTCTrack {
-                rtcTrack.removeSink(sink)
-            }
+            rtcTrack.removeSink(sink)
+        }
     }
 
     /**
@@ -63,7 +62,7 @@ class RemoteAudioTrack(
      */
     fun setVolume(volume: Double) {
         withRTCTrack {
-                rtcTrack.setVolume(volume)
+            rtcTrack.setVolume(volume)
         }
     }
 }
