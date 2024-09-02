@@ -1,11 +1,7 @@
-name: Publish
+name: Manual Publish
 
 on:
   workflow_dispatch:
-  push:
-    # only publish on version tags
-    tags:
-      - v*
 
 jobs:
   publish:
@@ -40,7 +36,7 @@ jobs:
         AWS_DEFAULT_REGION: "us-east-1"
 
     - name: Build with Gradle
-      run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-test:testRelease
+      run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-camerax:assembleRelease livekit-android-test:testRelease
 
     - name: Create gpg key and import into gradle properties
       run: |
