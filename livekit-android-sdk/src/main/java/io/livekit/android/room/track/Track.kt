@@ -27,6 +27,9 @@ import livekit.LivekitRtc
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RTCStatsCollectorCallback
 import livekit.org.webrtc.RTCStatsReport
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 abstract class Track(
     name: String,
@@ -50,20 +53,8 @@ abstract class Track(
         internal set
 
     var enabled: Boolean
-        get() = executeBlockingOnRTCThread {
-            if (!isDisposed) {
-                rtcTrack.enabled()
-            } else {
-                false
-            }
-        }
-        set(value) {
-            executeBlockingOnRTCThread {
-                if (!isDisposed) {
-                    rtcTrack.setEnabled(value)
-                }
-            }
-        }
+        get() = withRTCTrack(defaultValue = false) { rtcTrack.enabled() }
+        set(value) = withRTCTrack { rtcTrack.setEnabled(value) }
 
     var statsGetter: RTCStatsGetter? = null
 
@@ -186,8 +177,29 @@ abstract class Track(
      * Disposes the track. LiveKit will generally take care of disposing tracks for you.
      */
     open fun dispose() {
-        executeBlockingOnRTCThread {
+        withRTCTrack {
             rtcTrack.dispose()
+        }
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    internal inline fun <T> withRTCTrack(crossinline action: MediaStreamTrack.() -> T) {
+        contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
+        withRTCTrack(Unit, action)
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    internal inline fun <T> withRTCTrack(defaultValue: T, crossinline action: MediaStreamTrack.() -> T): T {
+        contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
+        if (isDisposed) {
+            return defaultValue
+        }
+        return executeBlockingOnRTCThread {
+            return@executeBlockingOnRTCThread if (isDisposed) {
+                defaultValue
+            } else {
+                action(rtcTrack)
+            }
         }
     }
 }

@@ -28,11 +28,9 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
      * Add a [VideoSink] that will receive frames.
      */
     open fun addRenderer(renderer: VideoSink) {
-        executeBlockingOnRTCThread {
-            if (!isDisposed) {
-                sinks.add(renderer)
-                rtcTrack.addSink(renderer)
-            }
+        withRTCTrack {
+            sinks.add(renderer)
+            rtcTrack.addSink(renderer)
         }
     }
 
@@ -43,8 +41,8 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
         executeBlockingOnRTCThread {
             if (!isDisposed) {
                 rtcTrack.removeSink(renderer)
-                sinks.remove(renderer)
             }
+            sinks.remove(renderer)
         }
     }
 

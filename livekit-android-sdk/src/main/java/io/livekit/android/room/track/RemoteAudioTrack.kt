@@ -39,10 +39,8 @@ class RemoteAudioTrack(
      * to use the data after this function returns.
      */
     fun addSink(sink: AudioTrackSink) {
-        executeBlockingOnRTCThread {
-            if (!isDisposed) {
+        withRTCTrack {
                 rtcTrack.addSink(sink)
-            }
         }
     }
 
@@ -50,11 +48,9 @@ class RemoteAudioTrack(
      * Removes a previously added sink.
      */
     fun removeSink(sink: AudioTrackSink) {
-        executeBlockingOnRTCThread {
-            if (!isDisposed) {
+        withRTCTrack {
                 rtcTrack.removeSink(sink)
             }
-        }
     }
 
     /**
@@ -66,10 +62,8 @@ class RemoteAudioTrack(
      * * values greater than 1 will boost the volume of the track.
      */
     fun setVolume(volume: Double) {
-        executeBlockingOnRTCThread {
-            if (!isDisposed) {
+        withRTCTrack {
                 rtcTrack.setVolume(volume)
-            }
         }
     }
 }
