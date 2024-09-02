@@ -47,4 +47,8 @@ class MockMediaStreamTrack(
         }
         disposed = true
     }
+
+    override fun isDisposed(): Boolean {
+        return disposed
+    }
 }

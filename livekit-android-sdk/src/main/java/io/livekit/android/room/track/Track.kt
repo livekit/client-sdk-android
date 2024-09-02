@@ -27,6 +27,9 @@ import livekit.LivekitRtc
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RTCStatsCollectorCallback
 import livekit.org.webrtc.RTCStatsReport
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 abstract class Track(
     name: String,
@@ -50,32 +53,13 @@ abstract class Track(
         internal set
 
     var enabled: Boolean
-        get() = executeBlockingOnRTCThread {
-            if (!isDisposed) {
-                rtcTrack.enabled()
-            } else {
-                false
-            }
-        }
-        set(value) {
-            executeBlockingOnRTCThread {
-                if (!isDisposed) {
-                    rtcTrack.setEnabled(value)
-                }
-            }
-        }
+        get() = withRTCTrack(defaultValue = false) { rtcTrack.enabled() }
+        set(value) = withRTCTrack { rtcTrack.setEnabled(value) }
 
     var statsGetter: RTCStatsGetter? = null
 
-    /**
-     * [MediaStreamTrack] doesn't expose a way to tell if it's disposed. Track it here.
-     * This can only be safely accessed on the rtc thread.
-     *
-     * Note: [MediaStreamTrack] can still be disposed if we don't own it, so this isn't necessarily safe,
-     * however generally all the tracks passed into this class are owned by this class.
-     */
-    internal var isDisposed = false
-        private set
+    internal val isDisposed
+        get() = rtcTrack.isDisposed
 
     /**
      * Return the [RTCStatsReport] for this track, or null if none is available.
@@ -193,9 +177,29 @@ abstract class Track(
      * Disposes the track. LiveKit will generally take care of disposing tracks for you.
      */
     open fun dispose() {
-        executeBlockingOnRTCThread {
-            isDisposed = true
+        withRTCTrack {
             rtcTrack.dispose()
+        }
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    internal inline fun <T> withRTCTrack(crossinline action: MediaStreamTrack.() -> T) {
+        contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
+        withRTCTrack(Unit, action)
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    internal inline fun <T> withRTCTrack(defaultValue: T, crossinline action: MediaStreamTrack.() -> T): T {
+        contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
+        if (isDisposed) {
+            return defaultValue
+        }
+        return executeBlockingOnRTCThread {
+            return@executeBlockingOnRTCThread if (isDisposed) {
+                defaultValue
+            } else {
+                action(rtcTrack)
+            }
         }
     }
 }
