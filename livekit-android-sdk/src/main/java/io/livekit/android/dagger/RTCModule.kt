@@ -35,6 +35,7 @@ import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.Logging
@@ -317,7 +318,13 @@ internal object RTCModule {
                     }
                 }
                 .createPeerConnectionFactory()
-                .apply { memoryManager.registerClosable { dispose() } }
+                .apply {
+                    memoryManager.registerClosable {
+                        executeOnRTCThread {
+                            dispose()
+                        }
+                    }
+                }
         }
     }
 
