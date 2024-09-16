@@ -1028,11 +1028,16 @@ internal constructor(
                 listener?.onTranscriptionReceived(dp.transcription)
             }
 
+            LivekitModels.DataPacket.ValueCase.METRICS -> {
+                // TODO
+            }
+
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+
         }
     }
 
