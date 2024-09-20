@@ -64,6 +64,11 @@ typealias CapabilitiesGetter = @JvmSuppressWildcards (MediaStreamTrack.MediaType
 internal object RTCModule {
 
     /**
+     * To only be written to on the WebRTC thread.
+     */
+    private var hasInitializedWebrtc = false
+
+    /**
      * Certain classes require libwebrtc to be initialized prior to use.
      *
      * If your provision depends on libwebrtc initialization, just add it
@@ -86,32 +91,39 @@ internal object RTCModule {
     @Singleton
     @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
     fun libWebrtcInitialization(appContext: Context): LibWebrtcInitialization {
-        PeerConnectionFactory.initialize(
-            PeerConnectionFactory.InitializationOptions
-                .builder(appContext)
-                .setNativeLibraryName("lkjingle_peerconnection_so")
-                .setInjectableLogger(
-                    { s, severity, s2 ->
-                        if (!LiveKit.enableWebRTCLogging) {
-                            return@setInjectableLogger
-                        }
+        if(!hasInitializedWebrtc) {
+            executeBlockingOnRTCThread {
+                if(!hasInitializedWebrtc) {
+                    hasInitializedWebrtc = true
+                    PeerConnectionFactory.initialize(
+                        PeerConnectionFactory.InitializationOptions
+                            .builder(appContext)
+                            .setNativeLibraryName("lkjingle_peerconnection_so")
+                            .setInjectableLogger(
+                                { s, severity, s2 ->
+                                    if (!LiveKit.enableWebRTCLogging) {
+                                        return@setInjectableLogger
+                                    }
 
-                        val loggingLevel = when (severity) {
-                            Logging.Severity.LS_VERBOSE -> LoggingLevel.VERBOSE
-                            Logging.Severity.LS_INFO -> LoggingLevel.INFO
-                            Logging.Severity.LS_WARNING -> LoggingLevel.WARN
-                            Logging.Severity.LS_ERROR -> LoggingLevel.ERROR
-                            else -> LoggingLevel.OFF
-                        }
+                                    val loggingLevel = when (severity) {
+                                        Logging.Severity.LS_VERBOSE -> LoggingLevel.VERBOSE
+                                        Logging.Severity.LS_INFO -> LoggingLevel.INFO
+                                        Logging.Severity.LS_WARNING -> LoggingLevel.WARN
+                                        Logging.Severity.LS_ERROR -> LoggingLevel.ERROR
+                                        else -> LoggingLevel.OFF
+                                    }
 
-                        LKLog.log(loggingLevel) {
-                            Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
-                        }
-                    },
-                    Logging.Severity.LS_VERBOSE,
-                )
-                .createInitializationOptions(),
-        )
+                                    LKLog.log(loggingLevel) {
+                                        Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
+                                    }
+                                },
+                                Logging.Severity.LS_VERBOSE,
+                            )
+                            .createInitializationOptions(),
+                    )
+                }
+            }
+        }
         return LibWebrtcInitialization
     }
 
