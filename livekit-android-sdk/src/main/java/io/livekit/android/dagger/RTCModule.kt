@@ -91,9 +91,9 @@ internal object RTCModule {
     @Singleton
     @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
     fun libWebrtcInitialization(appContext: Context): LibWebrtcInitialization {
-        if(!hasInitializedWebrtc) {
+        if (!hasInitializedWebrtc) {
             executeBlockingOnRTCThread {
-                if(!hasInitializedWebrtc) {
+                if (!hasInitializedWebrtc) {
                     hasInitializedWebrtc = true
                     PeerConnectionFactory.initialize(
                         PeerConnectionFactory.InitializationOptions
