@@ -17,8 +17,6 @@
 package io.livekit.android.composesample
 
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -58,26 +56,10 @@ import io.livekit.android.sample.MainViewModel
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.util.requestNeededPermissions
-import io.livekit.android.util.LKLog
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {
 
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        /**
-         * @suppress
-         */
-        override fun onLost(network: Network) {
-            LKLog.i { "network connection lost" }
-        }
-
-        /**
-         * @suppress
-         */
-        override fun onAvailable(network: Network) {
-            LKLog.i { "network connection available, reconnecting" }
-        }
-    }
     private val viewModel by viewModels<MainViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

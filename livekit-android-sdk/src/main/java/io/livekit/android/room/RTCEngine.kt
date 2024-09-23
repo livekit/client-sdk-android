@@ -1032,6 +1032,9 @@ internal constructor(
                 // TODO
             }
 
+            LivekitModels.DataPacket.ValueCase.CHAT_MESSAGE -> {
+                // TODO
+            }
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
             -> {

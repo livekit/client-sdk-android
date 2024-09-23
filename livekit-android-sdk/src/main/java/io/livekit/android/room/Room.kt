@@ -38,6 +38,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
+import io.livekit.android.room.metrics.collectMetricsTracking
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
@@ -440,6 +441,10 @@ constructor(
             if (options.video) {
                 val videoTrack = localParticipant.createVideoTrack()
                 localParticipant.publishVideoTrack(videoTrack)
+            }
+            
+            coroutineScope.launch {
+                collectMetricsTracking(room = this@Room, rtcEngine = engine)
             }
         }
 
