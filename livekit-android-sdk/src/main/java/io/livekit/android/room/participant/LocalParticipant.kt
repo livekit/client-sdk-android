@@ -30,6 +30,7 @@ import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.track.DataPublishReliability
@@ -110,6 +111,8 @@ internal constructor(
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
      *
+     * @param name The name of the track.
+     * @param options The capture options to use for this track, or [Room.audioTrackCaptureDefaults] if none is passed.
      * @exception SecurityException will be thrown if [Manifest.permission.RECORD_AUDIO] permission is missing.
      */
     fun createAudioTrack(
@@ -124,6 +127,11 @@ internal constructor(
      *
      * This method will call [VideoCapturer.initialize] and handle the lifecycle of
      * [SurfaceTextureHelper].
+     *
+     * @param name The name of the track.
+     * @param capturer The capturer to use for this track.
+     * @param options The capture options to use for this track, or [Room.videoTrackCaptureDefaults] if none is passed.
+     * @param videoProcessor A video processor to attach to this track that can modify the frames before publishing.
      */
     fun createVideoTrack(
         name: String = "",
@@ -146,6 +154,9 @@ internal constructor(
     /**
      * Creates a video track, recording video through the camera with the given [options].
      *
+     * @param name The name of the track
+     * @param options The capture options to use for this track, or [Room.videoTrackCaptureDefaults] if none is passed.
+     * @param videoProcessor A video processor to attach to this track that can modify the frames before publishing.
      * @exception SecurityException will be thrown if [Manifest.permission.CAMERA] permission is missing.
      */
     fun createVideoTrack(
@@ -167,8 +178,11 @@ internal constructor(
     /**
      * Creates a screencast video track.
      *
+     * @param name The name of the track.
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
+     * @param options The capture options to use for this track, or [Room.videoTrackCaptureDefaults] if none is passed.
+     * @param videoProcessor A video processor to attach to this track that can modify the frames before publishing.
      */
     fun createScreencastTrack(
         name: String = "",
@@ -201,6 +215,11 @@ internal constructor(
      * If set to enabled, creates and publishes a camera video track if not already done, and starts the camera.
      *
      * If set to disabled, mutes and stops the camera.
+     *
+     * This will use capture and publish default options from [Room].
+     *
+     * @see Room.videoTrackCaptureDefaults
+     * @see Room.videoTrackPublishDefaults
      */
     suspend fun setCameraEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.CAMERA, enabled)
@@ -210,6 +229,11 @@ internal constructor(
      * If set to enabled, creates and publishes a microphone audio track if not already done, and unmutes the mic.
      *
      * If set to disabled, mutes the mic.
+     *
+     * This will use capture and publish default options from [Room].
+     *
+     * @see Room.audioTrackCaptureDefaults
+     * @see Room.audioTrackPublishDefaults
      */
     suspend fun setMicrophoneEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.MICROPHONE, enabled)
@@ -220,9 +244,13 @@ internal constructor(
      *
      * If set to disabled, unpublishes the screenshare video track.
      *
+     * This will use capture and publish default options from [Room].
+     *
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
+     * @see Room.videoTrackCaptureDefaults
+     * @see Room.videoTrackPublishDefaults
      */
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
@@ -295,6 +323,9 @@ internal constructor(
 
     /**
      * Publishes an audio track.
+     *
+     * @param track The track to publish.
+     * @param options The publish options to use, or [Room.audioTrackPublishDefaults] if none is passed.
      */
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
@@ -335,6 +366,9 @@ internal constructor(
 
     /**
      * Publishes an video track.
+     *
+     * @param track The track to publish.
+     * @param options The publish options to use, or [Room.videoTrackPublishDefaults] if none is passed.
      */
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
