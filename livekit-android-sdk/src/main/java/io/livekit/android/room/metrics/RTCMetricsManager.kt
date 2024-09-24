@@ -1,13 +1,9 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package io.livekit.android.room.metrics
 
-import com.github.ajalt.timberkt.Timber
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -18,7 +14,6 @@ import livekit.LivekitMetrics.MetricLabel
 import livekit.LivekitMetrics.MetricSample
 import livekit.LivekitMetrics.MetricsBatch
 import livekit.LivekitMetrics.TimeSeriesMetric
-import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
 import livekit.org.webrtc.RTCStats
 import livekit.org.webrtc.RTCStatsReport
@@ -32,19 +27,32 @@ suspend fun collectMetricsTracking(room: Room, rtcEngine: RTCEngine) = coroutine
 
 suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
     while (currentCoroutineContext().isActive) {
-        delay(5000)
-        val stats = suspendCancellableCoroutine { cont ->
+        delay(1000)
+        val report = suspendCancellableCoroutine { cont ->
             room.getPublisherRTCStats { cont.resume(it) }
         }
 
-        Timber.e { "stats for publisher:" }
+        val strings = mutableListOf<String>()
+        val stats = findPublisherVideoStats(strings, room, report, room.localParticipant.identity)
 
-        for (entry in stats.statsMap) {
-            Timber.e { "${entry.key} = ${entry.value}" }
+        val dataPacket = with(DataPacket.newBuilder()) {
+            metrics = with(MetricsBatch.newBuilder()) {
+                timestampMs = report.timestampUs.microToMilli()
+                addAllStrData(strings)
+                addAllTimeSeries(stats)
+                build()
+            }
+            kind = DataPacket.Kind.RELIABLE
+            build()
+        }
+
+        try {
+            rtcEngine.sendData(dataPacket)
+        } catch (e: Exception) {
+            LKLog.w(e) { "Error sending metrics: " }
         }
     }
 }
-
 
 suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
     while (currentCoroutineContext().isActive) {
@@ -53,31 +61,79 @@ suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
             room.getSubscriberRTCStats { cont.resume(it) }
         }
 
-        Timber.e { "stats for subscriber:" }
-
-        for (entry in report.statsMap) {
-            Timber.e { "${entry.key} = ${entry.value}" }
-        }
-
         val strings = mutableListOf<String>()
         val stats = findSubscriberAudioStats(strings, report, room.localParticipant.identity) +
             findSubscriberVideoStats(strings, report, room.localParticipant.identity)
 
-        val dataPacket = with(LivekitModels.DataPacket.newBuilder()) {
+        val dataPacket = with(DataPacket.newBuilder()) {
             metrics = with(MetricsBatch.newBuilder()) {
                 timestampMs = report.timestampUs.microToMilli()
                 addAllStrData(strings)
                 addAllTimeSeries(stats)
                 build()
             }
-            kind = DataPacket.Kind.LOSSY
+            kind = DataPacket.Kind.RELIABLE
             build()
         }
 
-        rtcEngine.sendData(dataPacket)
-
-        LKLog.e { "subscriber metrics: \n $dataPacket" }
+        try {
+            rtcEngine.sendData(dataPacket)
+        } catch (e: Exception) {
+            LKLog.w(e) { "Error sending metrics: " }
+        }
     }
+}
+
+fun findPublisherVideoStats(strings: MutableList<String>, room: Room, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
+    val mediaSources = report.statsMap
+        .values
+        .filter { stat -> stat.type == "media-source" && stat.members["kind"] == "video" }
+    val videoTracks = report.statsMap
+        .values
+        .filter { stat -> stat.type == "outbound-rtp" && stat.members["kind"] == "video" }
+        .mapNotNull { stat -> stat to getPublishVideoTrackSid(room, mediaSources, stat) }
+
+    val metrics = videoTracks
+        .flatMap { (stat, trackSid) ->
+            val durations = stat.members["qualityLimitationDurations"] as? Map<*, *> ?: return emptyList()
+            val rid = stat.members["rid"] as? String
+            qualityLimitations.mapNotNull { (label, key) ->
+                val duration = durations[key] as? Number ?: return@mapNotNull null
+                val sample = createMetricSample(stat.timestampUs.microToMilli(), duration)
+                createTimeSeries(
+                    label = label.protoLabel,
+                    strings = strings,
+                    samples = listOf(sample),
+                    identity = participantIdentity,
+                    trackSid = trackSid,
+                    rid = rid,
+                )
+            }
+        }
+
+    return metrics
+}
+
+/**
+ * The track sid isn't available on outbound-rtp stats, so we cross-reference against
+ * the MediaSource trackIdentifier (which is a locally generated id), and then look up
+ * the local published track for the sid.
+ */
+fun getPublishVideoTrackSid(room: Room, mediaSources: List<RTCStats>, videoTrack: RTCStats): String? {
+    val mediaSourceId = videoTrack.members["mediaSourceId"] ?: return null
+    val mediaSource = mediaSources.firstOrNull { m -> m.id == mediaSourceId } ?: return null
+    val trackIdentifier = mediaSource.members["trackIdentifier"] ?: return null
+
+    val trackPubPair = room.localParticipant.videoTrackPublications
+        .firstOrNull { (_, track) -> track?.rtcTrack?.id() == trackIdentifier } ?: return null
+
+    val (publication) = trackPubPair
+
+    return publication.sid
+}
+
+fun getQualityLimitationDurations(stat: RTCStats, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
+    return emptyList()
 }
 
 fun findSubscriberAudioStats(strings: MutableList<String>, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
@@ -92,6 +148,7 @@ fun findSubscriberAudioStats(strings: MutableList<String>, report: RTCStatsRepor
                 RTCMetric.CONCEALMENT_EVENTS,
                 RTCMetric.SILENT_CONCEALED_SAMPLES,
                 RTCMetric.JITTER_BUFFER_DELAY,
+                RTCMetric.JITTER_BUFFER_EMITTED_COUNT,
             ).mapNotNull { metric ->
                 createTimeSeriesForMetric(
                     stat = stat,
@@ -118,6 +175,7 @@ fun findSubscriberVideoStats(strings: MutableList<String>, report: RTCStatsRepor
                 RTCMetric.PAUSE_COUNT,
                 RTCMetric.TOTAL_PAUSES_DURATION,
                 RTCMetric.JITTER_BUFFER_DELAY,
+                RTCMetric.JITTER_BUFFER_EMITTED_COUNT,
             ).mapNotNull { metric ->
                 createTimeSeriesForMetric(
                     stat = stat,
@@ -133,16 +191,28 @@ fun findSubscriberVideoStats(strings: MutableList<String>, report: RTCStatsRepor
 
 // Utility methods
 
+/**
+ * Gets the final index to use for indexes pointing at the MetricsBatch.str_data.
+ * Index starts at [MetricLabel.METRIC_LABEL_PREDEFINED_MAX_VALUE].
+ *
+ * Receivers should parse index values like so:
+ * ```
+ * if index < LABEL_MAX_VALUE
+ *    MetricLabel[index]
+ * else
+ *    str_data[index - 4096]
+ * ```
+ */
 private fun MutableList<String>.getOrCreateIndex(string: String): Int {
-    val index = indexOf(string)
+    var index = indexOf(string)
 
-    return if (index != -1) {
-        index
-    } else {
+    if (index == -1) {
         // Doesn't exist, create.
         add(string)
-        size - 1
+        index = size - 1
     }
+
+    return index + MetricLabel.METRIC_LABEL_PREDEFINED_MAX_VALUE.number
 }
 
 private fun createMetricSample(
@@ -155,7 +225,6 @@ private fun createMetricSample(
         build()
     }
 }
-
 
 private fun createTimeSeriesForMetric(
     stat: RTCStats,
@@ -199,30 +268,37 @@ private fun createTimeSeries(
         }
 
         if (rid != null) {
-            // TODO specify rid
+            this.rid = strings.getOrCreateIndex(rid)
         }
         this.addAllSamples(samples)
         build()
     }
 }
 
-
 private fun Number.microToMilli(): Long {
     return TimeUnit.MILLISECONDS.convert(this.toLong(), TimeUnit.MILLISECONDS)
 }
 
 private enum class RTCMetric(val protoLabel: MetricLabel, val statKey: String) {
-    FREEZE_COUNT(MetricLabel.AGENTS_LLM_TTFT, "freezeCount"),
-    TOTAL_FREEZES_DURATION(MetricLabel.AGENTS_LLM_TTFT, "totalFreezesDuration"),
-    PAUSE_COUNT(MetricLabel.AGENTS_LLM_TTFT, "pauseCount"),
-    TOTAL_PAUSES_DURATION(MetricLabel.AGENTS_LLM_TTFT, "totalPausesDuration"),
+    FREEZE_COUNT(MetricLabel.CLIENT_VIDEO_SUBSCRIBER_FREEZE_COUNT, "freezeCount"),
+    TOTAL_FREEZES_DURATION(MetricLabel.CLIENT_VIDEO_SUBSCRIBER_TOTAL_FREEZE_DURATION, "totalFreezesDuration"),
+    PAUSE_COUNT(MetricLabel.CLIENT_VIDEO_SUBSCRIBER_PAUSE_COUNT, "pauseCount"),
+    TOTAL_PAUSES_DURATION(MetricLabel.CLIENT_VIDEO_SUBSCRIBER_TOTAL_PAUSES_DURATION, "totalPausesDuration"),
 
-    CONCEALED_SAMPLES(MetricLabel.AGENTS_LLM_TTFT, "concealedSamples"),
-    SILENT_CONCEALED_SAMPLES(MetricLabel.AGENTS_LLM_TTFT, "silentConcealedSamples"),
-    CONCEALMENT_EVENTS(MetricLabel.AGENTS_LLM_TTFT, "concealmentEvents"),
+    CONCEALED_SAMPLES(MetricLabel.CLIENT_AUDIO_SUBSCRIBER_CONCEALED_SAMPLES, "concealedSamples"),
+    SILENT_CONCEALED_SAMPLES(MetricLabel.CLIENT_AUDIO_SUBSCRIBER_SILENT_CONCEALED_SAMPLES, "silentConcealedSamples"),
+    CONCEALMENT_EVENTS(MetricLabel.CLIENT_AUDIO_SUBSCRIBER_CONCEALMENT_EVENTS, "concealmentEvents"),
 
-    JITTER_BUFFER_DELAY(MetricLabel.AGENTS_LLM_TTFT, "jitterBufferDelay"),
+    JITTER_BUFFER_DELAY(MetricLabel.CLIENT_SUBSCRIBER_JITTER_BUFFER_DELAY, "jitterBufferDelay"),
+    JITTER_BUFFER_EMITTED_COUNT(MetricLabel.CLIENT_SUBSCRIBER_JITTER_BUFFER_EMITTED_COUNT, "jitterBufferEmittedCount"),
 
-    QUALITY_LIMITATION_DURATIONS(MetricLabel.AGENTS_LLM_TTFT, "qualityLimitationDurations"),
-
+    QUALITY_LIMITATION_DURATION_BANDWIDTH(MetricLabel.CLIENT_VIDEO_PUBLISHER_QUALITY_LIMITATION_DURATION_BANDWIDTH, "qualityLimitationDurations"),
+    QUALITY_LIMITATION_DURATION_CPU(MetricLabel.CLIENT_VIDEO_PUBLISHER_QUALITY_LIMITATION_DURATION_CPU, "qualityLimitationDurations"),
+    QUALITY_LIMITATION_DURATION_OTHER(MetricLabel.CLIENT_VIDEO_PUBLISHER_QUALITY_LIMITATION_DURATION_OTHER, "qualityLimitationDurations"),
 }
+
+private val qualityLimitations = listOf(
+    RTCMetric.QUALITY_LIMITATION_DURATION_CPU to "cpu",
+    RTCMetric.QUALITY_LIMITATION_DURATION_BANDWIDTH to "bandwidth",
+    RTCMetric.QUALITY_LIMITATION_DURATION_OTHER to "other",
+)

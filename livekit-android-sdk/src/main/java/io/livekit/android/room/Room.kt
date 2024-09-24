@@ -442,7 +442,7 @@ constructor(
                 val videoTrack = localParticipant.createVideoTrack()
                 localParticipant.publishVideoTrack(videoTrack)
             }
-            
+
             coroutineScope.launch {
                 collectMetricsTracking(room = this@Room, rtcEngine = engine)
             }
