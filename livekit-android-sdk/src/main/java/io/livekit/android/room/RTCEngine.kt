@@ -1040,7 +1040,6 @@ internal constructor(
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
-
         }
     }
 
