@@ -49,7 +49,7 @@ suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
         try {
             rtcEngine.sendData(dataPacket)
         } catch (e: Exception) {
-            LKLog.w(e) { "Error sending metrics: " }
+            LKLog.i(e) { "Error sending metrics: " }
         }
     }
 }
@@ -79,7 +79,7 @@ suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
         try {
             rtcEngine.sendData(dataPacket)
         } catch (e: Exception) {
-            LKLog.w(e) { "Error sending metrics: " }
+            LKLog.i(e) { "Error sending metrics: " }
         }
     }
 }
