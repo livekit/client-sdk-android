@@ -1035,11 +1035,19 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.CHAT_MESSAGE -> {
                 // TODO
             }
+
+            LivekitModels.DataPacket.ValueCase.RPC_REQUEST,
+            LivekitModels.DataPacket.ValueCase.RPC_ACK,
+            LivekitModels.DataPacket.ValueCase.RPC_RESPONSE,
+            -> {
+                // TODO
+            }
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+
         }
     }
 
