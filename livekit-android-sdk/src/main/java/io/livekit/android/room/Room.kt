@@ -187,7 +187,6 @@ constructor(
     @VisibleForTesting
     var enableMetrics: Boolean = true
 
-
     /**
      *  end-to-end encryption manager
      */

@@ -43,7 +43,6 @@ abstract class BaseTest {
     @get:Rule
     var globalTimeout: Timeout = Timeout.seconds(60)
 
-
     @Before
     fun setupRTCThread() {
         overrideExecutorAndDispatcher(
