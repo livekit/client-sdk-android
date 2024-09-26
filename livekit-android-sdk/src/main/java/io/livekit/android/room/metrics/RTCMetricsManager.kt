@@ -36,7 +36,7 @@ import livekit.org.webrtc.RTCStatsReport
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-suspend fun collectMetricsTracking(room: Room, rtcEngine: RTCEngine) = coroutineScope {
+suspend fun collectMetrics(room: Room, rtcEngine: RTCEngine) = coroutineScope {
     launch { collectPublisherMetrics(room, rtcEngine) }
     launch { collectSubscriberMetrics(room, rtcEngine) }
 }
