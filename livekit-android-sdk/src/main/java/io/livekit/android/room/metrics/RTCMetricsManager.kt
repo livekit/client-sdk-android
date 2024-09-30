@@ -36,12 +36,12 @@ import livekit.org.webrtc.RTCStatsReport
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-suspend fun collectMetrics(room: Room, rtcEngine: RTCEngine) = coroutineScope {
+internal suspend fun collectMetrics(room: Room, rtcEngine: RTCEngine) = coroutineScope {
     launch { collectPublisherMetrics(room, rtcEngine) }
     launch { collectSubscriberMetrics(room, rtcEngine) }
 }
 
-suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
+private suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
     while (currentCoroutineContext().isActive) {
         delay(1000)
         val report = suspendCancellableCoroutine { cont ->
@@ -70,7 +70,7 @@ suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
     }
 }
 
-suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
+private suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
     while (currentCoroutineContext().isActive) {
         delay(1000)
         val report = suspendCancellableCoroutine { cont ->
@@ -100,7 +100,7 @@ suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
     }
 }
 
-fun findPublisherVideoStats(strings: MutableList<String>, room: Room, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
+private fun findPublisherVideoStats(strings: MutableList<String>, room: Room, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
     val mediaSources = report.statsMap
         .values
         .filter { stat -> stat.type == "media-source" && stat.members["kind"] == "video" }
@@ -135,7 +135,7 @@ fun findPublisherVideoStats(strings: MutableList<String>, room: Room, report: RT
  * the MediaSource trackIdentifier (which is a locally generated id), and then look up
  * the local published track for the sid.
  */
-fun getPublishVideoTrackSid(room: Room, mediaSources: List<RTCStats>, videoTrack: RTCStats): String? {
+private fun getPublishVideoTrackSid(room: Room, mediaSources: List<RTCStats>, videoTrack: RTCStats): String? {
     val mediaSourceId = videoTrack.members["mediaSourceId"] ?: return null
     val mediaSource = mediaSources.firstOrNull { m -> m.id == mediaSourceId } ?: return null
     val trackIdentifier = mediaSource.members["trackIdentifier"] ?: return null
@@ -148,11 +148,7 @@ fun getPublishVideoTrackSid(room: Room, mediaSources: List<RTCStats>, videoTrack
     return publication.sid
 }
 
-fun getQualityLimitationDurations(stat: RTCStats, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
-    return emptyList()
-}
-
-fun findSubscriberAudioStats(strings: MutableList<String>, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
+private fun findSubscriberAudioStats(strings: MutableList<String>, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
     val audioTracks = report.statsMap.filterValues { stat ->
         stat.type == "inbound-rtp" && stat.members["kind"] == "audio"
     }
@@ -178,7 +174,7 @@ fun findSubscriberAudioStats(strings: MutableList<String>, report: RTCStatsRepor
     return metrics
 }
 
-fun findSubscriberVideoStats(strings: MutableList<String>, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
+private fun findSubscriberVideoStats(strings: MutableList<String>, report: RTCStatsReport, participantIdentity: Participant.Identity?): List<TimeSeriesMetric> {
     val videoTracks = report.statsMap.filterValues { stat ->
         stat.type == "inbound-rtp" && stat.members["kind"] == "video"
     }
