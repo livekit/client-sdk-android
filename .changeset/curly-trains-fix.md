@@ -1,5 +1,5 @@
 ---
-"client-sdk-android": patch
+"client-sdk-android": minor
 ---
 
 Implement client metrics

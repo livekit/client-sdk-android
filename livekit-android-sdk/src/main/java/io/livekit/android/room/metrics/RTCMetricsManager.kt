@@ -36,6 +36,11 @@ import livekit.org.webrtc.RTCStatsReport
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
+/**
+ * Handles getting the WebRTC metrics and sending them through the data channels.
+ *
+ * See [RTCMetric] for the related metrics we send.
+ */
 internal suspend fun collectMetrics(room: Room, rtcEngine: RTCEngine) = coroutineScope {
     launch { collectPublisherMetrics(room, rtcEngine) }
     launch { collectSubscriberMetrics(room, rtcEngine) }
