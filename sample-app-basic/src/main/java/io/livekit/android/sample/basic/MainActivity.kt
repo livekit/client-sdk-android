@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
                 )
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error while connecting to server:", e)
+                return@launch
             }
 
             // Turn on audio/video recording.
