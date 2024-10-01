@@ -19,6 +19,7 @@ package io.livekit.android.sample.basic
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -71,10 +72,15 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Connect to server.
-            room.connect(
-                url,
-                token,
-            )
+            try {
+                room.connect(
+                    url,
+                    token,
+                )
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error while connecting to server:", e)
+                return@launch
+            }
 
             // Turn on audio/video recording.
             val localParticipant = room.localParticipant
