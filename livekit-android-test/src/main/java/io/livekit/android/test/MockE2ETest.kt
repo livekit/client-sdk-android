@@ -58,6 +58,9 @@ abstract class MockE2ETest : BaseTest() {
 
         room = component.roomFactory()
             .create(context)
+            .apply {
+                enableMetrics = false
+            }
         wsFactory = component.websocketFactory()
     }
 

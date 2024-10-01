@@ -1028,6 +1028,20 @@ internal constructor(
                 listener?.onTranscriptionReceived(dp.transcription)
             }
 
+            LivekitModels.DataPacket.ValueCase.METRICS -> {
+                // TODO
+            }
+
+            LivekitModels.DataPacket.ValueCase.CHAT_MESSAGE -> {
+                // TODO
+            }
+
+            LivekitModels.DataPacket.ValueCase.RPC_REQUEST,
+            LivekitModels.DataPacket.ValueCase.RPC_ACK,
+            LivekitModels.DataPacket.ValueCase.RPC_RESPONSE,
+            -> {
+                // TODO
+            }
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
             -> {

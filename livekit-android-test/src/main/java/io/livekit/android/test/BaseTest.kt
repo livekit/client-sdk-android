@@ -25,6 +25,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.Timeout
 import org.mockito.junit.MockitoJUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -38,6 +39,9 @@ abstract class BaseTest {
 
     @get:Rule
     var coroutineRule = TestCoroutineRule()
+
+    @get:Rule
+    var globalTimeout: Timeout = Timeout.seconds(60)
 
     @Before
     fun setupRTCThread() {

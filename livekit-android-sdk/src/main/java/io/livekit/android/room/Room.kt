@@ -38,6 +38,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
+import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
@@ -179,6 +180,12 @@ constructor(
     @get:FlowObservable
     var isRecording: Boolean by flowDelegate(false)
         private set
+
+    /**
+     * @suppress
+     */
+    @VisibleForTesting
+    var enableMetrics: Boolean = true
 
     /**
      *  end-to-end encryption manager
@@ -440,6 +447,12 @@ constructor(
             if (options.video) {
                 val videoTrack = localParticipant.createVideoTrack()
                 localParticipant.publishVideoTrack(videoTrack)
+            }
+
+            coroutineScope.launch {
+                if (enableMetrics) {
+                    collectMetrics(room = this@Room, rtcEngine = engine)
+                }
             }
         }
 
