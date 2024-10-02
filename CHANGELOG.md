@@ -1,5 +1,21 @@
 # client-sdk-android
 
+## 2.9.0
+
+### Minor Changes
+
+- Implement LocalAudioTrack.addSink to receive audio data from local mic - [#516](https://github.com/livekit/client-sdk-android/pull/516) ([@davidliu](https://github.com/davidliu))
+
+- Implement client metrics - [#511](https://github.com/livekit/client-sdk-android/pull/511) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Properly dispose peer connection on RTC thread - [#506](https://github.com/livekit/client-sdk-android/pull/506) ([@davidliu](https://github.com/davidliu))
+
+- Documentation updates for LocalParticipant methods - [#510](https://github.com/livekit/client-sdk-android/pull/510) ([@davidliu](https://github.com/davidliu))
+
+- Initialize WebRTC library only once - [#508](https://github.com/livekit/client-sdk-android/pull/508) ([@davidliu](https://github.com/davidliu))
+
 ## 2.8.1
 
 ### Patch Changes
