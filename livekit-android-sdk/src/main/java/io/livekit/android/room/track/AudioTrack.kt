@@ -17,6 +17,7 @@
 package io.livekit.android.room.track
 
 import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.AudioTrackSink
 
 /**
  * A class representing an audio track.
@@ -27,4 +28,22 @@ abstract class AudioTrack(
      * The underlying WebRTC audio track.
      */
     override val rtcTrack: AudioTrack,
-) : Track(name, Kind.AUDIO, rtcTrack)
+) : Track(name, Kind.AUDIO, rtcTrack) {
+
+    /**
+     * Adds a sink that receives the audio bytes and related information
+     * for this audio track. Repeated calls using the same sink will
+     * only add the sink once.
+     *
+     * Implementations should copy the audio data into a local copy if they wish
+     * to use the data after the [AudioTrackSink.onData] callback returns.
+     * Long running processing of the received audio data should be done in a separate
+     * thread, as doing so inline may block the audio thread.
+     */
+    abstract fun addSink(sink: AudioTrackSink)
+
+    /**
+     * Removes a previously added sink.
+     */
+    abstract fun removeSink(sink: AudioTrackSink)
+}
