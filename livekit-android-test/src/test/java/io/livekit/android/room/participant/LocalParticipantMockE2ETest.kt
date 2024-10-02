@@ -24,8 +24,6 @@ import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
-import io.livekit.android.room.track.LocalAudioTrack
-import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.Track
@@ -35,12 +33,12 @@ import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockAudioProcessingController
-import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockVideoCapturer
 import io.livekit.android.test.mock.MockVideoStreamTrack
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.camera.MockCameraProvider
+import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import io.livekit.android.test.util.toPBByteString
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.CoroutineScope
@@ -78,13 +76,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         connect()
 
         room.localParticipant.publishAudioTrack(
-            LocalAudioTrack(
-                name = "",
-                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
-                options = LocalAudioTrackOptions(),
-                audioProcessingController = MockAudioProcessingController(),
-                dispatcher = coroutineRule.dispatcher,
-            ),
+            track = createMockLocalAudioTrack(),
         )
 
         room.disconnect()
@@ -439,13 +431,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         wsFactory.ws.clearRequests()
         room.localParticipant.publishAudioTrack(
-            LocalAudioTrack(
-                name = "",
-                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
-                options = LocalAudioTrackOptions(),
-                audioProcessingController = MockAudioProcessingController(),
-                dispatcher = coroutineRule.dispatcher,
-            ),
+            track = createMockLocalAudioTrack(),
         )
 
         advanceUntilIdle()
@@ -471,13 +457,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         val audioProcessingController = MockAudioProcessingController()
         room.localParticipant.publishAudioTrack(
-            LocalAudioTrack(
-                name = "",
-                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
-                options = LocalAudioTrackOptions(),
-                audioProcessingController = audioProcessingController,
-                dispatcher = coroutineRule.dispatcher,
-            ),
+            track = createMockLocalAudioTrack(audioProcessingController = audioProcessingController),
         )
 
         advanceUntilIdle()
@@ -517,13 +497,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
 
         val audioProcessingController = MockAudioProcessingController()
         room.localParticipant.publishAudioTrack(
-            LocalAudioTrack(
-                name = "",
-                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
-                options = LocalAudioTrackOptions(),
-                audioProcessingController = audioProcessingController,
-                dispatcher = coroutineRule.dispatcher,
-            ),
+            track = createMockLocalAudioTrack(audioProcessingController = audioProcessingController),
         )
 
         advanceUntilIdle()
