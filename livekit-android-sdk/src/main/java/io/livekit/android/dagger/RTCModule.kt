@@ -27,6 +27,7 @@ import dagger.Provides
 import io.livekit.android.LiveKit
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorOptions
+import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
@@ -128,6 +129,13 @@ internal object RTCModule {
     }
 
     @Provides
+    @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER)
+    @Singleton
+    fun localAudioSamplesDispatcher(): AudioRecordSamplesDispatcher {
+        return AudioRecordSamplesDispatcher()
+    }
+
+    @Provides
     @Singleton
     @JvmSuppressWildcards
     fun audioModule(
@@ -141,6 +149,8 @@ internal object RTCModule {
         appContext: Context,
         closeableManager: CloseableManager,
         communicationWorkaround: CommunicationWorkaround,
+        @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER)
+        audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher,
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
             return audioDeviceModuleOverride
@@ -215,6 +225,7 @@ internal object RTCModule {
             .setAudioTrackErrorCallback(audioTrackErrorCallback)
             .setAudioRecordStateCallback(audioRecordStateCallback)
             .setAudioTrackStateCallback(audioTrackStateCallback)
+            .setSamplesReadyCallback(audioRecordSamplesDispatcher)
             // VOICE_COMMUNICATION needs to be used for echo cancelling.
             .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             .setAudioAttributes(audioOutputAttributes)

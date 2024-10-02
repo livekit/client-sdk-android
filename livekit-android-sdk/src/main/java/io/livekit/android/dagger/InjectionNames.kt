@@ -47,6 +47,8 @@ object InjectionNames {
 
     const val LIB_WEBRTC_INITIALIZATION = "lib_webrtc_initialization"
 
+    const val LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER = "local_audio_record_samples_dispatcher"
+
     // Overrides
     const val OVERRIDE_OKHTTP = "override_okhttp"
     const val OVERRIDE_AUDIO_DEVICE_MODULE = "override_audio_device_module"

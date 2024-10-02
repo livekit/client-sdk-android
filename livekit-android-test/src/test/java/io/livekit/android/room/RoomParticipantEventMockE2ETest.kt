@@ -19,15 +19,12 @@ package io.livekit.android.room
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.participant.AudioTrackPublishOptions
-import io.livekit.android.room.track.LocalAudioTrack
-import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
-import io.livekit.android.test.mock.MockAudioProcessingController
-import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitRtc
 import livekit.LivekitRtc.ParticipantUpdate
@@ -80,13 +77,7 @@ class RoomParticipantEventMockE2ETest : MockE2ETest() {
     fun localTrackSubscribed() = runTest {
         connect()
         room.localParticipant.publishAudioTrack(
-            LocalAudioTrack(
-                name = "",
-                mediaTrack = MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
-                options = LocalAudioTrackOptions(),
-                audioProcessingController = MockAudioProcessingController(),
-                dispatcher = coroutineRule.dispatcher,
-            ),
+            track = createMockLocalAudioTrack(),
             options = AudioTrackPublishOptions(
                 source = Track.Source.MICROPHONE,
             ),

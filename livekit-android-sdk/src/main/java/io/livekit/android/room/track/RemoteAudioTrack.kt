@@ -29,24 +29,13 @@ class RemoteAudioTrack(
     internal val receiver: RtpReceiver,
 ) : io.livekit.android.room.track.AudioTrack(name, rtcTrack) {
 
-    /**
-     * Adds a sink that receives the audio bytes and related information
-     * for this audio track. Repeated calls using the same sink will
-     * only add the sink once.
-     *
-     * Implementations should copy the audio data into a local copy if they wish
-     * to use the data after this function returns.
-     */
-    fun addSink(sink: AudioTrackSink) {
+    override fun addSink(sink: AudioTrackSink) {
         withRTCTrack {
             rtcTrack.addSink(sink)
         }
     }
 
-    /**
-     * Removes a previously added sink.
-     */
-    fun removeSink(sink: AudioTrackSink) {
+    override fun removeSink(sink: AudioTrackSink) {
         withRTCTrack {
             rtcTrack.removeSink(sink)
         }

@@ -21,6 +21,7 @@ import android.javax.sdp.SdpFactory
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.test.mock.MockAudioDeviceModule
@@ -56,6 +57,13 @@ object TestRTCModule {
     @Singleton
     fun audioDeviceModule(): AudioDeviceModule {
         return MockAudioDeviceModule()
+    }
+
+    @Provides
+    @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER)
+    @Singleton
+    fun localAudioSamplesDispatcher(): AudioRecordSamplesDispatcher {
+        return AudioRecordSamplesDispatcher()
     }
 
     @Provides
