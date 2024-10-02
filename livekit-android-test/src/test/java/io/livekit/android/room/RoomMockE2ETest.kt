@@ -17,6 +17,7 @@
 package io.livekit.android.room
 
 import android.net.Network
+import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
@@ -384,6 +385,7 @@ class RoomMockE2ETest : MockE2ETest() {
                 options = LocalAudioTrackOptions(),
                 audioProcessingController = MockAudioProcessingController(),
                 dispatcher = coroutineRule.dispatcher,
+                audioRecordSamplesDispatcher = AudioRecordSamplesDispatcher(),
             ),
         )
 
@@ -433,6 +435,7 @@ class RoomMockE2ETest : MockE2ETest() {
                 options = LocalAudioTrackOptions(),
                 audioProcessingController = MockAudioProcessingController(),
                 dispatcher = coroutineRule.dispatcher,
+                audioRecordSamplesDispatcher = AudioRecordSamplesDispatcher(),
             ),
         )
 
