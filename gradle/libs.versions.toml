@@ -25,6 +25,7 @@ semver4j = "3.1.0"
 appcompat = "1.6.1"
 material = "1.12.0"
 viewpager2 = "1.0.0"
+noise = "2.0.0"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
@@ -45,6 +46,7 @@ dagger-lib = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 groupie = { module = "com.github.lisawray.groupie:groupie", version.ref = "groupie" }
 groupie-viewbinding = { module = "com.github.lisawray.groupie:groupie-viewbinding", version.ref = "groupie" }
+noise = { module = "com.github.paramsen:noise", version.ref = "noise" }
 androidx-lifecycle-common-java8 = { module = "androidx.lifecycle:lifecycle-common-java8", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidx-lifecycle" }
@@ -64,7 +66,7 @@ auto-service-compiler = { module = "com.google.auto.service:auto-service", versi
 auto-service-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoService" }
 coroutines-lib = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-compose-bom = "androidx.compose:compose-bom:2023.04.01"
+compose-bom = "androidx.compose:compose-bom:2023.08.00"
 timber = { module = "com.github.ajalt:timberkt", version = "1.5.1" }
 
 # Lint
