@@ -56,8 +56,8 @@ android {
 dependencies {
 
     // If building the sample app outside the context of this repo, replace the following with:
-    // api "io.livekit:livekit-android:<version>"
-    api project(":livekit-android-sdk")
+    api "io.livekit:livekit-android:2.9.0"
+    //api project(":livekit-android-sdk")
     api project(":livekit-android-camerax")
 
     api libs.androidx.core.ktx
