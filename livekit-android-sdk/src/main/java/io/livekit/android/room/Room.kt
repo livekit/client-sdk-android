@@ -26,6 +26,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
+import io.livekit.android.ReconnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
@@ -336,12 +337,18 @@ constructor(
      * @param url
      * @param token
      * @param options
+     * @param reconnectOptions
      *
      * @throws IllegalStateException when connect is attempted while the room is not disconnected.
      * @throws Exception when connection fails
      */
     @Throws(Exception::class)
-    suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions()) = coroutineScope {
+    suspend fun connect(
+        url: String,
+        token: String,
+        options: ConnectOptions = ConnectOptions(),
+        reconnectOptions: ReconnectOptions = ReconnectOptions())
+    = coroutineScope {
         if (state != State.DISCONNECTED) {
             throw IllegalStateException("Room.connect attempted while room is not disconnected!")
         }
@@ -422,7 +429,7 @@ constructor(
                 nextUrl = null
                 try {
                     engine.regionUrlProvider = regionUrlProvider
-                    engine.join(connectUrl, token, options, roomOptions)
+                    engine.join(connectUrl, token, options, roomOptions, reconnectOptions)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         throw e // rethrow to properly cancel.

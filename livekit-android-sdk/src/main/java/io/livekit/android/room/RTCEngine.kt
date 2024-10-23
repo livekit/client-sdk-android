@@ -20,6 +20,7 @@ import android.os.SystemClock
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
+import io.livekit.android.ReconnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.DisconnectReason
@@ -136,7 +137,6 @@ internal constructor(
     }
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
-    private var fullReconnectOnNext = false
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
@@ -146,6 +146,7 @@ internal constructor(
     private var sessionToken: String? = null
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
+    private var reconnectOptions = ReconnectOptions()
     private var participantSid: String? = null
 
     private val publisherObserver = PublisherTransportObserver(this, client)
@@ -181,6 +182,7 @@ internal constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
+        reconnectOptions: ReconnectOptions
     ): JoinResponse {
         coroutineScope.close()
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
@@ -188,6 +190,8 @@ internal constructor(
         sessionToken = token
         connectOptions = options
         lastRoomOptions = roomOptions
+        this.reconnectOptions = reconnectOptions
+
         return joinImpl(url, token, options, roomOptions)
     }
 
@@ -195,7 +199,7 @@ internal constructor(
         url: String,
         token: String,
         options: ConnectOptions,
-        roomOptions: RoomOptions,
+        roomOptions: RoomOptions
     ): JoinResponse = coroutineScope {
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
@@ -432,16 +436,14 @@ internal constructor(
             LKLog.w { "couldn't reconnect, no url or no token" }
             return
         }
-        val forceFullReconnect = fullReconnectOnNext
-        fullReconnectOnNext = false
         val job = coroutineScope.launch {
             var hasResumedOnce = false
             var hasReconnectedOnce = false
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
-            for (retries in 0 until MAX_RECONNECT_RETRIES) {
+            for (retries in 0 until reconnectOptions.maxRetries) {
                 // First try use previously valid url.
-                if (retries != 0) {
+                if (retries != 0 && reconnectOptions.allowFullReconnect) {
                     try {
                         url = regionUrlProvider?.getNextBestRegionUrl() ?: url
                     } catch (e: Exception) {
@@ -450,7 +452,7 @@ internal constructor(
                 }
 
                 ensureActive()
-                if (retries != 0) {
+                if (retries != 0 && reconnectOptions.allowFullReconnect) {
                     yield()
                 }
 
@@ -469,7 +471,7 @@ internal constructor(
 
                 val isFullReconnect = when (reconnectType) {
                     // full reconnect after first try.
-                    ReconnectType.DEFAULT -> retries != 0 || forceFullReconnect
+                    ReconnectType.DEFAULT -> retries != 0 && reconnectOptions.allowFullReconnect
                     ReconnectType.FORCE_SOFT_RECONNECT -> false
                     ReconnectType.FORCE_FULL_RECONNECT -> true
                 }
@@ -516,7 +518,7 @@ internal constructor(
                     }
 
                     LKLog.v { "ws reconnected, restarting ICE" }
-                    listener?.onSignalConnected(!isFullReconnect)
+                    listener?.onSignalConnected(true)
 
                     // trigger publisher reconnect
                     // only restart publisher if it's needed
@@ -543,7 +545,6 @@ internal constructor(
                 val subscriberWaitJob = launch {
                     subscriberObserver.waitUntilConnected()
                 }
-
                 withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
                     listOfNotNull(publisherWaitJob, subscriberWaitJob)
                         .joinAll()
@@ -554,7 +555,9 @@ internal constructor(
                     LKLog.v { "RTCEngine closed, aborting reconnection" }
                     break
                 }
-
+                if (connectionState == ConnectionState.RESUMING) {
+                    connectionState = ConnectionState.CONNECTED
+                }
                 if (connectionState == ConnectionState.CONNECTED &&
                     (!hasPublished || publisher?.isConnected() == true)
                 ) {
@@ -567,7 +570,7 @@ internal constructor(
 
                 // Didn't manage to reconnect, check if should continue to next attempt.
                 val curReconnectTime = SystemClock.elapsedRealtime() - reconnectStartTime
-                if (curReconnectTime > MAX_RECONNECT_TIMEOUT) {
+                if (curReconnectTime > reconnectOptions.reconnectTimeout) {
                     break
                 }
             }
@@ -793,8 +796,6 @@ internal constructor(
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15000
-        private const val MAX_RECONNECT_RETRIES = 10
-        private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
@@ -950,16 +951,12 @@ internal constructor(
         when {
             leave.action == LeaveRequest.Action.RESUME -> {
                 // resume will be triggered on close.
-                // TODO: trigger immediately.
-                fullReconnectOnNext = false
             }
 
             leave.action == LeaveRequest.Action.RECONNECT ||
                 // canReconnect is deprecated protocol version >= 13
                 leave.canReconnect -> {
                 // resume will be triggered on close.
-                // TODO: trigger immediately.
-                fullReconnectOnNext = true
             }
 
             else -> {
