@@ -136,7 +136,7 @@ class RoomTest {
 
     suspend fun connect(joinResponse: JoinResponse = TestData.JOIN.join) {
         rtcEngine.stub {
-            onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull()) }
+            onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull(), any()) }
                 .doSuspendableAnswer {
                     room.onJoinResponse(joinResponse)
                     joinResponse
