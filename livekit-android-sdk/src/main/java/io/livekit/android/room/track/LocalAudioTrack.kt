@@ -16,15 +16,15 @@
 
 package io.livekit.android.room.track
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.audio.AudioBufferCallback
+import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
+import io.livekit.android.audio.MixerAudioBufferCallback
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.util.FlowObservable
@@ -64,6 +64,8 @@ constructor(
     private val dispatcher: CoroutineDispatcher,
     @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER)
     private val audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher,
+    @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
+    private val audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher,
 ) : AudioTrack(name, mediaTrack) {
     /**
      * To only be used for flow delegate scoping, and should not be cancelled.
@@ -96,6 +98,16 @@ constructor(
             trackSinks.remove(sink)
             audioRecordSamplesDispatcher.unregisterSink(sink)
         }
+    }
+
+    /**
+     * Use this method to mix in custom audio.
+     *
+     * See [MixerAudioBufferCallback] for automatic handling of mixing in
+     * the provided audio data.
+     */
+    fun setAudioBufferCallback(callback: AudioBufferCallback) {
+        audioBufferCallbackDispatcher.bufferCallback = callback
     }
 
     /**
@@ -155,11 +167,6 @@ constructor(
             audioTrackFactory: Factory,
             name: String = "",
         ): LocalAudioTrack {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                throw SecurityException("Record audio permissions are required to create an audio track.")
-            }
 
             val audioConstraints = MediaConstraints()
             val items = listOf(
