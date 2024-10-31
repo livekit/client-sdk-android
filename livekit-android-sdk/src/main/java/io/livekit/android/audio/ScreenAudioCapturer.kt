@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.audio
 
 import android.Manifest
@@ -77,7 +93,6 @@ constructor(
     var gain = DEFAULT_GAIN
 
     override fun onBufferRequest(originalBuffer: ByteBuffer, audioFormat: Int, channelCount: Int, sampleRate: Int, bytesRead: Int, captureTimeNs: Long): BufferResponse? {
-
         if (!hasInitialized && audioRecord == null) {
             hasInitialized = true
             initAudioRecord(audioFormat = audioFormat, channelCount = channelCount, sampleRate = sampleRate)
@@ -88,7 +103,6 @@ constructor(
         audioRecord.read(recordBuffer, recordBuffer.capacity())
 
         if (abs(gain - DEFAULT_GAIN) > MIN_GAIN_CHANGE) {
-
             recordBuffer.position(0)
             when (audioFormat) {
                 AudioFormat.ENCODING_PCM_8BIT -> {
@@ -126,7 +140,7 @@ constructor(
         }
         LKLog.v { "AudioRecord.getMinBufferSize: $minBufferSize" }
 
-        val bytesPerFrame = channelCount * getBytesPerSample(audioFormat);
+        val bytesPerFrame = channelCount * getBytesPerSample(audioFormat)
         val framesPerBuffer = sampleRate / 100
         val readBufferCapacity = bytesPerFrame * framesPerBuffer
         val byteBuffer = ByteBuffer.allocateDirect(readBufferCapacity)
@@ -134,7 +148,7 @@ constructor(
 
         if (!byteBuffer.hasArray()) {
             LKLog.e { "ByteBuffer does not have backing array." }
-            return false;
+            return false
         }
 
         this.byteBuffer = byteBuffer

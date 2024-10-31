@@ -32,7 +32,6 @@ object MockLKObjects {
                     override fun setSpeakerMute(p0: Boolean) {}
 
                     override fun setMicrophoneMute(p0: Boolean) {}
-
                 }
             },
         )
