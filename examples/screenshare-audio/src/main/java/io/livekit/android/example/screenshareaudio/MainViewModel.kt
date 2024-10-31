@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.example.screenshareaudio
 
 import android.Manifest
@@ -18,10 +34,8 @@ import io.livekit.android.sample.service.ForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-
 val url = "wss://example.com"
 val token = ""
-
 
 @RequiresApi(Build.VERSION_CODES.Q)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -56,11 +70,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     fun stopScreenCapture() {
-
         viewModelScope.launch(Dispatchers.IO) {
-
             (room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack)
                 ?.setAudioBufferCallback(null)
             room.localParticipant.setMicrophoneEnabled(false)
