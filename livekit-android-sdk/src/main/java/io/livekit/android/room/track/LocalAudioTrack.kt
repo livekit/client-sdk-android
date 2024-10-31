@@ -16,7 +16,10 @@
 
 package io.livekit.android.room.track
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -28,6 +31,7 @@ import io.livekit.android.audio.MixerAudioBufferCallback
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
@@ -106,7 +110,7 @@ constructor(
      * See [MixerAudioBufferCallback] for automatic handling of mixing in
      * the provided audio data.
      */
-    fun setAudioBufferCallback(callback: AudioBufferCallback) {
+    fun setAudioBufferCallback(callback: AudioBufferCallback?) {
         audioBufferCallbackDispatcher.bufferCallback = callback
     }
 
@@ -167,6 +171,11 @@ constructor(
             audioTrackFactory: Factory,
             name: String = "",
         ): LocalAudioTrack {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                LKLog.w { "Record audio permissions not granted, microphone recording will not be used." }
+            }
 
             val audioConstraints = MediaConstraints()
             val items = listOf(

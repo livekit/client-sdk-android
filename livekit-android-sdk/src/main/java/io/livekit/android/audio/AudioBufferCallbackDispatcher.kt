@@ -63,6 +63,7 @@ abstract class MixerAudioBufferCallback : AudioBufferCallback {
 
         if (customAudioBuffer != null) {
             buffer.position(0)
+            customAudioBuffer.position(0)
             when (audioFormat) {
                 AudioFormat.ENCODING_PCM_8BIT -> {
                     mixByteBuffers(original = buffer, customAudioBuffer)
@@ -114,7 +115,7 @@ fun mixShortBuffers(
     if (size <= 0) return
     for (i in 0 until size) {
         val sum = (original[i].toInt() + addBuffer[i].toInt())
-            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+            .coerceIn(minimumValue = Short.MIN_VALUE.toInt(), maximumValue = Short.MAX_VALUE.toInt())
         original.put(i, sum.toShort())
     }
 }
