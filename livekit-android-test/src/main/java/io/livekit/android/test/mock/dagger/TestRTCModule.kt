@@ -20,6 +20,7 @@ import android.content.Context
 import android.javax.sdp.SdpFactory
 import dagger.Module
 import dagger.Provides
+import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.dagger.CapabilitiesGetter
@@ -38,6 +39,13 @@ import javax.inject.Singleton
 
 @Module
 object TestRTCModule {
+
+    @Provides
+    @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
+    @Singleton
+    fun localAudioBufferCallbackDispatcher(): AudioBufferCallbackDispatcher {
+        return AudioBufferCallbackDispatcher()
+    }
 
     @Provides
     @Singleton
