@@ -17,6 +17,7 @@
 package io.livekit.android.room.provisions
 
 import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.audio.AudioDeviceModule
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -32,7 +33,11 @@ class LKObjects
 @Inject
 constructor(
     private val eglBaseProvider: Provider<EglBase>,
+    private val audioDeviceModuleProvider: Provider<AudioDeviceModule>,
 ) {
     val eglBase: EglBase
         get() = eglBaseProvider.get()
+
+    val audioDeviceModule: AudioDeviceModule
+        get() = audioDeviceModuleProvider.get()
 }

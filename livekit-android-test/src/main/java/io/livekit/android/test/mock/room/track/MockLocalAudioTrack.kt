@@ -16,6 +16,7 @@
 
 package io.livekit.android.test.mock.room.track
 
+import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.room.track.LocalAudioTrack
@@ -36,6 +37,7 @@ fun MockE2ETest.createMockLocalAudioTrack(
     audioProcessingController: AudioProcessingController = MockAudioProcessingController(),
     dispatcher: CoroutineDispatcher = coroutineRule.dispatcher,
     audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher = AudioRecordSamplesDispatcher(),
+    audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher = AudioBufferCallbackDispatcher(),
 ): LocalAudioTrack {
     return LocalAudioTrack(
         name = name,
@@ -44,5 +46,6 @@ fun MockE2ETest.createMockLocalAudioTrack(
         audioProcessingController = audioProcessingController,
         dispatcher = dispatcher,
         audioRecordSamplesDispatcher = audioRecordSamplesDispatcher,
+        audioBufferCallbackDispatcher = audioBufferCallbackDispatcher,
     )
 }

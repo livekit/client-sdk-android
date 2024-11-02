@@ -529,7 +529,7 @@ internal constructor(
             options = options,
         )
         addTrackPublication(publication)
-        LKLog.e { "add track publication $publication" }
+        LKLog.v { "add track publication $publication" }
 
         publishListener?.onPublishSuccess(publication)
         internalListener?.onTrackPublished(publication, this)

@@ -25,6 +25,7 @@ import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
+import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
@@ -136,6 +137,13 @@ internal object RTCModule {
     }
 
     @Provides
+    @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
+    @Singleton
+    fun localAudioBufferCallbackDispatcher(): AudioBufferCallbackDispatcher {
+        return AudioBufferCallbackDispatcher()
+    }
+
+    @Provides
     @Singleton
     @JvmSuppressWildcards
     fun audioModule(
@@ -151,6 +159,8 @@ internal object RTCModule {
         communicationWorkaround: CommunicationWorkaround,
         @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER)
         audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher,
+        @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
+        audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher,
     ): AudioDeviceModule {
         if (audioDeviceModuleOverride != null) {
             return audioDeviceModuleOverride
@@ -229,6 +239,7 @@ internal object RTCModule {
             // VOICE_COMMUNICATION needs to be used for echo cancelling.
             .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             .setAudioAttributes(audioOutputAttributes)
+            .setAudioBufferCallback(audioBufferCallbackDispatcher)
 
         moduleCustomizer?.invoke(builder)
         return builder.createAudioDeviceModule()

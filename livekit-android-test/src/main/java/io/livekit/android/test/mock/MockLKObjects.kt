@@ -17,11 +17,23 @@
 package io.livekit.android.test.mock
 
 import io.livekit.android.room.provisions.LKObjects
+import livekit.org.webrtc.audio.AudioDeviceModule
 
 object MockLKObjects {
     fun get(): LKObjects {
         return LKObjects(
             eglBaseProvider = { MockEglBase() },
+            audioDeviceModuleProvider = {
+                object : AudioDeviceModule {
+                    override fun getNativeAudioDeviceModulePointer(): Long = 1
+
+                    override fun release() {}
+
+                    override fun setSpeakerMute(p0: Boolean) {}
+
+                    override fun setMicrophoneMute(p0: Boolean) {}
+                }
+            },
         )
     }
 }
