@@ -58,9 +58,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (ActivityCompat.checkSelfPermission(getApplication(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 return@launch
             }
-            
+
             room.localParticipant.setScreenShareEnabled(true, data)
-            
+
             // Publish the audio track.
             room.localParticipant.setMicrophoneEnabled(true)
             val screenCaptureTrack = room.localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalVideoTrack ?: return@launch
