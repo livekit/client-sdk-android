@@ -48,8 +48,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             room.connect(url, token)
         }
 
-        // Start a foreground service to keep the call from being interrupted if the
-        // app goes into the background.
+        // Screen share audio capture in the background requires a foreground service with MICROPHONE type.
         val foregroundServiceIntent = Intent(application, ForegroundService::class.java)
         application.startForegroundService(foregroundServiceIntent)
     }
@@ -59,11 +58,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (ActivityCompat.checkSelfPermission(getApplication(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 return@launch
             }
+
             room.localParticipant.setScreenShareEnabled(true, data)
+
+            // Publish the audio track.
             room.localParticipant.setMicrophoneEnabled(true)
             val screenCaptureTrack = room.localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalVideoTrack ?: return@launch
             val audioTrack = room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack ?: return@launch
 
+            // Start capturing the screen share audio.
             audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack) ?: return@launch
             audioCapturer?.gain = 0.1f // Lower the volume so that mic can still be heard clearly.
             audioTrack.setAudioBufferCallback(audioCapturer!!)
@@ -76,6 +79,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ?.setAudioBufferCallback(null)
             room.localParticipant.setMicrophoneEnabled(false)
             room.localParticipant.setScreenShareEnabled(false)
+
+            // Remember to release when done capturing.
             audioCapturer?.releaseAudioResources()
         }
     }
