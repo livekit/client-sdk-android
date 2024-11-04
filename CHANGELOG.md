@@ -1,5 +1,15 @@
 # client-sdk-android
 
+## 2.10.0
+
+### Minor Changes
+
+- Implement custom audio mixing into audio track - [#528](https://github.com/livekit/client-sdk-android/pull/528) ([@davidliu](https://github.com/davidliu))
+
+- Update to webrtc-sdk 125.6422.06.1 - [#528](https://github.com/livekit/client-sdk-android/pull/528) ([@davidliu](https://github.com/davidliu))
+
+- Implement screen share audio capturer - [#528](https://github.com/livekit/client-sdk-android/pull/528) ([@davidliu](https://github.com/davidliu))
+
 ## 2.9.0
 
 ### Minor Changes
