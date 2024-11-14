@@ -24,6 +24,7 @@ import android.os.Build
 import android.os.Build.VERSION
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
 
 /**
@@ -33,13 +34,14 @@ import androidx.lifecycle.LifecycleOwner
 class CameraXEnumerator(
     context: Context,
     private val lifecycleOwner: LifecycleOwner,
+    private val useCases: Array<out UseCase> = emptyArray(),
 ) : Camera2Enumerator(context) {
 
     override fun createCapturer(
         deviceName: String?,
         eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     ): CameraVideoCapturer {
-        return CameraXCapturer(context, lifecycleOwner, deviceName, eventsHandler)
+        return CameraXCapturer(context, lifecycleOwner, deviceName, eventsHandler, useCases)
     }
 
     companion object {
