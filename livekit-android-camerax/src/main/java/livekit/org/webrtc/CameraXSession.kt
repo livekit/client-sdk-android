@@ -149,7 +149,9 @@ internal constructor(
 
                 surface = Surface(surfaceTextureHelper.surfaceTexture)
                 surfaceProvider = SurfaceProvider { request ->
-                    request.provideSurface(surface!!, helperExecutor) { }
+                    surface?.let {
+                        request.provideSurface(it, helperExecutor) { }
+                    } ?: request.willNotProvideSurface()
                 }
 
                 // Set image analysis - camera params
