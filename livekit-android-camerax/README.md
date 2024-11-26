@@ -55,14 +55,14 @@ We provide a convenience `ScaleZoomHelper` class that can handle pinch-to-zoom f
 
 ### Taking a high quality picture
 
-This allows you to take a high picture without interrupting the video stream.
+This allows you to take a picture without interrupting the video stream.
 
 ```
 // Pass in the imageCapture use case when creating the camera provider
 val imageCapture = ImageCapture.Builder()
     .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
     .build()
-CameraXHelper.createCameraProvider(lifecycleOwner, arrayOf(imageCapture).let {
+CameraXHelper.createCameraProvider(lifecycleOwner, arrayOf(imageCapture)).let {
     if (it.isSupported(application)) {
         CameraCapturerUtils.registerCameraProvider(it)
 

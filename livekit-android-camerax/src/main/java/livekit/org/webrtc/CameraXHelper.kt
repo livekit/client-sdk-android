@@ -29,7 +29,6 @@ import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 
 class CameraXHelper {
     companion object {
-
         /**
          * Creates a CameraProvider that uses CameraX for its sessions.
          *
@@ -40,6 +39,7 @@ class CameraXHelper {
          * @param lifecycleOwner The lifecycleOwner which controls the lifecycle transitions of the use cases.
          * @param useCases The use cases to bind to a lifecycle.
          */
+        @JvmOverloads
         @ExperimentalCamera2Interop
         fun createCameraProvider(
             lifecycleOwner: LifecycleOwner,
