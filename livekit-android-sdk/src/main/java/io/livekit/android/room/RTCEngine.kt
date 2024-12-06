@@ -25,6 +25,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.MediaConstraintKeys
@@ -500,6 +501,7 @@ internal constructor(
                         listener?.onEngineResuming()
                     }
                     connectionState = ConnectionState.RESUMING
+                    listener?.onConnectionQualityChangedForLocalParticipant(ConnectionQuality.LOST)
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber?.prepareForIceRestart()
                     try {
@@ -565,6 +567,7 @@ internal constructor(
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
                     listener?.onPostReconnect(isFullReconnect)
+                    listener?.onConnectionQualityChangedForLocalParticipant(ConnectionQuality.EXCELLENT)
                     return@launch
                 }
 
@@ -780,6 +783,9 @@ internal constructor(
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+        fun onConnectionQualityChangedForLocalParticipant(
+            connectionQuality: ConnectionQuality,
+        )
     }
 
     companion object {

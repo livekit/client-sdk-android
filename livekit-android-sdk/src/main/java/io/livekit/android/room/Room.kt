@@ -1127,6 +1127,13 @@ constructor(
         }
     }
 
+    override fun onConnectionQualityChangedForLocalParticipant(connectionQuality: ConnectionQuality) {
+        eventBus.postEvent(
+            RoomEvent.ConnectionQualityChanged(this, localParticipant, connectionQuality),
+            coroutineScope,
+        )
+    }
+
     /**
      * @suppress
      */
