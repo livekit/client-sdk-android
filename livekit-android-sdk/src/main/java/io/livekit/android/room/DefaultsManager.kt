@@ -20,6 +20,7 @@ import io.livekit.android.room.participant.AudioTrackPublishDefaults
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.ScreenSharePresets
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,4 +32,6 @@ constructor() {
     var audioTrackPublishDefaults: AudioTrackPublishDefaults = AudioTrackPublishDefaults()
     var videoTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions()
     var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
+    var screenShareTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions(isScreencast = true, captureParams = ScreenSharePresets.ORIGINAL.capture)
+    var screenShareTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults(videoEncoding = ScreenSharePresets.ORIGINAL.encoding)
 }

@@ -251,6 +251,16 @@ constructor(
      */
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
 
+    /**
+     * Default options to use when creating a screen share track.
+     */
+    var screenShareTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::screenShareTrackCaptureDefaults
+
+    /**
+     * Default options to use when publishing a screen share track.
+     */
+    var screenShareTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::screenShareTrackPublishDefaults
+
     val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
     }
@@ -285,11 +295,13 @@ constructor(
         RoomOptions(
             adaptiveStream = adaptiveStream,
             dynacast = dynacast,
+            e2eeOptions = e2eeOptions,
             audioTrackCaptureDefaults = audioTrackCaptureDefaults,
             videoTrackCaptureDefaults = videoTrackCaptureDefaults,
             audioTrackPublishDefaults = audioTrackPublishDefaults,
             videoTrackPublishDefaults = videoTrackPublishDefaults,
-            e2eeOptions = e2eeOptions,
+            screenShareTrackCaptureDefaults = screenShareTrackCaptureDefaults,
+            screenShareTrackPublishDefaults = screenShareTrackPublishDefaults,
         )
 
     /**
@@ -501,6 +513,12 @@ constructor(
         }
         options.videoTrackPublishDefaults?.let {
             videoTrackPublishDefaults = it
+        }
+        options.screenShareTrackCaptureDefaults?.let {
+            screenShareTrackCaptureDefaults = it
+        }
+        options.screenShareTrackPublishDefaults?.let {
+            screenShareTrackPublishDefaults = it
         }
         adaptiveStream = options.adaptiveStream
         dynacast = options.dynacast
