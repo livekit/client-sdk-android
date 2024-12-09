@@ -42,7 +42,6 @@ import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSource
 import java.util.UUID
 
-
 /**
  * A video track that captures the screen for publishing.
  *
@@ -94,7 +93,6 @@ constructor(
     }
 
     private fun getCaptureDimensions(displayWidth: Int, displayHeight: Int): Pair<Int, Int> {
-
         val captureWidth: Int
         val captureHeight: Int
 

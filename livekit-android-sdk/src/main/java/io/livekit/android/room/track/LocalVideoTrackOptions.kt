@@ -173,7 +173,6 @@ enum class VideoPreset43(
     ),
 }
 
-
 /**
  * 16:9 Video presets along with suggested bitrates.
  */
