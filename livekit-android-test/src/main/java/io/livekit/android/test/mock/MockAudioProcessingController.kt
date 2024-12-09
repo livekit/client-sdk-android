@@ -39,15 +39,19 @@ class MockAudioProcessingController : AudioProcessingController {
     @get:FlowObservable
     override var bypassCapturePostProcessing: Boolean by flowDelegate(false)
 
+    @Deprecated("Use the capturePostProcessing variable directly instead")
     override fun setCapturePostProcessing(processing: AudioProcessorInterface?) {
     }
 
+    @Deprecated("Use the bypassCapturePostProcessing variable directly instead")
     override fun setBypassForCapturePostProcessing(bypass: Boolean) {
     }
 
+    @Deprecated("Use the renderPreProcessing variable directly instead")
     override fun setRenderPreProcessing(processing: AudioProcessorInterface?) {
     }
 
+    @Deprecated("Use the bypassRendererPreProcessing variable directly instead")
     override fun setBypassForRenderPreProcessing(bypass: Boolean) {
     }
 }
