@@ -1107,11 +1107,22 @@ abstract class BaseAudioTrackPublishOptions {
     abstract val red: Boolean
 }
 
+enum class AudioPresets(
+    val maxBitrate: Int,
+) {
+    TELEPHONE(12_000),
+    SPEECH(24_000),
+    MUSIC(48_000),
+    MUSIC_STEREO(64_000),
+    MUSIC_HIGH_QUALITY(96_000),
+    MUSIC_HIGH_QUALITY_STEREO(128_000)
+}
+
 /**
  * Default options for publishing an audio track.
  */
 data class AudioTrackPublishDefaults(
-    override val audioBitrate: Int? = 20_000,
+    override val audioBitrate: Int? = AudioPresets.MUSIC.maxBitrate,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
 ) : BaseAudioTrackPublishOptions()
