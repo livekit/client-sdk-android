@@ -17,9 +17,6 @@ android {
         consumerProguardFiles "consumer-rules.pro"
     }
 
-    lintOptions {
-        disable 'VisibleForTests'
-    }
     buildTypes {
         release {
             minifyEnabled false
@@ -38,6 +35,9 @@ android {
         unitTests {
             includeAndroidResources = true
         }
+    }
+    lint {
+        disable 'VisibleForTests'
     }
 }
 
