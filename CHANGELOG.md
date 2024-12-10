@@ -1,5 +1,25 @@
 # client-sdk-android
 
+## 2.11.0
+
+### Minor Changes
+
+- Add use cases to CameraX createCameraProvider - [#536](https://github.com/livekit/client-sdk-android/pull/536) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+- Detect rotation for screenshare tracks - [#552](https://github.com/livekit/client-sdk-android/pull/552) ([@davidliu](https://github.com/davidliu))
+
+- Add separate default capture/publish options for screenshare tracks - [#552](https://github.com/livekit/client-sdk-android/pull/552) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Add AudioPresets and increase default audio max bitrate to 48kbps - [#551](https://github.com/livekit/client-sdk-android/pull/551) ([@davidliu](https://github.com/davidliu))
+
+- Added VideoFrameCapturer for pushing video frames directly - [#538](https://github.com/livekit/client-sdk-android/pull/538) ([@davidliu](https://github.com/davidliu))
+
+- Fix surface causing null pointer exception on some devices - [#544](https://github.com/livekit/client-sdk-android/pull/544) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+- Update Kotlin dependency to 1.9.25 - [#552](https://github.com/livekit/client-sdk-android/pull/552) ([@davidliu](https://github.com/davidliu))
+
 ## 2.10.0
 
 ### Minor Changes
