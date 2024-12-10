@@ -92,7 +92,7 @@ mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version = "4.1.
 #noinspection GradleDependency
 mockito-inline = { module = "org.mockito:mockito-inline", version = "4.11.0" }
 
-robolectric = { module = "org.robolectric:robolectric", version = "4.11.1" }
+robolectric = { module = "org.robolectric:robolectric", version = "4.14.1" }
 turbine = { module = "app.cash.turbine:turbine", version = "1.0.0" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }

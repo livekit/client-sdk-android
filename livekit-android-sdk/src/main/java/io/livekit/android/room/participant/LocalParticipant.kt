@@ -93,6 +93,8 @@ internal constructor(
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
     var videoTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::videoTrackCaptureDefaults
     var videoTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::videoTrackPublishDefaults
+    var screenShareTrackCaptureDefaults: LocalVideoTrackOptions by defaultsManager::screenShareTrackCaptureDefaults
+    var screenShareTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::screenShareTrackPublishDefaults
 
     private var republishes: List<LocalTrackPublication>? = null
     private val localTrackPublications
@@ -181,13 +183,13 @@ internal constructor(
      * @param name The name of the track.
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
-     * @param options The capture options to use for this track, or [Room.videoTrackCaptureDefaults] if none is passed.
+     * @param options The capture options to use for this track, or [Room.screenShareTrackCaptureDefaults] if none is passed.
      * @param videoProcessor A video processor to attach to this track that can modify the frames before publishing.
      */
     fun createScreencastTrack(
         name: String = "",
         mediaProjectionPermissionResultData: Intent,
-        options: LocalVideoTrackOptions = videoTrackCaptureDefaults.copy(),
+        options: LocalVideoTrackOptions = screenShareTrackCaptureDefaults.copy(),
         videoProcessor: VideoProcessor? = null,
     ): LocalScreencastVideoTrack {
         val screencastOptions = options.copy(isScreencast = true)
@@ -249,8 +251,8 @@ internal constructor(
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
-     * @see Room.videoTrackCaptureDefaults
-     * @see Room.videoTrackPublishDefaults
+     * @see Room.screenShareTrackCaptureDefaults
+     * @see Room.screenShareTrackPublishDefaults
      */
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
@@ -294,7 +296,7 @@ internal constructor(
                                 createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
                             track.startForegroundService(null, null)
                             track.startCapture()
-                            publishVideoTrack(track)
+                            publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))
                         }
 
                         else -> {
