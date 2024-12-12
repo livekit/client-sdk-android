@@ -156,6 +156,11 @@ internal constructor(
     /**
      * Creates a video track, recording video through the camera with the given [options].
      *
+     * Note: If using this in conjunction with [setCameraEnabled], ensure that your created
+     * camera track is published first before using [setCameraEnabled]. Otherwise, the LiveKit
+     * SDK will attempt to create its own camera track to manage, and will cause issues since
+     * generally only one camera session can be active at a time.
+     *
      * @param name The name of the track
      * @param options The capture options to use for this track, or [Room.videoTrackCaptureDefaults] if none is passed.
      * @param videoProcessor A video processor to attach to this track that can modify the frames before publishing.
