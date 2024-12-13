@@ -29,10 +29,27 @@ data class LocalVideoTrackOptions(
     val captureParams: VideoCaptureParameter = VideoPreset169.H720.capture,
 )
 
-data class VideoCaptureParameter(
+data class VideoCaptureParameter
+@JvmOverloads
+constructor(
+    /**
+     * Desired width.
+     */
     val width: Int,
+    /**
+     * Desired height.
+     */
     val height: Int,
+    /**
+     * Capture frame rate.
+     */
     val maxFps: Int,
+    /**
+     * Sometimes the capturer may not support the exact desired dimensions requested.
+     * If this is enabled, it will scale down and crop the captured frames to the
+     * same aspect ratio as [width]:[height].
+     */
+    val adaptOutputToDimensions: Boolean = true,
 )
 
 data class VideoEncoding(
@@ -213,7 +230,7 @@ enum class ScreenSharePresets(
      * Uses the original resolution without resizing.
      */
     ORIGINAL(
-        VideoCaptureParameter(0, 0, 30),
+        VideoCaptureParameter(0, 0, 30, adaptOutputToDimensions = false),
         VideoEncoding(7_000_000, 30),
     )
 }

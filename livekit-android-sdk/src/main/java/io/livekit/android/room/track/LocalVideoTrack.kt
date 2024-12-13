@@ -32,6 +32,7 @@ import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CaptureDispatchObserver
+import io.livekit.android.room.track.video.ScaleCropVideoProcessor
 import io.livekit.android.room.track.video.VideoCapturerWithSize
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
@@ -473,11 +474,22 @@ constructor(
             videoProcessor: VideoProcessor? = null,
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
-            source.setVideoProcessor(videoProcessor)
+
+            val finalVideoProcessor = if (options.captureParams.adaptOutputToDimensions) {
+                ScaleCropVideoProcessor(
+                    targetWidth = options.captureParams.width,
+                    targetHeight = options.captureParams.height,
+                ).apply {
+                    childVideoProcessor = videoProcessor
+                }
+            } else {
+                videoProcessor
+            }
+            source.setVideoProcessor(finalVideoProcessor)
 
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
 
-            // Dispatch raw frames to local renderer only if not using a VideoProcessor.
+            // Dispatch raw frames to local renderer only if not using a user-provided VideoProcessor.
             val dispatchObserver = if (videoProcessor == null) {
                 CaptureDispatchObserver().apply {
                     registerObserver(source.capturerObserver)
