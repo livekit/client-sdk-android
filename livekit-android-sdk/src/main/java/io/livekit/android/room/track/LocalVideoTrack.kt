@@ -316,49 +316,58 @@ constructor(
         sender: RtpSender,
         qualities: List<LivekitRtc.SubscribedQuality>,
     ) {
-        val parameters = sender.parameters ?: return
-        val encodings = parameters.encodings ?: return
-        var hasChanged = false
-
-        if (encodings.firstOrNull()?.scalabilityMode != null) {
-            val encoding = encodings.first()
-            var maxQuality = ProtoVideoQuality.OFF
-            for (quality in qualities) {
-                if (quality.enabled && (maxQuality == ProtoVideoQuality.OFF || quality.quality.number > maxQuality.number)) {
-                    maxQuality = quality.quality
-                }
-            }
-
-            if (maxQuality == ProtoVideoQuality.OFF) {
-                if (encoding.active) {
-                    LKLog.v { "setting svc track to disabled" }
-                    encoding.active = false
-                    hasChanged = true
-                }
-            } else if (!encoding.active) {
-                LKLog.v { "setting svc track to enabled" }
-                encoding.active = true
-                hasChanged = true
-            }
-        } else {
-            // simulcast dynacast encodings
-            for (quality in qualities) {
-                val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
-                val encoding = encodings.firstOrNull { it.rid == rid }
-                    // use low quality layer settings for non-simulcasted streams
-                    ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
-                    ?: continue
-                if (encoding.active != quality.enabled) {
-                    hasChanged = true
-                    encoding.active = quality.enabled
-                    LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
-                }
-            }
+        if (isDisposed) {
+            LKLog.i { "attempted to set publishing layer for disposed video track." }
+            return
         }
+        try {
+            val parameters = sender.parameters ?: return
+            val encodings = parameters.encodings ?: return
+            var hasChanged = false
 
-        if (hasChanged) {
-            // This refeshes the native code with the new information
-            sender.parameters = sender.parameters
+            if (encodings.firstOrNull()?.scalabilityMode != null) {
+                val encoding = encodings.first()
+                var maxQuality = ProtoVideoQuality.OFF
+                for (quality in qualities) {
+                    if (quality.enabled && (maxQuality == ProtoVideoQuality.OFF || quality.quality.number > maxQuality.number)) {
+                        maxQuality = quality.quality
+                    }
+                }
+
+                if (maxQuality == ProtoVideoQuality.OFF) {
+                    if (encoding.active) {
+                        LKLog.v { "setting svc track to disabled" }
+                        encoding.active = false
+                        hasChanged = true
+                    }
+                } else if (!encoding.active) {
+                    LKLog.v { "setting svc track to enabled" }
+                    encoding.active = true
+                    hasChanged = true
+                }
+            } else {
+                // simulcast dynacast encodings
+                for (quality in qualities) {
+                    val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
+                    val encoding = encodings.firstOrNull { it.rid == rid }
+                        // use low quality layer settings for non-simulcasted streams
+                        ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
+                        ?: continue
+                    if (encoding.active != quality.enabled) {
+                        hasChanged = true
+                        encoding.active = quality.enabled
+                        LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
+                    }
+                }
+            }
+
+            if (hasChanged) {
+                // This refreshes the native code with the new information
+                sender.parameters = parameters
+            }
+        } catch (e: Exception) {
+            LKLog.w(e) { "Exception caught while setting publishing layers." }
+            return
         }
     }
 
