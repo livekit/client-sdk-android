@@ -22,15 +22,35 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjection
+import android.util.DisplayMetrics
+import android.view.OrientationEventListener
+import android.view.WindowManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.room.DefaultsManager
+import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
 import io.livekit.android.room.track.screencapture.ScreenCaptureService
-import livekit.org.webrtc.*
-import java.util.*
+import io.livekit.android.util.LKLog
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.PeerConnectionFactory
+import livekit.org.webrtc.ScreenCapturerAndroid
+import livekit.org.webrtc.SurfaceTextureHelper
+import livekit.org.webrtc.VideoCapturer
+import livekit.org.webrtc.VideoProcessor
+import livekit.org.webrtc.VideoSource
+import java.util.UUID
 
+/**
+ * A video track that captures the screen for publishing.
+ *
+ * Note: A foreground service is generally required for use. Use [startForegroundService] or start
+ * your own foreground service before starting the video track.
+ *
+ * @see LocalParticipant.createScreencastTrack
+ * @see LocalScreencastVideoTrack.startForegroundService
+ */
 class LocalScreencastVideoTrack
 @AssistedInject
 constructor(
@@ -57,6 +77,76 @@ constructor(
     defaultsManager,
     videoTrackFactory,
 ) {
+
+    private var prevDisplayWidth = 0
+    private var prevDisplayHeight = 0
+    private val displayMetrics = DisplayMetrics()
+    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val orientationEventListener = object : OrientationEventListener(context) {
+        override fun onOrientationChanged(orientation: Int) {
+            if (isDisposed) {
+                this.disable()
+                return
+            }
+            updateCaptureFormatIfNeeded()
+        }
+    }
+
+    private fun getCaptureDimensions(displayWidth: Int, displayHeight: Int): Pair<Int, Int> {
+        val captureWidth: Int
+        val captureHeight: Int
+
+        if (options.captureParams.width == 0 && options.captureParams.height == 0) {
+            // Use raw display size
+            captureWidth = displayWidth
+            captureHeight = displayHeight
+        } else {
+            // Use captureParams.width as longest side and captureParams.height as shortest side.
+            if (displayWidth > displayHeight) {
+                captureWidth = options.captureParams.width
+                captureHeight = options.captureParams.height
+            } else {
+                captureWidth = options.captureParams.height
+                captureHeight = options.captureParams.width
+            }
+        }
+
+        return captureWidth to captureHeight
+    }
+
+    private fun updateCaptureFormatIfNeeded() {
+        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+        val displayWidth = displayMetrics.widthPixels
+        val displayHeight = displayMetrics.heightPixels
+
+        // Updates whenever the display rotates
+        if (displayWidth != prevDisplayWidth || displayHeight != prevDisplayHeight) {
+            prevDisplayWidth = displayWidth
+            prevDisplayHeight = displayHeight
+
+            val (captureWidth, captureHeight) = getCaptureDimensions(displayWidth, displayHeight)
+
+            try {
+                capturer.changeCaptureFormat(captureWidth, captureHeight, options.captureParams.maxFps)
+            } catch (e: Exception) {
+                LKLog.w(e) { "Exception when changing capture format of the screen share track." }
+            }
+        }
+    }
+
+    override fun startCapture() {
+        // Don't use super.startCapture, must calculate correct dimensions
+        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+        val displayWidth = displayMetrics.widthPixels
+        val displayHeight = displayMetrics.heightPixels
+        val (captureWidth, captureHeight) = getCaptureDimensions(displayWidth, displayHeight)
+
+        capturer.startCapture(captureWidth, captureHeight, options.captureParams.maxFps)
+
+        if (orientationEventListener.canDetectOrientation()) {
+            orientationEventListener.enable()
+        }
+    }
 
     private val serviceConnection = ScreenCaptureConnection(context)
 
@@ -95,6 +185,7 @@ constructor(
     override fun stop() {
         super.stop()
         serviceConnection.stop()
+        orientationEventListener.disable()
     }
 
     @AssistedFactory
@@ -129,7 +220,7 @@ constructor(
             options: LocalVideoTrackOptions,
             rootEglBase: EglBase,
             screencastVideoTrackFactory: Factory,
-            videoProcessor: VideoProcessor?
+            videoProcessor: VideoProcessor?,
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             source.setVideoProcessor(videoProcessor)

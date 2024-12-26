@@ -39,7 +39,7 @@ at [https://docs.livekit.io/client-sdk-android/index.html](https://docs.livekit.
 
 > [!NOTE]
 > This is v2 of the Android SDK. When migrating from v1.x to v2.x you might encounter a small set of breaking changes.
-> Read the [migration guide](https://docs.livekit.io/guides/migrate-from-v1/) for a detailed overview of what has changed.
+> Read the [migration guide](https://docs.livekit.io/recipes/migrate-from-v1/) for a detailed overview of what has changed.
 
 ## Installation
 
@@ -47,14 +47,14 @@ LiveKit for Android is available as a Maven package.
 ```groovy title="build.gradle"
 ...
 dependencies {
-  def livekit_version = "2.9.0"
+  def livekit_version = "2.11.0"
 
   implementation "io.livekit:livekit-android:$livekit_version"
   // CameraX support with pinch to zoom, torch control, etc.
   implementation "io.livekit:livekit-android-camerax:$livekit_version"
 
   // Snapshots of the latest development version are available at:
-  // implementation "io.livekit:livekit-android:2.9.1-SNAPSHOT"
+  // implementation "io.livekit:livekit-android:2.11.1-SNAPSHOT"
 }
 ```
 

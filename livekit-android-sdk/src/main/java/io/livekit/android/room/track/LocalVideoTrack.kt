@@ -32,6 +32,7 @@ import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CaptureDispatchObserver
+import io.livekit.android.room.track.video.ScaleCropVideoProcessor
 import io.livekit.android.room.track.video.VideoCapturerWithSize
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
@@ -315,49 +316,58 @@ constructor(
         sender: RtpSender,
         qualities: List<LivekitRtc.SubscribedQuality>,
     ) {
-        val parameters = sender.parameters ?: return
-        val encodings = parameters.encodings ?: return
-        var hasChanged = false
-
-        if (encodings.firstOrNull()?.scalabilityMode != null) {
-            val encoding = encodings.first()
-            var maxQuality = ProtoVideoQuality.OFF
-            for (quality in qualities) {
-                if (quality.enabled && (maxQuality == ProtoVideoQuality.OFF || quality.quality.number > maxQuality.number)) {
-                    maxQuality = quality.quality
-                }
-            }
-
-            if (maxQuality == ProtoVideoQuality.OFF) {
-                if (encoding.active) {
-                    LKLog.v { "setting svc track to disabled" }
-                    encoding.active = false
-                    hasChanged = true
-                }
-            } else if (!encoding.active) {
-                LKLog.v { "setting svc track to enabled" }
-                encoding.active = true
-                hasChanged = true
-            }
-        } else {
-            // simulcast dynacast encodings
-            for (quality in qualities) {
-                val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
-                val encoding = encodings.firstOrNull { it.rid == rid }
-                    // use low quality layer settings for non-simulcasted streams
-                    ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
-                    ?: continue
-                if (encoding.active != quality.enabled) {
-                    hasChanged = true
-                    encoding.active = quality.enabled
-                    LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
-                }
-            }
+        if (isDisposed) {
+            LKLog.i { "attempted to set publishing layer for disposed video track." }
+            return
         }
+        try {
+            val parameters = sender.parameters ?: return
+            val encodings = parameters.encodings ?: return
+            var hasChanged = false
 
-        if (hasChanged) {
-            // This refeshes the native code with the new information
-            sender.parameters = sender.parameters
+            if (encodings.firstOrNull()?.scalabilityMode != null) {
+                val encoding = encodings.first()
+                var maxQuality = ProtoVideoQuality.OFF
+                for (quality in qualities) {
+                    if (quality.enabled && (maxQuality == ProtoVideoQuality.OFF || quality.quality.number > maxQuality.number)) {
+                        maxQuality = quality.quality
+                    }
+                }
+
+                if (maxQuality == ProtoVideoQuality.OFF) {
+                    if (encoding.active) {
+                        LKLog.v { "setting svc track to disabled" }
+                        encoding.active = false
+                        hasChanged = true
+                    }
+                } else if (!encoding.active) {
+                    LKLog.v { "setting svc track to enabled" }
+                    encoding.active = true
+                    hasChanged = true
+                }
+            } else {
+                // simulcast dynacast encodings
+                for (quality in qualities) {
+                    val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
+                    val encoding = encodings.firstOrNull { it.rid == rid }
+                        // use low quality layer settings for non-simulcasted streams
+                        ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
+                        ?: continue
+                    if (encoding.active != quality.enabled) {
+                        hasChanged = true
+                        encoding.active = quality.enabled
+                        LKLog.v { "setting layer ${quality.quality} to ${quality.enabled}" }
+                    }
+                }
+            }
+
+            if (hasChanged) {
+                // This refreshes the native code with the new information
+                sender.parameters = parameters
+            }
+        } catch (e: Exception) {
+            LKLog.w(e) { "Exception caught while setting publishing layers." }
+            return
         }
     }
 
@@ -473,11 +483,22 @@ constructor(
             videoProcessor: VideoProcessor? = null,
         ): LocalVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
-            source.setVideoProcessor(videoProcessor)
+
+            val finalVideoProcessor = if (options.captureParams.adaptOutputToDimensions) {
+                ScaleCropVideoProcessor(
+                    targetWidth = options.captureParams.width,
+                    targetHeight = options.captureParams.height,
+                ).apply {
+                    childVideoProcessor = videoProcessor
+                }
+            } else {
+                videoProcessor
+            }
+            source.setVideoProcessor(finalVideoProcessor)
 
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
 
-            // Dispatch raw frames to local renderer only if not using a VideoProcessor.
+            // Dispatch raw frames to local renderer only if not using a user-provided VideoProcessor.
             val dispatchObserver = if (videoProcessor == null) {
                 CaptureDispatchObserver().apply {
                     registerObserver(source.capturerObserver)

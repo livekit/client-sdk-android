@@ -1,14 +1,13 @@
 ext {
-    android_build_tools_version = '8.2.2'
+    android_build_tools_version = '8.7.2'
     compose_version = '1.2.1'
-    compose_compiler_version = '1.4.5'
-    kotlin_version = '1.8.20'
+    compose_compiler_version = '1.5.15'
+    kotlin_version = '1.9.25'
     java_version = JavaVersion.VERSION_1_8
-
-    dokka_version = '1.8.20'
+    dokka_version = '1.9.20'
     androidSdk = [
-        compileVersion: 34,
-        targetVersion : 34,
+        compileVersion: 35,
+        targetVersion : 35,
         minVersion    : 21,
     ]
     generated = [

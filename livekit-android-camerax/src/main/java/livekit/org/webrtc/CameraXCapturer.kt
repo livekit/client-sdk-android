@@ -21,6 +21,7 @@ import android.hardware.camera2.CameraManager
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
+import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CameraEventsDispatchHandler
@@ -35,6 +36,7 @@ internal class CameraXCapturer(
     private val lifecycleOwner: LifecycleOwner,
     cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
+    private val useCases: Array<out UseCase> = emptyArray(),
 ) : CameraCapturer(cameraName, eventsHandler, CameraXEnumerator(context, lifecycleOwner)) {
 
     @FlowObservable
@@ -90,6 +92,7 @@ internal class CameraXCapturer(
             width,
             height,
             framerate,
+            useCases,
         )
     }
 }

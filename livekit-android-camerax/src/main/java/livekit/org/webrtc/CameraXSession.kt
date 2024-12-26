@@ -35,6 +35,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.core.Preview.SurfaceProvider
+import androidx.camera.core.UseCase
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -57,6 +58,7 @@ internal constructor(
     private val width: Int,
     private val height: Int,
     private val frameRate: Int,
+    private val useCases: Array<out UseCase> = emptyArray(),
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
@@ -147,7 +149,9 @@ internal constructor(
 
                 surface = Surface(surfaceTextureHelper.surfaceTexture)
                 surfaceProvider = SurfaceProvider { request ->
-                    request.provideSurface(surface!!, helperExecutor) { }
+                    surface?.let {
+                        request.provideSurface(it, helperExecutor) { }
+                    } ?: request.willNotProvideSurface()
                 }
 
                 // Set image analysis - camera params
@@ -171,7 +175,13 @@ internal constructor(
                         cameraProvider.unbindAll()
 
                         // Bind use cases to camera
-                        camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, imageAnalysis, preview)
+                        camera = cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            imageAnalysis,
+                            preview,
+                            *useCases,
+                        )
 
                         cameraThreadHandler.post {
                             sessionCallback.onDone(this@CameraXSession)

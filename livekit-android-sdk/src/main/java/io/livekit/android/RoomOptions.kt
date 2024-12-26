@@ -43,4 +43,6 @@ data class RoomOptions(
     val videoTrackCaptureDefaults: LocalVideoTrackOptions? = null,
     val audioTrackPublishDefaults: AudioTrackPublishDefaults? = null,
     val videoTrackPublishDefaults: VideoTrackPublishDefaults? = null,
+    val screenShareTrackCaptureDefaults: LocalVideoTrackOptions? = null,
+    val screenShareTrackPublishDefaults: VideoTrackPublishDefaults? = null,
 )

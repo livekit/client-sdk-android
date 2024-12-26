@@ -19,6 +19,7 @@ package livekit.org.webrtc
 import android.content.Context
 import android.hardware.camera2.CameraManager
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.UseCase
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import io.livekit.android.room.track.LocalVideoTrackOptions
@@ -28,17 +29,21 @@ import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 
 class CameraXHelper {
     companion object {
-
         /**
          * Creates a CameraProvider that uses CameraX for its sessions.
          *
          * For use with [CameraCapturerUtils.registerCameraProvider].
          * Remember to unregister the provider when outside the lifecycle
          * of [lifecycleOwner].
+         *
+         * @param lifecycleOwner The lifecycleOwner which controls the lifecycle transitions of the use cases.
+         * @param useCases The use cases to bind to a lifecycle.
          */
+        @JvmOverloads
         @ExperimentalCamera2Interop
         fun createCameraProvider(
             lifecycleOwner: LifecycleOwner,
+            useCases: Array<out UseCase> = emptyArray(),
         ) = object : CameraCapturerUtils.CameraProvider {
 
             private var enumerator: CameraXEnumerator? = null
@@ -46,7 +51,7 @@ class CameraXHelper {
             override val cameraVersion = 3
 
             override fun provideEnumerator(context: Context): CameraXEnumerator =
-                enumerator ?: CameraXEnumerator(context, lifecycleOwner).also {
+                enumerator ?: CameraXEnumerator(context, lifecycleOwner, useCases).also {
                     enumerator = it
                 }
 
