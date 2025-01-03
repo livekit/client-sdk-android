@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,6 +69,7 @@ import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
 import javax.inject.Named
 import kotlin.math.max
+import kotlin.math.min
 
 class LocalParticipant
 @AssistedInject
@@ -591,7 +592,7 @@ internal constructor(
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
             val size = max(width, height)
-
+            val maxFps = encoding.maxFps
             fun calculateScaleDown(captureParam: VideoCaptureParameter): Double {
                 val targetSize = max(captureParam.width, captureParam.height)
                 return size / targetSize.toDouble()
@@ -600,11 +601,11 @@ internal constructor(
                 val lowScale = calculateScaleDown(lowPreset.capture)
                 val midScale = calculateScaleDown(midPreset.capture)
 
-                addEncoding(lowPreset.encoding, lowScale)
-                addEncoding(midPreset.encoding, midScale)
+                addEncoding(lowPreset.encoding.copy(maxFps = min(lowPreset.encoding.maxFps, maxFps)), lowScale)
+                addEncoding(midPreset.encoding.copy(maxFps = min(midPreset.encoding.maxFps, maxFps)), midScale)
             } else {
                 val lowScale = calculateScaleDown(lowPreset.capture)
-                addEncoding(lowPreset.encoding, lowScale)
+                addEncoding(lowPreset.encoding.copy(maxFps = min(lowPreset.encoding.maxFps, maxFps)), lowScale)
             }
             addEncoding(encoding, 1.0)
         } else {
