@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.11.1
+
+### Patch Changes
+
+- Fix maxFps not applying for very low framerates - [#573](https://github.com/livekit/client-sdk-android/pull/573) ([@davidliu](https://github.com/davidliu))
+
 ## 2.11.0
 
 ### Minor Changes
