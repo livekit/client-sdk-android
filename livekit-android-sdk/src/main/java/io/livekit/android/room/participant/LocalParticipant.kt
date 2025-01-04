@@ -737,35 +737,26 @@ internal constructor(
 
     /**
         * This suspend function allows you to publish DTMF (Dual-Tone Multi-Frequency)
-        * signals within a LiveKit room. The `publishDTMF` function constructs a 
-        * SipDTMF message using the provided code and digit, then encapsulates it 
-        * in a DataPacket before sending it via the engine. 
-        * 
-        * Parameters:
-        *  - code: an integer representing the DTMF signal code 
-        *  - digit: the string representing the DTMF digit (e.g., "1", "#", "*")
-        *  - reliability: determines how the data is transmitted 
-        *    (RELIABLE by default, meaning guaranteed delivery)
+        * signals within a LiveKit room. The `publishDTMF` function constructs a
+        * SipDTMF message using the provided code and digit, then encapsulates it
+        * in a DataPacket before sending it via the engine.
         *
-        * Note: If the resulting data packet exceeds RTCEngine.MAX_DATA_PACKET_SIZE,
-        *       an IllegalArgumentException is thrown.
+        * Parameters:
+        *  - code: an integer representing the DTMF signal code
+        *  - digit: the string representing the DTMF digit (e.g., "1", "#", "*")
     */
     
     @Suppress("unused")
-    suspend fun publishDTMF(
+    suspend fun publishDtmf(
         code: Int,
         digit: String,
-        reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
     ) {
-        if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
-            throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
-        }
-
-        val sipDTMF = SipDTMF.newBuilder().setCode(code)
+        
+        val sipDTMF = LivekitModels.SipDTMF.newBuilder().setCode(code)
             .setDigit(digit)
             .build()
 
-        val dataPacket = DataPacket.newBuilder()
+        val dataPacket = LivekitModels.DataPacket.newBuilder()
             .setSipDtmf(sipDTMF)
             .build()
 
