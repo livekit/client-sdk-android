@@ -273,6 +273,9 @@ enum class DisconnectReason {
     MIGRATION,
     SIGNAL_CLOSE,
     ROOM_CLOSED,
+    USER_UNAVAILABLE,
+    USER_REJECTED,
+    SIP_TRUNK_FAILURE,
 }
 
 /**
@@ -290,9 +293,13 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.MIGRATION -> DisconnectReason.MIGRATION
         LivekitModels.DisconnectReason.SIGNAL_CLOSE -> DisconnectReason.SIGNAL_CLOSE
         LivekitModels.DisconnectReason.ROOM_CLOSED -> DisconnectReason.ROOM_CLOSED
+        LivekitModels.DisconnectReason.USER_UNAVAILABLE -> DisconnectReason.USER_UNAVAILABLE
+        LivekitModels.DisconnectReason.USER_REJECTED -> DisconnectReason.USER_REJECTED
+        LivekitModels.DisconnectReason.SIP_TRUNK_FAILURE -> DisconnectReason.SIP_TRUNK_FAILURE
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,
         -> DisconnectReason.UNKNOWN_REASON
+
     }
 }

@@ -1047,6 +1047,14 @@ internal constructor(
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+
+            LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
+                // TODO
+            }
+
+            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
+                // TODO
+            }
         }
     }
 
