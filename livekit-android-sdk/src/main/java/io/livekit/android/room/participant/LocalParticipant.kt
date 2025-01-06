@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
+import com.vdurmont.semver4j.Semver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -47,15 +48,21 @@ import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.util.EncodingUtils
+import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.byteLength
 import io.livekit.android.util.flow
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import livekit.LivekitModels
+import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
@@ -67,7 +74,10 @@ import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
+import java.util.Collections
+import java.util.UUID
 import javax.inject.Named
+import kotlin.coroutines.resume
 import kotlin.math.max
 import kotlin.math.min
 
@@ -104,6 +114,10 @@ internal constructor(
             .toList()
 
     private val jobs = mutableMapOf<Any, Job>()
+
+    private val rpcHandlers = Collections.synchronizedMap(mutableMapOf<String, RpcHandler>()) // methodName to handler
+    private val pendingAcks = Collections.synchronizedMap(mutableMapOf<String, PendingRpcAck>()) // requestId to pending ack
+    private val pendingResponses = Collections.synchronizedMap(mutableMapOf<String, PendingRpcResponse>()) // requestId to pending response
 
     // For ensuring that only one caller can execute setTrackEnabled at a time.
     // Without it, there's a potential to create multiple of the same source,
@@ -714,8 +728,8 @@ internal constructor(
         }
 
         val kind = when (reliability) {
-            DataPublishReliability.RELIABLE -> LivekitModels.DataPacket.Kind.RELIABLE
-            DataPublishReliability.LOSSY -> LivekitModels.DataPacket.Kind.LOSSY
+            DataPublishReliability.RELIABLE -> DataPacket.Kind.RELIABLE
+            DataPublishReliability.LOSSY -> DataPacket.Kind.LOSSY
         }
         val packetBuilder = LivekitModels.UserPacket.newBuilder().apply {
             payload = ByteString.copyFrom(data)
@@ -727,12 +741,352 @@ internal constructor(
                 addAllDestinationIdentities(identities.map { it.value })
             }
         }
-        val dataPacket = LivekitModels.DataPacket.newBuilder()
+        val dataPacket = DataPacket.newBuilder()
             .setUser(packetBuilder)
             .setKind(kind)
             .build()
 
         engine.sendData(dataPacket)
+    }
+
+    /**
+     * Establishes the participant as a receiver for calls of the specified RPC method.
+     * Will overwrite any existing callback for the same method.
+     *
+     * Example:
+     * ```kt
+     * room.localParticipant.registerRpcMethod("greet") { requestId, callerIdentity, payload, responseTimeoutMs ->
+     *     Log.i("TAG", "Received greeting from ${callerIdentity}: ${payload}")
+     *
+     *     // Return a string
+     *     "Hello, ${callerIdentity}!"
+     * }
+     * ```
+     *
+     * The handler receives the following parameters:
+     * - `requestId`: A unique identifier for this RPC request
+     * - `callerIdentity`: The identity of the RemoteParticipant who initiated the RPC call
+     * - `payload`: The data sent by the caller (as a string)
+     * - `responseTimeoutMs`: The maximum time available to return a response
+     *
+     * The handler should return a string.
+     * If unable to respond within `responseTimeoutMs`, the request will result in an error on the caller's side.
+     *
+     * You may throw errors of type `RpcError` with a string `message` in the handler,
+     * and they will be received on the caller's side with the message intact.
+     * Other errors thrown in your handler will not be transmitted as-is, and will instead arrive to the caller as `1500` ("Application Error").
+     *
+     * @param method The name of the indicated RPC method
+     * @param handler Will be invoked when an RPC request for this method is received
+     */
+    @Suppress("RedundantSuspendModifier")
+    suspend fun registerRpcMethod(
+        method: String,
+        handler: RpcHandler,
+    ) {
+        this.rpcHandlers[method] = handler
+    }
+
+    /**
+     * Unregisters a previously registered RPC method.
+     *
+     * @param method The name of the RPC method to unregister
+     */
+    fun unregisterRpcMethod(
+        method: String,
+    ) {
+        this.rpcHandlers.remove(method)
+    }
+
+    internal fun handleDataPacket(packet: DataPacket) {
+        when {
+            packet.hasRpcRequest() -> {
+                val rpcRequest = packet.rpcRequest
+                scope.launch {
+                    handleIncomingRpcRequest(
+                        callerIdentity = Identity(packet.participantIdentity),
+                        requestId = rpcRequest.id,
+                        method = rpcRequest.method,
+                        payload = rpcRequest.payload,
+                        responseTimeoutMs = rpcRequest.responseTimeoutMs,
+                        version = rpcRequest.version,
+                    )
+                }
+            }
+
+            packet.hasRpcResponse() -> {
+                val rpcResponse = packet.rpcResponse
+                var payload: String? = null
+                var error: RpcError? = null
+
+                if (rpcResponse.hasPayload()) {
+                    payload = rpcResponse.payload
+                } else if (rpcResponse.hasError()) {
+                    error = RpcError.fromProto(rpcResponse.error)
+                }
+                handleIncomingRpcResponse(
+                    requestId = rpcResponse.requestId,
+                    payload = payload,
+                    error = error,
+                )
+            }
+
+            packet.hasRpcAck() -> {
+                val rpcAck = packet.rpcAck
+                handleIncomingRpcAck(rpcAck.requestId)
+            }
+        }
+    }
+
+    /**
+     * Initiate an RPC call to a remote participant
+     * @param destinationIdentity The identity of the destination participant.
+     * @param method The method name to call.
+     * @param payload The payload to pass to the method.
+     * @param responseTimeoutMs Timeout for receiving a response after initial connection (milliseconds). Defaults to 10000.
+     * @return The response payload.
+     * @throws RpcError on failure. Details in [RpcError.message].
+     */
+    suspend fun performRpc(
+        destinationIdentity: Identity,
+        method: String,
+        payload: String,
+        responseTimeoutMs: Int = 10000,
+    ): String = coroutineScope {
+        val maxRoundTripLatencyMs = 2000
+
+        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+            throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
+        }
+
+        val serverVersion = engine.serverVersion
+            ?: throw RpcError.BuiltinRpcError.SEND_FAILED.create(data = "Not connected.")
+
+        if (serverVersion < Semver("1.8.0")) {
+            throw RpcError.BuiltinRpcError.UNSUPPORTED_SERVER.create()
+        }
+
+        val requestId = UUID.randomUUID().toString()
+
+        publishRpcRequest(
+            destinationIdentity = destinationIdentity,
+            requestId = requestId,
+            method = method,
+            payload = payload,
+            responseTimeoutMs = responseTimeoutMs - maxRoundTripLatencyMs,
+        )
+
+        val responsePayload = suspendCancellableCoroutine { continuation ->
+            var ackTimeoutJob: Job? = null
+            var responseTimeoutJob: Job? = null
+
+            fun cleanup() {
+                ackTimeoutJob?.cancel()
+                responseTimeoutJob?.cancel()
+                pendingAcks.remove(requestId)
+                pendingResponses.remove(requestId)
+            }
+
+            continuation.invokeOnCancellation { cleanup() }
+
+            ackTimeoutJob = launch {
+                delay(maxRoundTripLatencyMs.toLong())
+                val receivedAck = pendingAcks.remove(requestId) != null
+                if (!receivedAck) {
+                    pendingResponses.remove(requestId)
+                    continuation.cancel(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create())
+                }
+            }
+            pendingAcks[requestId] = PendingRpcAck(
+                participantIdentity = destinationIdentity,
+                onResolve = { ackTimeoutJob.cancel() },
+            )
+
+            responseTimeoutJob = launch {
+                delay(responseTimeoutMs.toLong())
+                val receivedResponse = pendingResponses.remove(requestId) != null
+                if (!receivedResponse) {
+                    continuation.cancel(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create())
+                }
+            }
+
+            pendingResponses[requestId] = PendingRpcResponse(
+                participantIdentity = destinationIdentity,
+                onResolve = { payload, error ->
+                    if (pendingAcks.containsKey(requestId)) {
+                        LKLog.i { "RPC response received before ack, id: $requestId" }
+                    }
+                    cleanup()
+
+                    if (error != null) {
+                        continuation.cancel(error)
+                    } else {
+                        continuation.resume(payload ?: "")
+                    }
+                },
+            )
+        }
+        return@coroutineScope responsePayload
+    }
+
+    private suspend fun publishRpcRequest(
+        destinationIdentity: Identity,
+        requestId: String,
+        method: String,
+        payload: String,
+        responseTimeoutMs: Int = 10000,
+    ) {
+        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+            throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
+        }
+
+        val dataPacket = with(DataPacket.newBuilder()) {
+            addDestinationIdentities(destinationIdentity.value)
+            kind = DataPacket.Kind.RELIABLE
+            rpcRequest = with(LivekitModels.RpcRequest.newBuilder()) {
+                this.id = requestId
+                this.method = method
+                this.payload = payload
+                this.responseTimeoutMs = responseTimeoutMs
+                build()
+            }
+            build()
+        }
+
+        engine.sendData(dataPacket)
+    }
+
+    private suspend fun publishRpcResponse(
+        destinationIdentity: Identity,
+        requestId: String,
+        payload: String?,
+        error: RpcError?,
+    ) {
+        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+            throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
+        }
+
+        val dataPacket = with(DataPacket.newBuilder()) {
+            addDestinationIdentities(destinationIdentity.value)
+            kind = DataPacket.Kind.RELIABLE
+            rpcResponse = with(LivekitModels.RpcResponse.newBuilder()) {
+                this.requestId = requestId
+                if (error != null) {
+                    this.error = error.toProto()
+                } else {
+                    this.payload = payload ?: ""
+                }
+                build()
+            }
+            build()
+        }
+
+        engine.sendData(dataPacket)
+    }
+
+    private suspend fun publishRpcAck(
+        destinationIdentity: Identity,
+        requestId: String,
+    ) {
+        val dataPacket = with(DataPacket.newBuilder()) {
+            addDestinationIdentities(destinationIdentity.value)
+            kind = DataPacket.Kind.RELIABLE
+            rpcAck = with(LivekitModels.RpcAck.newBuilder()) {
+                this.requestId = requestId
+                build()
+            }
+            build()
+        }
+
+        engine.sendData(dataPacket)
+    }
+
+    private fun handleIncomingRpcAck(requestId: String) {
+        val handler = this.pendingAcks.remove(requestId)
+        if (handler != null) {
+            handler.onResolve()
+        } else {
+            LKLog.e { "Ack received for unexpected RPC request, id = $requestId" }
+        }
+    }
+
+    private fun handleIncomingRpcResponse(
+        requestId: String,
+        payload: String?,
+        error: RpcError?,
+    ) {
+        val handler = this.pendingResponses.remove(requestId)
+        if (handler != null) {
+            handler.onResolve(payload, error)
+        } else {
+            LKLog.e { "Response received for unexpected RPC request, id = $requestId" }
+        }
+    }
+
+    private suspend fun handleIncomingRpcRequest(
+        callerIdentity: Identity,
+        requestId: String,
+        method: String,
+        payload: String,
+        responseTimeoutMs: Int,
+        version: Int,
+    ) {
+        publishRpcAck(callerIdentity, requestId)
+
+        if (version != 1) {
+            publishRpcResponse(
+                destinationIdentity = callerIdentity,
+                requestId = requestId,
+                payload = null,
+                error = RpcError.BuiltinRpcError.UNSUPPORTED_VERSION.create(),
+            )
+            return
+        }
+
+        val handler = this.rpcHandlers[method]
+
+        if (handler == null) {
+            publishRpcResponse(
+                destinationIdentity = callerIdentity,
+                requestId = requestId,
+                payload = null,
+                error = RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create(),
+            )
+            return
+        }
+
+        var responseError: RpcError? = null
+        var responsePayload: String? = null
+
+        try {
+            val response = handler.invoke(
+                requestId,
+                callerIdentity,
+                payload,
+                responseTimeoutMs,
+            )
+
+            if (response.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+                responseError = RpcError.BuiltinRpcError.RESPONSE_PAYLOAD_TOO_LARGE.create()
+                LKLog.w { "RPC Response payload too large for $method" }
+            } else {
+                responsePayload = response
+            }
+        } catch (e: Exception) {
+            if (e is RpcError) {
+                responseError = e
+            } else {
+                LKLog.w(e) { "Uncaught error returned by RPC handler for $method. Returning APPLICATION_ERROR instead." }
+                responseError = RpcError.BuiltinRpcError.APPLICATION_ERROR.create()
+            }
+        }
+
+        publishRpcResponse(
+            destinationIdentity = callerIdentity,
+            requestId = requestId,
+            payload = responsePayload,
+            error = responseError,
+        )
     }
 
     /**
@@ -1204,3 +1558,18 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
 
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
+
+/**
+ * @see [LocalParticipant.registerRpcMethod]
+ */
+typealias RpcHandler = suspend (requestId: String, callerIdentity: Participant.Identity, payload: String, responseTimeoutMs: Int) -> String
+
+private data class PendingRpcAck(
+    val onResolve: () -> Unit,
+    val participantIdentity: Participant.Identity,
+)
+
+private data class PendingRpcResponse(
+    val onResolve: (payload: String?, error: RpcError?) -> Unit,
+    val participantIdentity: Participant.Identity,
+)

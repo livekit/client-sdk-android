@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.livekit.android.test.mock
 
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import java.util.UUID
 
 object TestData {
 
@@ -110,7 +111,7 @@ object TestData {
                     build()
                 },
             )
-            serverVersion = "0.15.2"
+            serverVersion = "1.8.0"
             build()
         }
         build()
@@ -323,6 +324,18 @@ object TestData {
                     build()
                 },
             )
+            build()
+        }
+        build()
+    }
+    val DATA_PACKET_RPC_REQUEST = with(LivekitModels.DataPacket.newBuilder()) {
+        participantIdentity = REMOTE_PARTICIPANT.identity
+        rpcRequest = with(LivekitModels.RpcRequest.newBuilder()) {
+            id = UUID.randomUUID().toString()
+            method = "hello"
+            payload = "hello world"
+            responseTimeoutMs = 10000
+            version = 1
             build()
         }
         build()
