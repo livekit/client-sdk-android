@@ -750,6 +750,33 @@ internal constructor(
     }
 
     /**
+     * This suspend function allows you to publish DTMF (Dual-Tone Multi-Frequency)
+     * signals within a LiveKit room. The `publishDtmf` function constructs a
+     * SipDTMF message using the provided code and digit, then encapsulates it
+     * in a DataPacket before sending it via the engine.
+     *
+     * @param code an integer representing the DTMF signal code
+     * @param digit the string representing the DTMF digit (e.g., "1", "#", "*")
+     */
+
+    @Suppress("unused")
+    suspend fun publishDtmf(
+        code: Int,
+        digit: String,
+    ) {
+        val sipDTMF = LivekitModels.SipDTMF.newBuilder().setCode(code)
+            .setDigit(digit)
+            .build()
+
+        val dataPacket = LivekitModels.DataPacket.newBuilder()
+            .setSipDtmf(sipDTMF)
+            .setKind(LivekitModels.DataPacket.Kind.RELIABLE)
+            .build()
+
+        engine.sendData(dataPacket)
+    }
+
+    /**
      * Establishes the participant as a receiver for calls of the specified RPC method.
      * Will overwrite any existing callback for the same method.
      *
