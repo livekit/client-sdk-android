@@ -233,7 +233,6 @@ class RpcMockE2ETest : MockE2ETest() {
         assertEquals(ERROR, receivedError)
     }
 
-
     @Test
     fun performRpcWithParticipantDisconnected() = runTest {
         connect()

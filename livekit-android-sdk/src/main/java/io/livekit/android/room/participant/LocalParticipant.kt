@@ -1089,7 +1089,6 @@ internal constructor(
         )
     }
 
-
     internal fun handleParticipantDisconnect(identity: Identity) {
         synchronized(pendingAcks) {
             val acksIterator = pendingAcks.iterator()
@@ -1112,7 +1111,6 @@ internal constructor(
             }
         }
     }
-
 
     /**
      * @suppress
