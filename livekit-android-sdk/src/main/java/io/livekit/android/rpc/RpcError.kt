@@ -16,7 +16,6 @@
 
 package io.livekit.android.rpc
 
-import androidx.annotation.VisibleForTesting
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.truncateBytes
 import livekit.LivekitModels
@@ -27,7 +26,7 @@ import livekit.LivekitModels
  * Instances of this type, when thrown in a RPC method handler, will have their [message]
  * serialized and sent across the wire. The sender will receive an equivalent error on the other side.
  *
- * Built-in types are included but developers may use any string, with a max length of 256 bytes.
+ * Built-in types are included but developers may use any message string, with a max length of 256 bytes.
  */
 data class RpcError(
     /**
@@ -36,9 +35,13 @@ data class RpcError(
      * See [RpcError.BuiltinRpcError] for built-in error information.
      */
     val code: Int,
+
+    /**
+     * A message to include. Strings over 256 bytes will be truncated.
+     */
     override val message: String,
     /**
-     * An optional data payload. Must be smaller than 15KB in size.
+     * An optional data payload. Must be smaller than 15KB in size, or else will be truncated.
      */
     val data: String = "",
 ) : Exception(message) {
@@ -75,7 +78,6 @@ data class RpcError(
         }
     }
 
-    @VisibleForTesting
     fun toProto(): LivekitModels.RpcError {
         return with(LivekitModels.RpcError.newBuilder()) {
             this.code = this@RpcError.code

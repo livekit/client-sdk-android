@@ -648,6 +648,8 @@ constructor(
 
         mutableRemoteParticipants = newParticipants
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
+
+        localParticipant.handleParticipantDisconnect(identity)
     }
 
     fun getParticipantBySid(sid: String): Participant? {

@@ -891,7 +891,7 @@ internal constructor(
 
             ackTimeoutJob = launch {
                 delay(maxRoundTripLatencyMs.toLong())
-                val receivedAck = pendingAcks.remove(requestId) != null
+                val receivedAck = pendingAcks.remove(requestId) == null
                 if (!receivedAck) {
                     pendingResponses.remove(requestId)
                     continuation.cancel(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create())
@@ -904,7 +904,7 @@ internal constructor(
 
             responseTimeoutJob = launch {
                 delay(responseTimeoutMs.toLong())
-                val receivedResponse = pendingResponses.remove(requestId) != null
+                val receivedResponse = pendingResponses.remove(requestId) == null
                 if (!receivedResponse) {
                     continuation.cancel(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create())
                 }
@@ -1088,6 +1088,31 @@ internal constructor(
             error = responseError,
         )
     }
+
+
+    internal fun handleParticipantDisconnect(identity: Identity) {
+        synchronized(pendingAcks) {
+            val acksIterator = pendingAcks.iterator()
+            while (acksIterator.hasNext()) {
+                val (_, ack) = acksIterator.next()
+                if (ack.participantIdentity == identity) {
+                    acksIterator.remove()
+                }
+            }
+        }
+
+        synchronized(pendingResponses) {
+            val responsesIterator = pendingResponses.iterator()
+            while (responsesIterator.hasNext()) {
+                val (_, response) = responsesIterator.next()
+                if (response.participantIdentity == identity) {
+                    responsesIterator.remove()
+                    response.onResolve(null, RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create())
+                }
+            }
+        }
+    }
+
 
     /**
      * @suppress
@@ -1560,6 +1585,11 @@ private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.code
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
 
 /**
+ * A handler that processes an RPC request and returns a string
+ * that will be sent back to the requester.
+ *
+ * Throwing an [RpcError] will send the error back to the requester.
+ *
  * @see [LocalParticipant.registerRpcMethod]
  */
 typealias RpcHandler = suspend (requestId: String, callerIdentity: Participant.Identity, payload: String, responseTimeoutMs: Int) -> String

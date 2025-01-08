@@ -25,11 +25,8 @@ import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.TestData.REMOTE_PARTICIPANT
 import io.livekit.android.test.util.toDataChannelBuffer
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
@@ -45,6 +42,14 @@ class RpcMockE2ETest : MockE2ETest() {
     lateinit var pubDataChannel: MockDataChannel
     lateinit var subDataChannel: MockDataChannel
 
+    companion object {
+        val ERROR = RpcError(
+            1,
+            "This is an error message.",
+            "This is an error payload.",
+        )
+    }
+
     override suspend fun connect(joinResponse: LivekitRtc.SignalResponse) {
         super.connect(joinResponse)
 
@@ -55,6 +60,31 @@ class RpcMockE2ETest : MockE2ETest() {
         subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
         subPeerConnection.observer?.onDataChannel(subDataChannel)
     }
+
+    private fun createAck(requestId: String) =
+        with(LivekitModels.DataPacket.newBuilder()) {
+            participantIdentity = REMOTE_PARTICIPANT.identity
+            rpcAck = with(LivekitModels.RpcAck.newBuilder()) {
+                this.requestId = requestId
+                build()
+            }
+            build()
+        }.toDataChannelBuffer()
+
+    private fun createResponse(requestId: String, payload: String? = null, error: RpcError? = null) = with(LivekitModels.DataPacket.newBuilder()) {
+        participantIdentity = REMOTE_PARTICIPANT.identity
+        rpcResponse = with(LivekitModels.RpcResponse.newBuilder()) {
+            this.requestId = requestId
+            if (error != null) {
+                this.error = error.toProto()
+            } else if (payload != null) {
+                this.payload = payload
+            }
+
+            build()
+        }
+        build()
+    }.toDataChannelBuffer()
 
     @Test
     fun handleRpcRequest() = runTest {
@@ -86,21 +116,68 @@ class RpcMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun handleRpcRequestWithError() = runTest {
+        connect()
+
+        var methodCalled = false
+        room.localParticipant.registerRpcMethod("hello") { _, _, _, _ ->
+            methodCalled = true
+            throw ERROR
+        }
+        subDataChannel.simulateBufferReceived(TestData.DATA_PACKET_RPC_REQUEST.toDataChannelBuffer())
+        assertTrue(methodCalled)
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        // Check that ack and response were sent
+        val buffers = pubDataChannel.sentBuffers
+        assertEquals(2, buffers.size)
+
+        val ackBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+        val responseBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[1].data))
+
+        assertTrue(ackBuffer.hasRpcAck())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, ackBuffer.rpcAck.requestId)
+
+        assertTrue(responseBuffer.hasRpcResponse())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, responseBuffer.rpcResponse.requestId)
+        assertEquals(ERROR, RpcError.fromProto(responseBuffer.rpcResponse.error))
+    }
+
+    @Test
+    fun handleRpcRequestWithNoHandler() = runTest {
+        connect()
+
+        subDataChannel.simulateBufferReceived(TestData.DATA_PACKET_RPC_REQUEST.toDataChannelBuffer())
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        // Check that ack and response were sent
+        val buffers = pubDataChannel.sentBuffers
+        assertEquals(2, buffers.size)
+
+        val ackBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+        val responseBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[1].data))
+
+        assertTrue(ackBuffer.hasRpcAck())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, ackBuffer.rpcAck.requestId)
+
+        assertTrue(responseBuffer.hasRpcResponse())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, responseBuffer.rpcResponse.requestId)
+        assertEquals(RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create(), RpcError.fromProto(responseBuffer.rpcResponse.error))
+    }
+
+    @Test
     fun performRpc() = runTest {
         connect()
 
-        val rpcJob = async(Dispatchers.Default) {
+        val rpcJob = async {
             room.localParticipant.performRpc(
                 destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
                 method = "hello",
                 payload = "hello world",
             )
         }
-
-        val wait = launch(Dispatchers.Default) {
-            delay(200L)
-        }
-        wait.join()
 
         // Check that request was sent
         val buffers = pubDataChannel.sentBuffers
@@ -114,30 +191,11 @@ class RpcMockE2ETest : MockE2ETest() {
 
         val requestId = requestBuffer.rpcRequest.id
 
-        // send ack
-        subDataChannel.simulateBufferReceived(
-            with(LivekitModels.DataPacket.newBuilder()) {
-                participantIdentity = REMOTE_PARTICIPANT.identity
-                rpcAck = with(LivekitModels.RpcAck.newBuilder()) {
-                    this.requestId = requestId
-                    build()
-                }
-                build()
-            }.toDataChannelBuffer(),
-        )
-        // send response
-        subDataChannel.simulateBufferReceived(
-            with(LivekitModels.DataPacket.newBuilder()) {
-                participantIdentity = REMOTE_PARTICIPANT.identity
-                rpcResponse = with(LivekitModels.RpcResponse.newBuilder()) {
-                    this.requestId = requestId
-                    this.payload = "bye"
-                    build()
-                }
-                build()
-            }.toDataChannelBuffer(),
-        )
+        // receive ack and response
+        subDataChannel.simulateBufferReceived(createAck(requestId))
+        subDataChannel.simulateBufferReceived(createResponse(requestId, payload = "bye"))
 
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
         val response = rpcJob.await()
 
         assertEquals("bye", response)
@@ -147,7 +205,7 @@ class RpcMockE2ETest : MockE2ETest() {
     fun performRpcWithError() = runTest {
         connect()
 
-        val rpcJob = async(Dispatchers.Default) {
+        val rpcJob = async {
             var expectedError: Exception? = null
             try {
                 room.localParticipant.performRpc(
@@ -161,41 +219,102 @@ class RpcMockE2ETest : MockE2ETest() {
             return@async expectedError
         }
 
-        val wait = launch(Dispatchers.Default) {
-            delay(200L)
+        val buffers = pubDataChannel.sentBuffers
+        val requestBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+        val requestId = requestBuffer.rpcRequest.id
+
+        // receive ack and response
+        subDataChannel.simulateBufferReceived(createAck(requestId))
+        subDataChannel.simulateBufferReceived(createResponse(requestId, error = ERROR))
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        val receivedError = rpcJob.await()
+
+        assertEquals(ERROR, receivedError)
+    }
+
+
+    @Test
+    fun performRpcWithParticipantDisconnected() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+
+        val rpcJob = async {
+            var expectedError: Exception? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "hello",
+                    payload = "hello world",
+                )
+            } catch (e: Exception) {
+                expectedError = e
+            }
+            return@async expectedError
         }
-        wait.join()
+
+        simulateMessageFromServer(TestData.PARTICIPANT_DISCONNECT)
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        val error = rpcJob.await()
+
+        assertEquals(RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create(), error)
+    }
+
+    @Test
+    fun performRpcWithConnectionTimeoutError() = runTest {
+        connect()
+
+        val rpcJob = async {
+            var expectedError: Exception? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "hello",
+                    payload = "hello world",
+                )
+            } catch (e: Exception) {
+                expectedError = e
+            }
+            return@async expectedError
+        }
+
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(3000)
+
+        val error = rpcJob.await()
+
+        assertEquals(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create(), error)
+    }
+
+    @Test
+    fun performRpcWithResponseTimeoutError() = runTest {
+        connect()
+
+        val rpcJob = async {
+            var expectedError: Exception? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "hello",
+                    payload = "hello world",
+                )
+            } catch (e: Exception) {
+                expectedError = e
+            }
+            return@async expectedError
+        }
 
         val buffers = pubDataChannel.sentBuffers
         val requestBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
         val requestId = requestBuffer.rpcRequest.id
 
-        // send ack
-        subDataChannel.simulateBufferReceived(
-            with(LivekitModels.DataPacket.newBuilder()) {
-                participantIdentity = REMOTE_PARTICIPANT.identity
-                rpcAck = with(LivekitModels.RpcAck.newBuilder()) {
-                    this.requestId = requestId
-                    build()
-                }
-                build()
-            }.toDataChannelBuffer(),
-        )
-        // send response
-        subDataChannel.simulateBufferReceived(
-            with(LivekitModels.DataPacket.newBuilder()) {
-                participantIdentity = REMOTE_PARTICIPANT.identity
-                rpcResponse = with(LivekitModels.RpcResponse.newBuilder()) {
-                    this.requestId = requestId
-                    this.error = RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create().toProto()
-                    build()
-                }
-                build()
-            }.toDataChannelBuffer(),
-        )
+        // receive ack only
+        subDataChannel.simulateBufferReceived(createAck(requestId))
+
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(15000)
 
         val error = rpcJob.await()
 
-        assertEquals(RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create(), error)
+        assertEquals(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create(), error)
     }
 }
