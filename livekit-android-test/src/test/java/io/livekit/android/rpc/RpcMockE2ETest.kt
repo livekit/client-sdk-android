@@ -27,6 +27,7 @@ import io.livekit.android.test.mock.TestData.REMOTE_PARTICIPANT
 import io.livekit.android.test.util.toDataChannelBuffer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
@@ -34,6 +35,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import kotlin.time.Duration.Companion.milliseconds
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -91,7 +93,7 @@ class RpcMockE2ETest : MockE2ETest() {
         connect()
 
         var methodCalled = false
-        room.localParticipant.registerRpcMethod("hello") { _, _, _, _ ->
+        room.localParticipant.registerRpcMethod("hello") {
             methodCalled = true
             "bye"
         }
@@ -120,7 +122,7 @@ class RpcMockE2ETest : MockE2ETest() {
         connect()
 
         var methodCalled = false
-        room.localParticipant.registerRpcMethod("hello") { _, _, _, _ ->
+        room.localParticipant.registerRpcMethod("hello") {
             methodCalled = true
             throw ERROR
         }
@@ -315,5 +317,61 @@ class RpcMockE2ETest : MockE2ETest() {
         val error = rpcJob.await()
 
         assertEquals(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create(), error)
+    }
+
+    @Test
+    fun uintMaxValueVerification() = runTest {
+        assertEquals(4_294_967_295L, UInt.MAX_VALUE.toLong())
+    }
+
+    /**
+     * Protobuf handles UInt32 as Java signed integers.
+     * This test verifies whether our conversion is properly sent over the wire.
+     */
+    @Test
+    fun performRpcProtoUIntVerification() = runTest {
+        connect()
+        val rpcJob = launch {
+            room.localParticipant.performRpc(
+                destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                method = "hello",
+                payload = "hello world",
+                responseTimeout = UInt.MAX_VALUE.toLong().milliseconds,
+            )
+        }
+
+        val buffers = pubDataChannel.sentBuffers
+        val requestBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+
+        val expectedResponseTimeout = UInt.MAX_VALUE - 2000u // 2000 comes from maxRoundTripLatency
+        val responseTimeout = requestBuffer.rpcRequest.responseTimeoutMs.toUInt()
+        assertEquals(expectedResponseTimeout, responseTimeout)
+        rpcJob.cancel()
+    }
+
+    /**
+     * Protobuf handles UInt32 as Java signed integers.
+     * This test verifies whether our conversion is properly sent over the wire.
+     */
+    @Test
+    fun handleRpcProtoUIntVerification() = runTest {
+        connect()
+
+        var methodCalled = false
+        room.localParticipant.registerRpcMethod("hello") { invocationData ->
+            assertEquals(4_294_967_295L, invocationData.responseTimeout.inWholeMilliseconds)
+            methodCalled = true
+            "bye"
+        }
+        subDataChannel.simulateBufferReceived(
+            with(TestData.DATA_PACKET_RPC_REQUEST.toBuilder()) {
+                rpcRequest = with(rpcRequest.toBuilder()) {
+                    responseTimeoutMs = UInt.MAX_VALUE.toInt()
+                    build()
+                }
+                build()
+            }.toDataChannelBuffer(),
+        )
+        assertTrue(methodCalled)
     }
 }

@@ -80,6 +80,9 @@ import javax.inject.Named
 import kotlin.coroutines.resume
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalParticipant
 @AssistedInject
@@ -782,7 +785,7 @@ internal constructor(
      *
      * Example:
      * ```kt
-     * room.localParticipant.registerRpcMethod("greet") { requestId, callerIdentity, payload, responseTimeoutMs ->
+     * room.localParticipant.registerRpcMethod("greet") { (requestId, callerIdentity, payload, responseTimeout) ->
      *     Log.i("TAG", "Received greeting from ${callerIdentity}: ${payload}")
      *
      *     // Return a string
@@ -790,21 +793,24 @@ internal constructor(
      * }
      * ```
      *
-     * The handler receives the following parameters:
+     * The handler receives an [RpcInvocationData] with the following parameters:
      * - `requestId`: A unique identifier for this RPC request
      * - `callerIdentity`: The identity of the RemoteParticipant who initiated the RPC call
      * - `payload`: The data sent by the caller (as a string)
-     * - `responseTimeoutMs`: The maximum time available to return a response
+     * - `responseTimeout`: The maximum time available to return a response
      *
      * The handler should return a string.
-     * If unable to respond within `responseTimeoutMs`, the request will result in an error on the caller's side.
+     * If unable to respond within [RpcInvocationData.responseTimeout], the request will result in an error on the caller's side.
      *
-     * You may throw errors of type `RpcError` with a string `message` in the handler,
+     * You may throw errors of type [RpcError] with a string `message` in the handler,
      * and they will be received on the caller's side with the message intact.
      * Other errors thrown in your handler will not be transmitted as-is, and will instead arrive to the caller as `1500` ("Application Error").
      *
      * @param method The name of the indicated RPC method
      * @param handler Will be invoked when an RPC request for this method is received
+     * @see RpcHandler
+     * @see RpcInvocationData
+     * @see performRpc
      */
     @Suppress("RedundantSuspendModifier")
     suspend fun registerRpcMethod(
@@ -835,7 +841,7 @@ internal constructor(
                         requestId = rpcRequest.id,
                         method = rpcRequest.method,
                         payload = rpcRequest.payload,
-                        responseTimeoutMs = rpcRequest.responseTimeoutMs,
+                        responseTimeout = rpcRequest.responseTimeoutMs.toUInt().toLong().milliseconds,
                         version = rpcRequest.version,
                     )
                 }
@@ -870,7 +876,8 @@ internal constructor(
      * @param destinationIdentity The identity of the destination participant.
      * @param method The method name to call.
      * @param payload The payload to pass to the method.
-     * @param responseTimeoutMs Timeout for receiving a response after initial connection (milliseconds). Defaults to 10000.
+     * @param responseTimeout Timeout for receiving a response after initial connection.
+     *      Defaults to 10000. Max value of UInt.MAX_VALUE milliseconds.
      * @return The response payload.
      * @throws RpcError on failure. Details in [RpcError.message].
      */
@@ -878,9 +885,9 @@ internal constructor(
         destinationIdentity: Identity,
         method: String,
         payload: String,
-        responseTimeoutMs: Int = 10000,
+        responseTimeout: Duration = 10.seconds,
     ): String = coroutineScope {
-        val maxRoundTripLatencyMs = 2000
+        val maxRoundTripLatency = 2.seconds
 
         if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
@@ -900,7 +907,7 @@ internal constructor(
             requestId = requestId,
             method = method,
             payload = payload,
-            responseTimeoutMs = responseTimeoutMs - maxRoundTripLatencyMs,
+            responseTimeout = responseTimeout - maxRoundTripLatency,
         )
 
         val responsePayload = suspendCancellableCoroutine { continuation ->
@@ -917,7 +924,7 @@ internal constructor(
             continuation.invokeOnCancellation { cleanup() }
 
             ackTimeoutJob = launch {
-                delay(maxRoundTripLatencyMs.toLong())
+                delay(maxRoundTripLatency)
                 val receivedAck = pendingAcks.remove(requestId) == null
                 if (!receivedAck) {
                     pendingResponses.remove(requestId)
@@ -930,7 +937,7 @@ internal constructor(
             )
 
             responseTimeoutJob = launch {
-                delay(responseTimeoutMs.toLong())
+                delay(responseTimeout)
                 val receivedResponse = pendingResponses.remove(requestId) == null
                 if (!receivedResponse) {
                     continuation.cancel(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create())
@@ -961,7 +968,7 @@ internal constructor(
         requestId: String,
         method: String,
         payload: String,
-        responseTimeoutMs: Int = 10000,
+        responseTimeout: Duration = 10.seconds,
     ) {
         if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
@@ -974,7 +981,7 @@ internal constructor(
                 this.id = requestId
                 this.method = method
                 this.payload = payload
-                this.responseTimeoutMs = responseTimeoutMs
+                this.responseTimeoutMs = responseTimeout.inWholeMilliseconds.toUInt().toInt()
                 build()
             }
             build()
@@ -1055,7 +1062,7 @@ internal constructor(
         requestId: String,
         method: String,
         payload: String,
-        responseTimeoutMs: Int,
+        responseTimeout: Duration,
         version: Int,
     ) {
         publishRpcAck(callerIdentity, requestId)
@@ -1087,10 +1094,12 @@ internal constructor(
 
         try {
             val response = handler.invoke(
-                requestId,
-                callerIdentity,
-                payload,
-                responseTimeoutMs,
+                RpcInvocationData(
+                    requestId = requestId,
+                    callerIdentity = callerIdentity,
+                    payload = payload,
+                    responseTimeout = responseTimeout,
+                ),
             )
 
             if (response.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
@@ -1617,7 +1626,26 @@ private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
  *
  * @see [LocalParticipant.registerRpcMethod]
  */
-typealias RpcHandler = suspend (requestId: String, callerIdentity: Participant.Identity, payload: String, responseTimeoutMs: Int) -> String
+typealias RpcHandler = suspend (RpcInvocationData) -> String
+
+data class RpcInvocationData(
+    /**
+     *  A unique identifier for this RPC request
+     */
+    val requestId: String,
+    /**
+     * The identity of the RemoteParticipant who initiated the RPC call
+     */
+    val callerIdentity: Participant.Identity,
+    /**
+     * The data sent by the caller (as a string)
+     */
+    val payload: String,
+    /**
+     * The maximum time available to return a response
+     */
+    val responseTimeout: Duration,
+)
 
 private data class PendingRpcAck(
     val onResolve: () -> Unit,
