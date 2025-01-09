@@ -26,10 +26,13 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.ConnectOptions
+import io.livekit.android.LiveKit
+import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
@@ -77,6 +80,17 @@ constructor(
     private val defaultDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
+    /**
+     * The [AudioHandler] for setting up the audio as need.
+     *
+     * By default, this is an instance of [AudioSwitchHandler].
+     *
+     * This can be substituted for your own custom implementation through
+     * [LiveKitOverrides.audioOptions] when creating the room with [LiveKit.create].
+     *
+     * @see [audioSwitchHandler]
+     * @see [AudioSwitchHandler]
+     */
     val audioHandler: AudioHandler,
     private val closeableManager: CloseableManager,
     private val e2EEManagerFactory: E2EEManager.Factory,
@@ -271,6 +285,14 @@ constructor(
     @get:FlowObservable
     val remoteParticipants: Map<Participant.Identity, RemoteParticipant>
         get() = mutableRemoteParticipants
+
+    /**
+     * A convenience getter for the audio handler as a [AudioSwitchHandler].
+     *
+     * Will return null if [audioHandler] is not a [AudioSwitchHandler].
+     */
+    val audioSwitchHandler: AudioSwitchHandler?
+        get() = audioHandler as? AudioSwitchHandler
 
     private var sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
 
