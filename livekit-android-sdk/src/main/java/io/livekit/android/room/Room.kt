@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -648,6 +648,8 @@ constructor(
 
         mutableRemoteParticipants = newParticipants
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
+
+        localParticipant.handleParticipantDisconnect(identity)
     }
 
     fun getParticipantBySid(sid: String): Participant? {
@@ -1193,6 +1195,10 @@ constructor(
         eventBus.tryPostEvent(event)
         participant?.onTranscriptionReceived(event)
         publication?.onTranscriptionReceived(event)
+    }
+
+    override fun onRpcPacketReceived(dp: LivekitModels.DataPacket) {
+        localParticipant.handleDataPacket(dp)
     }
 
     /**

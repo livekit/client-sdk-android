@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ abstract class MockE2ETest : BaseTest() {
         room.release()
     }
 
-    suspend fun connect(joinResponse: LivekitRtc.SignalResponse = TestData.JOIN) {
+    open suspend fun connect(joinResponse: LivekitRtc.SignalResponse = TestData.JOIN) {
         connectSignal(joinResponse)
         connectPeerConnection()
     }
