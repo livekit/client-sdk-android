@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import android.javax.sdp.SdpFactory
 import android.media.AudioAttributes
 import android.media.MediaRecorder
 import android.os.Build
-import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import io.livekit.android.LiveKit
@@ -148,10 +147,8 @@ internal object RTCModule {
     @JvmSuppressWildcards
     fun audioModule(
         @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE)
-        @Nullable
         audioDeviceModuleOverride: AudioDeviceModule?,
         @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER)
-        @Nullable
         moduleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)?,
         audioOutputAttributes: AudioAttributes,
         appContext: Context,
@@ -250,7 +247,6 @@ internal object RTCModule {
     @Singleton
     fun eglBase(
         @Named(InjectionNames.OVERRIDE_EGL_BASE)
-        @Nullable
         eglBaseOverride: EglBase?,
         memoryManager: CloseableManager,
     ): EglBase {
@@ -271,7 +267,6 @@ internal object RTCModule {
         videoHwAccel: Boolean,
         eglContext: EglBase.Context,
         @Named(InjectionNames.OVERRIDE_VIDEO_ENCODER_FACTORY)
-        @Nullable
         videoEncoderFactoryOverride: VideoEncoderFactory?,
     ): VideoEncoderFactory {
         return videoEncoderFactoryOverride ?: if (videoHwAccel) {
@@ -316,7 +311,6 @@ internal object RTCModule {
         videoHwAccel: Boolean,
         eglContext: EglBase.Context,
         @Named(InjectionNames.OVERRIDE_VIDEO_DECODER_FACTORY)
-        @Nullable
         videoDecoderFactoryOverride: VideoDecoderFactory?,
     ): VideoDecoderFactory {
         return videoDecoderFactoryOverride ?: if (videoHwAccel) {
