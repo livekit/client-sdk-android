@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             room.localParticipant.setScreenShareEnabled(true, data)
+
+            // Optionally disable the mic for screenshare audio only
+            // val javaAudioDeviceModule = (room.lkObjects.audioDeviceModule as? JavaAudioDeviceModule)
+            // javaAudioDeviceModule?.setAudioRecordEnabled(false)
 
             // Publish the audio track.
             room.localParticipant.setMicrophoneEnabled(true)
