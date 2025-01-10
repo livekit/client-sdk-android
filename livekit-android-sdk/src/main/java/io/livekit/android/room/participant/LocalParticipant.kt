@@ -25,6 +25,7 @@ import com.vdurmont.semver4j.Semver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.audio.ScreenAudioCapturer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
@@ -271,11 +272,14 @@ internal constructor(
      *
      * This will use capture and publish default options from [Room].
      *
+     * For screenshare audio, a [ScreenAudioCapturer] can be used.
+     *
      * @param mediaProjectionPermissionResultData The resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
      * @see Room.screenShareTrackCaptureDefaults
      * @see Room.screenShareTrackPublishDefaults
+     * @see ScreenAudioCapturer
      */
     suspend fun setScreenShareEnabled(
         enabled: Boolean,

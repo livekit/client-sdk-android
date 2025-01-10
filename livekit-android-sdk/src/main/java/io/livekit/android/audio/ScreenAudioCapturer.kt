@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,38 @@ private val DEFAULT_CONFIGURATOR: AudioPlaybackCaptureConfigurator = { builder -
  *
  * Example usage:
  * ```
+ * suspend fun startScreenCapture(data: Intent) {
+ *     if (ActivityCompat.checkSelfPermission(getApplication(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+ *         return
+ *     }
  *
+ *     // Publish the screen share video.
+ *     room.localParticipant.setScreenShareEnabled(true, data)
+ *
+ *     // Optionally disable the mic for screenshare audio only
+ *     // val javaAudioDeviceModule = (room.lkObjects.audioDeviceModule as? JavaAudioDeviceModule)
+ *     // javaAudioDeviceModule?.setAudioRecordEnabled(false)
+ *
+ *     // Publish the audio track.
+ *     room.localParticipant.setMicrophoneEnabled(true)
+ *     val screenCaptureTrack = room.localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalVideoTrack ?: return
+ *     val audioTrack = room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack ?: return
+ *
+ *     // Start capturing the screen share audio.
+ *     val audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack) ?: return
+ *     audioCapturer.gain = 0.1f // Lower the volume so that mic can still be heard clearly.
+ *     audioTrack.setAudioBufferCallback(audioCapturer)
+ * }
+ *
+ * suspend fun stopScreenCapture() {
+ *     (room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack)
+ *         ?.setAudioBufferCallback(null)
+ *     room.localParticipant.setMicrophoneEnabled(false)
+ *     room.localParticipant.setScreenShareEnabled(false)
+ *
+ *     // Remember to release when done capturing.
+ *     audioCapturer?.releaseAudioResources()
+ * }
  * ```
  */
 @RequiresApi(Build.VERSION_CODES.Q)
