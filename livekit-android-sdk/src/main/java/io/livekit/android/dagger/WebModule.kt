@@ -18,7 +18,6 @@ package io.livekit.android.dagger
 
 import android.content.Context
 import android.net.ConnectivityManager
-import androidx.annotation.Nullable
 import dagger.Module
 import dagger.Provides
 import dagger.Reusable
@@ -42,7 +41,6 @@ internal object WebModule {
     @Singleton
     fun okHttpClient(
         @Named(InjectionNames.OVERRIDE_OKHTTP)
-        @Nullable
         okHttpClientOverride: OkHttpClient?,
     ): OkHttpClient {
         return okHttpClientOverride ?: OkHttpClient()
