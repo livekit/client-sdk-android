@@ -62,8 +62,8 @@ constructor(private val context: Context) : AudioHandler {
      * By default, the preferred order is set to:
      * 1. BluetoothHeadset
      * 2. WiredHeadset
-     * 3. Earpiece
-     * 4. Speakerphone
+     * 3. Speakerphone
+     * 4. Earpiece
      */
     var preferredDeviceList: List<Class<out AudioDevice>>? = null
 
