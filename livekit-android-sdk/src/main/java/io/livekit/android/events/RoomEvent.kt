@@ -94,7 +94,7 @@ sealed class RoomEvent(val room: Room) : Event() {
      */
     class ParticipantAttributesChanged(
         room: Room,
-        participant: Participant,
+        val participant: Participant,
         /**
          * The attributes that have changed and their new associated values.
          */
