@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.12.1
+
+### Patch Changes
+
+- Fix documented default of preferredDeviceList in AudioSwitchHandler - [#584](https://github.com/livekit/client-sdk-android/pull/584) ([@davidliu](https://github.com/davidliu))
+
+- Allow access to participant field in ParticipantAttributesChanged event - [#591](https://github.com/livekit/client-sdk-android/pull/591) ([@binkos](https://github.com/binkos))
+
 ## 2.12.0
 
 ### Minor Changes
