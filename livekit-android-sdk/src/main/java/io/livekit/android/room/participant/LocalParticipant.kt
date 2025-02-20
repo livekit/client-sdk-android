@@ -483,7 +483,7 @@ internal constructor(
         }
 
         val trackInfo = try {
-             engine.addTrack(
+            engine.addTrack(
                 cid = cid,
                 name = options.name ?: track.name,
                 kind = track.kind.toProto(),
