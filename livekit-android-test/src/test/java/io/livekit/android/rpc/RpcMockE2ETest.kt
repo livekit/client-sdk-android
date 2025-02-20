@@ -148,7 +148,6 @@ class RpcMockE2ETest : MockE2ETest() {
         assertEquals(ERROR, RpcError.fromProto(responseBuffer.rpcResponse.error))
     }
 
-
     @Test
     fun handleRpcRequestWithNoVersion() = runTest {
         connect()
