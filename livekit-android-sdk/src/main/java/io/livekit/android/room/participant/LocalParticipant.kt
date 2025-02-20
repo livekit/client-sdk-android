@@ -35,6 +35,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.isSVCCodec
+import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
@@ -986,6 +987,7 @@ internal constructor(
                 this.method = method
                 this.payload = payload
                 this.responseTimeoutMs = responseTimeout.inWholeMilliseconds.toUInt().toInt()
+                this.version = RpcManager.RPC_VERSION
                 build()
             }
             build()
@@ -1071,7 +1073,7 @@ internal constructor(
     ) {
         publishRpcAck(callerIdentity, requestId)
 
-        if (version != 1) {
+        if (version != RpcManager.RPC_VERSION) {
             publishRpcResponse(
                 destinationIdentity = callerIdentity,
                 requestId = requestId,
