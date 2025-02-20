@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.12.2
+
+### Patch Changes
+
+- Add version number to rpc requests - [#605](https://github.com/livekit/client-sdk-android/pull/605) ([@davidliu](https://github.com/davidliu))
+
 ## 2.12.1
 
 ### Patch Changes
