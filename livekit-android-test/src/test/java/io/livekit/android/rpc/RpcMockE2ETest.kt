@@ -18,6 +18,7 @@ package io.livekit.android.room.participant
 
 import com.google.protobuf.ByteString
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -146,6 +148,44 @@ class RpcMockE2ETest : MockE2ETest() {
         assertEquals(ERROR, RpcError.fromProto(responseBuffer.rpcResponse.error))
     }
 
+
+    @Test
+    fun handleRpcRequestWithNoVersion() = runTest {
+        connect()
+
+        var methodCalled = false
+        room.localParticipant.registerRpcMethod("hello") {
+            methodCalled = true
+            return@registerRpcMethod "hello back"
+        }
+
+        val noVersionRequest = with(TestData.DATA_PACKET_RPC_REQUEST.toBuilder()) {
+            rpcRequest = with(rpcRequest.toBuilder()) {
+                clearVersion()
+                build()
+            }
+            build()
+        }
+        subDataChannel.simulateBufferReceived(noVersionRequest.toDataChannelBuffer())
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(methodCalled)
+        // Check that ack and response were sent
+        val buffers = pubDataChannel.sentBuffers
+        assertEquals(2, buffers.size)
+
+        val ackBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+        val responseBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[1].data))
+
+        assertTrue(ackBuffer.hasRpcAck())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, ackBuffer.rpcAck.requestId)
+
+        assertTrue(responseBuffer.hasRpcResponse())
+        assertEquals(TestData.DATA_PACKET_RPC_REQUEST.rpcRequest.id, responseBuffer.rpcResponse.requestId)
+        assertEquals(RpcError.BuiltinRpcError.UNSUPPORTED_VERSION.create(), RpcError.fromProto(responseBuffer.rpcResponse.error))
+    }
+
     @Test
     fun handleRpcRequestWithNoHandler() = runTest {
         connect()
@@ -190,6 +230,7 @@ class RpcMockE2ETest : MockE2ETest() {
         assertTrue(requestBuffer.hasRpcRequest())
         assertEquals("hello", requestBuffer.rpcRequest.method)
         assertEquals("hello world", requestBuffer.rpcRequest.payload)
+        assertEquals(RpcManager.RPC_VERSION, requestBuffer.rpcRequest.version)
 
         val requestId = requestBuffer.rpcRequest.id
 
