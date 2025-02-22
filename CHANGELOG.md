@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.12.3
+
+### Patch Changes
+
+- Fixes deadlock on publish track - [#604](https://github.com/livekit/client-sdk-android/pull/604) ([@jeankruger](https://github.com/jeankruger))
+
 ## 2.12.2
 
 ### Patch Changes
