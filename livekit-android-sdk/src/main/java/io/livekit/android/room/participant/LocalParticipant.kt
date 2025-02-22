@@ -482,13 +482,19 @@ internal constructor(
         val builder = AddTrackRequest.newBuilder().apply {
             this.requestConfig()
         }
-        val trackInfo = engine.addTrack(
-            cid = cid,
-            name = options.name ?: track.name,
-            kind = track.kind.toProto(),
-            stream = options.stream,
-            builder = builder,
-        )
+
+        val trackInfo = try {
+            engine.addTrack(
+                cid = cid,
+                name = options.name ?: track.name,
+                kind = track.kind.toProto(),
+                stream = options.stream,
+                builder = builder,
+            )
+        } catch (e: Exception) {
+            publishListener?.onPublishFailure(TrackException.PublishException("Failed to publish track", e))
+            return null
+        }
 
         if (options is VideoTrackPublishOptions) {
             // server might not support the codec the client has requested, in that case, fallback
