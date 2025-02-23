@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.TestData
@@ -58,11 +60,21 @@ class ParticipantMockE2ETest : MockE2ETest() {
         connect()
 
         val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantEventCollector = EventCollector(room.localParticipant.events, coroutineRule.scope)
         simulateMessageFromServer(TestData.PERMISSION_CHANGE)
         val events = eventCollector.stopCollecting()
+        val participantEvents = participantEventCollector.stopCollecting()
 
         assertEquals(1, events.size)
-        assertEquals(true, events[0] is RoomEvent.ParticipantPermissionsChanged)
+        assertIsClass(RoomEvent.ParticipantPermissionsChanged::class.java, events[0])
+
+        assertEquals(1, participantEvents.size)
+        assertIsClass(ParticipantEvent.ParticipantPermissionsChanged::class.java, participantEvents[0])
+
+        val newPermissions = (participantEvents[0] as ParticipantEvent.ParticipantPermissionsChanged).newPermissions!!
+        val permissionData = TestData.PERMISSION_CHANGE.update.participantsList[0].permission
+        assertEquals(permissionData.canPublish, newPermissions.canPublish)
+        assertEquals(permissionData.canPublishSourcesList.map { Track.Source.fromProto(it) }, newPermissions.canPublishSources)
     }
 
     @Test

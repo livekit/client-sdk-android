@@ -178,17 +178,20 @@ object TestData {
     val PERMISSION_CHANGE = with(LivekitRtc.SignalResponse.newBuilder()) {
         update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
             addParticipants(
-                LOCAL_PARTICIPANT.toBuilder()
-                    .setPermission(
-                        LivekitModels.ParticipantPermission.newBuilder()
-                            .setCanPublish(false)
-                            .setCanSubscribe(false)
-                            .setCanPublishData(false)
-                            .setHidden(false)
-                            .setRecorder(false)
-                            .build(),
-                    )
-                    .build(),
+                with(LOCAL_PARTICIPANT.toBuilder()) {
+                    permission = with(LivekitModels.ParticipantPermission.newBuilder()) {
+                        canPublish = true
+                        canSubscribe = false
+                        canPublishData = false
+                        addCanPublishSources(LivekitModels.TrackSource.CAMERA)
+                        canUpdateMetadata = false
+                        canSubscribeMetrics = false
+                        hidden = false
+                        recorder = false
+                        build()
+                    }
+                    build()
+                },
             )
             build()
         }
