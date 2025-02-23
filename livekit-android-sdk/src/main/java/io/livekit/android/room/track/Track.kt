@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,25 +98,29 @@ abstract class Track(
                 return when (tt) {
                     LivekitModels.TrackType.AUDIO -> AUDIO
                     LivekitModels.TrackType.VIDEO -> VIDEO
-                    else -> UNRECOGNIZED
+                    LivekitModels.TrackType.DATA, // TODO: does this need to be handled?
+                    LivekitModels.TrackType.UNRECOGNIZED,
+                    -> UNRECOGNIZED
                 }
             }
         }
     }
 
     enum class Source {
+        UNKNOWN,
         CAMERA,
         MICROPHONE,
         SCREEN_SHARE,
-        UNKNOWN,
+        SCREEN_SHARE_AUDIO,
         ;
 
         fun toProto(): LivekitModels.TrackSource {
             return when (this) {
+                UNKNOWN -> LivekitModels.TrackSource.UNKNOWN
                 CAMERA -> LivekitModels.TrackSource.CAMERA
                 MICROPHONE -> LivekitModels.TrackSource.MICROPHONE
                 SCREEN_SHARE -> LivekitModels.TrackSource.SCREEN_SHARE
-                UNKNOWN -> LivekitModels.TrackSource.UNKNOWN
+                SCREEN_SHARE_AUDIO -> LivekitModels.TrackSource.SCREEN_SHARE_AUDIO
             }
         }
 
@@ -126,7 +130,10 @@ abstract class Track(
                     LivekitModels.TrackSource.CAMERA -> CAMERA
                     LivekitModels.TrackSource.MICROPHONE -> MICROPHONE
                     LivekitModels.TrackSource.SCREEN_SHARE -> SCREEN_SHARE
-                    else -> UNKNOWN
+                    LivekitModels.TrackSource.SCREEN_SHARE_AUDIO -> SCREEN_SHARE_AUDIO
+                    LivekitModels.TrackSource.UNKNOWN,
+                    LivekitModels.TrackSource.UNRECOGNIZED,
+                    -> UNKNOWN
                 }
             }
         }

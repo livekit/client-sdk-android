@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -591,6 +591,9 @@ data class ParticipantPermission(
     val canPublishData: Boolean,
     val hidden: Boolean,
     val recorder: Boolean,
+    val canPublishSources: List<Track.Source>,
+    val canUpdateMetadata: Boolean,
+    val canSubscribeMetrics: Boolean,
 ) {
     companion object {
         fun fromProto(proto: LivekitModels.ParticipantPermission): ParticipantPermission {
@@ -600,6 +603,9 @@ data class ParticipantPermission(
                 canPublishData = proto.canPublishData,
                 hidden = proto.hidden,
                 recorder = proto.recorder,
+                canPublishSources = proto.canPublishSourcesList.map { Track.Source.fromProto(it) },
+                canUpdateMetadata = proto.canUpdateMetadata,
+                canSubscribeMetrics = proto.canSubscribeMetrics,
             )
         }
     }

@@ -362,6 +362,7 @@ constructor(
             SD_TYPE_ANSWER -> SessionDescription.Type.ANSWER
             SD_TYPE_OFFER -> SessionDescription.Type.OFFER
             SD_TYPE_PRANSWER -> SessionDescription.Type.PRANSWER
+            SD_TYPE_ROLLBACK -> SessionDescription.Type.ROLLBACK
             else -> throw IllegalArgumentException("invalid RTC SdpType: ${sd.type}")
         }
         return SessionDescription(rtcSdpType, sd.sdp)
@@ -882,6 +883,7 @@ constructor(
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
         const val SD_TYPE_PRANSWER = "pranswer"
+        const val SD_TYPE_ROLLBACK = "rollback"
         const val SDK_TYPE = "android"
 
         private val skipQueueTypes = listOf(
