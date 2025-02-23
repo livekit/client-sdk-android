@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.12.4
+
+### Patch Changes
+
+- Add SCREEN_SHARE_AUDIO as a Track.Source.Type - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
+- Surface canPublishSources, canUpdateMetadata, and canSubscribeMetrics on ParticipantPermission - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
 ## 2.12.3
 
 ### Patch Changes
