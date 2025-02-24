@@ -1082,6 +1082,10 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
                 // TODO
             }
+
+            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
+                // TODO
+            }
         }
     }
 
