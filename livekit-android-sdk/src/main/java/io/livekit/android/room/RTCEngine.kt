@@ -156,7 +156,7 @@ internal constructor(
     private val publisherObserver = PublisherTransportObserver(this, client)
     private val subscriberObserver = SubscriberTransportObserver(this, client)
 
-    private var publisher: PeerConnectionTransport? = null
+    internal var publisher: PeerConnectionTransport? = null
     private var subscriber: PeerConnectionTransport? = null
 
     private var reliableDataChannel: DataChannel? = null
@@ -214,7 +214,7 @@ internal constructor(
         configure(joinResponse, options)
 
         // create offer
-        if (!isSubscriberPrimary) {
+        if (!isSubscriberPrimary || joinResponse.fastPublish) {
             negotiatePublisher()
         }
         client.onReadyForResponses()

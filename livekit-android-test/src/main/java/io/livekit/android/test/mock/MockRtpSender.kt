@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.mockito.kotlin.whenever
 import java.util.UUID
 
 object MockRtpSender {
-    fun create(): RtpSender {
+    fun create(id: String = "sender_id"): RtpSender {
         var rtpParameters: RtpParameters = MockRtpParameters(
             transactionId = UUID.randomUUID().toString(),
             degradationPreference = null,
@@ -36,6 +36,7 @@ object MockRtpSender {
         )
         return Mockito.mock(RtpSender::class.java).apply {
             whenever(this.parameters).thenAnswer { rtpParameters }
+            whenever(this.id()).thenReturn(id)
             whenever(this.setParameters(any())).thenAnswer {
                 rtpParameters = it.getArgument(0)
                 true

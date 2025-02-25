@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.livekit.android.test.mock.MockRtpReceiver
 import io.livekit.android.test.mock.MockRtpSender
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverDirection
 import org.mockito.Mockito
+import java.util.UUID
 
 object MockRtpTransceiver {
     fun create(
@@ -27,7 +28,7 @@ object MockRtpTransceiver {
         init: RtpTransceiver.RtpTransceiverInit = RtpTransceiver.RtpTransceiverInit(),
     ): RtpTransceiver {
         val mock = Mockito.mock(RtpTransceiver::class.java)
-
+        val id = UUID.randomUUID().toString()
         Mockito.`when`(mock.mediaType).then {
             return@then when (track.kind()) {
                 MediaStreamTrack.AUDIO_TRACK_KIND -> MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO
@@ -40,7 +41,7 @@ object MockRtpTransceiver {
 
         when (direction) {
             RtpTransceiverDirection.SEND_RECV, RtpTransceiverDirection.SEND_ONLY -> {
-                val sender = MockRtpSender.create()
+                val sender = MockRtpSender.create(id = id)
                 Mockito.`when`(mock.sender)
                     .then { sender }
             }
@@ -50,7 +51,7 @@ object MockRtpTransceiver {
 
         when (direction) {
             RtpTransceiverDirection.SEND_RECV, RtpTransceiverDirection.RECV_ONLY -> {
-                val receiver = MockRtpReceiver.create()
+                val receiver = MockRtpReceiver.create(id = id)
                 Mockito.`when`(mock.receiver)
                     .then { receiver }
             }

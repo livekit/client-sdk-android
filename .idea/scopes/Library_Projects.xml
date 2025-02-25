@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Library Projects" pattern="file[livekit-android.livekit-android-sdk*]:*//*||file[livekit-android.livekit-android-camerax*]:*//*||file[livekit-android.livekit-android-test*]:*//*||file[livekit-android.livekit-lint*]:*//*" />
+</component>

@@ -585,6 +585,7 @@ constructor(
         }
 
         localParticipant.updateFromInfo(response.participant)
+        localParticipant.setEnabledPublishCodecs(response.enabledPublishCodecsList)
 
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach { info ->
