@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.13.0
+
+### Minor Changes
+
+- Fast track publication support - [#612](https://github.com/livekit/client-sdk-android/pull/612) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Add SCREEN_SHARE_AUDIO as a Track.Source.Type - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
+- Surface canPublishSources, canUpdateMetadata, and canSubscribeMetrics on ParticipantPermission - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
 ## 2.12.3
 
 ### Patch Changes
