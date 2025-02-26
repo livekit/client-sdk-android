@@ -57,6 +57,7 @@ import io.livekit.android.util.flow
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -64,7 +65,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import livekit.LivekitModels
+import livekit.LivekitModels.Codec
 import livekit.LivekitModels.DataPacket
+import livekit.LivekitModels.TrackInfo
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
@@ -127,8 +130,9 @@ internal constructor(
     // For ensuring that only one caller can execute setTrackEnabled at a time.
     // Without it, there's a potential to create multiple of the same source,
     // Camera has deadlock issues with multiple CameraCapturers trying to activate/stop.
-    private val sourcePubLocks = Track.Source.values()
-        .associate { source -> source to Mutex() }
+    private val sourcePubLocks = Track.Source.entries.associateWith { Mutex() }
+
+    internal val enabledPublishVideoCodecs = Collections.synchronizedList(mutableListOf<Codec>())
 
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
@@ -405,9 +409,26 @@ internal constructor(
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
         publishListener: PublishListener? = null,
     ) {
+        @Suppress("NAME_SHADOWING") var options = options
+
+        synchronized(enabledPublishVideoCodecs) {
+            if (enabledPublishVideoCodecs.isNotEmpty()) {
+                if (enabledPublishVideoCodecs.none { allowedCodec -> allowedCodec.mime.mimeTypeToVideoCodec() == options.videoCodec }) {
+                    val oldCodec = options.videoCodec
+                    val newCodec = enabledPublishVideoCodecs
+                        .firstOrNull { it.mime.mimeTypeToVideoCodec() != null }
+                        ?.mime?.mimeTypeToVideoCodec()
+
+                    if (newCodec != null) {
+                        LKLog.w { "$oldCodec not enabled on server, falling back to supported codec $newCodec" }
+                        options = options.copy(videoCodec = newCodec)
+                    }
+                }
+            }
+        }
+
         val isSVC = isSVCCodec(options.videoCodec)
 
-        @Suppress("NAME_SHADOWING") var options = options
         if (isSVC) {
             dynacast = true
 
@@ -478,84 +499,122 @@ internal constructor(
             return null
         }
 
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            publishListener?.onPublishFailure(TrackException.PublishException("Not connected!"))
+        }
+
         val cid = track.rtcTrack.id()
-        val builder = AddTrackRequest.newBuilder().apply {
-            this.requestConfig()
-        }
 
-        val trackInfo = try {
-            engine.addTrack(
-                cid = cid,
-                name = options.name ?: track.name,
-                kind = track.kind.toProto(),
-                stream = options.stream,
-                builder = builder,
+        // For fast publish, we can negotiate PC and request add track at the same time
+        suspend fun negotiate() {
+            if (this.engine.publisher == null) {
+                throw IllegalStateException("publisher is not configured yet!")
+            }
+
+            val transInit = RtpTransceiverInit(
+                RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
+                listOf(this.sid.value),
+                encodings,
             )
-        } catch (e: Exception) {
-            publishListener?.onPublishFailure(TrackException.PublishException("Failed to publish track", e))
-            return null
-        }
+            val transceiver = engine.createSenderTransceiver(track.rtcTrack, transInit)
 
-        if (options is VideoTrackPublishOptions) {
-            // server might not support the codec the client has requested, in that case, fallback
-            // to a supported codec
-            val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
-
-            if (primaryCodecMime != null) {
-                val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
-                if (updatedCodec != null && updatedCodec != options.videoCodec) {
-                    LKLog.d { "falling back to server selected codec: $updatedCodec" }
-                    options = options.copy(videoCodec = updatedCodec)
-
-                    // recompute encodings since bitrates/etc could have changed
-                    encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+            when (track) {
+                is LocalVideoTrack -> track.transceiver = transceiver
+                is LocalAudioTrack -> track.transceiver = transceiver
+                else -> {
+                    throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
                 }
             }
-        }
 
-        val transInit = RtpTransceiverInit(
-            RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
-            listOf(this.sid.value),
-            encodings,
-        )
-        val transceiver = engine.createSenderTransceiver(track.rtcTrack, transInit)
-
-        when (track) {
-            is LocalVideoTrack -> track.transceiver = transceiver
-            is LocalAudioTrack -> track.transceiver = transceiver
-            else -> {
-                throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
+            if (transceiver == null) {
+                val exception = TrackException.PublishException("null sender returned from peer connection")
+                publishListener?.onPublishFailure(exception)
+                throw exception
             }
+
+            track.statsGetter = engine.createStatsGetter(transceiver.sender)
+
+            val finalOptions = options
+            // Handle trackBitrates
+            if (encodings.isNotEmpty()) {
+                if (finalOptions is VideoTrackPublishOptions && isSVCCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
+                    engine.registerTrackBitrateInfo(
+                        cid = cid,
+                        TrackBitrateInfo(
+                            codec = finalOptions.videoCodec,
+                            maxBitrate = (encodings.first().maxBitrateBps?.div(1000) ?: 0).toLong(),
+                        ),
+                    )
+                }
+            }
+
+            if (finalOptions is VideoTrackPublishOptions) {
+                // Set preferred video codec order
+                transceiver.sortVideoCodecPreferences(finalOptions.videoCodec, capabilitiesGetter)
+                (track as LocalVideoTrack).codec = finalOptions.videoCodec
+
+                val rtpParameters = transceiver.sender.parameters
+                rtpParameters.degradationPreference = finalOptions.degradationPreference
+                transceiver.sender.parameters = rtpParameters
+            }
+
+            // PublisherTransportObserver.onRenegotiationNeeded() gets triggered automatically
+            // so no need to call negotiate manually.
         }
 
-        if (transceiver == null) {
-            publishListener?.onPublishFailure(TrackException.PublishException("null sender returned from peer connection"))
-            return null
-        }
+        suspend fun requestAddTrack(): TrackInfo {
+            val builder = AddTrackRequest.newBuilder().apply {
+                this.requestConfig()
+            }
 
-        track.statsGetter = engine.createStatsGetter(transceiver.sender)
-
-        // Handle trackBitrates
-        if (encodings.isNotEmpty()) {
-            if (options is VideoTrackPublishOptions && isSVCCodec(options.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
-                engine.registerTrackBitrateInfo(
+            return try {
+                engine.addTrack(
                     cid = cid,
-                    TrackBitrateInfo(
-                        codec = options.videoCodec,
-                        maxBitrate = (encodings.first().maxBitrateBps?.div(1000) ?: 0).toLong(),
-                    ),
+                    name = options.name ?: track.name,
+                    kind = track.kind.toProto(),
+                    stream = options.stream,
+                    builder = builder,
                 )
+            } catch (e: Exception) {
+                val exception = TrackException.PublishException("Failed to publish track", e)
+                publishListener?.onPublishFailure(exception)
+                throw exception
             }
         }
 
-        if (options is VideoTrackPublishOptions) {
-            // Set preferred video codec order
-            transceiver.sortVideoCodecPreferences(options.videoCodec, capabilitiesGetter)
-            (track as LocalVideoTrack).codec = options.videoCodec
+        val trackInfo: TrackInfo
+        if (enabledPublishVideoCodecs.isNotEmpty()) {
+            // Can simultaneous publish and negotiate.
+            // codec is pre-verified in publishVideoTrack
+            trackInfo = coroutineScope {
+                val negotiateJob = launch { negotiate() }
+                val publishJob = async { requestAddTrack() }
 
-            val rtpParameters = transceiver.sender.parameters
-            rtpParameters.degradationPreference = options.degradationPreference
-            transceiver.sender.parameters = rtpParameters
+                negotiateJob.join()
+                return@coroutineScope publishJob.await()
+            }
+        } else {
+            // legacy path.
+            trackInfo = requestAddTrack()
+
+            if (options is VideoTrackPublishOptions) {
+                // server might not support the codec the client has requested, in that case, fallback
+                // to a supported codec
+                val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
+
+                if (primaryCodecMime != null) {
+                    val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
+                    if (updatedCodec != null && updatedCodec != options.videoCodec) {
+                        LKLog.d { "falling back to server selected codec: $updatedCodec" }
+                        options = options.copy(videoCodec = updatedCodec)
+
+                        // recompute encodings since bitrates/etc could have changed
+                        encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                    }
+                }
+            }
+
+            negotiate()
         }
 
         val publication = LocalTrackPublication(
@@ -1266,13 +1325,8 @@ internal constructor(
                 LKLog.w { "couldn't create new transceiver! $codec" }
                 return@launch
             }
-            transceiver.sortVideoCodecPreferences(newOptions.videoCodec, capabilitiesGetter)
-            simulcastTrack.sender = transceiver.sender
-
             val trackRequest = AddTrackRequest.newBuilder().apply {
-                cid = transceiver.sender.id()
                 sid = existingPublication.sid
-                type = track.kind.toProto()
                 muted = !track.enabled
                 source = existingPublication.source.toProto()
                 addSimulcastCodecs(
@@ -1291,17 +1345,23 @@ internal constructor(
                     ),
                 )
             }
+            val negotiateJob = launch {
+                transceiver.sortVideoCodecPreferences(newOptions.videoCodec, capabilitiesGetter)
+                simulcastTrack.sender = transceiver.sender
 
-            val trackInfo = engine.addTrack(
-                cid = simulcastTrack.rtcTrack.id(),
-                name = existingPublication.name,
-                kind = existingPublication.kind.toProto(),
-                stream = options.stream,
-                builder = trackRequest,
-            )
-
-            engine.negotiatePublisher()
-
+                engine.negotiatePublisher()
+            }
+            val publishJob = async {
+                engine.addTrack(
+                    cid = simulcastTrack.rtcTrack.id(),
+                    name = existingPublication.name,
+                    kind = existingPublication.kind.toProto(),
+                    stream = options.stream,
+                    builder = trackRequest,
+                )
+            }
+            negotiateJob.join()
+            val trackInfo = publishJob.await()
             LKLog.d { "published $codec for track ${track.sid}, $trackInfo" }
         }
     }
@@ -1360,6 +1420,20 @@ internal constructor(
         eventBus.postEvent(ParticipantEvent.LocalTrackSubscribed(this, publication), scope)
     }
 
+    internal fun setEnabledPublishCodecs(codecs: List<Codec>) {
+        synchronized(enabledPublishVideoCodecs) {
+            enabledPublishVideoCodecs.clear()
+            enabledPublishVideoCodecs.addAll(
+                codecs.filter { codec ->
+                    codec.mime.split('/')
+                        .takeIf { it.isNotEmpty() }
+                        ?.get(0)
+                        ?.lowercase() == "video"
+                },
+            )
+        }
+    }
+
     /**
      * @suppress
      */
@@ -1386,6 +1460,7 @@ internal constructor(
      */
     override fun dispose() {
         cleanup()
+        enabledPublishVideoCodecs.clear()
         super.dispose()
     }
 

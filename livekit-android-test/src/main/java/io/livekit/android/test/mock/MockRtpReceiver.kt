@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,12 @@ package io.livekit.android.test.mock
 
 import livekit.org.webrtc.RtpReceiver
 import org.mockito.Mockito
+import org.mockito.kotlin.whenever
 
 object MockRtpReceiver {
-    fun create(): RtpReceiver {
-        return Mockito.mock(RtpReceiver::class.java)
+    fun create(id: String = "receiver_id"): RtpReceiver {
+        return Mockito.mock(RtpReceiver::class.java).apply {
+            whenever(this.id()).thenReturn(id)
+        }
     }
 }
