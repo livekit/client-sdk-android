@@ -1390,8 +1390,12 @@ internal constructor(
                 )
             }
             negotiateJob.join()
-            val trackInfo = publishJob.await()
-            LKLog.d { "published $codec for track ${track.sid}, $trackInfo" }
+            try {
+                val trackInfo = publishJob.await()
+                LKLog.d { "published $codec for track ${track.sid}, $trackInfo" }
+            } catch (e: Exception) {
+                LKLog.w(e) { "exception when publishing $codec for track ${track.sid}" }
+            }
         }
     }
 

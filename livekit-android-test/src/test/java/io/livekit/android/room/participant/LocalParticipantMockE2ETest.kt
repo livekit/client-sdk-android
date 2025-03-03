@@ -47,6 +47,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
@@ -67,6 +68,7 @@ import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import java.nio.ByteBuffer
+import kotlin.time.Duration.Companion.seconds
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -123,11 +125,23 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
         wsFactory.ws.clearRequests()
 
-        val backgroundScope = CoroutineScope(coroutineContext + Job())
+        val standardTestDispatcher = StandardTestDispatcher()
+        val backgroundScope = CoroutineScope(coroutineContext + Job() + standardTestDispatcher)
         try {
-            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
-            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
+            backgroundScope.launch {
+                try {
+                    room.localParticipant.setMicrophoneEnabled(true)
+                } catch (_: Exception) {
+                }
+            }
+            backgroundScope.launch {
+                try {
+                    room.localParticipant.setMicrophoneEnabled(true)
+                } catch (_: Exception) {
+                }
+            }
 
+            standardTestDispatcher.scheduler.advanceTimeBy(1.seconds.inWholeMilliseconds)
             assertEquals(1, wsFactory.ws.sentRequests.size)
         } finally {
             backgroundScope.cancel()
@@ -145,10 +159,23 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
         wsFactory.ws.clearRequests()
 
-        val backgroundScope = CoroutineScope(coroutineContext + Job())
+        val standardTestDispatcher = StandardTestDispatcher()
+        val backgroundScope = CoroutineScope(coroutineContext + Job() + standardTestDispatcher)
         try {
-            backgroundScope.launch { room.localParticipant.setMicrophoneEnabled(true) }
-            backgroundScope.launch { room.localParticipant.setCameraEnabled(true) }
+            backgroundScope.launch {
+                try {
+                    room.localParticipant.setMicrophoneEnabled(true)
+                } catch (_: Exception) {
+                }
+            }
+            backgroundScope.launch {
+                try {
+                    room.localParticipant.setCameraEnabled(true)
+                } catch (_: Exception) {
+                }
+            }
+
+            standardTestDispatcher.scheduler.advanceTimeBy(1.seconds.inWholeMilliseconds)
 
             assertEquals(2, wsFactory.ws.sentRequests.size)
         } finally {
@@ -560,6 +587,24 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             didThrow = true
         }
 
+        assertTrue(didThrow)
+    }
+
+    @Test
+    fun publishWithNoResponseCausesException() = runTest {
+        connect()
+
+        wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
+        var didThrow = false
+        launch {
+            try {
+                room.localParticipant.publishVideoTrack(createLocalTrack())
+            } catch (e: TrackException.PublishException) {
+                didThrow = true
+            }
+        }
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
         assertTrue(didThrow)
     }
 }
