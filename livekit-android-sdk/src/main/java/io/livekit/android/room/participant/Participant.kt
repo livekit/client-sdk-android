@@ -591,6 +591,9 @@ data class ParticipantPermission(
     val canPublishData: Boolean,
     val hidden: Boolean,
     val recorder: Boolean,
+    /**
+     * The list of allowed sources. If this is empty, then all sources are allowed.
+     */
     val canPublishSources: List<Track.Source>,
     val canUpdateMetadata: Boolean,
     val canSubscribeMetrics: Boolean,

@@ -56,13 +56,15 @@ object TestData {
         identity = "local_participant_identity"
         state = LivekitModels.ParticipantInfo.State.ACTIVE
         metadata = "local_metadata"
-        permission = LivekitModels.ParticipantPermission.newBuilder()
-            .setCanPublish(true)
-            .setCanSubscribe(true)
-            .setCanPublishData(true)
-            .setHidden(true)
-            .setRecorder(false)
-            .build()
+        permission = with(LivekitModels.ParticipantPermission.newBuilder()) {
+            canPublish = true
+            canSubscribe = true
+            canPublishData = true
+
+            hidden = false
+            recorder = false
+            build()
+        }
         putAttributes("attribute", "value")
         build()
     }

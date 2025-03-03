@@ -252,6 +252,7 @@ internal constructor(
      * @see Room.videoTrackCaptureDefaults
      * @see Room.videoTrackPublishDefaults
      */
+    @Throws(TrackException.PublishException::class)
     suspend fun setCameraEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.CAMERA, enabled)
     }
@@ -266,6 +267,7 @@ internal constructor(
      * @see Room.audioTrackCaptureDefaults
      * @see Room.audioTrackPublishDefaults
      */
+    @Throws(TrackException.PublishException::class)
     suspend fun setMicrophoneEnabled(enabled: Boolean) {
         setTrackEnabled(Track.Source.MICROPHONE, enabled)
     }
@@ -286,6 +288,7 @@ internal constructor(
      * @see Room.screenShareTrackPublishDefaults
      * @see ScreenAudioCapturer
      */
+    @Throws(TrackException.PublishException::class)
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
         mediaProjectionPermissionResultData: Intent? = null,
@@ -481,7 +484,27 @@ internal constructor(
         )
     }
 
+    private fun hasPermissionsToPublish(source: Track.Source): Boolean {
+        val permissions = this.permissions
+        if (permissions == null) {
+            LKLog.w { "No permissions present for publishing track." }
+            return false
+        }
+        val canPublish = permissions.canPublish
+        val canPublishSources = permissions.canPublishSources
+
+        val sourceAllowed = canPublishSources.contains(source)
+
+        if (canPublish && (canPublishSources.isEmpty() || sourceAllowed)) {
+            return true
+        }
+
+        LKLog.w { "insufficient permissions to publish" }
+        return false
+    }
+
     /**
+     * @throws TrackException.PublishException thrown when the publish fails. see [TrackException.PublishException.message] for details.
      * @return true if the track publish was successful.
      */
     private suspend fun publishTrackImpl(
@@ -491,6 +514,15 @@ internal constructor(
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null,
     ): LocalTrackPublication? {
+        val addTrackRequestBuilder = AddTrackRequest.newBuilder().apply {
+            this.requestConfig()
+        }
+
+        val trackSource = Track.Source.fromProto(addTrackRequestBuilder.source ?: LivekitModels.TrackSource.UNRECOGNIZED)
+        if (!hasPermissionsToPublish(trackSource)) {
+            throw TrackException.PublishException("Failed to publish track, insufficient permissions")
+        }
+
         @Suppress("NAME_SHADOWING") var options = options
 
         @Suppress("NAME_SHADOWING") var encodings = encodings
@@ -564,17 +596,13 @@ internal constructor(
         }
 
         suspend fun requestAddTrack(): TrackInfo {
-            val builder = AddTrackRequest.newBuilder().apply {
-                this.requestConfig()
-            }
-
             return try {
                 engine.addTrack(
                     cid = cid,
                     name = options.name ?: track.name,
                     kind = track.kind.toProto(),
                     stream = options.stream,
-                    builder = builder,
+                    builder = addTrackRequestBuilder,
                 )
             } catch (e: Exception) {
                 val exception = TrackException.PublishException("Failed to publish track", e)

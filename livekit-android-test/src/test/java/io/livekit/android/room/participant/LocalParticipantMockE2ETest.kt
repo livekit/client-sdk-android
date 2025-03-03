@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.test.MockE2ETest
@@ -533,5 +534,32 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
         assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
         assertFalse(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
+    }
+
+    @Test
+    fun lackOfPublishPermissionCausesException() = runTest {
+        val noCanPublishJoin = with(TestData.JOIN.toBuilder()) {
+            join = with(join.toBuilder()) {
+                participant = with(participant.toBuilder()) {
+                    permission = with(permission.toBuilder()) {
+                        canPublish = false
+                        build()
+                    }
+                    build()
+                }
+                build()
+            }
+            build()
+        }
+        connect(noCanPublishJoin)
+
+        var didThrow = false
+        try {
+            room.localParticipant.publishVideoTrack(createLocalTrack())
+        } catch (e: TrackException.PublishException) {
+            didThrow = true
+        }
+
+        assertTrue(didThrow)
     }
 }
