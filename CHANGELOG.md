@@ -1,5 +1,23 @@
 # client-sdk-android
 
+## 2.13.0
+
+### Minor Changes
+
+- Prewarm audio to speed up mic publishing - [#623](https://github.com/livekit/client-sdk-android/pull/623) ([@davidliu](https://github.com/davidliu))
+
+- Fast track publication support - [#612](https://github.com/livekit/client-sdk-android/pull/612) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix publish deadlock when no response from server - [#618](https://github.com/livekit/client-sdk-android/pull/618) ([@davidliu](https://github.com/davidliu))
+
+- Add SCREEN_SHARE_AUDIO as a Track.Source.Type - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
+- Surface canPublishSources, canUpdateMetadata, and canSubscribeMetrics on ParticipantPermission - [#610](https://github.com/livekit/client-sdk-android/pull/610) ([@davidliu](https://github.com/davidliu))
+
+- Fast fail attempts to publish without permissions - [#618](https://github.com/livekit/client-sdk-android/pull/618) ([@davidliu](https://github.com/davidliu))
+
 ## 2.12.3
 
 ### Patch Changes
