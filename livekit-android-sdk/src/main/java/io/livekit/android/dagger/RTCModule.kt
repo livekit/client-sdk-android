@@ -27,8 +27,11 @@ import io.livekit.android.LiveKit
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioProcessorOptions
+import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.audio.CommunicationWorkaround
+import io.livekit.android.audio.JavaAudioRecordPrewarmer
+import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
@@ -241,6 +244,15 @@ internal object RTCModule {
         moduleCustomizer?.invoke(builder)
         return builder.createAudioDeviceModule()
             .apply { closeableManager.registerClosable { release() } }
+    }
+
+    @Provides
+    fun audioPrewarmer(audioDeviceModule: AudioDeviceModule): AudioRecordPrewarmer {
+        return if (audioDeviceModule is JavaAudioDeviceModule) {
+            JavaAudioRecordPrewarmer(audioDeviceModule)
+        } else {
+            NoAudioRecordPrewarmer()
+        }
     }
 
     @Provides

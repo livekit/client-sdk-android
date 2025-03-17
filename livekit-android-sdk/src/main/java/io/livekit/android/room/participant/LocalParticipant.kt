@@ -317,6 +317,7 @@ internal constructor(
 
                         Track.Source.MICROPHONE -> {
                             val track = createAudioTrack()
+                            track.prewarm()
                             publishAudioTrack(track)
                         }
 

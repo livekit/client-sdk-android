@@ -21,6 +21,7 @@ import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import androidx.test.core.app.ApplicationProvider
 import io.livekit.android.audio.NoAudioHandler
+import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.audio.NoopCommunicationWorkaround
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.DisconnectReason
@@ -131,6 +132,7 @@ class RoomTest {
             audioDeviceModule = MockAudioDeviceModule(),
             regionUrlProviderFactory = regionUrlProviderFactory,
             connectionWarmer = MockConnectionWarmer(),
+            audioRecordPrewarmer = NoAudioRecordPrewarmer(),
         )
     }
 

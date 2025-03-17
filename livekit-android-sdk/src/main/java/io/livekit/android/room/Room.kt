@@ -32,6 +32,7 @@ import io.livekit.android.RoomOptions
 import io.livekit.android.Version
 import io.livekit.android.audio.AudioHandler
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.CommunicationWorkaround
@@ -104,6 +105,7 @@ constructor(
     private val audioDeviceModule: AudioDeviceModule,
     private val regionUrlProviderFactory: RegionUrlProvider.Factory,
     private val connectionWarmer: ConnectionWarmer,
+    private val audioRecordPrewarmer: AudioRecordPrewarmer,
 ) : RTCEngine.Listener, ParticipantListener {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -177,6 +179,7 @@ constructor(
                 State.DISCONNECTED -> {
                     audioHandler.stop()
                     communicationWorkaround.stop()
+                    audioRecordPrewarmer.stop()
                 }
 
                 else -> {}
@@ -475,6 +478,7 @@ constructor(
             networkCallbackManager.registerCallback()
             if (options.audio) {
                 val audioTrack = localParticipant.createAudioTrack()
+                audioTrack.prewarm()
                 localParticipant.publishAudioTrack(audioTrack)
             }
             ensureActive()

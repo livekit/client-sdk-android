@@ -22,7 +22,9 @@ import dagger.Module
 import dagger.Provides
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
+import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.test.mock.MockAudioDeviceModule
@@ -74,6 +76,10 @@ object TestRTCModule {
         return AudioRecordSamplesDispatcher()
     }
 
+    @Provides
+    fun audioPrewarmer(): AudioRecordPrewarmer {
+        return NoAudioRecordPrewarmer()
+    }
     @Provides
     @Singleton
     fun peerConnectionFactory(
