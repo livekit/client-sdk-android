@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,9 @@ import dagger.Module
 import dagger.Provides
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
+import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.test.mock.MockAudioDeviceModule
@@ -72,6 +74,11 @@ object TestRTCModule {
     @Singleton
     fun localAudioSamplesDispatcher(): AudioRecordSamplesDispatcher {
         return AudioRecordSamplesDispatcher()
+    }
+
+    @Provides
+    fun audioPrewarmer(): AudioRecordPrewarmer {
+        return NoAudioRecordPrewarmer()
     }
 
     @Provides

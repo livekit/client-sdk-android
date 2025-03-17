@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.audio.AudioBufferCallback
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
+import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.audio.MixerAudioBufferCallback
 import io.livekit.android.dagger.InjectionNames
@@ -70,6 +71,7 @@ constructor(
     private val audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher,
     @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
     private val audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher,
+    private val audioRecordPrewarmer: AudioRecordPrewarmer,
 ) : AudioTrack(name, mediaTrack) {
     /**
      * To only be used for flow delegate scoping, and should not be cancelled.
@@ -81,6 +83,17 @@ constructor(
         get() = transceiver?.sender
 
     private val trackSinks = mutableSetOf<AudioTrackSink>()
+
+    /**
+     * Prewarms the audio stack if needed by starting the recording regardless of whether it's being published.
+     */
+    fun prewarm() {
+        audioRecordPrewarmer.prewarm()
+    }
+
+    fun stopPrewarm() {
+        audioRecordPrewarmer.stop()
+    }
 
     /**
      * Note: This function relies on us setting
