@@ -54,8 +54,10 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import livekit.LivekitModels
@@ -87,7 +89,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * @suppress
@@ -332,17 +334,19 @@ internal constructor(
         }
 
         // Suspend until signal client receives message confirming track publication.
-        return suspendCoroutine { cont ->
-            synchronized(pendingTrackResolvers) {
-                pendingTrackResolvers[cid] = cont
+        return withTimeout(20.seconds) {
+            suspendCancellableCoroutine { cont ->
+                synchronized(pendingTrackResolvers) {
+                    pendingTrackResolvers[cid] = cont
+                }
+                client.sendAddTrack(
+                    cid = cid,
+                    name = name,
+                    type = kind,
+                    stream = stream,
+                    builder = builder,
+                )
             }
-            client.sendAddTrack(
-                cid = cid,
-                name = name,
-                type = kind,
-                stream = stream,
-                builder = builder,
-            )
         }
     }
 
