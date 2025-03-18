@@ -29,6 +29,7 @@ import io.livekit.android.events.EventListenable
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.test.assert.assertIsClassList
@@ -133,6 +134,7 @@ class RoomTest {
             regionUrlProviderFactory = regionUrlProviderFactory,
             connectionWarmer = MockConnectionWarmer(),
             audioRecordPrewarmer = NoAudioRecordPrewarmer(),
+            incomingDataStreamManager = IncomingDataStreamManagerImpl(),
         )
     }
 

@@ -34,6 +34,7 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
+import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.track.DataPublishReliability
@@ -106,7 +107,8 @@ internal constructor(
     coroutineDispatcher: CoroutineDispatcher,
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
-) : Participant(Sid(""), null, coroutineDispatcher) {
+    private val outgoingDataStreamManager: OutgoingDataStreamManager,
+) : Participant(Sid(""), null, coroutineDispatcher), OutgoingDataStreamManager by outgoingDataStreamManager {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
