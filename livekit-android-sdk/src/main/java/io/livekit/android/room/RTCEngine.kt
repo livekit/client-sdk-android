@@ -38,6 +38,7 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
 import io.livekit.android.util.withCheckLock
+import io.livekit.android.webrtc.DataChannelManager
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
@@ -163,6 +164,10 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
+    private var reliableDataChannelManager: DataChannelManager? = null
+    private var reliableDataChannelSubManager: DataChannelManager? = null
+    private var lossyDataChannelManager: DataChannelManager? = null
+    private var lossyDataChannelSubManager: DataChannelManager? = null
 
     private var isSubscriberPrimary = false
     private var isClosed = true
@@ -402,19 +407,17 @@ internal constructor(
                     subscriber?.closeBlocking()
                     subscriber = null
 
-                    fun DataChannel?.completeDispose() {
-                        this?.unregisterObserver()
-                        this?.close()
-                        this?.dispose()
-                    }
-
-                    reliableDataChannel?.completeDispose()
+                    reliableDataChannelManager?.dispose()
+                    reliableDataChannelManager = null
                     reliableDataChannel = null
-                    reliableDataChannelSub?.completeDispose()
+                    reliableDataChannelSubManager?.dispose()
+                    reliableDataChannelSubManager = null
                     reliableDataChannelSub = null
-                    lossyDataChannel?.completeDispose()
+                    lossyDataChannelManager?.dispose()
+                    lossyDataChannelManager = null
                     lossyDataChannel = null
-                    lossyDataChannelSub?.completeDispose()
+                    lossyDataChannelSubManager?.dispose()
+                    lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
                     isSubscriberPrimary = false
                 }
@@ -630,6 +633,22 @@ internal constructor(
         channel.send(buf)
     }
 
+    internal suspend fun waitForBufferStatusLow(kind: LivekitModels.DataPacket.Kind) {
+        ensurePublisherConnected(kind)
+        val manager = when (kind) {
+            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
+            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannelManager
+            LivekitModels.DataPacket.Kind.UNRECOGNIZED -> {
+                throw IllegalArgumentException()
+            }
+        }
+
+        if (manager == null) {
+            throw IllegalStateException("Not connected!")
+        }
+        manager.waitForBufferedAmountLow(DATA_CHANNEL_LOW_THRESHOLD.toLong())
+    }
+
     private suspend fun ensurePublisherConnected(kind: LivekitModels.DataPacket.Kind) {
         if (!isSubscriberPrimary) {
             return
@@ -798,6 +817,7 @@ internal constructor(
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onRpcPacketReceived(dp: LivekitModels.DataPacket)
+        fun onDataStreamPacket(dp: LivekitModels.DataPacket)
     }
 
     companion object {
@@ -813,10 +833,12 @@ internal constructor(
          */
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
-        internal const val MAX_DATA_PACKET_SIZE = 15360 // 15 KB
+        internal const val MAX_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
         private const val MAX_RECONNECT_RETRIES = 10
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
+
+        private const val DATA_CHANNEL_LOW_THRESHOLD = 64 * 1024 // 64 KB
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
@@ -1075,16 +1097,11 @@ internal constructor(
                 LKLog.v { "invalid value for data packet" }
             }
 
-            LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
-                // TODO
-            }
-
-            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
-                // TODO
-            }
-
-            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
-                // TODO
+            LivekitModels.DataPacket.ValueCase.STREAM_HEADER,
+            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
+            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
+            -> {
+                listener?.onDataStreamPacket(dp)
             }
         }
     }

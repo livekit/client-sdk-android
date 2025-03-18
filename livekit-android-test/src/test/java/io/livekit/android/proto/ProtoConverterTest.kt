@@ -27,6 +27,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+/**
+ * A test that ensures all the proto enum cases match their sdk counterparts.
+ */
 @RunWith(Parameterized::class)
 class ProtoConverterTest(
     val protoClass: Class<*>,

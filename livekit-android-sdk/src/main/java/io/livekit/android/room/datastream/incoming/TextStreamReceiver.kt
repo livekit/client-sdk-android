@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-package io.livekit.android.test.coroutines
+package io.livekit.android.room.datastream.incoming
 
-import io.livekit.android.coroutines.takeUntilSignal
+import io.livekit.android.room.datastream.TextStreamInfo
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.fold
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 
-/**
- * Collect all items until signal is given.
- */
-suspend fun <T> Flow<T>.toListUntilSignal(signal: Flow<Unit?>): List<T> {
-    return takeUntilSignal(signal)
-        .fold(emptyList()) { list, event ->
-            list.plus(event)
-        }
+class TextStreamReceiver(
+    val info: TextStreamInfo,
+    source: Channel<ByteArray>,
+) : BaseStreamReceiver<String>(source) {
+    override val flow: Flow<String> = source.receiveAsFlow()
+        .map { bytes -> bytes.toString(Charsets.UTF_8) }
 }
