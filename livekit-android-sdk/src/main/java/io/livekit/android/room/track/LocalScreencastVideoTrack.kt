@@ -151,7 +151,10 @@ constructor(
     private val serviceConnection = ScreenCaptureConnection(context)
 
     init {
-        mediaProjectionCallback.onStopCallback = { stop() }
+        mediaProjectionCallback.apply {
+            track = this@LocalScreencastVideoTrack
+            addOnStopCallback { stop() }
+        }
     }
 
     /**
@@ -203,11 +206,19 @@ constructor(
     /**
      * Needed to deal with circular dependency.
      */
-    class MediaProjectionCallback : MediaProjection.Callback() {
-        var onStopCallback: (() -> Unit)? = null
+    class MediaProjectionCallback(
+    ) : MediaProjection.Callback() {
+
+        var track: Track? = null
+
+        private val onStopCallbacks = mutableListOf<(Track) -> Unit>()
+
+        fun addOnStopCallback(callback: (Track) -> Unit) {
+            onStopCallbacks.add(callback)
+        }
 
         override fun onStop() {
-            onStopCallback?.invoke()
+            onStopCallbacks.forEach { it.invoke(track!!) }
         }
     }
 
@@ -221,10 +232,13 @@ constructor(
             rootEglBase: EglBase,
             screencastVideoTrackFactory: Factory,
             videoProcessor: VideoProcessor?,
+            onStop: (Track) -> Unit,
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             source.setVideoProcessor(videoProcessor)
-            val callback = MediaProjectionCallback()
+            val callback = MediaProjectionCallback().apply {
+                addOnStopCallback(onStop)
+            }
             val capturer = createScreenCapturer(mediaProjectionPermissionResultData, callback)
             capturer.initialize(
                 SurfaceTextureHelper.create("ScreenVideoCaptureThread", rootEglBase.eglBaseContext),

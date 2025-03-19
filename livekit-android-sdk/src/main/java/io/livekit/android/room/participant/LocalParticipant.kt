@@ -220,6 +220,7 @@ internal constructor(
         mediaProjectionPermissionResultData: Intent,
         options: LocalVideoTrackOptions = screenShareTrackCaptureDefaults.copy(),
         videoProcessor: VideoProcessor? = null,
+        onStop: (Track) -> Unit,
     ): LocalScreencastVideoTrack {
         val screencastOptions = options.copy(isScreencast = true)
         return LocalScreencastVideoTrack.createTrack(
@@ -231,6 +232,7 @@ internal constructor(
             eglBase,
             screencastVideoTrackFactory,
             videoProcessor,
+            onStop,
         )
     }
 
@@ -329,7 +331,9 @@ internal constructor(
                                 throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
                             }
                             val track =
-                                createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
+                                createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData) {
+                                    unpublishTrack(it)
+                                }
                             track.startForegroundService(null, null)
                             track.startCapture()
                             publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))
