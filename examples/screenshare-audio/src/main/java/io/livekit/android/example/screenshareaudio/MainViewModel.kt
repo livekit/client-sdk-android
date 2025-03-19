@@ -30,6 +30,7 @@ import io.livekit.android.audio.ScreenAudioCapturer
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.sample.service.ForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,7 +60,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            room.localParticipant.setScreenShareEnabled(true, data)
+            room.localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(data))
 
             // Optionally disable the mic for screenshare audio only
             // val javaAudioDeviceModule = (room.lkObjects.audioDeviceModule as? JavaAudioDeviceModule)
