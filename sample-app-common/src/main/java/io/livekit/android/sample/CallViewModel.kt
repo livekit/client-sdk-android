@@ -46,6 +46,7 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
@@ -308,7 +309,7 @@ class CallViewModel(
     fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
         val localParticipant = room.localParticipant
         viewModelScope.launch {
-            localParticipant.setScreenShareEnabled(true, mediaProjectionPermissionResultData)
+            localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(mediaProjectionPermissionResultData))
             val screencastTrack = localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalScreencastVideoTrack
             this@CallViewModel.localScreencastTrack = screencastTrack
             mutableScreencastEnabled.postValue(screencastTrack?.enabled)
