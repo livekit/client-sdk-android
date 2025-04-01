@@ -1,5 +1,15 @@
 # client-sdk-android
 
+## 2.14.0
+
+### Minor Changes
+
+- Implement data streams feature - [#625](https://github.com/livekit/client-sdk-android/pull/625) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Unpublish the screen sharing track on stop and introduce ScreenCaptureParams to be able to define the notification and set a callback for onStop - [#626](https://github.com/livekit/client-sdk-android/pull/626) ([@jeankruger](https://github.com/jeankruger))
+
 ## 2.13.0
 
 ### Minor Changes
