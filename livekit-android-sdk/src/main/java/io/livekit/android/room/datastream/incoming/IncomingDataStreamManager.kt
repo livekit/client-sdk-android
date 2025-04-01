@@ -268,9 +268,12 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
         return when (info) {
             is ByteStreamInfo -> {
                 val handler = byteStreamHandlers[info.topic]
-
                 { channel, identity ->
-                    handler?.invoke(ByteStreamReceiver(info, channel), identity)
+                    if (handler == null) {
+                        LKLog.i { "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring." }
+                    } else {
+                        handler.invoke(ByteStreamReceiver(info, channel), identity)
+                    }
                 }
             }
 
@@ -278,7 +281,11 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
                 val handler = textStreamHandlers[info.topic]
 
                 { channel, identity ->
-                    handler?.invoke(TextStreamReceiver(info, channel), identity)
+                    if (handler == null) {
+                        LKLog.w { "Received text stream for topic \"${info.topic}\", but no handler was found. Ignoring." }
+                    } else {
+                        handler.invoke(TextStreamReceiver(info, channel), identity)
+                    }
                 }
             }
         }
