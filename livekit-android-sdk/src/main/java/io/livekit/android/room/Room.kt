@@ -42,6 +42,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.*
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
+import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
@@ -106,7 +107,8 @@ constructor(
     private val regionUrlProviderFactory: RegionUrlProvider.Factory,
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
-) : RTCEngine.Listener, ParticipantListener {
+    private val incomingDataStreamManager: IncomingDataStreamManager,
+) : RTCEngine.Listener, ParticipantListener, IncomingDataStreamManager by incomingDataStreamManager {
 
     private lateinit var coroutineScope: CoroutineScope
     private val eventBus = BroadcastEventBus<RoomEvent>()
@@ -907,6 +909,7 @@ constructor(
         name = null
         isRecording = false
         sidToIdentity.clear()
+        incomingDataStreamManager.clearOpenStreams()
     }
 
     private fun sendSyncState() {
@@ -1188,6 +1191,28 @@ constructor(
 
         eventBus.postEvent(RoomEvent.DataReceived(this, data, participant, topic), coroutineScope)
         participant?.onDataReceived(data, topic)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onDataStreamPacket(dp: LivekitModels.DataPacket) {
+        when (dp.valueCase) {
+            LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
+                incomingDataStreamManager.handleStreamHeader(dp.streamHeader, Participant.Identity(dp.participantIdentity))
+            }
+
+            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
+                incomingDataStreamManager.handleDataChunk(dp.streamChunk)
+            }
+
+            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
+                incomingDataStreamManager.handleStreamTrailer(dp.streamTrailer)
+            }
+
+            // Ignore other cases.
+            else -> {}
+        }
     }
 
     /**

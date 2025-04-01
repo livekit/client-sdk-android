@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package io.livekit.android.test.mock.dagger
 import android.content.Context
 import dagger.BindsInstance
 import dagger.Component
+import io.livekit.android.dagger.InternalBindsModule
 import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
 import io.livekit.android.dagger.MemoryModule
@@ -36,6 +37,7 @@ import javax.inject.Singleton
         TestAudioHandlerModule::class,
         JsonFormatModule::class,
         MemoryModule::class,
+        InternalBindsModule::class,
     ],
 )
 interface TestLiveKitComponent : LiveKitComponent {
