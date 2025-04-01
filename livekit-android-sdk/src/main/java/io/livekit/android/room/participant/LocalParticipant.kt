@@ -50,6 +50,7 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.room.track.VideoEncoding
+import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
@@ -222,6 +223,7 @@ internal constructor(
         mediaProjectionPermissionResultData: Intent,
         options: LocalVideoTrackOptions = screenShareTrackCaptureDefaults.copy(),
         videoProcessor: VideoProcessor? = null,
+        onStop: (Track) -> Unit,
     ): LocalScreencastVideoTrack {
         val screencastOptions = options.copy(isScreencast = true)
         return LocalScreencastVideoTrack.createTrack(
@@ -233,6 +235,7 @@ internal constructor(
             eglBase,
             screencastVideoTrackFactory,
             videoProcessor,
+            onStop,
         )
     }
 
@@ -293,15 +296,15 @@ internal constructor(
     @Throws(TrackException.PublishException::class)
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
-        mediaProjectionPermissionResultData: Intent? = null,
+        screenCaptureParams: ScreenCaptureParams? = null,
     ) {
-        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, mediaProjectionPermissionResultData)
+        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, screenCaptureParams)
     }
 
     private suspend fun setTrackEnabled(
         source: Track.Source,
         enabled: Boolean,
-        mediaProjectionPermissionResultData: Intent? = null,
+        screenCaptureParams: ScreenCaptureParams? = null,
     ) {
         val pubLock = sourcePubLocks[source]!!
         pubLock.withLock {
@@ -327,12 +330,15 @@ internal constructor(
                         }
 
                         Track.Source.SCREEN_SHARE -> {
-                            if (mediaProjectionPermissionResultData == null) {
-                                throw IllegalArgumentException("Media Projection permission result data is required to create a screen share track.")
+                            if (screenCaptureParams == null) {
+                                throw IllegalArgumentException("Media Projection params is required to create a screen share track.")
                             }
                             val track =
-                                createScreencastTrack(mediaProjectionPermissionResultData = mediaProjectionPermissionResultData)
-                            track.startForegroundService(null, null)
+                                createScreencastTrack(mediaProjectionPermissionResultData = screenCaptureParams.mediaProjectionPermissionResultData) {
+                                    unpublishTrack(it)
+                                    screenCaptureParams.onStop?.invoke()
+                                }
+                            track.startForegroundService(screenCaptureParams.notificationId, screenCaptureParams.notification)
                             track.startCapture()
                             publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))
                         }
