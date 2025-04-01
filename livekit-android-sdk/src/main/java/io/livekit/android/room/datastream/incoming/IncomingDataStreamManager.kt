@@ -248,7 +248,7 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
             val openMillis = SystemClock.elapsedRealtime() - descriptor.openTime
             LKLog.d { "Closed stream $id, (open for ${openMillis}ms" }
 
-            openStreams[id] = null
+            openStreams.remove(id)
         }
     }
 
@@ -270,7 +270,7 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
                 val handler = byteStreamHandlers[info.topic]
                 { channel, identity ->
                     if (handler == null) {
-                        LKLog.i { "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring." }
+                        LKLog.w { "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring." }
                     } else {
                         handler.invoke(ByteStreamReceiver(info, channel), identity)
                     }
