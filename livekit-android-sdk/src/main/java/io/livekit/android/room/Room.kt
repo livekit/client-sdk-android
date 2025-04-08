@@ -479,14 +479,20 @@ constructor(
             ensureActive()
             networkCallbackManager.registerCallback()
             if (options.audio) {
-                val audioTrack = localParticipant.createAudioTrack()
+                val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
                 audioTrack.prewarm()
-                localParticipant.publishAudioTrack(audioTrack)
+                if (!localParticipant.publishAudioTrack(audioTrack)) {
+                    audioTrack.stop()
+                    audioTrack.stopPrewarm()
+                }
             }
             ensureActive()
             if (options.video) {
-                val videoTrack = localParticipant.createVideoTrack()
-                localParticipant.publishVideoTrack(videoTrack)
+                val videoTrack = localParticipant.getOrCreateDefaultVideoTrack()
+                if (!localParticipant.publishVideoTrack(videoTrack)) {
+                    videoTrack.stopCapture()
+                    videoTrack.stop()
+                }
             }
 
             coroutineScope.launch {
