@@ -137,6 +137,29 @@ internal constructor(
 
     internal val enabledPublishVideoCodecs = Collections.synchronizedList(mutableListOf<Codec>())
 
+    private var defaultAudioTrack: LocalAudioTrack? = null
+    private var defaultVideoTrack: LocalVideoTrack? = null
+
+    /**
+     * Returns the default audio track, or creates one if it doesn't exist.
+     * @exception SecurityException will be thrown if [Manifest.permission.RECORD_AUDIO] permission is missing.
+     */
+    fun getOrCreateDefaultAudioTrack(): LocalAudioTrack {
+        return defaultAudioTrack ?: createAudioTrack().also {
+            defaultAudioTrack = it
+        }
+    }
+
+    /**
+     * Returns the default video track, or creates one if it doesn't exist.
+     * @exception SecurityException will be thrown if [Manifest.permission.CAMERA] permission is missing.
+     */
+    fun getOrCreateDefaultVideoTrack(): LocalVideoTrack {
+        return defaultVideoTrack ?: createVideoTrack().also {
+            defaultVideoTrack = it
+        }
+    }
+
     /**
      * Creates an audio track, recording audio through the microphone with the given [options].
      *
@@ -318,15 +341,23 @@ internal constructor(
                 } else {
                     when (source) {
                         Track.Source.CAMERA -> {
-                            val track = createVideoTrack()
+                            val track = getOrCreateDefaultVideoTrack()
+                            track.start()
                             track.startCapture()
-                            publishVideoTrack(track)
+                            if (!publishVideoTrack(track)) {
+                                track.stopCapture()
+                                track.stop()
+                            }
                         }
 
                         Track.Source.MICROPHONE -> {
-                            val track = createAudioTrack()
+                            val track = getOrCreateDefaultAudioTrack()
                             track.prewarm()
-                            publishAudioTrack(track)
+                            track.start()
+                            if (!publishAudioTrack(track)) {
+                                track.stop()
+                                track.stopPrewarm()
+                            }
                         }
 
                         Track.Source.SCREEN_SHARE -> {
@@ -340,7 +371,14 @@ internal constructor(
                                 }
                             track.startForegroundService(screenCaptureParams.notificationId, screenCaptureParams.notification)
                             track.startCapture()
-                            publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))
+                            if (!publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))) {
+                                screenCaptureParams.onStop?.invoke()
+                                track.apply {
+                                    stopCapture()
+                                    stop()
+                                    dispose()
+                                }
+                            }
                         }
 
                         else -> {
@@ -380,7 +418,7 @@ internal constructor(
             audioTrackPublishDefaults,
         ),
         publishListener: PublishListener? = null,
-    ) {
+    ): Boolean {
         val encodings = listOf(
             RtpParameters.Encoding(null, true, null).apply {
                 if (options.audioBitrate != null && options.audioBitrate > 0) {
@@ -408,6 +446,8 @@ internal constructor(
             }
             jobs[publication] = job
         }
+
+        return publication != null
     }
 
     /**
@@ -420,7 +460,7 @@ internal constructor(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
         publishListener: PublishListener? = null,
-    ) {
+    ): Boolean {
         @Suppress("NAME_SHADOWING") var options = options
 
         synchronized(enabledPublishVideoCodecs) {
@@ -456,7 +496,7 @@ internal constructor(
         val videoLayers =
             EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings, isSVC)
 
-        publishTrackImpl(
+        return publishTrackImpl(
             track = track,
             options = options,
             requestConfig = {
@@ -489,7 +529,7 @@ internal constructor(
             },
             encodings = encodings,
             publishListener = publishListener,
-        )
+        ) != null
     }
 
     private fun hasPermissionsToPublish(source: Track.Source): Boolean {
@@ -1447,10 +1487,13 @@ internal constructor(
             unpublishTrack(track, false)
             // Cannot publish muted tracks.
             if (!pub.muted) {
-                when (track) {
+                val success = when (track) {
                     is LocalAudioTrack -> publishAudioTrack(track, pub.options as AudioTrackPublishOptions, null)
                     is LocalVideoTrack -> publishVideoTrack(track, pub.options as VideoTrackPublishOptions, null)
                     else -> throw IllegalStateException("LocalParticipant has a non local track publish?")
+                }
+                if (!success) {
+                    track.stop()
                 }
             }
         }
@@ -1483,6 +1526,8 @@ internal constructor(
      * @suppress
      */
     fun cleanup() {
+        defaultAudioTrack = null
+        defaultVideoTrack = null
         for (pub in trackPublications.values) {
             val track = pub.track
 
