@@ -603,7 +603,7 @@ internal constructor(
             // so no need to call negotiate manually.
         }
 
-        suspend fun requestAddTrack(): TrackInfo {
+        suspend fun requestAddTrack(): TrackInfo? {
             return try {
                 engine.addTrack(
                     cid = cid,
@@ -615,11 +615,11 @@ internal constructor(
             } catch (e: Exception) {
                 val exception = TrackException.PublishException("Failed to publish track", e)
                 publishListener?.onPublishFailure(exception)
-                throw exception
+                null
             }
         }
 
-        val trackInfo: TrackInfo
+        val trackInfo: TrackInfo?
         if (enabledPublishVideoCodecs.isNotEmpty()) {
             // Can simultaneous publish and negotiate.
             // codec is pre-verified in publishVideoTrack
@@ -633,41 +633,45 @@ internal constructor(
         } else {
             // legacy path.
             trackInfo = requestAddTrack()
+            if (trackInfo != null) {
+                if (options is VideoTrackPublishOptions) {
+                    // server might not support the codec the client has requested, in that case, fallback
+                    // to a supported codec
+                    val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
 
-            if (options is VideoTrackPublishOptions) {
-                // server might not support the codec the client has requested, in that case, fallback
-                // to a supported codec
-                val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
+                    if (primaryCodecMime != null) {
+                        val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
+                        if (updatedCodec != null && updatedCodec != options.videoCodec) {
+                            LKLog.d { "falling back to server selected codec: $updatedCodec" }
+                            options = options.copy(videoCodec = updatedCodec)
 
-                if (primaryCodecMime != null) {
-                    val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
-                    if (updatedCodec != null && updatedCodec != options.videoCodec) {
-                        LKLog.d { "falling back to server selected codec: $updatedCodec" }
-                        options = options.copy(videoCodec = updatedCodec)
-
-                        // recompute encodings since bitrates/etc could have changed
-                        encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                            // recompute encodings since bitrates/etc could have changed
+                            encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                        }
                     }
                 }
-            }
 
-            negotiate()
+                negotiate()
+            }
         }
 
-        val publication = LocalTrackPublication(
-            info = trackInfo,
-            track = track,
-            participant = this,
-            options = options,
-        )
-        addTrackPublication(publication)
-        LKLog.v { "add track publication $publication" }
+        return if (trackInfo != null) {
+            val publication = LocalTrackPublication(
+                info = trackInfo,
+                track = track,
+                participant = this,
+                options = options,
+            )
+            addTrackPublication(publication)
+            LKLog.v { "add track publication $publication" }
 
-        publishListener?.onPublishSuccess(publication)
-        internalListener?.onTrackPublished(publication, this)
-        eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
-
-        return publication
+            publishListener?.onPublishSuccess(publication)
+            internalListener?.onTrackPublished(publication, this)
+            eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
+            publication
+        } else {
+            null
+        }
     }
 
     private fun computeVideoEncodings(
