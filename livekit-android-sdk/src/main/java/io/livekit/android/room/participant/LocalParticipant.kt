@@ -562,13 +562,22 @@ internal constructor(
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null,
     ): LocalTrackPublication? {
+        fun onPublishFailure(e: TrackException.PublishException, triggerEvent: Boolean = true) {
+            publishListener?.onPublishFailure(e)
+            if (triggerEvent) {
+                eventBus.postEvent(ParticipantEvent.LocalTrackPublicationFailed(this, track, e), scope)
+            }
+        }
+
         val addTrackRequestBuilder = AddTrackRequest.newBuilder().apply {
             this.requestConfig()
         }
 
         val trackSource = Track.Source.fromProto(addTrackRequestBuilder.source ?: LivekitModels.TrackSource.UNRECOGNIZED)
         if (!hasPermissionsToPublish(trackSource)) {
-            throw TrackException.PublishException("Failed to publish track, insufficient permissions")
+            val exception = TrackException.PublishException("Failed to publish track, insufficient permissions")
+            onPublishFailure(exception)
+            throw exception
         }
 
         @Suppress("NAME_SHADOWING") var options = options
@@ -576,12 +585,12 @@ internal constructor(
         @Suppress("NAME_SHADOWING") var encodings = encodings
 
         if (localTrackPublications.any { it.track == track }) {
-            publishListener?.onPublishFailure(TrackException.PublishException("Track has already been published"))
+            onPublishFailure(TrackException.PublishException("Track has already been published"), triggerEvent = false)
             return null
         }
 
         if (engine.connectionState == ConnectionState.DISCONNECTED) {
-            publishListener?.onPublishFailure(TrackException.PublishException("Not connected!"))
+            onPublishFailure(TrackException.PublishException("Not connected!"))
         }
 
         val cid = track.rtcTrack.id()
@@ -609,7 +618,7 @@ internal constructor(
 
             if (transceiver == null) {
                 val exception = TrackException.PublishException("null sender returned from peer connection")
-                publishListener?.onPublishFailure(exception)
+                onPublishFailure(exception)
                 throw exception
             }
 
@@ -653,8 +662,7 @@ internal constructor(
                     builder = addTrackRequestBuilder,
                 )
             } catch (e: Exception) {
-                val exception = TrackException.PublishException("Failed to publish track", e)
-                publishListener?.onPublishFailure(exception)
+                onPublishFailure(TrackException.PublishException("Failed to publish track", e))
                 null
             }
         }

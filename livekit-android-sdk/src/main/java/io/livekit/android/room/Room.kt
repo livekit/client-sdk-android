@@ -619,6 +619,15 @@ constructor(
                         ),
                     )
 
+                    is ParticipantEvent.LocalTrackPublicationFailed -> emitWhenConnected(
+                        RoomEvent.TrackPublicationFailed(
+                            room = this@Room,
+                            track = it.track,
+                            participant = it.participant,
+                            e = it.e,
+                        ),
+                    )
+
                     is ParticipantEvent.TrackUnpublished -> emitWhenConnected(
                         RoomEvent.TrackUnpublished(
                             room = this@Room,
