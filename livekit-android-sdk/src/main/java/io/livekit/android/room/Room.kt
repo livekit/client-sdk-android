@@ -479,14 +479,21 @@ constructor(
             ensureActive()
             networkCallbackManager.registerCallback()
             if (options.audio) {
-                val audioTrack = localParticipant.createAudioTrack()
+                val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
                 audioTrack.prewarm()
-                localParticipant.publishAudioTrack(audioTrack)
+                if (!localParticipant.publishAudioTrack(audioTrack)) {
+                    audioTrack.stop()
+                    audioTrack.stopPrewarm()
+                }
             }
             ensureActive()
             if (options.video) {
-                val videoTrack = localParticipant.createVideoTrack()
-                localParticipant.publishVideoTrack(videoTrack)
+                val videoTrack = localParticipant.getOrCreateDefaultVideoTrack()
+                videoTrack.startCapture()
+                if (!localParticipant.publishVideoTrack(videoTrack)) {
+                    videoTrack.stopCapture()
+                    videoTrack.stop()
+                }
             }
 
             coroutineScope.launch {
@@ -609,6 +616,15 @@ constructor(
                             room = this@Room,
                             publication = it.publication,
                             participant = it.participant,
+                        ),
+                    )
+
+                    is ParticipantEvent.LocalTrackPublicationFailed -> emitWhenConnected(
+                        RoomEvent.TrackPublicationFailed(
+                            room = this@Room,
+                            track = it.track,
+                            participant = it.participant,
+                            e = it.e,
                         ),
                     )
 

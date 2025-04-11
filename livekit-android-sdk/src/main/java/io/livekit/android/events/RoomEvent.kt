@@ -27,6 +27,7 @@ import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.TranscriptionSegment
 import livekit.LivekitModels
@@ -137,6 +138,17 @@ sealed class RoomEvent(val room: Room) : Event() {
      * not fire for tracks that are already published
      */
     class TrackPublished(room: Room, val publication: TrackPublication, val participant: Participant) : RoomEvent(room)
+
+    /**
+     * Error had occurred while publishing a track, for LocalParticipant only
+     * not fire for tracks that are already published
+     */
+    class TrackPublicationFailed(
+        room: Room,
+        val track: Track,
+        val participant: LocalParticipant,
+        e: TrackException.PublishException,
+    ) : RoomEvent(room)
 
     /**
      * A [Participant] has unpublished a track
