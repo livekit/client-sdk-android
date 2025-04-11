@@ -489,6 +489,7 @@ constructor(
             ensureActive()
             if (options.video) {
                 val videoTrack = localParticipant.getOrCreateDefaultVideoTrack()
+                videoTrack.startCapture()
                 if (!localParticipant.publishVideoTrack(videoTrack)) {
                     videoTrack.stopCapture()
                     videoTrack.stop()
