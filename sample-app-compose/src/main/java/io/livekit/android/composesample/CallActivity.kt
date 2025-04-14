@@ -20,6 +20,7 @@ import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
+import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +40,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
@@ -67,6 +70,9 @@ import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.lifecycleScope
+import com.github.tehras.charts.line.LineChart
+import com.github.tehras.charts.line.LineChartData
+import com.github.tehras.charts.line.renderer.line.SolidLineDrawer
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.composesample.ui.DebugMenuDialog
 import io.livekit.android.composesample.ui.SelectAudioDeviceDialog
@@ -77,6 +83,7 @@ import io.livekit.android.sample.CallViewModel
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.model.StressTest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
@@ -111,7 +118,7 @@ class CallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
+        viewModel.subscribeWebRTCStats()
         // Setup compose view.
         setContent {
             val room = viewModel.room
@@ -205,24 +212,129 @@ class CallActivity : AppCompatActivity() {
                 val (speakerView, audienceRow, buttonBar) = createRefs()
 
                 // Primary speaker view
-                Surface(
-                    modifier = Modifier.constrainAs(speakerView) {
-                        top.linkTo(parent.top)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                        bottom.linkTo(audienceRow.top)
-                        width = Dimension.fillToConstraints
-                        height = Dimension.fillToConstraints
-                    },
+                val trackStats: List<CallViewModel.TrackStats> by viewModel.trackStats.collectAsState()
+                val pints by viewModel.chartLine.map {
+                    it.map {
+                        LineChartData.Point(it.first.toFloat(), it.second.toString())
+                    }
+                }.collectAsState(listOf(LineChartData.Point(0f , "a") , LineChartData.Point(1f , "a")))
+
+//                val pointsData by viewModel.chartLine.map {
+//                    it.map {
+//                        Point(it.first.toFloat() , it.second.toFloat())
+//                    }
+//                }.collectAsState(listOf(Point(0f, 40f), Point(1f, 90f),))
+//                Log.d("mohsen_" , "$pints")
+
+                Box(
+                    modifier = Modifier
+                        .constrainAs(speakerView) {
+                            top.linkTo(parent.top)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                            bottom.linkTo(audienceRow.top)
+                            width = Dimension.fillToConstraints
+                            height = Dimension.fillToConstraints
+                        }
+                        .background(Color.White),
                 ) {
-                    if (room != null && primarySpeaker != null) {
-                        ParticipantItem(
-                            room = room,
-                            participant = primarySpeaker,
-                            isSpeaking = activeSpeakers.contains(primarySpeaker),
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        item {
+                            Text("TEST")
+                        }
+                        items(
+                            trackStats.size ,
+                        ) {
+                            val stat = trackStats[it]
+
+//                            Text("Track ID: ${stat.trackId}")
+                            Row {
+                                Text("Type: ${stat.kind}")
+                                Text("Type: ${stat.codec}")
+                                Text("Type: ${stat.packetSend}")
+                                Text("Type: ${stat.timestamp}")
+                            }
+                        }
+                    }
+//                    Box{
+//                        val steps = 5
+//
+//                        val xAxisData = AxisData.Builder()
+//                            .axisStepSize(100.dp)
+//                            .backgroundColor(Color.Blue)
+//                            .steps(pointsData.size - 1)
+//                            .labelData { i -> i.toString() }
+//                            .labelAndAxisLinePadding(15.dp)
+//                            .build()
+//
+//                        val yAxisData = AxisData.Builder()
+//                            .steps(steps)
+//                            .backgroundColor(Color.Red)
+//                            .labelAndAxisLinePadding(20.dp)
+//                            .labelData { i ->
+//                                val yScale = 100 / steps
+//                                (i * yScale).toString()
+//                            }
+//                            .build()
+//
+//                        val lineChartData = LineChartData(
+//                            linePlotData = LinePlotData(
+//                                lines = listOf(
+//                                    Line(
+//                                        dataPoints = pointsData,
+//                                        LineStyle(),
+//                                        IntersectionPoint(),
+//                                        SelectionHighlightPoint(),
+//                                        ShadowUnderLine(),
+//                                        SelectionHighlightPopUp()
+//                                    )
+//                                ),
+//                            ),
+//                            xAxisData = xAxisData,
+//                            yAxisData = yAxisData,
+//                            gridLines = GridLines(),
+//                            backgroundColor = Color.White
+//                        )
+//
+//                        LineChart(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .height(300.dp),
+//                            lineChartData = lineChartData
+//                        )
+//                    }
+
+                    Box {
+//                        val t: List<LineChartData.Point> =  listOf(
+////                            LineChartData.Point(0f, "") ,
+////                            LineChartData.Point(800f,"f") ,
+//                        )
+//
+                        LineChart(
+                            linesChartData = listOf(LineChartData(points = pints, lineDrawer = SolidLineDrawer())),
+                            horizontalOffset = 5f,
                         )
                     }
+
                 }
+//                Surface(
+//                    modifier = Modifier.constrainAs(speakerView) {
+//                        top.linkTo(parent.top)
+//                        start.linkTo(parent.start)
+//                        end.linkTo(parent.end)
+//                        bottom.linkTo(audienceRow.top)
+//                        width = Dimension.fillToConstraints
+//                        height = Dimension.fillToConstraints
+//                    },
+//                ) {
+//                    if (room != null && primarySpeaker != null) {
+//                        ParticipantItem(
+//                            room = room,
+//                            participant = primarySpeaker,
+//                            isSpeaking = activeSpeakers.contains(primarySpeaker),
+//                        )
+//                    }
+//                }
 
                 // Audience row to display all participants.
                 LazyRow(

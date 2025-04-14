@@ -21,6 +21,7 @@ import android.app.Application
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.lifecycle.AndroidViewModel
@@ -52,17 +53,21 @@ import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import livekit.org.webrtc.CameraXHelper
+import livekit.org.webrtc.RTCStatsReport
 
 @OptIn(ExperimentalCamera2Interop::class)
 class CallViewModel(
@@ -221,6 +226,155 @@ class CallViewModel(
             }
         }
     }
+    data class TrackStats(
+//        val trackId: String,
+        val kind: String,
+        val codec: String,
+//        val bitrate: Double,
+//        val packetsLost: Int,
+        val packetSend: Long,
+        val timestamp: Long
+    )
+
+    private val _trackStats = MutableStateFlow<List<TrackStats>>(emptyList())
+    val trackStats: StateFlow<List<TrackStats>> = _trackStats.asStateFlow()
+
+    private val _chartLine = MutableStateFlow<List<Pair<Long , Long>>>(emptyList())
+    val chartLine: StateFlow<List<Pair<Long, Long>>> = _chartLine.asStateFlow()
+
+    private val _chartLine2 = MutableStateFlow<List<Pair<Long , Long>>>(emptyList())
+    val chartLine2: StateFlow<List<Pair<Long, Long>>> = _chartLine2.asStateFlow()
+
+
+    fun subscribeWebRTCStats(){
+        viewModelScope.launch(IO) {
+            while (true){
+                delay(2_000)
+                room.getPublisherRTCStats { report ->
+                    Log.d("mohsen", "$report")
+                    val newStats = extractTrackStatsWithCodecOutBound(report)
+                    Log.d("mohsen", "$newStats")
+//                    val newStats = mutableListOf<TrackStats>()
+//                    for (stat in report.statsMap.values) {
+//                        Log.d("mohsen" ,"$stat")
+//
+//
+//
+//                        if (stat.type == "inbound-rtp" ) {
+////                            val trackId = stat.members["trackId"]?.toString() ?: continue
+//                            val kind = stat.members["kind"]?.toString() ?: "unknown"
+////                            val bitrate = stat.members["bitrateMean"]?.toString()?.toDoubleOrNull() ?: 0.0
+////                            val packetsLost = stat.members["packetsLost"]?.toString()?.toIntOrNull() ?: 0
+//                            val timestamp: Long = stat.timestampUs.toLong() / 1000
+////                            newStats.add(TrackStats(trackId, kind, bitrate, packetsLost, timestamp))
+//                            newStats.add(TrackStats( kind, timestamp))
+//                        }
+//                    }
+//                    Log.d("mohsen" ,"$newStats")
+
+                    val newList: List<Pair<Long, Long>> = newStats.filter { it.kind == "audio" }.map {
+                        it.packetSend to it.timestamp
+                    }
+
+                    _chartLine.update {
+                            (listOf( 0L to 0L) + it.drop(1) + newList).takeLast(10)
+                    }
+                    Log.d("mohsen_" , "${_chartLine.value}")
+
+                    _trackStats.value = newStats
+//                }
+
+//                room.getPublisherRTCStats {
+//
+                }
+            }
+        }
+    }
+
+//    private fun generateMockBarData(
+//        size: Int, useColor: Boolean = false, hasNegative: Boolean = true
+//    ): List<BarData> {
+//        val years = listOf("2021", "2022", "2023", "2024", "2025", "2026", "2027")
+//        val colors = listOf(
+//            Color.Red,
+//            Color.Green,
+//            Color.Blue,
+//            Color.Yellow,
+//            Color.DarkGray,
+//            Color.Magenta,
+//            Color.Cyan
+//        )
+//
+//        val number = if (hasNegative) -10 else 0
+//        val data = List(size) {
+//            BarData(
+//                yValue = Random.nextFloat() * 20 + number, // Random value between -10 and 10
+//                xValue = years[it % years.size],
+//                barColor = if (useColor) colors[it % colors.size].asSolidChartColor() else Color.Unspecified.asSolidChartColor()
+//            )
+//        }.toMutableList()
+//
+//        // Ensure one value is always 0
+//        if (data.isNotEmpty()) {
+//            val zeroIndex = Random.nextInt(size)
+//            data[zeroIndex] = data[zeroIndex].copy(yValue = 0f)
+//        }
+//
+//        return data
+//    }
+
+    private fun extractTrackStatsWithCodecOutBound(report: RTCStatsReport): List<TrackStats> {
+        // Step 1: Build a codec map: codecId -> codecName
+        val codecMap = report.statsMap
+            .filterValues { it.type == "codec" }
+            .mapNotNull { (_, stat) ->
+                val codecId = stat.id
+                val codecName = stat.members["mimeType"]?.toString()
+                if (codecId != null && codecName != null) codecId to codecName else null
+            }
+            .toMap()
+
+        // Step 2: Build list of TrackStats from inbound-rtp
+        return report.statsMap.values
+            .filter { it.type == "outbound-rtp" }
+            .map {
+                val kind = it.members["kind"]?.toString() ?: "unknown"
+                val timestamp: Long = it.timestampUs.toLong() / 1000
+                val codecId = it.members["codecId"]?.toString()
+                val codec = codecMap[codecId] ?: "unknown"
+                val packetSend = it.members["packetsSent"]?.toString()?.toLong() ?: 0
+                TrackStats(
+                    kind,
+                    codec,
+                    packetSend,
+                    timestamp
+                )
+            }
+    }
+
+//    private fun extractTrackStatsWithCodec(report: RTCStatsReport): List<TrackStats> {
+//        // Step 1: Build a codec map: codecId -> codecName
+//        val codecMap = report.statsMap
+//            .filterValues { it.type == "codec" }
+//            .mapNotNull { (_, stat) ->
+//                val codecId = stat.id
+//                val codecName = stat.members["mimeType"]?.toString()
+//                if (codecId != null && codecName != null) codecId to codecName else null
+//            }
+//            .toMap()
+//
+//        // Step 2: Build list of TrackStats from inbound-rtp
+//        return report.statsMap.values
+//            .filter { it.type == "inbound-rtp" }
+//            .map {
+//                val kind = it.members["kind"]?.toString() ?: "unknown"
+//                val timestamp: Long = it.timestampUs.toLong() / 1000
+//                val codecId = it.members["codecId"]?.toString()
+//                val codec = codecMap[codecId] ?: "unknown"
+//                TrackStats(kind, codec, timestamp)
+//            }
+//    }
+
 
     fun toggleEnhancedNs(enabled: Boolean? = null) {
         if (enabled != null) {
