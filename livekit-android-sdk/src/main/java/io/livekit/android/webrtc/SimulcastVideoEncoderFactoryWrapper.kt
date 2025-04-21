@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -268,6 +268,33 @@ open class SimulcastVideoEncoderFactoryWrapper(
     }
 
     override fun getSupportedCodecs(): Array<VideoCodecInfo> {
-        return native.supportedCodecs
+        val codecs = native.supportedCodecs
+        val dedupeSet = mutableSetOf<HashableVideoCodecInfo>()
+        for (c in codecs) {
+            if (c.name.equals("vp9", ignoreCase = true) && c.params.isNullOrEmpty()) {
+                // Ignore VP9 codecs reported from HardwareVideoEncoderFactory.
+                // If allowed, will cause duplicate rtmps in the SDP.
+                // SoftwareVideoEncoderFactory will report correct params, so we use those.
+                continue
+            }
+            dedupeSet.add(HashableVideoCodecInfo.fromVideoCodecInfo(c))
+        }
+
+        return dedupeSet.map { it.originalInfo }.toTypedArray()
+    }
+
+    private data class HashableVideoCodecInfo(
+        val name: String,
+        val params: Map<String, String>,
+        val scalabilityModes: List<String>,
+    ) {
+        lateinit var originalInfo: VideoCodecInfo
+
+        companion object {
+            fun fromVideoCodecInfo(codecInfo: VideoCodecInfo): HashableVideoCodecInfo {
+                return HashableVideoCodecInfo(codecInfo.name, codecInfo.params, codecInfo.scalabilityModes)
+                    .apply { originalInfo = codecInfo }
+            }
+        }
     }
 }
