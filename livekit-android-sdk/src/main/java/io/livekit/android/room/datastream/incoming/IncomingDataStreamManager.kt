@@ -257,7 +257,10 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
      */
     override fun clearOpenStreams() {
         synchronized(openStreams) {
-            for (descriptor in openStreams.values) {
+            // Create a copy since closing the channel will also remove from openStreams,
+            // causing a ConcurrentModificationException
+            val descriptors = openStreams.values.toList()
+            for (descriptor in descriptors) {
                 descriptor.channel.close(StreamException.TerminatedException())
             }
             openStreams.clear()
