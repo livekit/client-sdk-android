@@ -591,20 +591,21 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun publishWithNoResponseCausesException() = runTest {
+    fun publishWithNoResponseReturnFalseWithoutException() = runTest {
         connect()
 
         wsFactory.unregisterSignalRequestHandler(wsFactory.defaultSignalRequestHandler)
         var didThrow = false
+        var success: Boolean? = null
         launch {
             try {
-                room.localParticipant.publishVideoTrack(createLocalTrack())
+                success = room.localParticipant.publishVideoTrack(createLocalTrack())
             } catch (e: TrackException.PublishException) {
                 didThrow = true
             }
         }
 
         coroutineRule.dispatcher.scheduler.advanceUntilIdle()
-        assertTrue(didThrow)
+        assertTrue(!didThrow && success == false)
     }
 }
