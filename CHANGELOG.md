@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.14.1
+
+### Patch Changes
+
+- Fix ConcurrentModificationException in IncomingDataStreamManager - [#642](https://github.com/livekit/client-sdk-android/pull/642) ([@davidliu](https://github.com/davidliu))
+
+- Dedupe supported codecs to provide valid SDP - [#643](https://github.com/livekit/client-sdk-android/pull/643) ([@davidliu](https://github.com/davidliu))
+
 ## 2.14.0
 
 ### Minor Changes
