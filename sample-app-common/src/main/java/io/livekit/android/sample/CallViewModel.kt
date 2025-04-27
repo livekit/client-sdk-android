@@ -96,7 +96,12 @@ class CallViewModel(
         appContext = application,
         options = getRoomOptions(),
         overrides = LiveKitOverrides(
-            audioOptions = AudioOptions(audioProcessorOptions = audioProcessorOptions),
+            audioOptions = AudioOptions(
+                audioProcessorOptions = audioProcessorOptions,
+                javaAudioDeviceModuleCustomizer = { builder ->
+                    builder.setUseStereoInput(true)
+                }
+            ),
         ),
     )
 
