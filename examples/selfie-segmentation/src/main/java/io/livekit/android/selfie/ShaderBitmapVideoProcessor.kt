@@ -27,7 +27,7 @@ import com.google.mlkit.vision.segmentation.SegmentationMask
 import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import io.livekit.android.room.track.video.NoDropVideoProcessor
-import io.livekit.android.util.LKLog
+import io.livekit.android.selfie.jsshader.BackgroundTransformer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.EglRenderer
-import livekit.org.webrtc.GlRectDrawer
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoSink
@@ -52,9 +51,10 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
     private val surface = Surface(surfaceTextureHelper.surfaceTexture)
+    private val backgroundTransformer = BackgroundTransformer()
     private val eglRenderer = EglRenderer(ShaderBitmapVideoProcessor::class.java.simpleName)
         .apply {
-            init(eglBase.eglBaseContext, EglBase.CONFIG_PLAIN, GlRectDrawer())
+            init(eglBase.eglBaseContext, EglBase.CONFIG_PLAIN, backgroundTransformer)
             createEglSurface(surface)
         }
 
@@ -78,6 +78,7 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
         scope.launch {
             taskFlow.collect { frame ->
                 processFrame(frame)
+                frame.release()
             }
         }
     }
@@ -89,7 +90,7 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
 
         @OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
-            LKLog.e { "image received: ${imageProxy.width}x${imageProxy.height}" }
+            //LKLog.e { "image received: ${imageProxy.width}x${imageProxy.height}" }
             val image = imageProxy.image
 
             if (image != null) {
@@ -98,7 +99,7 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
                 latch.acquire()
                 val task = segmenter.process(inputImage)
                 task.addOnSuccessListener { mask ->
-                    LKLog.e { "analyzed image with mask: ${mask.width}x${mask.height}" }
+                    //LKLog.e { "analyzed image with mask: ${mask.width}x${mask.height}" }
                     lastMask = mask
                     latch.release()
                 }
@@ -126,34 +127,29 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
     }
 
     override fun onFrameCaptured(frame: VideoFrame) {
-        if (taskFlow.tryEmit(frame)) {
+        try {
             frame.retain()
+        } catch (e: Exception) {
+            return
+        }
+
+        if (!taskFlow.tryEmit(frame)) {
+            frame.release()
         }
     }
 
     suspend fun processFrame(frame: VideoFrame) {
-        // Ready for segementation processing.
+        if (lastWidth != frame.rotatedWidth || lastHeight != frame.rotatedHeight) {
+            surfaceTextureHelper.setTextureSize(frame.rotatedWidth, frame.rotatedHeight)
+            lastWidth = frame.rotatedWidth
+            lastHeight = frame.rotatedHeight
+        }
 
-        LKLog.e { "process frame" }
-        targetSink?.onFrame(frame)
-//        val latch = Mutex(true)
-//        surfaceTextureHelper?.handler?.post {
-////                val canvas = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-////                    surface.lockHardwareCanvas()
-////                } else {
-////                    surface.lockCanvas(null)
-////                }
-////
-////                if (canvas != null) {
-////                    eglRenderer.onFrame(frame)
-////                    surface.unlockCanvasAndPost(canvas)
-////                }
-//
-//            eglRenderer.onFrame(frame)
-//            latch.unlock()
-//        }
-//        latch.lock()
-
+        frame.retain()
+        surfaceTextureHelper.handler.post {
+            eglRenderer.onFrame(frame)
+            frame.release()
+        }
     }
 
     override fun setSink(sink: VideoSink?) {

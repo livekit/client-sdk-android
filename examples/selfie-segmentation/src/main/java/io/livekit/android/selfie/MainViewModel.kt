@@ -81,12 +81,12 @@ class MainViewModel constructor
         }
 
     init {
-//        CameraXHelper.createCameraProvider(ProcessLifecycleOwner.get()).let {
-//            if (it.isSupported(application)) {
-//                CameraCapturerUtils.registerCameraProvider(it)
-//                cameraProvider = it
-//            }
-//        }
+        CameraXHelper.createCameraProvider(ProcessLifecycleOwner.get(), arrayOf(imageAnalysis)).let {
+            if (it.isSupported(application)) {
+                CameraCapturerUtils.registerCameraProvider(it)
+                cameraProvider = it
+            }
+        }
     }
 
     val track = MutableLiveData<LocalVideoTrack?>(null)
