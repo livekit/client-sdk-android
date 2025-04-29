@@ -1,5 +1,6 @@
 package io.livekit.android.selfie.jsshader
 
+import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import io.livekit.android.util.LKLog
 import livekit.org.webrtc.GlShader
@@ -80,19 +81,21 @@ data class DownSamplerShader(
         LKLog.e { "applyDownsampling" }
         shader.useProgram()
 
-        ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, textureFrameBuffer.frameBufferId)
         GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
+        ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, inputTexture)
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, inputTexture)
+        GlUtil.checkNoGLES2Error("DownSamplerShader.glBindTexture");
         GLES20.glUniform1i(texture, 0)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        GlUtil.checkNoGLES2Error("DownSamplerShader.glDrawArrays");
 
         // cleanup
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
 
         GlUtil.checkNoGLES2Error("DownSamplerShader.applyDownsampling");
         return textureFrameBuffer.textureId
