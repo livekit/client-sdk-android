@@ -1,7 +1,7 @@
 package io.livekit.android.selfie.jsshader
 
-import android.opengl.GLES11Ext
 import android.opengl.GLES20
+import io.livekit.android.util.LKLog
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
 import livekit.org.webrtc.RendererCommon
@@ -35,6 +35,7 @@ class BackgroundTransformer(
 
     fun initialize() {
 
+        LKLog.e { "initialize shaders" }
         compositeShader = createCompsiteShader()
         blurShader = createBlurShader()
         boxBlurShader = createBoxBlurShader()
@@ -51,6 +52,7 @@ class BackgroundTransformer(
 
         finalMaskFrameBuffers = listOf(GlTextureFrameBuffer(GLES20.GL_RGBA), GlTextureFrameBuffer(GLES20.GL_RGBA))
 
+        initialized = true
     }
 
     override fun drawOes(
@@ -63,21 +65,21 @@ class BackgroundTransformer(
         viewportWidth: Int,
         viewportHeight: Int,
     ) {
+        LKLog.e { "drawOes" }
         if (!initialized) {
             initialize()
         }
 
         val downSampleWidth = frameWidth / downSampleFactor
         val downSampleHeight = frameWidth / downSampleFactor
-        GLES20.glActiveTexture(frameTexture)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTextureId)
+        downSampler.prepare(downSampleWidth, downSampleHeight)
 
         val downSampledFrameTexture = downSampler.applyDownsampling(frameTexture, downSampleWidth, downSampleHeight, texMatrix)
         val backgroundTexture = blurShader.applyBlur(downSampledFrameTexture, blurRadius, downSampleWidth, downSampleHeight, bgBlurTextureFrameBuffers, texMatrix)
 
         compositeShader.renderComposite(
             backgroundTextureId = backgroundTexture,
-            frameTextureId = frameTexture,
+            frameTextureId = oesTextureId,
             maskTextureId = finalMaskFrameBuffers.first().textureId,
             viewportX = viewportX,
             viewportY = viewportY,

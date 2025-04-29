@@ -1,6 +1,7 @@
 package io.livekit.android.selfie.jsshader
 
 import android.opengl.GLES20
+import io.livekit.android.util.LKLog
 import livekit.org.webrtc.GlShader
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
@@ -16,10 +17,10 @@ void main() {
 }
 """
 
-private const val DOWNSAMPLER_FRAGMENT_SHADER_SOURCE = """
+private const val DOWNSAMPLER_FRAGMENT_SHADER_SOURCE = """#extension GL_OES_EGL_image_external : require
 precision mediump float;
 varying vec2 v_uv;
-uniform sampler2D u_texture;
+uniform samplerExternalOES u_texture;
 
 void main() {
     gl_FragColor = texture2D(u_texture, v_uv);
@@ -69,10 +70,14 @@ data class DownSamplerShader(
     val inTcLocation: Int,
     val texture: Int,
 ) {
+
+    fun prepare(viewportWidth: Int, viewportHeight: Int) {
+        textureFrameBuffer.setSize(viewportWidth, viewportHeight)
+    }
+
     fun applyDownsampling(inputTexture: Int, viewportWidth: Int, viewportHeight: Int, texMatrix: FloatArray): Int {
 
-        textureFrameBuffer.setSize(viewportWidth, viewportHeight)
-
+        LKLog.e { "applyDownsampling" }
         shader.useProgram()
 
         ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
@@ -85,7 +90,9 @@ data class DownSamplerShader(
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
+        // cleanup
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
 
         GlUtil.checkNoGLES2Error("DownSamplerShader.applyDownsampling");
         return textureFrameBuffer.textureId

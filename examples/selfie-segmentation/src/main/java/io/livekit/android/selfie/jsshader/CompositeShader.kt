@@ -3,12 +3,14 @@ package io.livekit.android.selfie.jsshader
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import livekit.org.webrtc.GlShader
+import livekit.org.webrtc.GlUtil
 
 private const val COMPOSITE_FRAGMENT_SHADER_SOURCE = """#version 300 es
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 in vec2 texCoords;
 uniform sampler2D background;
-uniform sampler2D frame;
+uniform samplerExternalOES frame;
 uniform sampler2D mask;
 out vec4 fragColor;
 
@@ -77,18 +79,31 @@ data class CompositeShader(
         shader.useProgram()
 
         ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
+        GlUtil.checkNoGLES2Error("loadCoordMatrix")
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, backgroundTextureId)
         GLES20.glUniform1i(background, 0)
 
+        GlUtil.checkNoGLES2Error("GL_TEXTURE0")
         GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, frameTextureId)
         GLES20.glUniform1i(frame, 1)
+        GlUtil.checkNoGLES2Error("GL_TEXTURE1")
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE2)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, maskTextureId)
         GLES20.glUniform1i(mask, 2)
 
+        GlUtil.checkNoGLES2Error("GL_TEXTURE2")
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        GlUtil.checkNoGLES2Error("GL_TRIANGLE_STRIP")
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE2)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        GlUtil.checkNoGLES2Error("renderComposite")
     }
 }

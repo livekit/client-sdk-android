@@ -4,6 +4,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import livekit.org.webrtc.GlShader
 import livekit.org.webrtc.GlTextureFrameBuffer
+import livekit.org.webrtc.GlUtil
 
 private const val BLUR_FRAGMENT_SHADER = """#version 300 es
 precision mediump float;
@@ -67,12 +68,13 @@ data class BlurShader(
         viewportWidth: Int,
         viewportHeight: Int,
         processFrameBuffer: Pair<GlTextureFrameBuffer, GlTextureFrameBuffer>,
-        texMatrix: FloatArray
+        texMatrix: FloatArray,
     ): Int {
         shader.useProgram()
 
         ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
 
+        GlUtil.checkNoGLES2Error("BlurShader.loadCoordMatrix")
         val texelWidth = 1.0f / viewportWidth
         val texelHeight = 1.0f / viewportHeight
 
@@ -80,15 +82,18 @@ data class BlurShader(
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, processFrameBuffer.first.frameBufferId)
         GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
 
+        GlUtil.checkNoGLES2Error("BlurShader.glBindFramebuffer")
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, inputTextureId)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, inputTextureId)
+        GlUtil.checkNoGLES2Error("BlurShader.bind oes")
         GLES20.glUniform1i(texture, 0)
         GLES20.glUniform2f(texelSize, texelWidth, texelHeight)
         GLES20.glUniform2f(direction, 1.0f, 0.0f) // Horizontal
         GLES20.glUniform1f(radius, blurRadius)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
+        GlUtil.checkNoGLES2Error("BlurShader.GL_TRIANGLE_STRIP")
         // Second pass - vertical blur
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, processFrameBuffer.second.textureId)
@@ -97,8 +102,12 @@ data class BlurShader(
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
+        GlUtil.checkNoGLES2Error("BlurShader.GL_TRIANGLE_STRIP2")
+        // cleanup
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
 
+        GlUtil.checkNoGLES2Error("BlurShader.applyBlur")
         return processFrameBuffer.second.textureId
     }
 }
