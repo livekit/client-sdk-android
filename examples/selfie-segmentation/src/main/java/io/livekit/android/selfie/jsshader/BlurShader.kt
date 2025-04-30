@@ -1,6 +1,5 @@
 package io.livekit.android.selfie.jsshader
 
-import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import livekit.org.webrtc.GlShader
 import livekit.org.webrtc.GlTextureFrameBuffer
@@ -83,16 +82,16 @@ data class BlurShader(
         GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
 
         GlUtil.checkNoGLES2Error("BlurShader.glBindFramebuffer")
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + inputTextureId)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, inputTextureId)
         GlUtil.checkNoGLES2Error("BlurShader.bind oes")
-        GLES20.glUniform1i(texture, 0)
+        GLES20.glUniform1i(texture, inputTextureId)
         GLES20.glUniform2f(texelSize, texelWidth, texelHeight)
         GLES20.glUniform2f(direction, 1.0f, 0.0f) // Horizontal
         GLES20.glUniform1f(radius, blurRadius)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         GlUtil.checkNoGLES2Error("BlurShader.GL_TRIANGLE_STRIP")
         // Second pass - vertical blur
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)

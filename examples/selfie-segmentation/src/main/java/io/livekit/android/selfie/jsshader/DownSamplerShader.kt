@@ -76,7 +76,14 @@ data class DownSamplerShader(
         textureFrameBuffer.setSize(viewportWidth, viewportHeight)
     }
 
-    fun applyDownsampling(inputTexture: Int, viewportWidth: Int, viewportHeight: Int, texMatrix: FloatArray): Int {
+    fun applyDownsampling(
+        inputTexture: Int,
+        frameWidth: Int,
+        frameHeight: Int,
+        viewportWidth: Int,
+        viewportHeight: Int,
+        texMatrix: FloatArray,
+    ): Int {
 
         LKLog.e { "applyDownsampling" }
         shader.useProgram()

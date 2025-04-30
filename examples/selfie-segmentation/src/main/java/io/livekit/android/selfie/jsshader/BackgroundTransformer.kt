@@ -2,6 +2,7 @@ package io.livekit.android.selfie.jsshader
 
 import android.opengl.GLES20
 import io.livekit.android.util.LKLog
+import livekit.org.webrtc.GlRectDrawer
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
 import livekit.org.webrtc.RendererCommon
@@ -9,7 +10,7 @@ import livekit.org.webrtc.RendererCommon
 
 class BackgroundTransformer(
     val blurRadius: Float = 16f,
-    val downSampleFactor: Int = 4,
+    val downSampleFactor: Int = 2,
 ) : RendererCommon.GlDrawer {
 
     lateinit var compositeShader: CompositeShader
@@ -31,6 +32,7 @@ class BackgroundTransformer(
 
     lateinit var finalMaskFrameBuffers: List<GlTextureFrameBuffer>
 
+    lateinit var glRectDrawer: GlRectDrawer
     var initialized = false
 
     fun initialize() {
@@ -52,7 +54,20 @@ class BackgroundTransformer(
 
         finalMaskFrameBuffers = listOf(GlTextureFrameBuffer(GLES20.GL_RGBA), GlTextureFrameBuffer(GLES20.GL_RGBA))
 
+        glRectDrawer = GlRectDrawer()
         initialized = true
+    }
+
+    companion object {
+
+        val IDENTITY =
+            floatArrayOf(
+                1f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f,
+                0f, 0f, 1f, 0f,
+                0f, 0f, 0f, 1f,
+            )
+
     }
 
     override fun drawOes(
@@ -74,19 +89,22 @@ class BackgroundTransformer(
         val downSampleHeight = frameWidth / downSampleFactor
         downSampler.prepare(downSampleWidth, downSampleHeight)
 
-        val downSampledFrameTexture = downSampler.applyDownsampling(frameTexture, downSampleWidth, downSampleHeight, texMatrix)
-        val backgroundTexture = blurShader.applyBlur(downSampledFrameTexture, blurRadius, downSampleWidth, downSampleHeight, bgBlurTextureFrameBuffers, texMatrix)
+        val downSampledFrameTexture = downSampler.applyDownsampling(oesTextureId, frameWidth, frameHeight, downSampleWidth, downSampleHeight, texMatrix)
+        val backgroundTexture =
+            blurShader.applyBlur(downSampledFrameTexture, blurRadius, downSampleWidth, downSampleHeight, bgBlurTextureFrameBuffers, IDENTITY)
+//
+//        compositeShader.renderComposite(
+//            backgroundTextureId = backgroundTexture,
+//            frameTextureId = oesTextureId,
+//            maskTextureId = finalMaskFrameBuffers.first().textureId,
+//            viewportX = viewportX,
+//            viewportY = viewportY,
+//            viewportWidth = viewportWidth,
+//            viewportHeight = viewportHeight,
+//            texMatrix = texMatrix,
+//        )
 
-        compositeShader.renderComposite(
-            backgroundTextureId = backgroundTexture,
-            frameTextureId = oesTextureId,
-            maskTextureId = finalMaskFrameBuffers.first().textureId,
-            viewportX = viewportX,
-            viewportY = viewportY,
-            viewportWidth = viewportWidth,
-            viewportHeight = viewportHeight,
-            texMatrix = texMatrix,
-        )
+        glRectDrawer.drawRgb(downSampledFrameTexture, IDENTITY, frameWidth, frameHeight, viewportX, viewportY, viewportWidth, viewportHeight)
     }
 
 
