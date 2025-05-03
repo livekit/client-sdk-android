@@ -1534,7 +1534,9 @@ internal constructor(
      * @suppress
      */
     fun cleanup() {
+        defaultAudioTrack?.dispose()
         defaultAudioTrack = null
+        defaultVideoTrack?.dispose()
         defaultVideoTrack = null
         for (pub in trackPublications.values) {
             val track = pub.track
