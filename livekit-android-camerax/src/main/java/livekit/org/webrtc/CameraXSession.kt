@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,10 +32,12 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ExtendableBuilder
 import androidx.camera.core.Preview
 import androidx.camera.core.Preview.SurfaceProvider
 import androidx.camera.core.UseCase
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -154,9 +156,6 @@ internal constructor(
                     } ?: request.willNotProvideSurface()
                 }
 
-                // Set image analysis - camera params
-                val imageAnalysis = setImageAnalysis()
-
                 // Select camera by ID
                 val cameraSelector = CameraSelector.Builder()
                     .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraId } }
@@ -166,6 +165,17 @@ internal constructor(
                     ContextCompat.getMainExecutor(context).execute {
                         // Preview
                         val preview = Preview.Builder()
+                            .setResolutionSelector(
+                                ResolutionSelector.Builder()
+                                    .setResolutionStrategy(
+                                        ResolutionStrategy(
+                                            Size(captureFormat?.width ?: width, captureFormat?.height ?: height),
+                                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                                        ),
+                                    )
+                                    .build(),
+                            )
+                            .applyCameraSettings()
                             .build()
                             .also {
                                 it.setSurfaceProvider(surfaceProvider)
@@ -178,7 +188,6 @@ internal constructor(
                         camera = cameraProvider.bindToLifecycle(
                             lifecycleOwner,
                             cameraSelector,
-                            imageAnalysis,
                             preview,
                             *useCases,
                         )
@@ -195,36 +204,34 @@ internal constructor(
         )
     }
 
-    private fun setImageAnalysis() = ImageAnalysis.Builder()
-        .setTargetResolution(Size(captureFormat?.width ?: width, captureFormat?.height ?: height))
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).apply {
-            val cameraExtender = Camera2Interop.Extender(this)
-            captureFormat?.let { captureFormat ->
-                cameraExtender.setCaptureRequestOption(
-                    CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                    Range(
-                        captureFormat.framerate.min / fpsUnitFactor,
-                        captureFormat.framerate.max / fpsUnitFactor,
-                    ),
-                )
-                cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, false)
-                when (stabilizationMode) {
-                    StabilizationMode.OPTICAL -> {
-                        cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_ON)
-                        cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_OFF)
-                    }
+    private fun <T> ExtendableBuilder<T>.applyCameraSettings(): ExtendableBuilder<T> {
+        val cameraExtender = Camera2Interop.Extender(this)
+        val captureFormat = this@CameraXSession.captureFormat ?: return this
+        cameraExtender.setCaptureRequestOption(
+            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+            Range(
+                captureFormat.framerate.min / fpsUnitFactor,
+                captureFormat.framerate.max / fpsUnitFactor,
+            ),
+        )
+        cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+        cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, false)
+        when (stabilizationMode) {
+            StabilizationMode.OPTICAL -> {
+                cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_ON)
+                cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_OFF)
+            }
 
-                    StabilizationMode.VIDEO -> {
-                        cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_ON)
-                        cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_OFF)
-                    }
+            StabilizationMode.VIDEO -> {
+                cameraExtender.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CONTROL_VIDEO_STABILIZATION_MODE_ON)
+                cameraExtender.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, LENS_OPTICAL_STABILIZATION_MODE_OFF)
+            }
 
-                    else -> Unit
-                }
+            else -> {
             }
         }
-        .build()
+        return this
+    }
 
     private fun stopInternal() {
         Logging.d(TAG, "Stop internal")
