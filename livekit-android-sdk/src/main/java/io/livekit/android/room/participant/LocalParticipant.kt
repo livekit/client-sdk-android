@@ -279,10 +279,11 @@ internal constructor(
      *
      * @see Room.videoTrackCaptureDefaults
      * @see Room.videoTrackPublishDefaults
+     * @return true if the change was successful, or false if it failed.
      */
     @Throws(TrackException.PublishException::class)
-    suspend fun setCameraEnabled(enabled: Boolean) {
-        setTrackEnabled(Track.Source.CAMERA, enabled)
+    suspend fun setCameraEnabled(enabled: Boolean): Boolean {
+        return setTrackEnabled(Track.Source.CAMERA, enabled)
     }
 
     /**
@@ -294,10 +295,11 @@ internal constructor(
      *
      * @see Room.audioTrackCaptureDefaults
      * @see Room.audioTrackPublishDefaults
+     * @return true if the change was successful, or false if it failed.
      */
     @Throws(TrackException.PublishException::class)
-    suspend fun setMicrophoneEnabled(enabled: Boolean) {
-        setTrackEnabled(Track.Source.MICROPHONE, enabled)
+    suspend fun setMicrophoneEnabled(enabled: Boolean): Boolean {
+        return setTrackEnabled(Track.Source.MICROPHONE, enabled)
     }
 
     /**
@@ -315,30 +317,35 @@ internal constructor(
      * @see Room.screenShareTrackCaptureDefaults
      * @see Room.screenShareTrackPublishDefaults
      * @see ScreenAudioCapturer
+     * @return true if the change was successful, or false if it failed.
      */
     @Throws(TrackException.PublishException::class)
     suspend fun setScreenShareEnabled(
         enabled: Boolean,
         screenCaptureParams: ScreenCaptureParams? = null,
-    ) {
-        setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, screenCaptureParams)
+    ): Boolean {
+        return setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, screenCaptureParams)
     }
 
     private suspend fun setTrackEnabled(
         source: Track.Source,
         enabled: Boolean,
         screenCaptureParams: ScreenCaptureParams? = null,
-    ) {
+    ): Boolean {
+        var success = false
         val pubLock = sourcePubLocks[source]!!
         pubLock.withLock {
             val pub = getTrackPublication(source)
             if (enabled) {
                 if (pub != null) {
+                    // Publication exists, just unmute the existing track.
                     pub.muted = false
                     if (source == Track.Source.CAMERA && pub.track is LocalVideoTrack) {
                         (pub.track as? LocalVideoTrack)?.startCapture()
                     }
+                    success = true
                 } else {
+                    // Not published yet, create the default track and publish.
                     when (source) {
                         Track.Source.CAMERA -> {
                             val track = getOrCreateDefaultVideoTrack()
@@ -347,6 +354,8 @@ internal constructor(
                             if (!publishVideoTrack(track)) {
                                 track.stopCapture()
                                 track.stop()
+                            } else {
+                                success = true
                             }
                         }
 
@@ -357,6 +366,8 @@ internal constructor(
                             if (!publishAudioTrack(track)) {
                                 track.stop()
                                 track.stopPrewarm()
+                            } else {
+                                success = true
                             }
                         }
 
@@ -378,6 +389,8 @@ internal constructor(
                                     stop()
                                     dispose()
                                 }
+                            } else {
+                                success = true
                             }
                         }
 
@@ -400,9 +413,12 @@ internal constructor(
                         }
                     }
                 }
+                success = true
             }
             return@withLock
         }
+
+        return success
     }
 
     /**
