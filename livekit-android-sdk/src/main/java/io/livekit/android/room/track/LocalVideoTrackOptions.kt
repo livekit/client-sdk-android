@@ -25,7 +25,15 @@ data class LocalVideoTrackOptions(
      * will prefer a camera according to [position]
      */
     val deviceId: String? = null,
+    /**
+     * The camera position to use.
+     */
     val position: CameraPosition? = CameraPosition.FRONT,
+    /**
+     * Video capture options such as resolution and framerate.
+     *
+     * See [VideoPreset169] or [VideoPreset43] for preset parameters for common resolutions.
+     */
     val captureParams: VideoCaptureParameter = VideoPreset169.H720.capture,
 )
 
