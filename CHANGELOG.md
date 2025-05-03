@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.14.2
+
+### Patch Changes
+
+- Fix CameraXSession not setting the target capture format correctly - [#652](https://github.com/livekit/client-sdk-android/pull/652) ([@davidliu](https://github.com/davidliu))
+
+- Improved handling of track publication failures by introducing a new TrackPublicationFailed event and fixing a broken state issue where the track remained active but inaccessible, causing the microphone or camera to stay on without a published track and leading to unreliable republishing. - [#637](https://github.com/livekit/client-sdk-android/pull/637) ([@jeankruger](https://github.com/jeankruger))
+
 ## 2.14.1
 
 ### Patch Changes
