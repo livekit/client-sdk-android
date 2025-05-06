@@ -104,7 +104,7 @@ class BackgroundTransformer(
 //            texMatrix = texMatrix,
 //        )
 
-        glRectDrawer.drawRgb(downSampledFrameTexture, IDENTITY, frameWidth, frameHeight, viewportX, viewportY, viewportWidth, viewportHeight)
+        glRectDrawer.drawRgb(backgroundTexture, IDENTITY, frameWidth, frameHeight, viewportX, viewportY, viewportWidth, viewportHeight)
     }
 
 
