@@ -74,18 +74,8 @@ data class BlurShader(
         viewportWidth: Int,
         viewportHeight: Int,
         processFrameBuffer: Pair<GlTextureFrameBuffer, GlTextureFrameBuffer>,
-        texMatrix: FloatArray,
     ): Int {
         shader.useProgram()
-
-//        ShaderUtil.loadCoordMatrix(
-//            inPosLocation = inPosLocation,
-//            inPosFloats = FULL_RECTANGLE_TEXTURE_BUFFER,
-//            inTcLocation = inTcLocation,
-//            inTcFloats = FULL_RECTANGLE_TEXTURE_BUFFER,
-//            texMatrixLocation = texMatrixLocation,
-//            texMatrix = texMatrix,
-//        )
 
         // Upload the texture coordinates.
         GLES20.glEnableVertexAttribArray(inPosLocation);
@@ -121,14 +111,20 @@ data class BlurShader(
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         GlUtil.checkNoGLES2Error("BlurShader.GL_TRIANGLE_STRIP")
 
-//        // Second pass - vertical blur
+        // cleanup
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+
+        // Second pass - vertical blur
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, processFrameBuffer.second.frameBufferId)
         GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, processFrameBuffer.first.textureId)
         GLES20.glUniform1i(texture, 0)
+        GLES20.glUniform2f(texelSize, texelWidth, texelHeight)
         GLES20.glUniform2f(direction, 0.0f, 1.0f) // Vertical
+        GLES20.glUniform1f(radius, blurRadius)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
@@ -138,7 +134,6 @@ data class BlurShader(
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
 
         GlUtil.checkNoGLES2Error("BlurShader.applyBlur")
-        //return processFrameBuffer.second.textureId
-        return processFrameBuffer.first.textureId
+        return processFrameBuffer.second.textureId
     }
 }

@@ -2,7 +2,6 @@ package io.livekit.android.selfie.jsshader
 
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
-import io.livekit.android.util.LKLog
 import livekit.org.webrtc.GlShader
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
@@ -13,7 +12,7 @@ attribute vec4 in_tc;
 uniform mat4 tex_mat;
 varying vec2 v_uv;
 void main() {
-    v_uv = ((tex_mat * in_tc).xy + 1.0) * 0.5;
+    v_uv = (tex_mat * in_tc).xy;
     gl_Position = in_pos;
 }
 """
@@ -49,11 +48,11 @@ val FULL_RECTANGLE_TEXTURE_BUFFER = GlUtil.createFloatBuffer(
     ),
 )
 
-fun createDownSampler(): DownSamplerShader {
+fun createResampler(): ResamplerShader {
     val textureFrameBuffer = GlTextureFrameBuffer(GLES20.GL_RGBA)
     val shader = GlShader(DOWNSAMPLER_VERTEX_SHADER_SOURCE, DOWNSAMPLER_FRAGMENT_SHADER_SOURCE)
 
-    return DownSamplerShader(
+    return ResamplerShader(
         shader = shader,
         textureFrameBuffer = textureFrameBuffer,
         texMatrixLocation = shader.getUniformLocation(VERTEX_SHADER_TEX_MAT_NAME),
@@ -63,7 +62,10 @@ fun createDownSampler(): DownSamplerShader {
     )
 }
 
-data class DownSamplerShader(
+/**
+ * A shader that resamples a texture at a new size.
+ */
+data class ResamplerShader(
     val shader: GlShader,
     val textureFrameBuffer: GlTextureFrameBuffer,
     val texMatrixLocation: Int,
@@ -76,35 +78,37 @@ data class DownSamplerShader(
         textureFrameBuffer.setSize(viewportWidth, viewportHeight)
     }
 
-    fun applyDownsampling(
+    fun resample(
         inputTexture: Int,
-        frameWidth: Int,
-        frameHeight: Int,
-        viewportWidth: Int,
-        viewportHeight: Int,
+        newWidth: Int,
+        newHeight: Int,
         texMatrix: FloatArray,
     ): Int {
 
-        LKLog.e { "applyDownsampling" }
         shader.useProgram()
 
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, textureFrameBuffer.frameBufferId)
-        GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
-        ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
+        GLES20.glViewport(0, 0, newWidth, newHeight)
+        ShaderUtil.loadCoordMatrix(
+            inPosLocation = inPosLocation,
+            inTcLocation = inTcLocation,
+            texMatrixLocation = texMatrixLocation,
+            texMatrix = texMatrix,
+        )
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, inputTexture)
-        GlUtil.checkNoGLES2Error("DownSamplerShader.glBindTexture");
+        GlUtil.checkNoGLES2Error("ResamplerShader.glBindTexture");
         GLES20.glUniform1i(texture, 0)
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        GlUtil.checkNoGLES2Error("DownSamplerShader.glDrawArrays");
+        GlUtil.checkNoGLES2Error("ResamplerShader.glDrawArrays");
 
         // cleanup
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
 
-        GlUtil.checkNoGLES2Error("DownSamplerShader.applyDownsampling");
+        GlUtil.checkNoGLES2Error("ResamplerShader.applyDownsampling");
         return textureFrameBuffer.textureId
     }
 }
