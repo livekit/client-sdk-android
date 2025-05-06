@@ -72,6 +72,8 @@ data class BlurShader(
         shader.useProgram()
 
         ShaderUtil.loadCoordMatrix(inPosLocation = inPosLocation, inTcLocation = inTcLocation, texMatrixLocation = texMatrixLocation, texMatrix = texMatrix)
+        processFrameBuffer.first.setSize(viewportWidth, viewportHeight)
+        processFrameBuffer.second.setSize(viewportWidth, viewportHeight)
 
         GlUtil.checkNoGLES2Error("BlurShader.loadCoordMatrix")
         val texelWidth = 1.0f / viewportWidth
