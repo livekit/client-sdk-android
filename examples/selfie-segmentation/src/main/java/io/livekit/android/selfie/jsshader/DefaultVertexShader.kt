@@ -11,6 +11,16 @@ void main() {
 }
 """
 
+const val CONSTANT_VERTEX_SHADER_SOURCE = """#version 300 es
+in vec2 in_pos;
+out vec2 texCoords;
+
+void main() {
+    texCoords = (in_pos + 1.0) / 2.0;
+    gl_Position = vec4(in_pos, 0, 1.0);
+}
+"""
+
 const val VERTEX_SHADER_TEX_MAT_NAME = "tex_mat"
 const val VERTEX_SHADER_TEX_COORD_NAME = "in_tc"
 const val VERTEX_SHADER_POS_COORD_NAME = "in_pos"
