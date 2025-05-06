@@ -86,7 +86,7 @@ class BackgroundTransformer(
         }
 
         val downSampleWidth = frameWidth / downSampleFactor
-        val downSampleHeight = frameWidth / downSampleFactor
+        val downSampleHeight = frameHeight / downSampleFactor
         downSampler.prepare(downSampleWidth, downSampleHeight)
 
         val downSampledFrameTexture = downSampler.applyDownsampling(oesTextureId, frameWidth, frameHeight, downSampleWidth, downSampleHeight, texMatrix)
