@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.14.3
+
+### Patch Changes
+
+- Fixes disconnect issue - [#656](https://github.com/livekit/client-sdk-android/pull/656) ([@jeankruger](https://github.com/jeankruger))
+
 ## 2.14.2
 
 ### Patch Changes
