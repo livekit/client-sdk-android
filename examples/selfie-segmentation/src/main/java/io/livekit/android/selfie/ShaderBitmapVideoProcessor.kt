@@ -23,11 +23,11 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
-import com.google.mlkit.vision.segmentation.SegmentationMask
 import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import io.livekit.android.room.track.video.NoDropVideoProcessor
 import io.livekit.android.selfie.jsshader.BackgroundTransformer
+import io.livekit.android.selfie.jsshader.MaskHolder
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -46,7 +46,6 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter
 
-    private var lastRotation = 0
     private var lastWidth = 0
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
@@ -83,24 +82,24 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
         }
     }
 
-    private var lastMask: SegmentationMask? = null
+    private var lastMask: MaskHolder? = null
 
     private inner class ImageAnalyser : ImageAnalysis.Analyzer {
         val latch = Semaphore(1, true)
 
         @OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
-            //LKLog.e { "image received: ${imageProxy.width}x${imageProxy.height}" }
             val image = imageProxy.image
 
             if (image != null) {
-                val inputImage = InputImage.fromMediaImage(image, imageProxy.imageInfo.rotationDegrees)
-
+                // Put 0 for rotation degrees
+                // We'll rotate it together with the original video frame in the shader.
+                val inputImage = InputImage.fromMediaImage(image, 0)
                 latch.acquire()
                 val task = segmenter.process(inputImage)
                 task.addOnSuccessListener { mask ->
-                    //LKLog.e { "analyzed image with mask: ${mask.width}x${mask.height}" }
-                    lastMask = mask
+                    val holder = MaskHolder(mask.width, mask.height, mask.buffer)
+                    lastMask = holder
                     latch.release()
                 }
                 latch.acquire()
@@ -138,7 +137,7 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
         }
     }
 
-    suspend fun processFrame(frame: VideoFrame) {
+    fun processFrame(frame: VideoFrame) {
         if (lastWidth != frame.rotatedWidth || lastHeight != frame.rotatedHeight) {
             surfaceTextureHelper.setTextureSize(frame.rotatedWidth, frame.rotatedHeight)
             lastWidth = frame.rotatedWidth
@@ -147,6 +146,10 @@ class ShaderBitmapVideoProcessor(eglBase: EglBase, dispatcher: CoroutineDispatch
 
         frame.retain()
         surfaceTextureHelper.handler.post {
+            lastMask?.let {
+                backgroundTransformer.updateMask(it)
+            }
+            lastMask = null
             eglRenderer.onFrame(frame)
             frame.release()
         }

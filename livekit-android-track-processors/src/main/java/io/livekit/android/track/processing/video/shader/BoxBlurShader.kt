@@ -34,7 +34,7 @@ void main() {
 }
 """
 
-internal fun createBoxBlurShader(): BlurShader {
+fun createBoxBlurShader(): BlurShader {
     val shader = GlShader(CONSTANT_VERTEX_SHADER_SOURCE, BOX_BLUR_SHADER_SOURCE)
 
     return BlurShader(

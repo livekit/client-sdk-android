@@ -5,7 +5,7 @@ import livekit.org.webrtc.GlShader
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
 
-internal const val BLUR_FRAGMENT_SHADER = """#version 300 es
+const val BLUR_FRAGMENT_SHADER = """#version 300 es
 precision mediump float;
 
 in vec2 texCoords;
@@ -38,13 +38,15 @@ void main() {
 }
 """
 
-internal fun createBlurShader(): BlurShader {
+fun createBlurShader(): BlurShader {
     val shader = GlShader(CONSTANT_VERTEX_SHADER_SOURCE, BLUR_FRAGMENT_SHADER)
 
     return BlurShader(
         shader = shader,
+//        texMatrixLocation = shader.getUniformLocation(VERTEX_SHADER_TEX_MAT_NAME),
         texMatrixLocation = 0,
         inPosLocation = shader.getAttribLocation(VERTEX_SHADER_POS_COORD_NAME),
+//        inTcLocation = shader.getAttribLocation(VERTEX_SHADER_TEX_COORD_NAME),
         inTcLocation = 0,
         texture = shader.getUniformLocation("u_texture"),
         texelSize = shader.getUniformLocation("u_texelSize"),
@@ -54,7 +56,7 @@ internal fun createBlurShader(): BlurShader {
 }
 
 
-internal data class BlurShader(
+data class BlurShader(
     val shader: GlShader,
     val inPosLocation: Int,
     val inTcLocation: Int,
