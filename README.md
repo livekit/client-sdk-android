@@ -50,8 +50,12 @@ dependencies {
   def livekit_version = "2.15.0"
 
   implementation "io.livekit:livekit-android:$livekit_version"
+
   // CameraX support with pinch to zoom, torch control, etc.
   implementation "io.livekit:livekit-android-camerax:$livekit_version"
+
+  // Track processors, such as virtual background
+  implementation "io.livekit:livekit-android-track-processors:$livekit_version"
 
   // Snapshots of the latest development version are available at:
   // implementation "io.livekit:livekit-android:2.15.1-SNAPSHOT"
