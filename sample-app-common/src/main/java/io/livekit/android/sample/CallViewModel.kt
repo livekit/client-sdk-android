@@ -98,9 +98,6 @@ class CallViewModel(
         overrides = LiveKitOverrides(
             audioOptions = AudioOptions(
                 audioProcessorOptions = audioProcessorOptions,
-                javaAudioDeviceModuleCustomizer = { builder ->
-                    builder.setUseStereoInput(true)
-                }
             ),
         ),
     )
