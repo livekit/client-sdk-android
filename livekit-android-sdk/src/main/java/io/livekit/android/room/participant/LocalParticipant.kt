@@ -109,7 +109,9 @@ internal constructor(
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
     private val outgoingDataStreamManager: OutgoingDataStreamManager,
-) : Participant(Sid(""), null, coroutineDispatcher), OutgoingDataStreamManager by outgoingDataStreamManager {
+) : Participant(Sid(""), null, coroutineDispatcher),
+    OutgoingDataStreamManager by outgoingDataStreamManager,
+    RpcManager {
 
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
     var audioTrackPublishDefaults: AudioTrackPublishDefaults by defaultsManager::audioTrackPublishDefaults
@@ -988,7 +990,7 @@ internal constructor(
      * @see performRpc
      */
     @Suppress("RedundantSuspendModifier")
-    suspend fun registerRpcMethod(
+    override suspend fun registerRpcMethod(
         method: String,
         handler: RpcHandler,
     ) {
@@ -1000,7 +1002,7 @@ internal constructor(
      *
      * @param method The name of the RPC method to unregister
      */
-    fun unregisterRpcMethod(
+    override fun unregisterRpcMethod(
         method: String,
     ) {
         this.rpcHandlers.remove(method)
@@ -1056,11 +1058,11 @@ internal constructor(
      * @return The response payload.
      * @throws RpcError on failure. Details in [RpcError.message].
      */
-    suspend fun performRpc(
+    override suspend fun performRpc(
         destinationIdentity: Identity,
         method: String,
         payload: String,
-        responseTimeout: Duration = 10.seconds,
+        responseTimeout: Duration,
     ): String = coroutineScope {
         val maxRoundTripLatency = 2.seconds
 

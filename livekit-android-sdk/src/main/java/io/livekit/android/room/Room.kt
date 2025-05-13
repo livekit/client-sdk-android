@@ -47,6 +47,7 @@ import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.participant.*
 import io.livekit.android.room.provisions.LKObjects
+import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.track.*
 import io.livekit.android.room.types.toSDKType
 import io.livekit.android.room.util.ConnectionWarmer
@@ -69,6 +70,7 @@ import livekit.org.webrtc.audio.AudioDeviceModule
 import java.net.URI
 import java.util.Date
 import javax.inject.Named
+import kotlin.time.Duration
 
 class Room
 @AssistedInject
@@ -108,7 +110,7 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
-) : RTCEngine.Listener, ParticipantListener, IncomingDataStreamManager by incomingDataStreamManager {
+) : RTCEngine.Listener, ParticipantListener, RpcManager, IncomingDataStreamManager by incomingDataStreamManager {
 
     private lateinit var coroutineScope: CoroutineScope
     private val eventBus = BroadcastEventBus<RoomEvent>()
@@ -1039,6 +1041,19 @@ constructor(
             }
         },
     )
+
+    // ----------------------------------- RpcManager ------------------------------------//
+    override suspend fun registerRpcMethod(method: String, handler: RpcHandler) {
+        localParticipant.registerRpcMethod(method, handler)
+    }
+
+    override fun unregisterRpcMethod(method: String) {
+        localParticipant.unregisterRpcMethod(method)
+    }
+
+    override suspend fun performRpc(destinationIdentity: Participant.Identity, method: String, payload: String, responseTimeout: Duration): String {
+        return localParticipant.performRpc(destinationIdentity, method, payload, responseTimeout)
+    }
 
     // ----------------------------------- RTCEngine.Listener ------------------------------------//
 
