@@ -21,11 +21,13 @@ okhttp = "4.12.0"
 preferenceKtx = "1.2.1"
 protobuf = "3.22.0"
 protobufJavalite = "3.22.0"
+segmentationSelfie = "16.0.0-beta6"
 semver4j = "3.1.0"
 appcompat = "1.6.1"
 material = "1.12.0"
 viewpager2 = "1.0.0"
 noise = "2.0.0"
+lifecycleProcess = "2.8.7"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
@@ -56,6 +58,7 @@ leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", ve
 okhttp-lib = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-coroutines = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavalite" }
+segmentation-selfie = { module = "com.google.mlkit:segmentation-selfie", version.ref = "segmentationSelfie" }
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 webrtc = { module = "io.github.webrtc-sdk:android-prefixed", version.ref = "webrtc" }
 
@@ -103,6 +106,7 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
 
 [plugins]
 

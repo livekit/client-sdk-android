@@ -12,7 +12,8 @@ Utilities and composables for use with Jetpack Compose.
 
 # Package io.livekit.android.room
 
-Room is the primary class that manages the connection to the LiveKit Room. It exposes listeners that lets you hook into room events.
+Room is the primary class that manages the connection to the LiveKit Room. It exposes listeners that
+lets you hook into room events.
 
 # Package io.livekit.android.room.track
 
