@@ -160,9 +160,9 @@ class VirtualBackgroundTransformer(
                         backgroundImage.width,
                         backgroundImage.height,
                         /*format*/
-                            GLES20.GL_RGBA,
+                        GLES20.GL_RGBA,
                         /*type*/
-                            GLES20.GL_UNSIGNED_BYTE,
+                        GLES20.GL_UNSIGNED_BYTE,
                         byteBuffer,
                     )
                     checkNoError("updateBackgroundFrameBuffer")
@@ -222,9 +222,9 @@ class VirtualBackgroundTransformer(
             width,
             height,
             /*format*/
-                GLES30.GL_RED,
+            GLES30.GL_RED,
             /*type*/
-                GLES20.GL_FLOAT,
+            GLES20.GL_FLOAT,
             segmentationMask.buffer,
         )
 
