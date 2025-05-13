@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.track.processing.video
 
 import android.graphics.Bitmap
@@ -75,7 +91,6 @@ class VirtualBackgroundTransformer(
     var initialized = false
 
     fun initialize() {
-
         LKLog.e { "initialize shaders" }
         compositeShader = createCompsiteShader()
         blurShader = createBlurShader()
@@ -126,7 +141,6 @@ class VirtualBackgroundTransformer(
                 val bgTextureFrameBuffer = bgTextureFrameBuffers.first
 
                 if (backgroundImageNeedsUploading || true) {
-
                     val byteBuffer = ByteBuffer.allocateDirect(backgroundImage.byteCount)
                     backgroundImage.copyPixelsToBuffer(byteBuffer)
                     byteBuffer.rewind()
@@ -138,19 +152,21 @@ class VirtualBackgroundTransformer(
                     checkNoError("bindBackgroundTexture")
 
                     GLES20.glTexSubImage2D(
-                        /*target*/ GLES20.GL_TEXTURE_2D,
+                        /*target*/
+                        GLES20.GL_TEXTURE_2D,
                         0,
                         0,
                         0,
                         backgroundImage.width,
                         backgroundImage.height,
-                        /*format*/GLES20.GL_RGBA,
-                        /*type*/GLES20.GL_UNSIGNED_BYTE,
+                        /*format*/
+                            GLES20.GL_RGBA,
+                        /*type*/
+                            GLES20.GL_UNSIGNED_BYTE,
                         byteBuffer,
                     )
                     checkNoError("updateBackgroundFrameBuffer")
                     backgroundImageNeedsUploading = false
-
                 }
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
                 backgroundTexture = bgTextureFrameBuffer.textureId
@@ -174,7 +190,6 @@ class VirtualBackgroundTransformer(
             viewportHeight = viewportHeight,
             texMatrix = texMatrix,
         )
-
     }
 
     /**
@@ -185,7 +200,6 @@ class VirtualBackgroundTransformer(
     }
 
     private fun updateMaskFrameBuffer(segmentationMask: MaskHolder) {
-
         val width = segmentationMask.width
         val height = segmentationMask.height
 
@@ -200,14 +214,17 @@ class VirtualBackgroundTransformer(
         checkNoError("bindMaskTexture")
 
         GLES20.glTexSubImage2D(
-            /*target*/ GLES20.GL_TEXTURE_2D,
+            /*target*/
+            GLES20.GL_TEXTURE_2D,
             0,
             0,
             0,
             width,
             height,
-            /*format*/GLES30.GL_RED,
-            /*type*/GLES20.GL_FLOAT,
+            /*format*/
+                GLES30.GL_RED,
+            /*type*/
+                GLES20.GL_FLOAT,
             segmentationMask.buffer,
         )
 
@@ -233,7 +250,6 @@ class VirtualBackgroundTransformer(
     }
 
     override fun release() {
-
         compositeShader.release()
         blurShader.release()
         boxBlurShader.release()
@@ -259,12 +275,9 @@ class VirtualBackgroundTransformer(
                 0f, 0f, 1f, 0f,
                 0f, 0f, 0f, 1f,
             )
-
     }
 
     private fun checkNoError(message: String) {
         GlUtil.checkNoGLES2Error("$TAG.$message")
     }
-
 }
-

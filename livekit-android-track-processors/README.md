@@ -20,7 +20,7 @@ This package exposes `VirtualBackgroundVideoProcessor` as a pre-prepared video p
 ```
 val processor = VirtualBackgroundVideoProcessor(eglBase).apply {
     // Optionally set a background image.
-    // Will blur the background of the video if none is set.  
+    // Will blur the background of the video if none is set.
     val drawable = AppCompatResources.getDrawable(application, R.drawable.background) as BitmapDrawable
     backgroundImage = drawable.bitmap
 }
