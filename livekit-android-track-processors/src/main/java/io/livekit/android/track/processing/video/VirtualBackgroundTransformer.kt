@@ -1,5 +1,6 @@
 package io.livekit.android.track.processing.video
 
+import android.graphics.Bitmap
 import android.opengl.GLES20
 import android.opengl.GLES30
 import io.livekit.android.track.processing.video.opengl.LKGlTextureFrameBuffer
@@ -33,9 +34,23 @@ class VirtualBackgroundTransformer(
     private var bgTexture = 0
     private var frameTexture = 0
 
-    private lateinit var bgBlurTextureFrameBuffers: Pair<GlTextureFrameBuffer, GlTextureFrameBuffer>
+    private lateinit var bgTextureFrameBuffers: Pair<GlTextureFrameBuffer, GlTextureFrameBuffer>
 
     private lateinit var downSampler: ResamplerShader
+
+    var backgroundImageStateLock = Any()
+    var backgroundImage: Bitmap? = null
+        set(value) {
+            if (value == field) {
+                return
+            }
+
+            synchronized(backgroundImageStateLock) {
+                field = value
+                backgroundImageNeedsUploading = true
+            }
+        }
+    var backgroundImageNeedsUploading = false
 
     // For double buffering the final mask
     private var readMaskIndex = 0 // Index for renderFrame to read from
@@ -69,7 +84,7 @@ class VirtualBackgroundTransformer(
         bgTexture = GlUtil.generateTexture(GLES20.GL_TEXTURE_2D)
         frameTexture = GlUtil.generateTexture(GLES20.GL_TEXTURE_2D)
 
-        bgBlurTextureFrameBuffers = GlTextureFrameBuffer(GLES20.GL_RGBA) to GlTextureFrameBuffer(GLES20.GL_RGBA)
+        bgTextureFrameBuffers = GlTextureFrameBuffer(GLES20.GL_RGBA) to GlTextureFrameBuffer(GLES20.GL_RGBA)
 
         downSampler = createResampler()
 
@@ -81,18 +96,6 @@ class VirtualBackgroundTransformer(
 
         GlUtil.checkNoGLES2Error("VirtualBackgroundTransformer.initialize")
         initialized = true
-    }
-
-    companion object {
-
-        val IDENTITY =
-            floatArrayOf(
-                1f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f,
-                0f, 0f, 1f, 0f,
-                0f, 0f, 0f, 1f,
-            )
-
     }
 
     override fun drawOes(
@@ -115,12 +118,51 @@ class VirtualBackgroundTransformer(
             newMask = null
         }
 
-        val downSampleWidth = frameWidth / downSampleFactor
-        val downSampleHeight = frameHeight / downSampleFactor
+        val backgroundTexture: Int
 
-        val downSampledFrameTexture = downSampler.resample(oesTextureId, downSampleWidth, downSampleHeight, IDENTITY)
-        val backgroundTexture =
-            blurShader.applyBlur(downSampledFrameTexture, blurRadius, downSampleWidth, downSampleHeight, bgBlurTextureFrameBuffers)
+        synchronized(backgroundImageStateLock) {
+            val backgroundImage = this.backgroundImage
+            if (backgroundImage != null) {
+                val bgTextureFrameBuffer = bgTextureFrameBuffers.first
+
+                if (backgroundImageNeedsUploading || true) {
+
+                    val byteBuffer = ByteBuffer.allocateDirect(backgroundImage.byteCount)
+                    backgroundImage.copyPixelsToBuffer(byteBuffer)
+                    byteBuffer.rewind()
+
+                    // Upload the background into a texture
+                    bgTextureFrameBuffer.setSize(backgroundImage.width, backgroundImage.height)
+                    GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, bgTextureFrameBuffer.textureId)
+                    checkNoError("bindBackgroundTexture")
+
+                    GLES20.glTexSubImage2D(
+                        /*target*/ GLES20.GL_TEXTURE_2D,
+                        0,
+                        0,
+                        0,
+                        backgroundImage.width,
+                        backgroundImage.height,
+                        /*format*/GLES20.GL_RGBA,
+                        /*type*/GLES20.GL_UNSIGNED_BYTE,
+                        byteBuffer,
+                    )
+                    checkNoError("updateBackgroundFrameBuffer")
+                    backgroundImageNeedsUploading = false
+
+                }
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+                backgroundTexture = bgTextureFrameBuffer.textureId
+            } else {
+                val downSampleWidth = frameWidth / downSampleFactor
+                val downSampleHeight = frameHeight / downSampleFactor
+
+                val downSampledFrameTexture = downSampler.resample(oesTextureId, downSampleWidth, downSampleHeight, IDENTITY)
+                backgroundTexture =
+                    blurShader.applyBlur(downSampledFrameTexture, blurRadius, downSampleWidth, downSampleHeight, bgTextureFrameBuffers)
+            }
+        }
 
         compositeShader.renderComposite(
             backgroundTextureId = backgroundTexture,
@@ -155,7 +197,7 @@ class VirtualBackgroundTransformer(
         // Upload the mask into a texture
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, anotherTempMaskFrameBuffer.textureId)
-        GlUtil.checkNoGLES2Error("BackgroundTransformer.glBindTexture")
+        checkNoError("bindMaskTexture")
 
         GLES20.glTexSubImage2D(
             /*target*/ GLES20.GL_TEXTURE_2D,
@@ -169,7 +211,7 @@ class VirtualBackgroundTransformer(
             segmentationMask.buffer,
         )
 
-        GlUtil.checkNoGLES2Error("BackgroundTransformer.updateMaskFrameBuffer")
+        checkNoError("updateMaskFrameBuffer")
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
 
@@ -196,8 +238,8 @@ class VirtualBackgroundTransformer(
         blurShader.release()
         boxBlurShader.release()
 
-        bgBlurTextureFrameBuffers.first.release()
-        bgBlurTextureFrameBuffers.second.release()
+        bgTextureFrameBuffers.first.release()
+        bgTextureFrameBuffers.second.release()
         downSampler.release()
 
         anotherTempMaskFrameBuffer.release()
@@ -205,7 +247,24 @@ class VirtualBackgroundTransformer(
         finalMaskFrameBuffers.forEach {
             it.release()
         }
+    }
+
+    companion object {
+
+        val TAG = VirtualBackgroundTransformer::class.java.simpleName
+        val IDENTITY =
+            floatArrayOf(
+                1f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f,
+                0f, 0f, 1f, 0f,
+                0f, 0f, 0f, 1f,
+            )
 
     }
+
+    private fun checkNoError(message: String) {
+        GlUtil.checkNoGLES2Error("$TAG.$message")
+    }
+
 }
 

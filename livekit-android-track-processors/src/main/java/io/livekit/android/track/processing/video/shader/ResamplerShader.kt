@@ -76,6 +76,7 @@ internal data class ResamplerShader(
 
     fun release() {
         shader.release()
+        textureFrameBuffer.release()
     }
 
     fun resample(

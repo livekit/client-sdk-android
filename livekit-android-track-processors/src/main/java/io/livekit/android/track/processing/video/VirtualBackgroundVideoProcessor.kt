@@ -16,6 +16,8 @@
 
 package io.livekit.android.track.processing.video
 
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.view.Surface
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
@@ -43,12 +45,16 @@ import java.util.concurrent.Semaphore
 
 /**
  * A virtual background video processor for the local camera video stream.
+ *
+ * By default, blurs the background of the video stream.
+ * Setting [backgroundImage] will use the provided image instead.
  */
 class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: CoroutineDispatcher = Dispatchers.Default) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
     private val segmenter: Segmenter
 
+    private var lastRotation = 0
     private var lastWidth = 0
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
@@ -73,6 +79,13 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
      * Defaults to true.
      */
     var enabled: Boolean = true
+
+    var backgroundImage: Bitmap? = null
+        set(value) {
+            field = value
+            backgroundImageNeedsUpdating = true
+        }
+    private var backgroundImageNeedsUpdating = false
 
     init {
         val options =
@@ -155,14 +168,57 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
     }
 
     fun processFrame(frame: VideoFrame) {
+        if (lastRotation != frame.rotation) {
+            lastRotation = frame.rotation
+            backgroundImageNeedsUpdating = true
+        }
+
         if (lastWidth != frame.rotatedWidth || lastHeight != frame.rotatedHeight) {
             surfaceTextureHelper.setTextureSize(frame.rotatedWidth, frame.rotatedHeight)
             lastWidth = frame.rotatedWidth
             lastHeight = frame.rotatedHeight
+            backgroundImageNeedsUpdating = true
         }
 
         frame.retain()
         surfaceTextureHelper.handler.post {
+            val backgroundImage = this.backgroundImage
+            if (backgroundImageNeedsUpdating && backgroundImage != null) {
+
+                val imageAspect = backgroundImage.width / backgroundImage.height.toFloat()
+                val targetAspect = frame.rotatedWidth / frame.rotatedHeight.toFloat()
+                var sx = 0
+                var sy = 0
+                var sWidth = backgroundImage.width
+                var sHeight = backgroundImage.height
+
+                if (imageAspect > targetAspect) {
+                    sWidth = Math.round(backgroundImage.height * targetAspect)
+                    sx = Math.round((backgroundImage.width - sWidth) / 2f)
+                } else {
+                    sHeight = Math.round(backgroundImage.width / targetAspect)
+                    sy = Math.round((backgroundImage.height - sHeight) / 2f)
+                }
+
+                val diffAspect = targetAspect / imageAspect
+
+                val matrix = Matrix()
+
+                matrix.postRotate(-frame.rotation.toFloat())
+
+                val resizedImage = Bitmap.createBitmap(
+                    backgroundImage,
+                    sx,
+                    sy,
+                    sWidth,
+                    sHeight,
+                    matrix,
+                    true,
+                )
+                backgroundTransformer.backgroundImage = resizedImage
+                backgroundImageNeedsUpdating = false
+            }
+
             lastMask?.let {
                 backgroundTransformer.updateMask(it)
             }

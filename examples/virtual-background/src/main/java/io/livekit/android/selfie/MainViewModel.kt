@@ -17,14 +17,11 @@
 package io.livekit.android.selfie
 
 import android.app.Application
-import android.util.Size
+import android.graphics.drawable.BitmapDrawable
 import androidx.annotation.OptIn
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -56,23 +53,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ),
     )
 
-    val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO)
+    val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO).apply {
+        val drawable = AppCompatResources.getDrawable(application, R.drawable.background) as BitmapDrawable
+        backgroundImage = drawable.bitmap
+    }
 
     private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
 
-    private var imageAnalysis = ImageAnalysis.Builder()
-        .setResolutionSelector(
-            ResolutionSelector.Builder()
-                .setAspectRatioStrategy(AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO))
-                .setResolutionStrategy(ResolutionStrategy(Size(640, 360), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
-                .build(),
-        )
-        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .build()
-        .apply {
-            setAnalyzer(Dispatchers.IO.asExecutor(), processor.imageAnalyzer)
-        }
+    private var imageAnalysis = ImageAnalysis.Builder().build()
+        .apply { setAnalyzer(Dispatchers.IO.asExecutor(), processor.imageAnalyzer) }
 
     init {
         CameraXHelper.createCameraProvider(ProcessLifecycleOwner.get(), arrayOf(imageAnalysis)).let {
@@ -85,15 +74,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val track = MutableLiveData<LocalVideoTrack?>(null)
 
-
     fun startCapture() {
-        val selfieVideoTrack = room.localParticipant.createVideoTrack(
+        val videoTrack = room.localParticipant.createVideoTrack(
             options = LocalVideoTrackOptions(position = CameraPosition.FRONT),
             videoProcessor = processor,
         )
 
-        selfieVideoTrack.startCapture()
-        track.postValue(selfieVideoTrack)
+        videoTrack.startCapture()
+        track.postValue(videoTrack)
     }
 
     override fun onCleared() {
