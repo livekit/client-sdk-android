@@ -41,6 +41,9 @@ import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoSink
 import java.util.concurrent.Semaphore
 
+/**
+ * A virtual background video processor for the local camera video stream.
+ */
 class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: CoroutineDispatcher = Dispatchers.Default) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
@@ -64,6 +67,12 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
         onBufferOverflow = BufferOverflow.SUSPEND,
     )
 
+    /**
+     * Enables or disables the virtual background.
+     *
+     * Defaults to true.
+     */
+    var enabled: Boolean = true
 
     init {
         val options =
@@ -91,7 +100,7 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
         override fun analyze(imageProxy: ImageProxy) {
             val image = imageProxy.image
 
-            if (image != null) {
+            if (enabled && image != null) {
                 // Put 0 for rotation degrees
                 // We'll rotate it together with the original video frame in the shader.
                 val inputImage = InputImage.fromMediaImage(image, 0)
@@ -127,12 +136,19 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
     }
 
     override fun onFrameCaptured(frame: VideoFrame) {
+        // If disabled, just pass through to the sink.
+        if (!enabled) {
+            targetSink?.onFrame(frame)
+            return
+        }
+
         try {
             frame.retain()
         } catch (e: Exception) {
             return
         }
 
+        // If the frame is succesfully emitted, the process flow will own the frame.
         if (!taskFlow.tryEmit(frame)) {
             frame.release()
         }

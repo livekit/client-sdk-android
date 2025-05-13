@@ -16,6 +16,9 @@ import livekit.org.webrtc.GlUtil
 import livekit.org.webrtc.RendererCommon
 import java.nio.ByteBuffer
 
+/**
+ * Blurs the background of the camera video stream.
+ */
 class VirtualBackgroundTransformer(
     val blurRadius: Float = 16f,
     val downSampleFactor: Int = 2,
@@ -76,6 +79,7 @@ class VirtualBackgroundTransformer(
 
         finalMaskFrameBuffers = listOf(GlTextureFrameBuffer(GLES20.GL_RGBA), GlTextureFrameBuffer(GLES20.GL_RGBA))
 
+        GlUtil.checkNoGLES2Error("VirtualBackgroundTransformer.initialize")
         initialized = true
     }
 

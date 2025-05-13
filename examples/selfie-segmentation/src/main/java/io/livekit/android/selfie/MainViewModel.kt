@@ -17,10 +17,8 @@
 package io.livekit.android.selfie
 
 import android.app.Application
-import android.os.Build
 import android.util.Size
 import androidx.annotation.OptIn
-import androidx.annotation.RequiresApi
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.ImageAnalysis
@@ -44,7 +42,6 @@ import livekit.org.webrtc.CameraXHelper
 import livekit.org.webrtc.EglBase
 
 @OptIn(ExperimentalCamera2Interop::class)
-@RequiresApi(Build.VERSION_CODES.M)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
@@ -59,10 +56,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ),
     )
 
-    // For direct I420 processing:
     val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO)
-    //val processor = SelfieVideoProcessor(Dispatchers.IO)
-    //val processor = SelfieBitmapVideoProcessor(eglBase, Dispatchers.IO)
 
     private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
 
@@ -110,5 +104,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         cameraProvider?.let {
             CameraCapturerUtils.unregisterCameraProvider(it)
         }
+    }
+
+    fun toggleProcessor(): Boolean {
+        val newState = !processor.enabled
+        processor.enabled = newState
+        return newState
     }
 }

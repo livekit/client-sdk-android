@@ -19,6 +19,7 @@ package io.livekit.android.selfie
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+
+        val enableButton = findViewById<Button>(R.id.button)
+        enableButton.setOnClickListener {
+            val state = viewModel.toggleProcessor()
+
+            enableButton.setText(if (state) "Disable" else "Enable")
+        }
 
         val renderer = findViewById<TextureViewRenderer>(R.id.renderer)
         viewModel.room.initVideoRenderer(renderer)
