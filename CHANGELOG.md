@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.15.0
+
+### Minor Changes
+
+- Add VirtualBackgroundVideoProcessor and track-processors package - [#660](https://github.com/livekit/client-sdk-android/pull/660) ([@davidliu](https://github.com/davidliu))
+
 ## 2.14.3
 
 ### Patch Changes
