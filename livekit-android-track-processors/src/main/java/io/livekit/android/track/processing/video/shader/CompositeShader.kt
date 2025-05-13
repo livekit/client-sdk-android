@@ -24,37 +24,6 @@ void main() {
     // Compute screen-space gradient to detect edge sharpness
     float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
 
-    float edgeSoftness = 2.0; // higher = softer
-
-    // Create a smooth edge around binary transition
-    float smoothAlpha = smoothstep(0.5 - grad * edgeSoftness, 0.5 + grad * edgeSoftness, maskVal);
-
-    // Optional: preserve frame alpha, or override as fully opaque
-    vec4 blended = mix(bgTex, vec4(frameTex.rgb, 1.0), 1.0 - smoothAlpha);
-
-    fragColor = blended;
-
-}
-"""
-private const val TEST_COMPOSITE_FRAGMENT_SHADER_SOURCE = """#version 300 es
-#extension GL_OES_EGL_image_external_essl3 : require
-precision mediump float;
-in vec2 texCoords;
-uniform sampler2D background;
-uniform samplerExternalOES frame;
-uniform sampler2D mask;
-out vec4 fragColor;
-
-void main() {
-
-    vec4 frameTex = texture(frame, texCoords);
-    vec4 bgTex = texture(background, texCoords);
-
-    float maskVal = texture(mask, texCoords).r;
-
-    // Compute screen-space gradient to detect edge sharpness
-    float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
-
     float edgeSoftness = 6.0; // higher = softer
 
     // Create a smooth edge around binary transition
@@ -69,7 +38,7 @@ void main() {
 """
 
 internal fun createCompsiteShader(): CompositeShader {
-    val shader = GlShader(DEFAULT_VERTEX_SHADER_SOURCE, TEST_COMPOSITE_FRAGMENT_SHADER_SOURCE)
+    val shader = GlShader(DEFAULT_VERTEX_SHADER_SOURCE, COMPOSITE_FRAGMENT_SHADER_SOURCE)
 
     return CompositeShader(
         shader = shader,
@@ -134,9 +103,11 @@ internal data class CompositeShader(
         GLES20.glUniform1i(mask, 2)
         GlUtil.checkNoGLES2Error("GL_TEXTURE2")
 
+        // Draw composite
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         GlUtil.checkNoGLES2Error("GL_TRIANGLE_STRIP")
 
+        // Cleanup
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE1)

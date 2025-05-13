@@ -39,10 +39,8 @@ internal fun createBoxBlurShader(): BlurShader {
 
     return BlurShader(
         shader = shader,
-//        texMatrixLocation = shader.getUniformLocation(VERTEX_SHADER_TEX_MAT_NAME),
         texMatrixLocation = 0,
         inPosLocation = shader.getAttribLocation(VERTEX_SHADER_POS_COORD_NAME),
-//        inTcLocation = shader.getAttribLocation(VERTEX_SHADER_TEX_COORD_NAME),
         inTcLocation = 0,
         texture = shader.getUniformLocation("u_texture"),
         texelSize = shader.getUniformLocation("u_texelSize"),
