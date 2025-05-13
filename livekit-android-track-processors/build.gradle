@@ -1,14 +1,17 @@
 plugins {
+    id "org.jetbrains.dokka"
     id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
 }
 
 android {
     namespace 'io.livekit.android.track.processing'
-    compileSdk 34
+    compileSdkVersion androidSdk.compileVersion
 
     defaultConfig {
-        minSdk 24
+        minSdkVersion androidSdk.minVersion
+        targetSdkVersion androidSdk.targetVersion
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -21,20 +24,88 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility java_version
+        targetCompatibility java_version
     }
     kotlinOptions {
-        jvmTarget = '11'
+        freeCompilerArgs = ["-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"]
+        jvmTarget = java_version
+    }
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+}
+
+dokkaHtml {
+    moduleName.set("livekit-android-test")
+    dokkaSourceSets {
+        configureEach {
+            skipEmptyPackages.set(true)
+            includeNonPublic.set(false)
+            includes.from("module.md")
+            displayName.set("LiveKit Track Processors")
+            sourceLink {
+                localDirectory.set(file("src/main/java"))
+
+                // URL showing where the source code can be accessed through the web browser
+                remoteUrl.set(new URL(
+                    "https://github.com/livekit/client-sdk-android/tree/master/livekit-android-track-processors/src/main/java"))
+                // Suffix which is used to append the line number to the URL. Use #L for GitHub
+                remoteLineSuffix.set("#L")
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.dagger.*")
+                suppress.set(true)
+            }
+
+            perPackageOption {
+                matchingRegex.set(".*\\.util.*")
+                suppress.set(true)
+            }
+        }
     }
 }
 
 dependencies {
 
-    implementation libs.androidx.core.ktx
-    implementation libs.appcompat
-    implementation libs.material
+    implementation(project(":livekit-android-sdk"))
+    implementation(project(":livekit-android-camerax"))
+    implementation libs.timber
+    implementation libs.coroutines.lib
+    implementation libs.androidx.annotation
+
+    implementation libs.webrtc
+    implementation libs.segmentation.selfie
+
     testImplementation libs.junit
+    testImplementation libs.robolectric
+
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso
+}
+tasks.withType(Test).configureEach {
+    systemProperty "robolectric.logging.enabled", true
+}
+
+apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
+apply from: rootProject.file('gradle/dokka-kotlin-dep-fix.gradle')
+
+afterEvaluate {
+    publishing {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                // Applies the component for the release build variant.
+                from components.release
+
+                // You can then customize attributes of the publication as shown below.
+                groupId = GROUP
+                artifactId = POM_ARTIFACT_ID
+                version = VERSION_NAME
+            }
+        }
+    }
 }

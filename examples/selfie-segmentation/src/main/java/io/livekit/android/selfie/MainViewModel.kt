@@ -36,6 +36,7 @@ import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.video.CameraCapturerUtils
+import io.livekit.android.track.processing.video.VirtualBackgroundVideoProcessor
 import io.livekit.android.util.LoggingLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
@@ -44,8 +45,7 @@ import livekit.org.webrtc.EglBase
 
 @OptIn(ExperimentalCamera2Interop::class)
 @RequiresApi(Build.VERSION_CODES.M)
-class MainViewModel constructor
-    (application: Application) : AndroidViewModel(application) {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         LiveKit.loggingLevel = LoggingLevel.INFO
@@ -60,7 +60,7 @@ class MainViewModel constructor
     )
 
     // For direct I420 processing:
-    val processor = ShaderBitmapVideoProcessor(eglBase, Dispatchers.IO)
+    val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO)
     //val processor = SelfieVideoProcessor(Dispatchers.IO)
     //val processor = SelfieBitmapVideoProcessor(eglBase, Dispatchers.IO)
 

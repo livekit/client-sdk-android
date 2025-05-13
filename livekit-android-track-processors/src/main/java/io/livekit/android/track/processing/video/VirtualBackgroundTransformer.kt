@@ -1,20 +1,27 @@
-package io.livekit.android.selfie.jsshader
+package io.livekit.android.track.processing.video
 
 import android.opengl.GLES20
 import android.opengl.GLES30
-import io.livekit.android.selfie.opengl.LKGlTextureFrameBuffer
+import io.livekit.android.track.processing.video.opengl.LKGlTextureFrameBuffer
+import io.livekit.android.track.processing.video.shader.BlurShader
+import io.livekit.android.track.processing.video.shader.CompositeShader
+import io.livekit.android.track.processing.video.shader.ResamplerShader
+import io.livekit.android.track.processing.video.shader.createBlurShader
+import io.livekit.android.track.processing.video.shader.createBoxBlurShader
+import io.livekit.android.track.processing.video.shader.createCompsiteShader
+import io.livekit.android.track.processing.video.shader.createResampler
 import io.livekit.android.util.LKLog
-import livekit.org.webrtc.GlRectDrawer
 import livekit.org.webrtc.GlTextureFrameBuffer
 import livekit.org.webrtc.GlUtil
 import livekit.org.webrtc.RendererCommon
 import java.nio.ByteBuffer
 
-
-class BackgroundTransformer(
+class VirtualBackgroundTransformer(
     val blurRadius: Float = 16f,
     val downSampleFactor: Int = 2,
 ) : RendererCommon.GlDrawer {
+
+    data class MaskHolder(val width: Int, val height: Int, val buffer: ByteBuffer)
 
     private lateinit var compositeShader: CompositeShader
     private lateinit var blurShader: BlurShader
@@ -47,7 +54,6 @@ class BackgroundTransformer(
 
     lateinit var finalMaskFrameBuffers: List<GlTextureFrameBuffer>
 
-    lateinit var glRectDrawer: GlRectDrawer
     var initialized = false
 
     fun initialize() {
@@ -70,7 +76,6 @@ class BackgroundTransformer(
 
         finalMaskFrameBuffers = listOf(GlTextureFrameBuffer(GLES20.GL_RGBA), GlTextureFrameBuffer(GLES20.GL_RGBA))
 
-        glRectDrawer = GlRectDrawer()
         initialized = true
     }
 
@@ -102,7 +107,7 @@ class BackgroundTransformer(
         }
 
         newMask?.let {
-            updateMaskFrameBuffer(it, texMatrix)
+            updateMaskFrameBuffer(it)
             newMask = null
         }
 
@@ -126,21 +131,24 @@ class BackgroundTransformer(
 
     }
 
+    /**
+     * Thread-safe method to set the foreground mask.
+     */
     fun updateMask(segmentationMask: MaskHolder) {
         newMask = segmentationMask
     }
 
-    private fun updateMaskFrameBuffer(segmentationMask: MaskHolder, texMatrix: FloatArray) {
+    private fun updateMaskFrameBuffer(segmentationMask: MaskHolder) {
 
         val width = segmentationMask.width
         val height = segmentationMask.height
 
-        // Upload the mask into a texture
         anotherTempMaskFrameBuffer.setSize(segmentationMask.width, segmentationMask.height)
         tempMaskTextureFrameBuffer.setSize(segmentationMask.width, segmentationMask.height)
         finalMaskFrameBuffers[0].setSize(segmentationMask.width, segmentationMask.height)
         finalMaskFrameBuffers[1].setSize(segmentationMask.width, segmentationMask.height)
 
+        // Upload the mask into a texture
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, anotherTempMaskFrameBuffer.textureId)
         GlUtil.checkNoGLES2Error("BackgroundTransformer.glBindTexture")
@@ -179,8 +187,21 @@ class BackgroundTransformer(
     }
 
     override fun release() {
-        TODO("Not yet implemented")
+
+        compositeShader.release()
+        blurShader.release()
+        boxBlurShader.release()
+
+        bgBlurTextureFrameBuffers.first.release()
+        bgBlurTextureFrameBuffers.second.release()
+        downSampler.release()
+
+        anotherTempMaskFrameBuffer.release()
+        tempMaskTextureFrameBuffer.release()
+        finalMaskFrameBuffers.forEach {
+            it.release()
+        }
+
     }
 }
 
-data class MaskHolder(val width: Int, val height: Int, val buffer: ByteBuffer)

@@ -36,6 +36,7 @@ dependencies {
     implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
 
     api project(":livekit-android-sdk")
+    api project(":livekit-android-track-processors")
 
     api "androidx.core:core-ktx:${libs.versions.androidx.core.get()}"
     implementation 'androidx.appcompat:appcompat:1.6.1'

@@ -1,9 +1,9 @@
-package io.livekit.android.selfie.jsshader
+package io.livekit.android.track.processing.video.shader
 
 import android.opengl.GLES20
 import java.nio.FloatBuffer
 
-object ShaderUtil {
+internal object ShaderUtil {
     fun loadCoordMatrix(
         inPosLocation: Int,
         inPosFloats: FloatBuffer? = null,

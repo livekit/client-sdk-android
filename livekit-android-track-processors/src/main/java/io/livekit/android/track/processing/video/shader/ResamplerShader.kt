@@ -1,4 +1,4 @@
-package io.livekit.android.selfie.jsshader
+package io.livekit.android.track.processing.video.shader
 
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
@@ -29,7 +29,7 @@ void main() {
 
 // Vertex coordinates in Normalized Device Coordinates, i.e. (-1, -1) is bottom-left and (1, 1)
 // is top-right.
-val FULL_RECTANGLE_BUFFER = GlUtil.createFloatBuffer(
+internal val FULL_RECTANGLE_BUFFER = GlUtil.createFloatBuffer(
     floatArrayOf(
         -1.0f, -1.0f,  // Bottom left.
         1.0f, -1.0f,  // Bottom right.
@@ -39,7 +39,7 @@ val FULL_RECTANGLE_BUFFER = GlUtil.createFloatBuffer(
 )
 
 // Texture coordinates - (0, 0) is bottom-left and (1, 1) is top-right.
-val FULL_RECTANGLE_TEXTURE_BUFFER = GlUtil.createFloatBuffer(
+internal val FULL_RECTANGLE_TEXTURE_BUFFER = GlUtil.createFloatBuffer(
     floatArrayOf(
         0.0f, 0.0f,  // Bottom left.
         1.0f, 0.0f,  // Bottom right.
@@ -48,7 +48,7 @@ val FULL_RECTANGLE_TEXTURE_BUFFER = GlUtil.createFloatBuffer(
     ),
 )
 
-fun createResampler(): ResamplerShader {
+internal fun createResampler(): ResamplerShader {
     val textureFrameBuffer = GlTextureFrameBuffer(GLES20.GL_RGBA)
     val shader = GlShader(DOWNSAMPLER_VERTEX_SHADER_SOURCE, DOWNSAMPLER_FRAGMENT_SHADER_SOURCE)
 
@@ -65,7 +65,7 @@ fun createResampler(): ResamplerShader {
 /**
  * A shader that resamples a texture at a new size.
  */
-data class ResamplerShader(
+internal data class ResamplerShader(
     val shader: GlShader,
     val textureFrameBuffer: GlTextureFrameBuffer,
     val texMatrixLocation: Int,
@@ -73,6 +73,10 @@ data class ResamplerShader(
     val inTcLocation: Int,
     val texture: Int,
 ) {
+
+    fun release() {
+        shader.release()
+    }
 
     fun resample(
         inputTexture: Int,

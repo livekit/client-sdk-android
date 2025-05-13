@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-package io.livekit.android.selfie.opengl;
+package io.livekit.android.track.processing.video.opengl;
 
 import android.opengl.GLES20;
 import android.opengl.GLES30;

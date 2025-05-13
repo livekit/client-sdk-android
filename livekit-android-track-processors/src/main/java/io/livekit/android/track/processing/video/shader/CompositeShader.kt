@@ -1,4 +1,4 @@
-package io.livekit.android.selfie.jsshader
+package io.livekit.android.track.processing.video.shader
 
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
@@ -68,7 +68,7 @@ void main() {
 }
 """
 
-fun createCompsiteShader(): CompositeShader {
+internal fun createCompsiteShader(): CompositeShader {
     val shader = GlShader(DEFAULT_VERTEX_SHADER_SOURCE, TEST_COMPOSITE_FRAGMENT_SHADER_SOURCE)
 
     return CompositeShader(
@@ -83,7 +83,7 @@ fun createCompsiteShader(): CompositeShader {
 }
 
 
-data class CompositeShader(
+internal data class CompositeShader(
     val shader: GlShader,
     val inPosLocation: Int,
     val inTcLocation: Int,
@@ -144,5 +144,9 @@ data class CompositeShader(
         GLES20.glActiveTexture(GLES20.GL_TEXTURE2)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         GlUtil.checkNoGLES2Error("renderComposite")
+    }
+
+    fun release() {
+        shader.release()
     }
 }

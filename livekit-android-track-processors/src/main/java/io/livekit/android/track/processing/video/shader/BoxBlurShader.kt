@@ -1,4 +1,4 @@
-package io.livekit.android.selfie.jsshader
+package io.livekit.android.track.processing.video.shader
 
 import livekit.org.webrtc.GlShader
 
@@ -34,7 +34,7 @@ void main() {
 }
 """
 
-fun createBoxBlurShader(): BlurShader {
+internal fun createBoxBlurShader(): BlurShader {
     val shader = GlShader(CONSTANT_VERTEX_SHADER_SOURCE, BOX_BLUR_SHADER_SOURCE)
 
     return BlurShader(
