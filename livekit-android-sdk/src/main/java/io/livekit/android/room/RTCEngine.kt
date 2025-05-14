@@ -308,7 +308,7 @@ internal constructor(
 
                 ensureActive()
                 val lossyInit = DataChannel.Init()
-                lossyInit.ordered = true
+                lossyInit.ordered = false
                 lossyInit.maxRetransmits = 0
                 lossyDataChannel = publisher?.withPeerConnection {
                     createDataChannel(
