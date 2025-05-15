@@ -677,6 +677,14 @@ constructor(
                             ),
                         )
                     }
+                    is ParticipantEvent.StateChanged -> {
+                        RoomEvent.ParticipantStateChanged(
+                            this@Room,
+                            it.participant,
+                            it.newState,
+                            it.oldState
+                        )
+                    }
 
                     else -> {
                         // do nothing

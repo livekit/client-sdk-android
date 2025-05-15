@@ -93,6 +93,27 @@ open class Participant(
         @VisibleForTesting set
 
     /**
+     * The participant state.
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var state: State by flowDelegate(State.UNKNOWN) { newState, oldState ->
+        if (newState != oldState) {
+            eventBus.postEvent(
+                ParticipantEvent.StateChanged(
+                    participant = this,
+                    newState = newState,
+                    oldState = oldState,
+                ),
+                scope,
+            )
+        }
+    }
+        @VisibleForTesting set
+
+    /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
     @FlowObservable
@@ -377,6 +398,7 @@ open class Participant(
             permissions = ParticipantPermission.fromProto(info.permission)
         }
         attributes = info.attributesMap
+        state = State.fromProto(info.state)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -470,6 +492,34 @@ open class Participant(
                     LivekitModels.ParticipantInfo.Kind.EGRESS -> EGRESS
                     LivekitModels.ParticipantInfo.Kind.SIP -> SIP
                     LivekitModels.ParticipantInfo.Kind.UNRECOGNIZED -> UNKNOWN
+                }
+            }
+        }
+    }
+
+    enum class State {
+        // websocket' connected, but not offered yet
+        JOINING,
+
+        // server received client offer
+        JOINED,
+
+        // ICE connectivity established
+        ACTIVE,
+
+        // WS disconnected
+        DISCONNECTED,
+
+        UNKNOWN;
+
+        companion object {
+            fun fromProto(proto: LivekitModels.ParticipantInfo.State): State {
+                return when (proto) {
+                    LivekitModels.ParticipantInfo.State.JOINING -> JOINING
+                    LivekitModels.ParticipantInfo.State.JOINED -> JOINED
+                    LivekitModels.ParticipantInfo.State.ACTIVE -> ACTIVE
+                    LivekitModels.ParticipantInfo.State.DISCONNECTED -> DISCONNECTED
+                    LivekitModels.ParticipantInfo.State.UNRECOGNIZED -> UNKNOWN
                 }
             }
         }

@@ -271,6 +271,16 @@ sealed class RoomEvent(val room: Room) : Event() {
          */
         val publication: TrackPublication?,
     ) : RoomEvent(room)
+
+    /**
+     * The state for a participant has changed.
+     */
+    class ParticipantStateChanged(
+        room: Room,
+        val participant: Participant,
+        val newState: Participant.State,
+        val oldState: Participant.State,
+    ) : RoomEvent(room)
 }
 
 enum class DisconnectReason {

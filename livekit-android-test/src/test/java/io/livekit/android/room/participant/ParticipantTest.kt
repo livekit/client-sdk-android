@@ -58,7 +58,7 @@ class ParticipantTest {
         assertEquals(INFO.name, participant.name)
         assertEquals(Participant.Kind.fromProto(INFO.kind), participant.kind)
         assertEquals(INFO.attributesMap, participant.attributes)
-
+        assertEquals(Participant.State.fromProto(INFO.state), participant.state)
         assertEquals(INFO, participant.participantInfo)
     }
 
@@ -151,6 +151,23 @@ class ParticipantTest {
     }
 
     @Test
+    fun setStateChangedEvent() = runTest {
+        val eventCollector = EventCollector(participant.events, coroutineRule.scope)
+        participant.state = Participant.State.JOINED
+
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is ParticipantEvent.StateChanged)
+
+        val event = events[0] as ParticipantEvent.StateChanged
+
+        assertEquals(participant, event.participant)
+        assertEquals(Participant.State.JOINED, event.newState)
+        assertEquals(Participant.State.UNKNOWN, event.oldState)
+    }
+
+    @Test
     fun addTrackPublication() = runTest {
         val audioPublication = TrackPublication(TRACK_INFO, null, participant)
         participant.addTrackPublication(audioPublication)
@@ -197,6 +214,7 @@ class ParticipantTest {
             .setName("name")
             .setKind(LivekitModels.ParticipantInfo.Kind.STANDARD)
             .putAttributes("attribute", "value")
+            .setState(LivekitModels.ParticipantInfo.State.JOINED)
             .build()
 
         val TRACK_INFO = LivekitModels.TrackInfo.newBuilder()
