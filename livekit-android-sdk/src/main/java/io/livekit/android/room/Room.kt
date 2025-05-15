@@ -1475,6 +1475,9 @@ constructor(
      */
     // TODO(@dl): can this be moved out of Room/SDK?
     fun initVideoRenderer(viewRenderer: SurfaceViewRenderer) {
+        if (state == State.DISCONNECTED) {
+            return
+        }
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false)
@@ -1485,6 +1488,9 @@ constructor(
      */
     // TODO(@dl): can this be moved out of Room/SDK?
     fun initVideoRenderer(viewRenderer: TextureViewRenderer) {
+        if (state == State.DISCONNECTED) {
+            return
+        }
         viewRenderer.init(eglBase.eglBaseContext, null)
         viewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
         viewRenderer.setEnableHardwareScaler(false)
