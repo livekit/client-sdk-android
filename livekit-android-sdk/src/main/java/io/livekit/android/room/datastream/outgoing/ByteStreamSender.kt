@@ -39,9 +39,12 @@ private val byteDataChunker: DataChunker<ByteArray> = { data: ByteArray, chunkSi
     (data.indices step chunkSize)
         .map { index ->
             Arrays.copyOfRange(
-                /* original = */ data,
-                /* from = */ index,
-                /* to = */ min(index + chunkSize, data.size),
+                /* original = */
+                data,
+                /* from = */
+                index,
+                /* to = */
+                min(index + chunkSize, data.size),
             )
         }
 }

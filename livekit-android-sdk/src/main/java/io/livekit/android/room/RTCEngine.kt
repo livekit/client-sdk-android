@@ -1094,20 +1094,20 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.RPC_REQUEST,
             LivekitModels.DataPacket.ValueCase.RPC_ACK,
             LivekitModels.DataPacket.ValueCase.RPC_RESPONSE,
-                -> {
+            -> {
                 listener?.onRpcPacketReceived(dp)
             }
 
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
-                -> {
+            -> {
                 LKLog.v { "invalid value for data packet" }
             }
 
             LivekitModels.DataPacket.ValueCase.STREAM_HEADER,
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
-                -> {
+            -> {
                 listener?.onDataStreamPacket(dp)
             }
         }

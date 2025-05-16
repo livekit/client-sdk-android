@@ -777,7 +777,7 @@ constructor(
 
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null,
-                -> {
+            -> {
                 LKLog.v { "empty messageCase!" }
             }
 

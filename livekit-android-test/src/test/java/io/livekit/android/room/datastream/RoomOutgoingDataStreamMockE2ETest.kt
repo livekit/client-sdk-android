@@ -35,7 +35,6 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
 
-
     private lateinit var pubDataChannel: MockDataChannel
 
     override suspend fun connect(joinResponse: LivekitRtc.SignalResponse) {
@@ -44,7 +43,6 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
         val pubPeerConnection = component.rtcEngine().getPublisherPeerConnection() as MockPeerConnection
         pubDataChannel = pubPeerConnection.dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
     }
-
 
     @Test
     fun dataStream() = runTest {
@@ -101,5 +99,4 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
             assertTrue(reason.isNullOrEmpty())
         }
     }
-
 }
