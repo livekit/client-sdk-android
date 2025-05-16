@@ -42,7 +42,7 @@ class CameraXEnumerator(
         deviceName: String?,
         eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     ): CameraVideoCapturer {
-        return CameraXCapturer(context, lifecycleOwner, deviceName, eventsHandler, useCases)
+        return CameraXCapturer(context, lifecycleOwner, deviceName, eventsHandler, useCases, physicalCameraId)
     }
 
     companion object {
