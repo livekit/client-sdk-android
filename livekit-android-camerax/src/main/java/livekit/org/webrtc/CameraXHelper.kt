@@ -86,7 +86,7 @@ class CameraXHelper {
                 return Camera2Enumerator.isSupported(context) && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)
             }
 
-            fun findCameraById(cameraManager: CameraManager, deviceId: String): String? {
+            private fun findCameraById(cameraManager: CameraManager, deviceId: String): String? {
                 for (id in cameraManager.cameraIdList) {
                     if (id == deviceId) return id // This means the provided id is logical id.
 
