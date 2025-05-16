@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ internal class CameraXCapturer(
     cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     private val useCases: Array<out UseCase> = emptyArray(),
+    var physicalCameraId: String? = null,
 ) : CameraCapturer(cameraName, eventsHandler, CameraXEnumerator(context, lifecycleOwner)) {
 
     @FlowObservable
@@ -93,6 +94,7 @@ internal class CameraXCapturer(
             height,
             framerate,
             useCases,
+            physicalCameraId,
         )
     }
 }
