@@ -24,6 +24,9 @@ import io.livekit.android.room.track.ScreenSharePresets
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * @suppress
+ */
 @Singleton
 class DefaultsManager
 @Inject
@@ -34,4 +37,6 @@ constructor() {
     var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
     var screenShareTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions(isScreencast = true, captureParams = ScreenSharePresets.ORIGINAL.capture)
     var screenShareTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults(videoEncoding = ScreenSharePresets.ORIGINAL.encoding)
+
+    var isPrerecording: Boolean = false
 }

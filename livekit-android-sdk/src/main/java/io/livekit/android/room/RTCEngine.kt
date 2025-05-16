@@ -110,7 +110,7 @@ internal constructor(
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
     @FlowObservable
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    @get:FlowObservable
     var connectionState: ConnectionState by flowDelegate(ConnectionState.DISCONNECTED) { newVal, oldVal ->
         if (newVal == oldVal) {
             return@flowDelegate
@@ -302,7 +302,8 @@ internal constructor(
                         RELIABLE_DATA_CHANNEL_LABEL,
                         reliableInit,
                     ).also { dataChannel ->
-                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                        reliableDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
+                        dataChannel.registerObserver(reliableDataChannelManager)
                     }
                 }
 
@@ -315,7 +316,8 @@ internal constructor(
                         LOSSY_DATA_CHANNEL_LABEL,
                         lossyInit,
                     ).also { dataChannel ->
-                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                        lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
+                        dataChannel.registerObserver(lossyDataChannelManager)
                     }
                 }
             }
@@ -1092,19 +1094,20 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.RPC_REQUEST,
             LivekitModels.DataPacket.ValueCase.RPC_ACK,
             LivekitModels.DataPacket.ValueCase.RPC_RESPONSE,
-            -> {
+                -> {
                 listener?.onRpcPacketReceived(dp)
             }
+
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
-            -> {
+                -> {
                 LKLog.v { "invalid value for data packet" }
             }
 
             LivekitModels.DataPacket.ValueCase.STREAM_HEADER,
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
-            -> {
+                -> {
                 listener?.onDataStreamPacket(dp)
             }
         }

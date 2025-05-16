@@ -67,6 +67,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import livekit.LivekitModels
+import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitModels.Codec
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.TrackInfo
@@ -434,7 +435,7 @@ internal constructor(
         options: AudioTrackPublishOptions = AudioTrackPublishOptions(
             null,
             audioTrackPublishDefaults,
-        ),
+        ).copy(preconnect = defaultsManager.isPrerecording),
         publishListener: PublishListener? = null,
     ): Boolean {
         val encodings = listOf(
@@ -450,6 +451,7 @@ internal constructor(
             requestConfig = {
                 disableDtx = !options.dtx
                 disableRed = !options.red
+                addAllAudioFeatures(options.getFeaturesList())
                 source = options.source?.toProto() ?: LivekitModels.TrackSource.MICROPHONE
             },
             encodings = encodings,
@@ -459,7 +461,7 @@ internal constructor(
         if (publication != null) {
             val job = scope.launch {
                 track::features.flow.collect {
-                    engine.updateLocalAudioTrack(publication.sid, it)
+                    engine.updateLocalAudioTrack(publication.sid, it + options.getFeaturesList())
                 }
             }
             jobs[publication] = job
@@ -1763,6 +1765,7 @@ data class AudioTrackPublishOptions(
     override val red: Boolean = true,
     override val source: Track.Source? = null,
     override val stream: String? = null,
+    val preconnect: Boolean = false,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
@@ -1777,6 +1780,17 @@ data class AudioTrackPublishOptions(
         source = source,
         stream = stream,
     )
+
+    internal fun getFeaturesList(): Set<AudioTrackFeature> {
+        val features = mutableSetOf<AudioTrackFeature>()
+        if (!dtx) {
+            features.add(AudioTrackFeature.TF_NO_DTX)
+        }
+        if (preconnect) {
+            features.add(AudioTrackFeature.TF_PRECONNECT_BUFFER)
+        }
+        return features
+    }
 }
 
 data class ParticipantTrackPermission(
