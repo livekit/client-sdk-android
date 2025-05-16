@@ -197,4 +197,13 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
          */
         val publication: TrackPublication?,
     ) : ParticipantEvent(participant)
+
+    /**
+     * A participant's state has changed.
+     */
+    class StateChanged(
+        override val participant: Participant,
+        val newState: Participant.State,
+        val oldState: Participant.State,
+    ) : ParticipantEvent(participant)
 }

@@ -24,6 +24,7 @@ import okio.Source
 import okio.source
 import java.io.InputStream
 import java.util.Arrays
+import kotlin.math.min
 
 class ByteStreamSender(
     val info: ByteStreamInfo,
@@ -36,7 +37,16 @@ class ByteStreamSender(
 
 private val byteDataChunker: DataChunker<ByteArray> = { data: ByteArray, chunkSize: Int ->
     (data.indices step chunkSize)
-        .map { index -> Arrays.copyOfRange(data, index, index + chunkSize) }
+        .map { index ->
+            Arrays.copyOfRange(
+                /* original = */
+                data,
+                /* from = */
+                index,
+                /* to = */
+                min(index + chunkSize, data.size),
+            )
+        }
 }
 
 /**

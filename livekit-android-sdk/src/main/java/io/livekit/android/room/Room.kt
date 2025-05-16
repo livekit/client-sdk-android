@@ -76,7 +76,7 @@ class Room
 @AssistedInject
 constructor(
     @Assisted private val context: Context,
-    private val engine: RTCEngine,
+    internal val engine: RTCEngine,
     private val eglBase: EglBase,
     localParticipantFactory: LocalParticipant.Factory,
     private val defaultsManager: DefaultsManager,
@@ -319,6 +319,8 @@ constructor(
     private var regionUrl: String? = null
 
     private var transcriptionReceivedTimes = mutableMapOf<String, Long>()
+
+    internal var isPrerecording by defaultsManager::isPrerecording
 
     private fun getCurrentRoomOptions(): RoomOptions =
         RoomOptions(
@@ -678,6 +680,15 @@ constructor(
                         )
                     }
 
+                    is ParticipantEvent.StateChanged -> {
+                        RoomEvent.ParticipantStateChanged(
+                            this@Room,
+                            it.participant,
+                            it.newState,
+                            it.oldState,
+                        )
+                    }
+
                     else -> {
                         // do nothing
                     }
@@ -807,6 +818,17 @@ constructor(
                             oldPermissions = it.oldPermissions,
                         ),
                     )
+
+                    is ParticipantEvent.StateChanged -> {
+                        eventBus.postEvent(
+                            RoomEvent.ParticipantStateChanged(
+                                room = this@Room,
+                                participant = it.participant,
+                                newState = it.newState,
+                                oldState = it.oldState,
+                            ),
+                        )
+                    }
 
                     else -> {
                         // do nothing

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.NoAudioHandler
 import io.livekit.android.room.Room
+import io.livekit.android.room.track.LocalAudioTrack
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.VideoDecoderFactory
@@ -33,6 +34,7 @@ import livekit.org.webrtc.VideoEncoderFactory
 import livekit.org.webrtc.audio.AudioDeviceModule
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import okhttp3.OkHttpClient
+
 /**
  * Overrides to replace LiveKit internally used components with custom implementations.
  */
@@ -110,6 +112,11 @@ class AudioOptions(
      * Called after default setup to allow for customizations on the [JavaAudioDeviceModule].
      *
      * Not used if [audioDeviceModule] is provided.
+     *
+     * Note: We require setting the [JavaAudioDeviceModule.Builder.setSamplesReadyCallback] to provide
+     * support for [LocalAudioTrack.addSink]. If you wish to grab the audio samples
+     * from the local microphone track, use [LocalAudioTrack.addSink] instead of setting your own
+     * callback.
      */
     val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null,
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ import io.livekit.android.room.track.ScreenSharePresets
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * @suppress
+ */
 @Singleton
 class DefaultsManager
 @Inject
@@ -34,4 +37,6 @@ constructor() {
     var videoTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults()
     var screenShareTrackCaptureDefaults: LocalVideoTrackOptions = LocalVideoTrackOptions(isScreencast = true, captureParams = ScreenSharePresets.ORIGINAL.capture)
     var screenShareTrackPublishDefaults: VideoTrackPublishDefaults = VideoTrackPublishDefaults(videoEncoding = ScreenSharePresets.ORIGINAL.encoding)
+
+    var isPrerecording: Boolean = false
 }
