@@ -69,7 +69,7 @@ class CameraXHelper {
                     targetDeviceName = findCameraById(cameraManager, deviceId)
                 }
                 if (targetDeviceName == null) {
-                    // Fallback to enumerator.findCamera which can't find camera by physical id but it will choose the closes one.
+                    // Fallback to enumerator.findCamera which can't find camera by physical id but it will choose the closest one.
                     targetDeviceName = enumerator.findCamera(deviceId, options.position)
                 }
                 val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler) as CameraXCapturer
