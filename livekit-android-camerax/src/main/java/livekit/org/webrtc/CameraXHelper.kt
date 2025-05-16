@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
+import android.os.Build
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.UseCase
 import androidx.lifecycle.Lifecycle
@@ -74,6 +75,22 @@ class CameraXHelper {
 
             override fun isSupported(context: Context): Boolean {
                 return Camera2Enumerator.isSupported(context) && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)
+            }
+
+            fun findCameraById(cameraManager: CameraManager, deviceId: String): String? {
+                for (id in cameraManager.cameraIdList) {
+                    val characteristics = cameraManager.getCameraCharacteristics(id)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val ids = characteristics.physicalCameraIds
+                        if (ids.contains(deviceId)) {
+                            // This means the provided device id is physical camera id.
+                            enumerator?.physicalCameraId = deviceId
+                            return id // This is its logical camera id which camera capturer uses
+                        }
+                    }
+                    if (id == deviceId) return id
+                }
+                return null
             }
         }
 
