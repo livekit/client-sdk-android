@@ -45,4 +45,7 @@ interface StreamDestination<T> {
     suspend fun close(reason: String?)
 }
 
-internal typealias DataChunker<T> = (data: T, chunkSize: Int) -> List<ByteArray>
+/**
+ * @suppress
+ */
+typealias DataChunker<T> = (data: T, chunkSize: Int) -> List<ByteArray>

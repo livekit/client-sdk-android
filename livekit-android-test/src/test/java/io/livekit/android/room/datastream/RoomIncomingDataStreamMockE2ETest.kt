@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package io.livekit.android.room
+package io.livekit.android.room.datastream
 
 import com.google.protobuf.ByteString
-import io.livekit.android.room.datastream.StreamException
+import io.livekit.android.room.RTCEngine
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.mock.MockDataChannel
@@ -38,7 +38,7 @@ import org.junit.Test
 import java.nio.ByteBuffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RoomDataStreamMockE2ETest : MockE2ETest() {
+class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
     @Test
     fun dataStream() = runTest {
         connect()
