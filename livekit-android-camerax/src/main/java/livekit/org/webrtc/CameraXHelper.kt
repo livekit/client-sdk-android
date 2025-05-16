@@ -79,16 +79,17 @@ class CameraXHelper {
 
             fun findCameraById(cameraManager: CameraManager, deviceId: String): String? {
                 for (id in cameraManager.cameraIdList) {
+                    if (id == deviceId) return id // This means the provided id is logical id.
+
                     val characteristics = cameraManager.getCameraCharacteristics(id)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         val ids = characteristics.physicalCameraIds
                         if (ids.contains(deviceId)) {
-                            // This means the provided device id is physical camera id.
+                            // This means the provided id is physical id.
                             enumerator?.physicalCameraId = deviceId
-                            return id // This is its logical camera id which camera capturer uses
+                            return id // This is its logical id.
                         }
                     }
-                    if (id == deviceId) return id
                 }
                 return null
             }
