@@ -1,5 +1,27 @@
 # client-sdk-android
 
+## 2.16.0
+
+### Minor Changes
+
+- Unorder the lossy data channel - [#665](https://github.com/livekit/client-sdk-android/pull/665) ([@bcherry](https://github.com/bcherry))
+
+- Add pre-connect audio for use with agents - [#666](https://github.com/livekit/client-sdk-android/pull/666) ([@davidliu](https://github.com/davidliu))
+
+  See Room.withPreconnectAudio for details.
+
+- CameraX: support for selecting cameras by their physical id - [#668](https://github.com/livekit/client-sdk-android/pull/668) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+- Add Participant.State and related events - [#666](https://github.com/livekit/client-sdk-android/pull/666) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix NPE when streaming text - [#670](https://github.com/livekit/client-sdk-android/pull/670) ([@davidliu](https://github.com/davidliu))
+
+- Add rpc handler methods to Room class for convenience. - [#663](https://github.com/livekit/client-sdk-android/pull/663) ([@davidliu](https://github.com/davidliu))
+
+- Fix outgoing datastreams incorrectly padding data - [#666](https://github.com/livekit/client-sdk-android/pull/666) ([@davidliu](https://github.com/davidliu))
+
 ## 2.15.0
 
 ### Minor Changes
