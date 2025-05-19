@@ -99,4 +99,60 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
             assertTrue(reason.isNullOrEmpty())
         }
     }
+
+    @Test
+    fun textStream() = runTest {
+        connect()
+
+        // Remote participant to send data to
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        val text = "test_text"
+        val job = launch {
+            val sender = room.localParticipant.streamText(
+                StreamTextOptions(
+                    topic = "topic",
+                    attributes = mapOf("hello" to "world"),
+                    streamId = "stream_id",
+                    destinationIdentities = listOf(Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)),
+                    operationType = TextStreamInfo.OperationType.CREATE,
+                    version = 0,
+                    attachedStreamIds = emptyList(),
+                    replyToStreamId = null,
+                    totalSize = 3,
+                ),
+            )
+            sender.write(text)
+            sender.close()
+        }
+
+        job.join()
+
+        val buffers = pubDataChannel.sentBuffers
+
+        println(buffers)
+        assertEquals(3, buffers.size)
+
+        val headerPacket = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
+        assertTrue(headerPacket.hasStreamHeader())
+
+        with(headerPacket.streamHeader) {
+            assertTrue(hasTextHeader())
+        }
+
+        val payloadPacket = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[1].data))
+        assertTrue(payloadPacket.hasStreamChunk())
+        with(payloadPacket.streamChunk) {
+            assertEquals(text, content.toStringUtf8())
+        }
+
+        val trailerPacket = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[2].data))
+        assertTrue(trailerPacket.hasStreamTrailer())
+        with(trailerPacket.streamTrailer) {
+            assertTrue(reason.isNullOrEmpty())
+        }
+    }
 }
