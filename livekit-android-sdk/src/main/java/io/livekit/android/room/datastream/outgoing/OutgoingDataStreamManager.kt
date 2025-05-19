@@ -98,7 +98,9 @@ constructor(
                         textHeader = with(DataStream.TextHeader.newBuilder()) {
                             this.operationType = info.operationType.toProto()
                             this.version = info.version
-                            this.replyToStreamId = info.replyToStreamId
+                            if (info.replyToStreamId != null) {
+                                this.replyToStreamId = info.replyToStreamId
+                            }
                             this.addAllAttachedStreamIds(info.attachedStreamIds)
                             this.generated = info.generated
                             build()
