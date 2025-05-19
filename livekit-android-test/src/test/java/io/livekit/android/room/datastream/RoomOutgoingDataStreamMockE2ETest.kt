@@ -100,7 +100,6 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
         }
     }
 
-
     @Test
     fun textStream() = runTest {
         connect()
