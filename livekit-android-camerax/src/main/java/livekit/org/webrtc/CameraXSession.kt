@@ -24,6 +24,7 @@ import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_OFF
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON
 import android.hardware.camera2.CaptureRequest
+import android.os.Build
 import android.os.Handler
 import android.util.Range
 import android.util.Size
@@ -61,6 +62,7 @@ internal constructor(
     private val height: Int,
     private val frameRate: Int,
     private val useCases: Array<out UseCase> = emptyArray(),
+    var physicalCameraId: String? = null,
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
@@ -206,6 +208,13 @@ internal constructor(
 
     private fun <T> ExtendableBuilder<T>.applyCameraSettings(): ExtendableBuilder<T> {
         val cameraExtender = Camera2Interop.Extender(this)
+
+        physicalCameraId?.let { physicalId ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                cameraExtender.setPhysicalCameraId(physicalId)
+            }
+        }
+
         val captureFormat = this@CameraXSession.captureFormat ?: return this
         cameraExtender.setCaptureRequestOption(
             CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
