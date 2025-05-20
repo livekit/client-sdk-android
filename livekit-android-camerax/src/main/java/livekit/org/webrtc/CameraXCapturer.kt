@@ -42,6 +42,10 @@ internal class CameraXCapturer(
     private val useCases: Array<out UseCase> = emptyArray(),
 ) : CameraCapturer(cameraDevice.deviceId, eventsHandler, enumerator) {
 
+    override fun getCameraName(): String? {
+        return cameraDevice.deviceId
+    }
+
     @FlowObservable
     @get:FlowObservable
     var currentCamera by flowDelegate<Camera?>(null)
@@ -104,7 +108,7 @@ internal class CameraXCapturer(
         if (device == null) return
 
         cameraDevice = device
-        super.switchCamera(switchEventsHandler, this.cameraName)
+        super.switchCamera(switchEventsHandler, cameraDevice.deviceId)
     }
 }
 
