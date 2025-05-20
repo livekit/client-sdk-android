@@ -197,21 +197,21 @@ object CameraCapturerUtils {
         var targetDeviceName: CameraDeviceInfo? = null
         // Prioritize search by deviceId first
         if (deviceId != null) {
-            targetDeviceName = findCamera(cameraManager) { id, pos ->
+            targetDeviceName = findCamera(cameraManager) { id, _ ->
                 id == deviceId
             }
         }
 
         // Search by camera position
         if (targetDeviceName == null && position != null) {
-            targetDeviceName = findCamera(cameraManager) { id, pos ->
+            targetDeviceName = findCamera(cameraManager) { _, pos ->
                 pos == position
             }
         }
 
         // Fall back by choosing first available camera.
         if (targetDeviceName == null && fallback) {
-            targetDeviceName = findCamera(cameraManager) { id, pos -> true }
+            targetDeviceName = findCamera(cameraManager) { _, _ -> true }
         }
 
         if (targetDeviceName == null) {
