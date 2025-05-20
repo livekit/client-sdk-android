@@ -230,8 +230,8 @@ object CameraCapturerUtils {
      * the logical camera info with the physical ID relationship.
      *
      * @param cameraManager The system camera manager
-     * @param predicate
-     * @return PhysicalCameraInfo with camera details or null if not found
+     * @param predicate with deviceId and position, return true if camera is found
+     * @return [CameraDeviceInfo] with camera details or null if not found
      */
     fun CameraEnumerator.findCamera(
         cameraManager: CameraManager,
