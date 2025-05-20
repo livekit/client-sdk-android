@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,10 @@
 package io.livekit.android.room.track.video
 
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.os.Build
+import android.os.Build.VERSION
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.util.LKLog
@@ -100,13 +103,14 @@ object CameraCapturerUtils {
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
         val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
         val cameraEnumerator = provider.provideEnumerator(context)
-        val targetDeviceName = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val targetDevice = cameraEnumerator.findCamera(cameraManager, options.deviceId, options.position) ?: return null
         val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
         // back fill any missing information
         val newOptions = options.copy(
-            deviceId = targetDeviceName,
-            position = cameraEnumerator.getCameraPosition(targetDeviceName),
+            deviceId = targetDevice.physicalId ?: targetDevice.deviceId,
+            position = targetDevice.position,
         )
 
         if (targetVideoCapturer !is VideoCapturerWithSize) {
@@ -130,13 +134,15 @@ object CameraCapturerUtils {
             options: LocalVideoTrackOptions,
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
-            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
+            val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val targetDevice = enumerator.findCamera(cm, options.deviceId, options.position)
             // Cache supported capture formats ahead of time to avoid future camera locks.
-            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDeviceName))
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDevice?.deviceId))
+            val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler)
             return Camera1CapturerWithSize(
                 targetVideoCapturer as Camera1Capturer,
-                targetDeviceName,
+                targetDeviceId,
                 eventsHandler,
             )
         }
@@ -160,12 +166,14 @@ object CameraCapturerUtils {
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
             val enumerator = provideEnumerator(context)
-            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val targetDevice = enumerator.findCamera(cm, options.deviceId, options.position)
+            val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
+            val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler)
             return Camera2CapturerWithSize(
                 targetVideoCapturer as Camera2Capturer,
                 context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                targetDeviceName,
+                targetDeviceId,
                 eventsHandler,
             )
         }
@@ -181,26 +189,29 @@ object CameraCapturerUtils {
      * @param fallback if true, when no camera is found by device id/position search, the first available camera on the list will be returned.
      */
     fun CameraEnumerator.findCamera(
+        cameraManager: CameraManager,
         deviceId: String? = null,
         position: CameraPosition? = null,
         fallback: Boolean = true,
-    ): String? {
-        var targetDeviceName: String? = null
+    ): CameraDeviceInfo? {
+        var targetDeviceName: CameraDeviceInfo? = null
         // Prioritize search by deviceId first
         if (deviceId != null) {
-            targetDeviceName = findCamera { deviceName -> deviceName == deviceId }
+            targetDeviceName = findCamera(cameraManager) { id, pos ->
+                id == deviceId
+            }
         }
 
         // Search by camera position
         if (targetDeviceName == null && position != null) {
-            targetDeviceName = findCamera { deviceName ->
-                getCameraPosition(deviceName) == position
+            targetDeviceName = findCamera(cameraManager) { id, pos ->
+                pos == position
             }
         }
 
         // Fall back by choosing first available camera.
         if (targetDeviceName == null && fallback) {
-            targetDeviceName = findCamera { true }
+            targetDeviceName = findCamera(cameraManager) { id, pos -> true }
         }
 
         if (targetDeviceName == null) {
@@ -210,29 +221,43 @@ object CameraCapturerUtils {
         return targetDeviceName
     }
 
-    /**
-     * Finds the device id of a camera that matches the [predicate].
-     */
-    fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
-        for (deviceName in deviceNames) {
-            if (predicate(deviceName)) {
-                return deviceName
-            }
-        }
-        return null
-    }
+    data class CameraDeviceInfo(val deviceId: String, val position: CameraPosition?, val physicalId: String?)
 
     /**
-     * Returns the camera position of a camera, or null if neither front or back facing (e.g. external camera).
+     * Returns information about a camera by searching for the specified device ID.
+     * If the device ID matches a logical camera ID, returns that camera's info.
+     * If the device ID matches a physical camera ID on Android P and above, returns
+     * the logical camera info with the physical ID relationship.
+     *
+     * @param cameraManager The system camera manager
+     * @param predicate
+     * @return PhysicalCameraInfo with camera details or null if not found
      */
-    fun CameraEnumerator.getCameraPosition(deviceName: String?): CameraPosition? {
-        if (deviceName == null) {
-            return null
-        }
-        if (isBackFacing(deviceName)) {
-            return CameraPosition.BACK
-        } else if (isFrontFacing(deviceName)) {
-            return CameraPosition.FRONT
+    fun CameraEnumerator.findCamera(
+        cameraManager: CameraManager,
+        predicate: (deviceId: String, position: CameraPosition?) -> Boolean,
+    ): CameraDeviceInfo? {
+        for (id in cameraManager.cameraIdList) {
+            val ch = cameraManager.getCameraCharacteristics(id)
+            val lensFacing = ch.get(CameraCharacteristics.LENS_FACING)
+            val position = when (lensFacing) {
+                CameraCharacteristics.LENS_FACING_FRONT -> CameraPosition.FRONT
+                CameraCharacteristics.LENS_FACING_BACK -> CameraPosition.BACK
+                else -> null
+            }
+            // First check if deviceId is a direct logical camera ID
+            if (predicate(id, position)) return CameraDeviceInfo(id, position, null)
+
+            // Then check if deviceId is a physical camera ID in a logical camera
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val ch2 = cameraManager.getCameraCharacteristics(id)
+
+                for (physicalId in ch2.physicalCameraIds) {
+                    if (predicate(physicalId, position)) {
+                        return CameraDeviceInfo(id, position, physicalId)
+                    }
+                }
+            }
         }
         return null
     }

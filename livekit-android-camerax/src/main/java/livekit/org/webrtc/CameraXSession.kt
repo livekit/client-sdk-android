@@ -42,6 +42,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import io.livekit.android.room.track.video.CameraCapturerUtils
 import livekit.org.webrtc.CameraEnumerationAndroid.CaptureFormat
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -57,12 +58,11 @@ internal constructor(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     private val surfaceTextureHelper: SurfaceTextureHelper,
-    private val cameraId: String,
+    private val cameraDevice: CameraCapturerUtils.CameraDeviceInfo,
     private val width: Int,
     private val height: Int,
     private val frameRate: Int,
     private val useCases: Array<out UseCase> = emptyArray(),
-    var physicalCameraId: String? = null,
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
@@ -120,7 +120,7 @@ internal constructor(
     }
 
     override fun stop() {
-        Logging.d(TAG, "Stop cameraX session on camera $cameraId")
+        Logging.d(TAG, "Stop cameraX session on camera $cameraDevice")
         checkIsOnCameraThread()
         if (state != SessionState.STOPPED) {
             val stopStartTime = System.nanoTime()
@@ -133,7 +133,7 @@ internal constructor(
 
     private fun openCamera() {
         checkIsOnCameraThread()
-        Logging.d(TAG, "Opening camera $cameraId")
+        Logging.d(TAG, "Opening camera $cameraDevice")
         events.onCameraOpening()
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val helperExecutor = Executor { command ->
@@ -160,7 +160,7 @@ internal constructor(
 
                 // Select camera by ID
                 val cameraSelector = CameraSelector.Builder()
-                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraId } }
+                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraDevice.deviceId } }
                     .build()
 
                 try {
@@ -209,7 +209,7 @@ internal constructor(
     private fun <T> ExtendableBuilder<T>.applyCameraSettings(): ExtendableBuilder<T> {
         val cameraExtender = Camera2Interop.Extender(this)
 
-        physicalCameraId?.let { physicalId ->
+        cameraDevice.physicalId?.let { physicalId ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cameraExtender.setPhysicalCameraId(physicalId)
             }
@@ -275,7 +275,7 @@ internal constructor(
     }
 
     private fun obtainCameraConfiguration() {
-        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }.first { it.cameraId == cameraId }
+        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }.first { it.cameraId == cameraDevice.deviceId }
 
         cameraOrientation = camera.getCameraCharacteristic(CameraCharacteristics.SENSOR_ORIENTATION) ?: -1
         isCameraFrontFacing = camera.getCameraCharacteristic(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_FRONT

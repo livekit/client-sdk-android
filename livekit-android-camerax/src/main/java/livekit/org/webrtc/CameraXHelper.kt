@@ -18,7 +18,6 @@ package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
-import android.os.Build
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.UseCase
 import androidx.lifecycle.Lifecycle
@@ -63,15 +62,10 @@ class CameraXHelper {
             ): VideoCapturer {
                 val enumerator = provideEnumerator(context)
                 val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-                val deviceId = options.deviceId
-                var targetDeviceName: String? = null
-                if (deviceId != null) {
-                    targetDeviceName = findCameraById(cameraManager, deviceId)
-                }
-                if (targetDeviceName == null) {
-                    // Fallback to enumerator.findCamera which can't find camera by physical id but it will choose the closest one.
-                    targetDeviceName = enumerator.findCamera(deviceId, options.position)
-                }
+
+                val targetDevice = enumerator.findCamera(cameraManager, options.deviceId, options.position)
+                val targetDeviceName = targetDevice?.physicalId ?: targetDevice?.deviceId
+
                 val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler) as CameraXCapturer
 
                 return CameraXCapturerWithSize(
@@ -84,23 +78,6 @@ class CameraXHelper {
 
             override fun isSupported(context: Context): Boolean {
                 return Camera2Enumerator.isSupported(context) && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)
-            }
-
-            private fun findCameraById(cameraManager: CameraManager, deviceId: String): String? {
-                for (id in cameraManager.cameraIdList) {
-                    if (id == deviceId) return id // This means the provided id is logical id.
-
-                    val characteristics = cameraManager.getCameraCharacteristics(id)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        val ids = characteristics.physicalCameraIds
-                        if (ids.contains(deviceId)) {
-                            // This means the provided id is physical id.
-                            enumerator?.physicalCameraId = deviceId
-                            return id // This is its logical id.
-                        }
-                    }
-                }
-                return null
             }
         }
 
