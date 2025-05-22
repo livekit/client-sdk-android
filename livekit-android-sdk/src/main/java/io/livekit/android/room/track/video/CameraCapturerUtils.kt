@@ -217,9 +217,13 @@ object CameraCapturerUtils {
         predicate: (deviceId: String, position: CameraPosition?) -> Boolean,
     ): CameraDeviceInfo? {
         for (id in deviceNames) {
-            val position = if (isFrontFacing(id)) CameraPosition.FRONT
-            else if (isBackFacing(id)) CameraPosition.BACK
-            else null
+            val position = if (isFrontFacing(id)) {
+                CameraPosition.FRONT
+            } else if (isBackFacing(id)) {
+                CameraPosition.BACK
+            } else {
+                null
+            }
 
             // First check if deviceId is a direct logical camera ID
             if (predicate(id, position)) return CameraDeviceInfo(id, position)
