@@ -111,7 +111,7 @@ internal constructor(timeout: Duration) : AudioTrackSink {
 
         synchronized(outputStreamLock) {
             if (audioData.hasArray()) {
-                outputStream.write(audioData.array())
+                outputStream.write(audioData.array(), audioData.arrayOffset(), audioData.capacity())
             } else {
                 while (audioData.hasRemaining()) {
                     val readBytes = min(tempArray.size, audioData.remaining())
