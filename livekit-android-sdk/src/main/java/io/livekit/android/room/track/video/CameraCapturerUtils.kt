@@ -19,10 +19,7 @@
 package io.livekit.android.room.track.video
 
 import android.content.Context
-import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import android.os.Build
-import android.os.Build.VERSION
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.util.LKLog
@@ -73,11 +70,9 @@ object CameraCapturerUtils {
      * Picks CameraProvider of highest available version that is supported on device
      */
     private fun getCameraProvider(context: Context): CameraProvider {
-        return cameraProviders
-            .sortedByDescending { it.cameraVersion }
-            .first {
-                it.isSupported(context)
-            }
+        return cameraProviders.sortedByDescending { it.cameraVersion }.first {
+            it.isSupported(context)
+        }
     }
 
     /**
@@ -101,14 +96,14 @@ object CameraCapturerUtils {
         provider: CameraProvider,
         options: LocalVideoTrackOptions,
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
+        val cameraEnumerator = provider.provideEnumerator(context)
         val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val targetDevice = findCamera(cameraManager, options.deviceId, options.position) ?: return null
+        val targetDevice = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
         val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
         // back fill any missing information
         val newOptions = options.copy(
-            deviceId = targetDevice.physicalId ?: targetDevice.deviceId,
+            deviceId = targetDevice.deviceId,
             position = targetDevice.position,
         )
 
@@ -133,15 +128,13 @@ object CameraCapturerUtils {
             options: LocalVideoTrackOptions,
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
-            val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val targetDevice = findCamera(cm, options.deviceId, options.position)
+            val targetDevice = enumerator.findCamera(options.deviceId, options.position)
             // Cache supported capture formats ahead of time to avoid future camera locks.
             Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDevice?.deviceId))
-            val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler)
+            val targetVideoCapturer = enumerator.createCapturer(targetDevice?.deviceId, eventsHandler)
             return Camera1CapturerWithSize(
                 targetVideoCapturer as Camera1Capturer,
-                targetDeviceId,
+                targetDevice?.deviceId,
                 eventsHandler,
             )
         }
@@ -154,10 +147,9 @@ object CameraCapturerUtils {
 
         override val cameraVersion = 2
 
-        override fun provideEnumerator(context: Context): CameraEnumerator =
-            enumerator ?: Camera2Enumerator(context).also {
-                enumerator = it
-            }
+        override fun provideEnumerator(context: Context): CameraEnumerator = enumerator ?: Camera2Enumerator(context).also {
+            enumerator = it
+        }
 
         override fun provideCapturer(
             context: Context,
@@ -165,14 +157,12 @@ object CameraCapturerUtils {
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
             val enumerator = provideEnumerator(context)
-            val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val targetDevice = findCamera(cm, options.deviceId, options.position)
-            val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler)
+            val targetDevice = enumerator.findCamera(options.deviceId, options.position)
+            val targetVideoCapturer = enumerator.createCapturer(targetDevice?.deviceId, eventsHandler)
             return Camera2CapturerWithSize(
                 targetVideoCapturer as Camera2Capturer,
                 context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                targetDeviceId,
+                targetDevice?.deviceId,
                 eventsHandler,
             )
         }
@@ -187,76 +177,52 @@ object CameraCapturerUtils {
      * @param position the position of a camera. If null, search based on camera position is skipped. Defaults to null.
      * @param fallback if true, when no camera is found by device id/position search, the first available camera on the list will be returned.
      */
-    fun findCamera(
-        cameraManager: CameraManager,
+    fun CameraEnumerator.findCamera(
         deviceId: String? = null,
         position: CameraPosition? = null,
         fallback: Boolean = true,
     ): CameraDeviceInfo? {
-        var targetDeviceName: CameraDeviceInfo? = null
+        var targetDevice: CameraDeviceInfo? = null
         // Prioritize search by deviceId first
         if (deviceId != null) {
-            targetDeviceName = findCamera(cameraManager) { id, _ ->
+            targetDevice = findCamera { id, _ ->
                 id == deviceId
             }
         }
 
         // Search by camera position
-        if (targetDeviceName == null && position != null) {
-            targetDeviceName = findCamera(cameraManager) { _, pos ->
+        if (targetDevice == null && position != null) {
+            targetDevice = findCamera { _, pos ->
                 pos == position
             }
         }
 
         // Fall back by choosing first available camera.
-        if (targetDeviceName == null && fallback) {
-            targetDeviceName = findCamera(cameraManager) { _, _ -> true }
+        if (targetDevice == null && fallback) {
+            targetDevice = findCamera { _, _ -> true }
         }
 
-        if (targetDeviceName == null) {
-            return null
-        }
-
-        return targetDeviceName
+        return targetDevice
     }
 
-    data class CameraDeviceInfo(val deviceId: String, val position: CameraPosition?, val physicalId: String?)
+    data class CameraDeviceInfo(val deviceId: String, val position: CameraPosition?)
 
     /**
      * Returns information about a camera by searching for the specified device ID.
-     * If the device ID matches a logical camera ID, returns that camera's info.
-     * If the device ID matches a physical camera ID on Android P and above, returns
-     * the logical camera info with the physical ID relationship.
      *
-     * @param cameraManager The system camera manager
      * @param predicate with deviceId and position, return true if camera is found
-     * @return [CameraDeviceInfo] with camera details or null if not found
+     * @return [CameraDeviceInfo] with camera id and position if found, null otherwise
      */
-    fun findCamera(
-        cameraManager: CameraManager,
+    fun CameraEnumerator.findCamera(
         predicate: (deviceId: String, position: CameraPosition?) -> Boolean,
     ): CameraDeviceInfo? {
-        for (id in cameraManager.cameraIdList) {
-            val ch = cameraManager.getCameraCharacteristics(id)
-            val lensFacing = ch.get(CameraCharacteristics.LENS_FACING)
-            val position = when (lensFacing) {
-                CameraCharacteristics.LENS_FACING_FRONT -> CameraPosition.FRONT
-                CameraCharacteristics.LENS_FACING_BACK -> CameraPosition.BACK
-                else -> null
-            }
+        for (id in deviceNames) {
+            val position = if (isFrontFacing(id)) CameraPosition.FRONT
+            else if (isBackFacing(id)) CameraPosition.BACK
+            else null
+
             // First check if deviceId is a direct logical camera ID
-            if (predicate(id, position)) return CameraDeviceInfo(id, position, null)
-
-            // Then check if deviceId is a physical camera ID in a logical camera
-            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val ch2 = cameraManager.getCameraCharacteristics(id)
-
-                for (physicalId in ch2.physicalCameraIds) {
-                    if (predicate(physicalId, position)) {
-                        return CameraDeviceInfo(id, position, physicalId)
-                    }
-                }
-            }
+            if (predicate(id, position)) return CameraDeviceInfo(id, position)
         }
         return null
     }

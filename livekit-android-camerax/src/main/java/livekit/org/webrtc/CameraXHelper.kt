@@ -63,15 +63,15 @@ class CameraXHelper {
                 val enumerator = provideEnumerator(context)
                 val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
-                val targetDevice = findCamera(cameraManager, options.deviceId, options.position)
-                val targetDeviceName = targetDevice?.physicalId ?: targetDevice?.deviceId
+                val targetDevice = enumerator.findCamera(options.deviceId, options.position)
+                val targetDeviceId = targetDevice?.deviceId
 
-                val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler) as CameraXCapturer
+                val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler) as CameraXCapturer
 
                 return CameraXCapturerWithSize(
                     targetVideoCapturer,
                     cameraManager,
-                    targetDeviceName,
+                    targetDeviceId,
                     eventsHandler,
                 )
             }

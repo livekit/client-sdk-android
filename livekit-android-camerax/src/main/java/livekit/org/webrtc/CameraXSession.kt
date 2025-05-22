@@ -26,6 +26,7 @@ import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_O
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
+import android.os.Build.VERSION
 import android.os.Handler
 import android.util.Range
 import android.util.Size
@@ -43,7 +44,6 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import io.livekit.android.room.track.video.CameraCapturerUtils
 import livekit.org.webrtc.CameraEnumerationAndroid.CaptureFormat
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -107,10 +107,10 @@ internal constructor(
         }
     }
 
-    private val cameraDevice: CameraCapturerUtils.CameraDeviceInfo
+    private val cameraDevice: CameraDeviceInfo
         get() {
             val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            return CameraCapturerUtils.findCamera(cameraManager, cameraId, fallback = false)
+            return findCamera(cameraManager, cameraId)
                 ?: throw IllegalArgumentException("Camera ID $cameraId not found")
         }
 
@@ -332,6 +332,30 @@ internal constructor(
             rotation = 360 - rotation
         }
         return (cameraOrientation + rotation) % 360
+    }
+
+    private data class CameraDeviceInfo(val deviceId: String, val physicalId: String?)
+
+    private fun findCamera(
+        cameraManager: CameraManager,
+        deviceId: String,
+    ): CameraDeviceInfo? {
+        for (id in cameraManager.cameraIdList) {
+            // First check if deviceId is a direct logical camera ID
+            if (id == deviceId) return CameraDeviceInfo(id, null)
+
+            // Then check if deviceId is a physical camera ID in a logical camera
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val characteristic = cameraManager.getCameraCharacteristics(id)
+
+                for (physicalId in characteristic.physicalCameraIds) {
+                    if (deviceId == physicalId) {
+                        return CameraDeviceInfo(id, physicalId)
+                    }
+                }
+            }
+        }
+        return null
     }
 
     companion object {

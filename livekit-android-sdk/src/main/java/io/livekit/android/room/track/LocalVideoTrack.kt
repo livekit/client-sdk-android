@@ -182,9 +182,8 @@ constructor(
 
         var targetDevice: CameraDeviceInfo? = null
         val enumerator = createCameraEnumerator(context)
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         if (deviceId != null || position != null) {
-            targetDevice = findCamera(cameraManager, deviceId, position, fallback = false)
+            targetDevice = enumerator.findCamera(deviceId, position, fallback = false)
         }
 
         if (targetDevice == null) {
@@ -195,10 +194,10 @@ constructor(
             }
             val currentIndex = deviceNames.indexOf(options.deviceId)
             val targetDeviceId = deviceNames[(currentIndex + 1) % deviceNames.size]
-            targetDevice = findCamera(cameraManager, targetDeviceId, fallback = false)
+            targetDevice = enumerator.findCamera(targetDeviceId, fallback = false)
         }
 
-        val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
+        val targetDeviceId = targetDevice?.deviceId
         fun updateCameraOptions() {
             val newOptions = options.copy(
                 deviceId = targetDeviceId,

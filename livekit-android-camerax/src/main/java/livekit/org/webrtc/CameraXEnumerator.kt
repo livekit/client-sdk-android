@@ -57,13 +57,15 @@ class CameraXEnumerator(
     }
 
     override fun isBackFacing(deviceName: String?): Boolean {
-        val cameraDevice = findCamera(cameraManager!!, deviceName)
-        return cameraDevice?.position == CameraPosition.BACK
+        val characteristics = cameraManager!!.getCameraCharacteristics(deviceName!!)
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+        return lensFacing == CameraCharacteristics.LENS_FACING_BACK
     }
 
     override fun isFrontFacing(deviceName: String?): Boolean {
-        val cameraDevice = findCamera(cameraManager!!, deviceName)
-        return cameraDevice?.position == CameraPosition.FRONT
+        val characteristics = cameraManager!!.getCameraCharacteristics(deviceName!!)
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+        return lensFacing == CameraCharacteristics.LENS_FACING_FRONT
     }
 
     override fun createCapturer(
