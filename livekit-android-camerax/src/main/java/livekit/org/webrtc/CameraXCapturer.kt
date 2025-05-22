@@ -23,8 +23,6 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
-import io.livekit.android.room.track.video.CameraCapturerUtils.CameraDeviceInfo
-import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CameraEventsDispatchHandler
 import io.livekit.android.util.FlowObservable
@@ -36,15 +34,10 @@ import kotlinx.coroutines.flow.StateFlow
 internal class CameraXCapturer(
     private val enumerator: CameraXEnumerator,
     private val lifecycleOwner: LifecycleOwner,
-    private val cameraManager: CameraManager,
-    private var cameraDevice: CameraDeviceInfo,
+    private val cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     private val useCases: Array<out UseCase> = emptyArray(),
-) : CameraCapturer(cameraDevice.deviceId, eventsHandler, enumerator) {
-
-    override fun getCameraName(): String? {
-        return cameraDevice.deviceId
-    }
+) : CameraCapturer(cameraName, eventsHandler, enumerator) {
 
     @FlowObservable
     @get:FlowObservable
@@ -95,20 +88,12 @@ internal class CameraXCapturer(
             applicationContext,
             lifecycleOwner,
             surfaceTextureHelper,
-            cameraDevice,
+            cameraName,
             width,
             height,
             framerate,
             useCases,
         )
-    }
-
-    override fun switchCamera(switchEventsHandler: CameraVideoCapturer.CameraSwitchHandler?, cameraName: String?) {
-        val device = enumerator.findCamera(cameraManager, cameraName)
-        if (device == null) return
-
-        cameraDevice = device
-        super.switchCamera(switchEventsHandler, cameraDevice.deviceId)
     }
 }
 

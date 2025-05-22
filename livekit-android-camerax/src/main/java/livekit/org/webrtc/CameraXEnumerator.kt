@@ -27,7 +27,6 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
-import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 
 /**
  * @suppress
@@ -40,12 +39,26 @@ class CameraXEnumerator(
     private val cameraManager: CameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
 ) : Camera2Enumerator(context) {
 
+    override fun getDeviceNames(): Array<out String?>? {
+        val cm = cameraManager!!
+        val availableCameraIds = ArrayList<String>()
+        for (id in cm.cameraIdList) {
+            availableCameraIds.add(id)
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val characteristics = cm.getCameraCharacteristics(id)
+                for (physicalId in characteristics.physicalCameraIds) {
+                    availableCameraIds.add(physicalId)
+                }
+            }
+        }
+        return availableCameraIds.toTypedArray()
+    }
+
     override fun createCapturer(
         deviceName: String?,
         eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     ): CameraVideoCapturer {
-        val deviceInfo = findCamera(cameraManager!!, deviceName, fallback = true)!!
-        return CameraXCapturer(this, lifecycleOwner, cameraManager!!, deviceInfo, eventsHandler, useCases)
+        return CameraXCapturer(this, lifecycleOwner, deviceName, eventsHandler, useCases)
     }
 
     companion object {

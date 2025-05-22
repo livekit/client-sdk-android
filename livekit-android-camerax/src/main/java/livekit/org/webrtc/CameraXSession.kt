@@ -18,6 +18,7 @@ package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_OFF
 import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_ON
@@ -58,7 +59,7 @@ internal constructor(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     private val surfaceTextureHelper: SurfaceTextureHelper,
-    private val cameraDevice: CameraCapturerUtils.CameraDeviceInfo,
+    private val cameraId: String,
     private val width: Int,
     private val height: Int,
     private val frameRate: Int,
@@ -106,6 +107,13 @@ internal constructor(
         }
     }
 
+    private val cameraDevice: CameraCapturerUtils.CameraDeviceInfo
+        get() {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            return CameraCapturerUtils.findCamera(cameraManager, cameraId, fallback = false)
+                ?: throw IllegalArgumentException("Camera ID $cameraId not found")
+        }
+
     init {
         cameraThreadHandler.post {
             start()
@@ -120,7 +128,7 @@ internal constructor(
     }
 
     override fun stop() {
-        Logging.d(TAG, "Stop cameraX session on camera $cameraDevice")
+        Logging.d(TAG, "Stop cameraX session on camera $cameraId")
         checkIsOnCameraThread()
         if (state != SessionState.STOPPED) {
             val stopStartTime = System.nanoTime()
@@ -133,7 +141,7 @@ internal constructor(
 
     private fun openCamera() {
         checkIsOnCameraThread()
-        Logging.d(TAG, "Opening camera $cameraDevice")
+        Logging.d(TAG, "Opening camera $cameraId")
         events.onCameraOpening()
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val helperExecutor = Executor { command ->

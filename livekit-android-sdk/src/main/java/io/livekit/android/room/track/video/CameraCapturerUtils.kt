@@ -102,9 +102,8 @@ object CameraCapturerUtils {
         options: LocalVideoTrackOptions,
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
         val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
-        val cameraEnumerator = provider.provideEnumerator(context)
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val targetDevice = cameraEnumerator.findCamera(cameraManager, options.deviceId, options.position) ?: return null
+        val targetDevice = findCamera(cameraManager, options.deviceId, options.position) ?: return null
         val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
         // back fill any missing information
@@ -135,7 +134,7 @@ object CameraCapturerUtils {
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
             val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val targetDevice = enumerator.findCamera(cm, options.deviceId, options.position)
+            val targetDevice = findCamera(cm, options.deviceId, options.position)
             // Cache supported capture formats ahead of time to avoid future camera locks.
             Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDevice?.deviceId))
             val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
@@ -167,7 +166,7 @@ object CameraCapturerUtils {
         ): VideoCapturer {
             val enumerator = provideEnumerator(context)
             val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val targetDevice = enumerator.findCamera(cm, options.deviceId, options.position)
+            val targetDevice = findCamera(cm, options.deviceId, options.position)
             val targetDeviceId = targetDevice?.physicalId ?: targetDevice?.deviceId
             val targetVideoCapturer = enumerator.createCapturer(targetDeviceId, eventsHandler)
             return Camera2CapturerWithSize(
@@ -188,7 +187,7 @@ object CameraCapturerUtils {
      * @param position the position of a camera. If null, search based on camera position is skipped. Defaults to null.
      * @param fallback if true, when no camera is found by device id/position search, the first available camera on the list will be returned.
      */
-    fun CameraEnumerator.findCamera(
+    fun findCamera(
         cameraManager: CameraManager,
         deviceId: String? = null,
         position: CameraPosition? = null,
@@ -233,7 +232,7 @@ object CameraCapturerUtils {
      * @param predicate with deviceId and position, return true if camera is found
      * @return [CameraDeviceInfo] with camera details or null if not found
      */
-    fun CameraEnumerator.findCamera(
+    fun findCamera(
         cameraManager: CameraManager,
         predicate: (deviceId: String, position: CameraPosition?) -> Boolean,
     ): CameraDeviceInfo? {
