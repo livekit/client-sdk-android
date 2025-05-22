@@ -27,8 +27,6 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
-import io.livekit.android.room.track.CameraPosition
-import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 
 /**
  * @suppress
