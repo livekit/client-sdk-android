@@ -27,6 +27,8 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.UseCase
 import androidx.lifecycle.LifecycleOwner
+import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
 
 /**
  * @suppress
@@ -52,6 +54,16 @@ class CameraXEnumerator(
             }
         }
         return availableCameraIds.toTypedArray()
+    }
+
+    override fun isBackFacing(deviceName: String?): Boolean {
+        val cameraDevice = findCamera(cameraManager!!, deviceName)
+        return cameraDevice?.position == CameraPosition.BACK
+    }
+
+    override fun isFrontFacing(deviceName: String?): Boolean {
+        val cameraDevice = findCamera(cameraManager!!, deviceName)
+        return cameraDevice?.position == CameraPosition.FRONT
     }
 
     override fun createCapturer(
