@@ -94,6 +94,7 @@ mockito-core = { module = "org.mockito:mockito-core", version = "4.11.0" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version = "4.1.0" }
 #noinspection GradleDependency
 mockito-inline = { module = "org.mockito:mockito-inline", version = "4.11.0" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version = "1.14.3" }
 
 robolectric = { module = "org.robolectric:robolectric", version = "4.14.1" }
 turbine = { module = "app.cash.turbine:turbine", version = "1.0.0" }
