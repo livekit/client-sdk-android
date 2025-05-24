@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.16.1
+
+### Patch Changes
+
+- Fix sending pre-connect audio data when byte buffer has backing array - [#678](https://github.com/livekit/client-sdk-android/pull/678) ([@davidliu](https://github.com/davidliu))
+
 ## 2.16.0
 
 ### Minor Changes
