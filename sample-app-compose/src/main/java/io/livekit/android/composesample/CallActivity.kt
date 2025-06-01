@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,6 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -118,9 +117,9 @@ class CallActivity : AppCompatActivity() {
             val participants by viewModel.participants.collectAsState(initial = emptyList())
             val primarySpeaker by viewModel.primarySpeaker.collectAsState()
             val activeSpeakers by viewModel.activeSpeakers.collectAsState(initial = emptyList())
-            val micEnabled by viewModel.micEnabled.observeAsState(true)
-            val videoEnabled by viewModel.cameraEnabled.observeAsState(true)
-            val screencastEnabled by viewModel.screenshareEnabled.observeAsState(false)
+            val micEnabled by viewModel.micEnabled.collectAsState(true)
+            val videoEnabled by viewModel.cameraEnabled.collectAsState(true)
+            val screencastEnabled by viewModel.screenshareEnabled.collectAsState(false)
             val permissionAllowed by viewModel.permissionAllowed.collectAsState()
             Content(
                 room,

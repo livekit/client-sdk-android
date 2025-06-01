@@ -32,6 +32,7 @@ import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -270,6 +271,7 @@ open class Participant(
     var trackPublications by flowDelegate(emptyMap<String, TrackPublication>())
         protected set
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun Flow<Map<String, TrackPublication>>.trackUpdateFlow(): Flow<List<Pair<TrackPublication, Track?>>> {
         return flatMapLatest { videoTracks ->
             if (videoTracks.isEmpty()) {
@@ -365,23 +367,43 @@ open class Participant(
         return null
     }
 
-    fun isCameraEnabled(): Boolean {
-        val pub = getTrackPublication(Track.Source.CAMERA)
-        return isTrackPublicationEnabled(pub)
-    }
+    @FlowObservable
+    @get:FlowObservable
+    val isMicrophoneEnabled by flowDelegate(
+        stateFlow = ::audioTrackPublications.flow
+            .map { it.firstOrNull { (pub, _) -> pub.source == Track.Source.MICROPHONE } ?: (null to null) }
+            .isTrackEnabledDetector()
+            .stateIn(delegateScope, SharingStarted.Eagerly, false),
+    )
 
-    fun isMicrophoneEnabled(): Boolean {
-        val pub = getTrackPublication(Track.Source.MICROPHONE)
-        return isTrackPublicationEnabled(pub)
-    }
+    @FlowObservable
+    @get:FlowObservable
+    val isCameraEnabled by flowDelegate(
+        stateFlow = ::videoTrackPublications.flow
+            .map { it.firstOrNull { (pub, _) -> pub.source == Track.Source.CAMERA } ?: (null to null) }
+            .isTrackEnabledDetector()
+            .stateIn(delegateScope, SharingStarted.Eagerly, false),
+    )
 
-    fun isScreenShareEnabled(): Boolean {
-        val pub = getTrackPublication(Track.Source.SCREEN_SHARE)
-        return isTrackPublicationEnabled(pub)
-    }
+    @FlowObservable
+    @get:FlowObservable
+    val isScreenShareEnabled by flowDelegate(
+        stateFlow = ::videoTrackPublications.flow
+            .map { it.firstOrNull { (pub, _) -> pub.source == Track.Source.SCREEN_SHARE } ?: (null to null) }
+            .isTrackEnabledDetector()
+            .stateIn(delegateScope, SharingStarted.Eagerly, false),
+    )
 
-    private fun isTrackPublicationEnabled(pub: TrackPublication?): Boolean {
-        return !(pub?.muted ?: true)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun Flow<Pair<TrackPublication?, Track?>>.isTrackEnabledDetector(): Flow<Boolean> {
+        return this.flatMapLatest { (pub, track) ->
+            if (pub == null) {
+                flowOf(false to track)
+            } else {
+                pub::muted.flow
+                    .map { muted -> muted to track }
+            }
+        }.map { (muted, track) -> (!muted && track != null) }
     }
 
     /**

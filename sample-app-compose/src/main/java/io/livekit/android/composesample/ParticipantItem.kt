@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,8 @@ fun ParticipantItem(
     val audioTracks by participant::audioTrackPublications.flow.collectAsState()
     val identityBarPadding = 4.dp
     ConstraintLayout(
-        modifier = modifier.background(NoVideoBackground)
+        modifier = modifier
+            .background(NoVideoBackground)
             .run {
                 if (isSpeaking) {
                     border(2.dp, BlueMain)
@@ -101,9 +102,9 @@ fun ParticipantItem(
             },
         )
 
-        val isMuted = audioTracks.none { (pub) -> pub.track != null && !pub.muted }
+        val isMicEnabled by participant::isMicrophoneEnabled.flow.collectAsState()
 
-        if (isMuted) {
+        if (!isMicEnabled) {
             Icon(
                 painter = painterResource(id = R.drawable.outline_mic_off_24),
                 contentDescription = "",

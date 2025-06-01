@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.sample.common.R
@@ -36,6 +38,7 @@ import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import io.livekit.android.sample.model.StressTest
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 
 class CallActivity : AppCompatActivity() {
@@ -81,12 +84,14 @@ class CallActivity : AppCompatActivity() {
             adapter = audienceAdapter
         }
 
-        lifecycleScope.launchWhenCreated {
-            viewModel.participants
-                .collect { participants ->
-                    val items = participants.map { participant -> ParticipantItem(viewModel.room, participant) }
-                    audienceAdapter.update(items)
-                }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.participants
+                    .collect { participants ->
+                        val items = participants.map { participant -> ParticipantItem(viewModel.room, participant) }
+                        audienceAdapter.update(items)
+                    }
+            }
         }
 
         // speaker view setup
@@ -95,53 +100,69 @@ class CallActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@CallActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = speakerAdapter
         }
-        lifecycleScope.launchWhenCreated {
-            viewModel.primarySpeaker.collectLatest { speaker ->
-                val items = listOfNotNull(speaker)
-                    .map { participant -> ParticipantItem(viewModel.room, participant, speakerView = true) }
-                speakerAdapter.update(items)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.primarySpeaker.collectLatest { speaker ->
+                    val items = listOfNotNull(speaker)
+                        .map { participant -> ParticipantItem(viewModel.room, participant, speakerView = true) }
+                    speakerAdapter.update(items)
+                }
             }
         }
 
         // Controls setup
-        viewModel.cameraEnabled.observe(this) { enabled ->
-            binding.camera.setOnClickListener { viewModel.setCameraEnabled(!enabled) }
-            binding.camera.setImageResource(
-                if (enabled) {
-                    R.drawable.outline_videocam_24
-                } else {
-                    R.drawable.outline_videocam_off_24
-                },
-            )
-            binding.flipCamera.isEnabled = enabled
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.cameraEnabled.collect { enabled ->
+                    binding.camera.setOnClickListener { viewModel.setCameraEnabled(!enabled) }
+                    binding.camera.setImageResource(
+                        if (enabled) {
+                            R.drawable.outline_videocam_24
+                        } else {
+                            R.drawable.outline_videocam_off_24
+                        },
+                    )
+                    binding.flipCamera.isEnabled = enabled
+                }
+            }
         }
-        viewModel.micEnabled.observe(this) { enabled ->
-            binding.mic.setOnClickListener { viewModel.setMicEnabled(!enabled) }
-            binding.mic.setImageResource(
-                if (enabled) {
-                    R.drawable.outline_mic_24
-                } else {
-                    R.drawable.outline_mic_off_24
-                },
-            )
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.micEnabled.collect { enabled ->
+                    binding.mic.setOnClickListener { viewModel.setMicEnabled(!enabled) }
+                    binding.mic.setImageResource(
+                        if (enabled) {
+                            R.drawable.outline_mic_24
+                        } else {
+                            R.drawable.outline_mic_off_24
+                        },
+                    )
+                }
+            }
         }
 
         binding.flipCamera.setOnClickListener { viewModel.flipCamera() }
-        viewModel.screenshareEnabled.observe(this) { enabled ->
-            binding.screenShare.setOnClickListener {
-                if (enabled) {
-                    viewModel.stopScreenCapture()
-                } else {
-                    requestMediaProjection()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.screenshareEnabled.collect { enabled ->
+                    binding.screenShare.setOnClickListener {
+                        if (enabled) {
+                            viewModel.stopScreenCapture()
+                        } else {
+                            requestMediaProjection()
+                        }
+                    }
+                    binding.screenShare.setImageResource(
+                        if (enabled) {
+                            R.drawable.baseline_cast_connected_24
+                        } else {
+                            R.drawable.baseline_cast_24
+                        },
+                    )
                 }
             }
-            binding.screenShare.setImageResource(
-                if (enabled) {
-                    R.drawable.baseline_cast_connected_24
-                } else {
-                    R.drawable.baseline_cast_24
-                },
-            )
         }
 
         binding.message.setOnClickListener {
