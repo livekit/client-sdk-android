@@ -32,9 +32,9 @@ import kotlinx.coroutines.flow.StateFlow
 
 @ExperimentalCamera2Interop
 internal class CameraXCapturer(
-    private val enumerator: CameraXEnumerator,
+    enumerator: CameraXEnumerator,
     private val lifecycleOwner: LifecycleOwner,
-    private val cameraName: String?,
+    cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     private val useCases: Array<out UseCase> = emptyArray(),
 ) : CameraCapturer(cameraName, eventsHandler, enumerator) {

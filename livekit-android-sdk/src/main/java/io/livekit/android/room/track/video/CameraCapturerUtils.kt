@@ -70,9 +70,9 @@ object CameraCapturerUtils {
      * Picks CameraProvider of highest available version that is supported on device
      */
     private fun getCameraProvider(context: Context): CameraProvider {
-        return cameraProviders.sortedByDescending { it.cameraVersion }.first {
-            it.isSupported(context)
-        }
+        return cameraProviders
+            .sortedByDescending { it.cameraVersion }
+            .first { it.isSupported(context) }
     }
 
     /**
@@ -225,8 +225,9 @@ object CameraCapturerUtils {
                 null
             }
 
-            // First check if deviceId is a direct logical camera ID
-            if (predicate(id, position)) return CameraDeviceInfo(id, position)
+            if (predicate(id, position)) {
+                return CameraDeviceInfo(id, position)
+            }
         }
         return null
     }

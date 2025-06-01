@@ -107,7 +107,7 @@ internal constructor(
         }
     }
 
-    private val cameraDevice: CameraDeviceInfo
+    private val cameraDevice: CameraDeviceId
         get() {
             val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
             return findCamera(cameraManager, cameraId)
@@ -334,15 +334,15 @@ internal constructor(
         return (cameraOrientation + rotation) % 360
     }
 
-    private data class CameraDeviceInfo(val deviceId: String, val physicalId: String?)
+    private data class CameraDeviceId(val deviceId: String, val physicalId: String?)
 
     private fun findCamera(
         cameraManager: CameraManager,
         deviceId: String,
-    ): CameraDeviceInfo? {
+    ): CameraDeviceId? {
         for (id in cameraManager.cameraIdList) {
             // First check if deviceId is a direct logical camera ID
-            if (id == deviceId) return CameraDeviceInfo(id, null)
+            if (id == deviceId) return CameraDeviceId(id, null)
 
             // Then check if deviceId is a physical camera ID in a logical camera
             if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -350,7 +350,7 @@ internal constructor(
 
                 for (physicalId in characteristic.physicalCameraIds) {
                     if (deviceId == physicalId) {
-                        return CameraDeviceInfo(id, physicalId)
+                        return CameraDeviceId(id, physicalId)
                     }
                 }
             }
