@@ -18,6 +18,7 @@ package livekit.org.webrtc
 
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_OFF
 import android.hardware.camera2.CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_ON
@@ -25,6 +26,7 @@ import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_O
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
+import android.os.Build.VERSION
 import android.os.Handler
 import android.util.Range
 import android.util.Size
@@ -62,7 +64,6 @@ internal constructor(
     private val height: Int,
     private val frameRate: Int,
     private val useCases: Array<out UseCase> = emptyArray(),
-    var physicalCameraId: String? = null,
 ) : CameraSession {
 
     private var state = SessionState.RUNNING
@@ -105,6 +106,13 @@ internal constructor(
             modifiedFrame.release()
         }
     }
+
+    private val cameraDevice: CameraDeviceId
+        get() {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            return findCamera(cameraManager, cameraId)
+                ?: throw IllegalArgumentException("Camera ID $cameraId not found")
+        }
 
     init {
         cameraThreadHandler.post {
@@ -160,7 +168,7 @@ internal constructor(
 
                 // Select camera by ID
                 val cameraSelector = CameraSelector.Builder()
-                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraId } }
+                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraDevice.deviceId } }
                     .build()
 
                 try {
@@ -209,7 +217,7 @@ internal constructor(
     private fun <T> ExtendableBuilder<T>.applyCameraSettings(): ExtendableBuilder<T> {
         val cameraExtender = Camera2Interop.Extender(this)
 
-        physicalCameraId?.let { physicalId ->
+        cameraDevice.physicalId?.let { physicalId ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cameraExtender.setPhysicalCameraId(physicalId)
             }
@@ -275,7 +283,7 @@ internal constructor(
     }
 
     private fun obtainCameraConfiguration() {
-        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }.first { it.cameraId == cameraId }
+        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }.first { it.cameraId == cameraDevice.deviceId }
 
         cameraOrientation = camera.getCameraCharacteristic(CameraCharacteristics.SENSOR_ORIENTATION) ?: -1
         isCameraFrontFacing = camera.getCameraCharacteristic(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_FRONT
@@ -324,6 +332,30 @@ internal constructor(
             rotation = 360 - rotation
         }
         return (cameraOrientation + rotation) % 360
+    }
+
+    private data class CameraDeviceId(val deviceId: String, val physicalId: String?)
+
+    private fun findCamera(
+        cameraManager: CameraManager,
+        deviceId: String,
+    ): CameraDeviceId? {
+        for (id in cameraManager.cameraIdList) {
+            // First check if deviceId is a direct logical camera ID
+            if (id == deviceId) return CameraDeviceId(id, null)
+
+            // Then check if deviceId is a physical camera ID in a logical camera
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val characteristic = cameraManager.getCameraCharacteristics(id)
+
+                for (physicalId in characteristic.physicalCameraIds) {
+                    if (deviceId == physicalId) {
+                        return CameraDeviceId(id, physicalId)
+                    }
+                }
+            }
+        }
+        return null
     }
 
     companion object {

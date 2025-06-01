@@ -32,13 +32,12 @@ import kotlinx.coroutines.flow.StateFlow
 
 @ExperimentalCamera2Interop
 internal class CameraXCapturer(
-    context: Context,
+    enumerator: CameraXEnumerator,
     private val lifecycleOwner: LifecycleOwner,
     cameraName: String?,
     eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     private val useCases: Array<out UseCase> = emptyArray(),
-    var physicalCameraId: String? = null,
-) : CameraCapturer(cameraName, eventsHandler, CameraXEnumerator(context, lifecycleOwner)) {
+) : CameraCapturer(cameraName, eventsHandler, enumerator) {
 
     @FlowObservable
     @get:FlowObservable
@@ -94,7 +93,6 @@ internal class CameraXCapturer(
             height,
             framerate,
             useCases,
-            physicalCameraId,
         )
     }
 }

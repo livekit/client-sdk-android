@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,9 +72,7 @@ object CameraCapturerUtils {
     private fun getCameraProvider(context: Context): CameraProvider {
         return cameraProviders
             .sortedByDescending { it.cameraVersion }
-            .first {
-                it.isSupported(context)
-            }
+            .first { it.isSupported(context) }
     }
 
     /**
@@ -98,15 +96,15 @@ object CameraCapturerUtils {
         provider: CameraProvider,
         options: LocalVideoTrackOptions,
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
-        val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
         val cameraEnumerator = provider.provideEnumerator(context)
-        val targetDeviceName = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
+        val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
+        val targetDevice = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
         val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
         // back fill any missing information
         val newOptions = options.copy(
-            deviceId = targetDeviceName,
-            position = cameraEnumerator.getCameraPosition(targetDeviceName),
+            deviceId = targetDevice.deviceId,
+            position = targetDevice.position,
         )
 
         if (targetVideoCapturer !is VideoCapturerWithSize) {
@@ -130,13 +128,13 @@ object CameraCapturerUtils {
             options: LocalVideoTrackOptions,
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
-            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
+            val targetDevice = enumerator.findCamera(options.deviceId, options.position)
             // Cache supported capture formats ahead of time to avoid future camera locks.
-            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDeviceName))
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            Camera1Helper.getSupportedFormats(Camera1Helper.getCameraId(targetDevice?.deviceId))
+            val targetVideoCapturer = enumerator.createCapturer(targetDevice?.deviceId, eventsHandler)
             return Camera1CapturerWithSize(
                 targetVideoCapturer as Camera1Capturer,
-                targetDeviceName,
+                targetDevice?.deviceId,
                 eventsHandler,
             )
         }
@@ -149,10 +147,9 @@ object CameraCapturerUtils {
 
         override val cameraVersion = 2
 
-        override fun provideEnumerator(context: Context): CameraEnumerator =
-            enumerator ?: Camera2Enumerator(context).also {
-                enumerator = it
-            }
+        override fun provideEnumerator(context: Context): CameraEnumerator = enumerator ?: Camera2Enumerator(context).also {
+            enumerator = it
+        }
 
         override fun provideCapturer(
             context: Context,
@@ -160,12 +157,12 @@ object CameraCapturerUtils {
             eventsHandler: CameraEventsDispatchHandler,
         ): VideoCapturer {
             val enumerator = provideEnumerator(context)
-            val targetDeviceName = enumerator.findCamera(options.deviceId, options.position)
-            val targetVideoCapturer = enumerator.createCapturer(targetDeviceName, eventsHandler)
+            val targetDevice = enumerator.findCamera(options.deviceId, options.position)
+            val targetVideoCapturer = enumerator.createCapturer(targetDevice?.deviceId, eventsHandler)
             return Camera2CapturerWithSize(
                 targetVideoCapturer as Camera2Capturer,
                 context.getSystemService(Context.CAMERA_SERVICE) as CameraManager,
-                targetDeviceName,
+                targetDevice?.deviceId,
                 eventsHandler,
             )
         }
@@ -184,55 +181,53 @@ object CameraCapturerUtils {
         deviceId: String? = null,
         position: CameraPosition? = null,
         fallback: Boolean = true,
-    ): String? {
-        var targetDeviceName: String? = null
+    ): CameraDeviceInfo? {
+        var targetDevice: CameraDeviceInfo? = null
         // Prioritize search by deviceId first
         if (deviceId != null) {
-            targetDeviceName = findCamera { deviceName -> deviceName == deviceId }
+            targetDevice = findCamera { id, _ ->
+                id == deviceId
+            }
         }
 
         // Search by camera position
-        if (targetDeviceName == null && position != null) {
-            targetDeviceName = findCamera { deviceName ->
-                getCameraPosition(deviceName) == position
+        if (targetDevice == null && position != null) {
+            targetDevice = findCamera { _, pos ->
+                pos == position
             }
         }
 
         // Fall back by choosing first available camera.
-        if (targetDeviceName == null && fallback) {
-            targetDeviceName = findCamera { true }
+        if (targetDevice == null && fallback) {
+            targetDevice = findCamera { _, _ -> true }
         }
 
-        if (targetDeviceName == null) {
-            return null
-        }
-
-        return targetDeviceName
+        return targetDevice
     }
 
+    data class CameraDeviceInfo(val deviceId: String, val position: CameraPosition?)
+
     /**
-     * Finds the device id of a camera that matches the [predicate].
+     * Returns information about a camera by searching for the specified device ID.
+     *
+     * @param predicate with deviceId and position, return true if camera is found
+     * @return [CameraDeviceInfo] with camera id and position if found, null otherwise
      */
-    fun CameraEnumerator.findCamera(predicate: (deviceName: String) -> Boolean): String? {
-        for (deviceName in deviceNames) {
-            if (predicate(deviceName)) {
-                return deviceName
+    fun CameraEnumerator.findCamera(
+        predicate: (deviceId: String, position: CameraPosition?) -> Boolean,
+    ): CameraDeviceInfo? {
+        for (id in deviceNames) {
+            val position = if (isFrontFacing(id)) {
+                CameraPosition.FRONT
+            } else if (isBackFacing(id)) {
+                CameraPosition.BACK
+            } else {
+                null
             }
-        }
-        return null
-    }
 
-    /**
-     * Returns the camera position of a camera, or null if neither front or back facing (e.g. external camera).
-     */
-    fun CameraEnumerator.getCameraPosition(deviceName: String?): CameraPosition? {
-        if (deviceName == null) {
-            return null
-        }
-        if (isBackFacing(deviceName)) {
-            return CameraPosition.BACK
-        } else if (isFrontFacing(deviceName)) {
-            return CameraPosition.FRONT
+            if (predicate(id, position)) {
+                return CameraDeviceInfo(id, position)
+            }
         }
         return null
     }

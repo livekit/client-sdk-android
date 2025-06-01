@@ -35,14 +35,40 @@ class CameraXEnumerator(
     context: Context,
     private val lifecycleOwner: LifecycleOwner,
     private val useCases: Array<out UseCase> = emptyArray(),
-    var physicalCameraId: String? = null,
 ) : Camera2Enumerator(context) {
+
+    override fun getDeviceNames(): Array<out String?> {
+        val cm = cameraManager!!
+        val availableCameraIds = ArrayList<String>()
+        for (id in cm.cameraIdList) {
+            availableCameraIds.add(id)
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val characteristics = cm.getCameraCharacteristics(id)
+                for (physicalId in characteristics.physicalCameraIds) {
+                    availableCameraIds.add(physicalId)
+                }
+            }
+        }
+        return availableCameraIds.toTypedArray()
+    }
+
+    override fun isBackFacing(deviceName: String?): Boolean {
+        val characteristics = cameraManager!!.getCameraCharacteristics(deviceName!!)
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+        return lensFacing == CameraCharacteristics.LENS_FACING_BACK
+    }
+
+    override fun isFrontFacing(deviceName: String?): Boolean {
+        val characteristics = cameraManager!!.getCameraCharacteristics(deviceName!!)
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+        return lensFacing == CameraCharacteristics.LENS_FACING_FRONT
+    }
 
     override fun createCapturer(
         deviceName: String?,
         eventsHandler: CameraVideoCapturer.CameraEventsHandler?,
     ): CameraVideoCapturer {
-        return CameraXCapturer(context, lifecycleOwner, deviceName, eventsHandler, useCases, physicalCameraId)
+        return CameraXCapturer(this, lifecycleOwner, deviceName, eventsHandler, useCases)
     }
 
     companion object {

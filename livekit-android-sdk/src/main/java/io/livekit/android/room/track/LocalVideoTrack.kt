@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import io.livekit.android.memory.CloseableManager
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.track.video.CameraCapturerUtils
+import io.livekit.android.room.track.video.CameraCapturerUtils.CameraDeviceInfo
 import io.livekit.android.room.track.video.CameraCapturerUtils.createCameraEnumerator
 import io.livekit.android.room.track.video.CameraCapturerUtils.findCamera
-import io.livekit.android.room.track.video.CameraCapturerUtils.getCameraPosition
 import io.livekit.android.room.track.video.CameraCapturerWithSize
 import io.livekit.android.room.track.video.CaptureDispatchObserver
 import io.livekit.android.room.track.video.ScaleCropVideoProcessor
@@ -179,26 +179,28 @@ constructor(
             return
         }
 
-        var targetDeviceId: String? = null
+        var targetDevice: CameraDeviceInfo? = null
         val enumerator = createCameraEnumerator(context)
         if (deviceId != null || position != null) {
-            targetDeviceId = enumerator.findCamera(deviceId, position, fallback = false)
+            targetDevice = enumerator.findCamera(deviceId, position, fallback = false)
         }
 
-        if (targetDeviceId == null) {
+        if (targetDevice == null) {
             val deviceNames = enumerator.deviceNames
             if (deviceNames.size < 2) {
                 LKLog.w { "No available cameras to switch to!" }
                 return
             }
             val currentIndex = deviceNames.indexOf(options.deviceId)
-            targetDeviceId = deviceNames[(currentIndex + 1) % deviceNames.size]
+            val targetDeviceId = deviceNames[(currentIndex + 1) % deviceNames.size]
+            targetDevice = enumerator.findCamera(targetDeviceId, fallback = false)
         }
 
+        val targetDeviceId = targetDevice?.deviceId
         fun updateCameraOptions() {
             val newOptions = options.copy(
                 deviceId = targetDeviceId,
-                position = enumerator.getCameraPosition(targetDeviceId),
+                position = targetDevice?.position,
             )
             options = newOptions
         }
@@ -243,7 +245,7 @@ constructor(
                 LKLog.w { "switching camera failed: $errorDescription" }
             }
         }
-        if (targetDeviceId == null) {
+        if (targetDevice == null) {
             LKLog.w { "No target camera found!" }
             return
         } else {
