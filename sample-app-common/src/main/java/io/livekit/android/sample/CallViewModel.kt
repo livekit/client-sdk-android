@@ -52,6 +52,7 @@ import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -125,14 +126,9 @@ class CallViewModel(
     private var localScreencastTrack: LocalScreencastVideoTrack? = null
 
     // Controls
-    private val mutableMicEnabled = MutableLiveData(true)
-    val micEnabled = mutableMicEnabled.hide()
-
-    private val mutableCameraEnabled = MutableLiveData(true)
-    val cameraEnabled = mutableCameraEnabled.hide()
-
-    private val mutableScreencastEnabled = MutableLiveData(false)
-    val screenshareEnabled = mutableScreencastEnabled.hide()
+    val micEnabled = room.localParticipant::isMicrophoneEnabled.flow
+    val cameraEnabled = room.localParticipant::isCameraEnabled.flow
+    val screenshareEnabled = room.localParticipant::isScreenShareEnabled.flow
 
     private val mutableEnhancedNsEnabled = MutableLiveData(false)
     val enhancedNsEnabled = mutableEnhancedNsEnabled.hide()
@@ -157,7 +153,7 @@ class CallViewModel(
             }
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             // Collect any errors.
             launch {
                 error.collect { Timber.e(it) }
@@ -256,10 +252,8 @@ class CallViewModel(
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
-            mutableMicEnabled.postValue(localParticipant.isMicrophoneEnabled())
 
             localParticipant.setCameraEnabled(true)
-            mutableCameraEnabled.postValue(localParticipant.isCameraEnabled())
 
             // Update the speaker
             handlePrimarySpeaker(emptyList(), emptyList(), room)
@@ -310,20 +304,18 @@ class CallViewModel(
      */
     fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
         val localParticipant = room.localParticipant
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(mediaProjectionPermissionResultData))
             val screencastTrack = localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalScreencastVideoTrack
             this@CallViewModel.localScreencastTrack = screencastTrack
-            mutableScreencastEnabled.postValue(screencastTrack?.enabled)
         }
     }
 
     fun stopScreenCapture() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             localScreencastTrack?.let { localScreencastVideoTrack ->
                 localScreencastVideoTrack.stop()
                 room.localParticipant.unpublishTrack(localScreencastVideoTrack)
-                mutableScreencastEnabled.postValue(localScreencastTrack?.enabled ?: false)
             }
         }
     }
@@ -345,16 +337,14 @@ class CallViewModel(
     }
 
     fun setMicEnabled(enabled: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             room.localParticipant.setMicrophoneEnabled(enabled)
-            mutableMicEnabled.postValue(enabled)
         }
     }
 
     fun setCameraEnabled(enabled: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             room.localParticipant.setCameraEnabled(enabled)
-            mutableCameraEnabled.postValue(enabled)
         }
     }
 
@@ -377,7 +367,7 @@ class CallViewModel(
     }
 
     fun sendData(message: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             room.localParticipant.publishData(message.toByteArray(Charsets.UTF_8))
         }
     }
@@ -408,13 +398,13 @@ class CallViewModel(
         Timber.e { "Reconnecting." }
         mutablePrimarySpeaker.value = null
         room.disconnect()
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             connectToRoom()
         }
     }
 
     private suspend fun StressTest.SwitchRoom.execute() = coroutineScope {
-        launch {
+        launch(Dispatchers.Default) {
             while (isActive) {
                 delay(2000)
                 dumpReferenceTables()
@@ -423,12 +413,12 @@ class CallViewModel(
 
         while (isActive) {
             Timber.d { "Stress test -> connect to first room" }
-            launch { quickConnectToRoom(firstToken) }
+            launch(Dispatchers.IO) { quickConnectToRoom(firstToken) }
             delay(200)
             room.disconnect()
             delay(50)
             Timber.d { "Stress test -> connect to second room" }
-            launch { quickConnectToRoom(secondToken) }
+            launch(Dispatchers.IO) { quickConnectToRoom(secondToken) }
             delay(200)
             room.disconnect()
             delay(50)

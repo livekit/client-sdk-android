@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,17 +82,9 @@ class ParticipantItem(
             }
         }
         coroutineScope?.launch {
-            participant::audioTrackPublications.flow
-                .flatMapLatest { tracks ->
-                    val audioTrack = tracks.firstOrNull()?.first
-                    if (audioTrack != null) {
-                        audioTrack::muted.flow
-                    } else {
-                        flowOf(true)
-                    }
-                }
-                .collect { muted ->
-                    viewBinding.muteIndicator.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+            participant::isMicrophoneEnabled.flow
+                .collect { isMicEnabled ->
+                    viewBinding.muteIndicator.visibility = if (isMicEnabled) View.VISIBLE else View.INVISIBLE
                 }
         }
         coroutineScope?.launch {
