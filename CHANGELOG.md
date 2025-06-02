@@ -1,5 +1,19 @@
 # client-sdk-android
 
+## 2.17.0
+
+### Minor Changes
+
+- Change isMicrophoneEnabled, isCameraEnabled, isScreenshareEnabled to FlowObservable variables - [#685](https://github.com/livekit/client-sdk-android/pull/685) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix switchCamera not working if the camera id is physical id - [#676](https://github.com/livekit/client-sdk-android/pull/676) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+- Fix sending pre-connect audio data when byte buffer has backing array - [#678](https://github.com/livekit/client-sdk-android/pull/678) ([@davidliu](https://github.com/davidliu))
+
+- Specify default values for StreamTextOptions and streamText - [#688](https://github.com/livekit/client-sdk-android/pull/688) ([@davidliu](https://github.com/davidliu))
+
 ## 2.16.0
 
 ### Minor Changes
