@@ -35,12 +35,12 @@ import javax.inject.Inject
 
 interface OutgoingDataStreamManager {
     /**
-     * Start sending a stream of text
+     * Start sending a stream of text. Call [TextStreamSender.close] when finished sending.
      */
-    suspend fun streamText(options: StreamTextOptions): TextStreamSender
+    suspend fun streamText(options: StreamTextOptions = StreamTextOptions()): TextStreamSender
 
     /**
-     * Start sending a stream of bytes
+     * Start sending a stream of bytes. Call [ByteStreamSender.close] when finished sending.
      */
     suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender
 }
