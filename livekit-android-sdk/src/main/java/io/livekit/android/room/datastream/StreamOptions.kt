@@ -34,12 +34,12 @@ data class StreamTextOptions(
     val attributes: Map<String, String> = emptyMap(),
     val streamId: String = UUID.randomUUID().toString(),
     val destinationIdentities: List<Participant.Identity> = emptyList(),
-    val operationType: TextStreamInfo.OperationType,
+    val operationType: TextStreamInfo.OperationType = TextStreamInfo.OperationType.CREATE,
     val version: Int = 0,
     val attachedStreamIds: List<String> = emptyList(),
     val replyToStreamId: String? = null,
     /**
-     * The total exact size in bytes, if known.
+     * The total exact size in bytes when encoded to UTF-8, if known.
      */
     val totalSize: Long? = null,
 )
