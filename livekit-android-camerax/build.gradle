@@ -71,7 +71,7 @@ dokkaHtml {
 
 dependencies {
 
-    implementation(project(":livekit-android-sdk"))
+    api(project(":livekit-android-sdk"))
     implementation libs.timber
     implementation libs.coroutines.lib
     implementation libs.androidx.annotation
