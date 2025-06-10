@@ -612,9 +612,15 @@ internal constructor(
 
         if (engine.connectionState == ConnectionState.DISCONNECTED) {
             onPublishFailure(TrackException.PublishException("Not connected!"))
+            return null
         }
 
-        val cid = track.rtcTrack.id()
+        val cid = try {
+            track.rtcTrack.id()
+        } catch (e: Exception) {
+            onPublishFailure(TrackException.PublishException("Failed to get track id", e))
+            return null
+        }
 
         // For fast publish, we can negotiate PC and request add track at the same time
         suspend fun negotiate() {
