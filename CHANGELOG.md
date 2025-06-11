@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.17.1
+
+### Patch Changes
+
+- Update CameraX dependency to 1.4.2 - [#694](https://github.com/livekit/client-sdk-android/pull/694) ([@davidliu](https://github.com/davidliu))
+
+- Avoid a crash on reconnection when a track is disposed - [#691](https://github.com/livekit/client-sdk-android/pull/691) ([@jeankruger](https://github.com/jeankruger))
+
 ## 2.17.0
 
 ### Minor Changes
