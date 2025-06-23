@@ -117,7 +117,7 @@ internal constructor(
         }
         when (newVal) {
             ConnectionState.CONNECTED -> {
-                if (oldVal == ConnectionState.DISCONNECTED) {
+                if (oldVal == ConnectionState.DISCONNECTED || oldVal == ConnectionState.CONNECTING) {
                     LKLog.d { "primary ICE connected" }
                     listener?.onEngineConnected()
                 } else if (oldVal == ConnectionState.RECONNECTING) {
@@ -209,6 +209,9 @@ internal constructor(
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): JoinResponse = coroutineScope {
+        if (connectionState == ConnectionState.DISCONNECTED) {
+            connectionState = ConnectionState.CONNECTING
+        }
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
 
