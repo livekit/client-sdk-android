@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.18.1
+
+### Patch Changes
+
+- Fix not being able to publish immediately after connecting - [#706](https://github.com/livekit/client-sdk-android/pull/706) ([@davidliu](https://github.com/davidliu))
+
 ## 2.18.0
 
 ### Minor Changes
