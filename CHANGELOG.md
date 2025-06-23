@@ -1,5 +1,12 @@
 # client-sdk-android
 
+## 2.18.0
+
+### Minor Changes
+
+- Refactor some internal data message sending methods to use Result instead of throwing Exceptions to - [#703](https://github.com/livekit/client-sdk-android/pull/703) ([@davidliu](https://github.com/davidliu))
+  fix crashes.
+
 ## 2.17.1
 
 ### Patch Changes
