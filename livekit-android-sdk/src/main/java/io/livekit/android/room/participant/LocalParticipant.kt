@@ -19,6 +19,7 @@ package io.livekit.android.room.participant
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.CheckResult
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
 import com.vdurmont.semver4j.Semver
@@ -62,7 +63,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -315,7 +315,8 @@ internal constructor(
      *
      * For screenshare audio, a [ScreenAudioCapturer] can be used.
      *
-     * @param mediaProjectionPermissionResultData The resultData returned from launching
+     * @param screenCaptureParams When enabling the screenshare, this must be provided with
+     * [ScreenCaptureParams.mediaProjectionPermissionResultData] containing resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
      * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
      * @see Room.screenShareTrackCaptureDefaults
@@ -904,14 +905,17 @@ internal constructor(
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
      * @param topic the topic under which the message was published
      * @param identities list of participant identities to deliver the payload, null to deliver to everyone
+     *
+     * @return A [Result] that succeeds if the publish succeeded, or a failure containing the exception.
      */
     @Suppress("unused")
+    @CheckResult
     suspend fun publishData(
         data: ByteArray,
         reliability: DataPublishReliability = DataPublishReliability.RELIABLE,
         topic: String? = null,
         identities: List<Identity>? = null,
-    ) {
+    ): Result<Unit> {
         if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
         }
@@ -935,7 +939,7 @@ internal constructor(
             .setKind(kind)
             .build()
 
-        engine.sendData(dataPacket)
+        return engine.sendData(dataPacket)
     }
 
     /**
@@ -946,13 +950,16 @@ internal constructor(
      *
      * @param code an integer representing the DTMF signal code
      * @param digit the string representing the DTMF digit (e.g., "1", "#", "*")
+     *
+     * @return A [Result] that succeeds if the publish succeeded, or a failure containing the exception.
      */
 
     @Suppress("unused")
+    @CheckResult
     suspend fun publishDtmf(
         code: Int,
         digit: String,
-    ) {
+    ): Result<Unit> {
         val sipDTMF = LivekitModels.SipDTMF.newBuilder().setCode(code)
             .setDigit(digit)
             .build()
@@ -962,7 +969,7 @@ internal constructor(
             .setKind(LivekitModels.DataPacket.Kind.RELIABLE)
             .build()
 
-        engine.sendData(dataPacket)
+        return engine.sendData(dataPacket)
     }
 
     /**
@@ -998,7 +1005,6 @@ internal constructor(
      * @see RpcInvocationData
      * @see performRpc
      */
-    @Suppress("RedundantSuspendModifier")
     override suspend fun registerRpcMethod(
         method: String,
         handler: RpcHandler,
@@ -1088,13 +1094,19 @@ internal constructor(
 
         val requestId = UUID.randomUUID().toString()
 
-        publishRpcRequest(
+        val result = publishRpcRequest(
             destinationIdentity = destinationIdentity,
             requestId = requestId,
             method = method,
             payload = payload,
             responseTimeout = responseTimeout - maxRoundTripLatency,
         )
+
+        if (result.isFailure) {
+            val exception = result.exceptionOrNull() as? RpcError
+                ?: RpcError.BuiltinRpcError.SEND_FAILED.create(data = "Error while sending rpc request.", cause = result.exceptionOrNull())
+            throw exception
+        }
 
         val responsePayload = suspendCancellableCoroutine { continuation ->
             var ackTimeoutJob: Job? = null
@@ -1149,13 +1161,25 @@ internal constructor(
         return@coroutineScope responsePayload
     }
 
+    @CheckResult
+    private suspend fun rpcSendData(dataPacket: DataPacket): Result<Unit> {
+        val result = engine.sendData(dataPacket)
+
+        return if (result.isFailure) {
+            Result.failure(RpcError.BuiltinRpcError.SEND_FAILED.create(cause = result.exceptionOrNull()))
+        } else {
+            result
+        }
+    }
+
+    @CheckResult
     private suspend fun publishRpcRequest(
         destinationIdentity: Identity,
         requestId: String,
         method: String,
         payload: String,
         responseTimeout: Duration = 10.seconds,
-    ) {
+    ): Result<Unit> {
         if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
         }
@@ -1174,15 +1198,16 @@ internal constructor(
             build()
         }
 
-        engine.sendData(dataPacket)
+        return rpcSendData(dataPacket)
     }
 
+    @CheckResult
     private suspend fun publishRpcResponse(
         destinationIdentity: Identity,
         requestId: String,
         payload: String?,
         error: RpcError?,
-    ) {
+    ): Result<Unit> {
         if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
         }
@@ -1202,13 +1227,14 @@ internal constructor(
             build()
         }
 
-        engine.sendData(dataPacket)
+        return rpcSendData(dataPacket)
     }
 
+    @CheckResult
     private suspend fun publishRpcAck(
         destinationIdentity: Identity,
         requestId: String,
-    ) {
+    ): Result<Unit> {
         val dataPacket = with(DataPacket.newBuilder()) {
             addDestinationIdentities(destinationIdentity.value)
             kind = DataPacket.Kind.RELIABLE
@@ -1219,7 +1245,7 @@ internal constructor(
             build()
         }
 
-        engine.sendData(dataPacket)
+        return rpcSendData(dataPacket)
     }
 
     private fun handleIncomingRpcAck(requestId: String) {
@@ -1252,7 +1278,12 @@ internal constructor(
         responseTimeout: Duration,
         version: Int,
     ) {
-        publishRpcAck(callerIdentity, requestId)
+        publishRpcAck(callerIdentity, requestId).also { result ->
+            if (result.isFailure) {
+                LKLog.w(result.exceptionOrNull()) { "Error sending ack for request $requestId." }
+                return
+            }
+        }
 
         if (version != RpcManager.RPC_VERSION) {
             publishRpcResponse(
@@ -1260,7 +1291,12 @@ internal constructor(
                 requestId = requestId,
                 payload = null,
                 error = RpcError.BuiltinRpcError.UNSUPPORTED_VERSION.create(),
-            )
+            ).also { result ->
+                if (result.isFailure) {
+                    LKLog.w(result.exceptionOrNull()) { "Error sending error response for request $requestId." }
+                }
+            }
+
             return
         }
 
@@ -1272,7 +1308,12 @@ internal constructor(
                 requestId = requestId,
                 payload = null,
                 error = RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create(),
-            )
+            ).also { result ->
+                if (result.isFailure) {
+                    LKLog.w(result.exceptionOrNull()) { "Error sending error response for request $requestId." }
+                }
+            }
+
             return
         }
 
@@ -1309,7 +1350,11 @@ internal constructor(
             requestId = requestId,
             payload = responsePayload,
             error = responseError,
-        )
+        ).also { result ->
+            if (result.isFailure) {
+                LKLog.w(result.exceptionOrNull()) { "Error sending error response for request $requestId." }
+            }
+        }
     }
 
     internal fun handleParticipantDisconnect(identity: Identity) {

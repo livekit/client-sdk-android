@@ -25,10 +25,10 @@ import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,22 +58,19 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
         for (i in bytesToStream.indices) {
             bytesToStream[i] = i.toByte()
         }
-        val job = launch {
-            val sender = room.localParticipant.streamBytes(
-                StreamBytesOptions(
-                    topic = "topic",
-                    attributes = mapOf("hello" to "world"),
-                    streamId = "stream_id",
-                    destinationIdentities = listOf(Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)),
-                    name = "stream_name",
-                    totalSize = bytesToStream.size.toLong(),
-                ),
-            )
-            sender.write(bytesToStream)
-            sender.close()
-        }
-
-        job.join()
+        val sender = room.localParticipant.streamBytes(
+            StreamBytesOptions(
+                topic = "topic",
+                attributes = mapOf("hello" to "world"),
+                streamId = "stream_id",
+                destinationIdentities = listOf(Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)),
+                name = "stream_name",
+                totalSize = bytesToStream.size.toLong(),
+            ),
+        )
+        assertTrue(sender.write(bytesToStream).isSuccess)
+        sender.close()
+        assertFalse(sender.isOpen)
 
         val buffers = pubDataChannel.sentBuffers
 
@@ -111,25 +108,23 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
         )
 
         val text = "test_text"
-        val job = launch {
-            val sender = room.localParticipant.streamText(
-                StreamTextOptions(
-                    topic = "topic",
-                    attributes = mapOf("hello" to "world"),
-                    streamId = "stream_id",
-                    destinationIdentities = listOf(Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)),
-                    operationType = TextStreamInfo.OperationType.CREATE,
-                    version = 0,
-                    attachedStreamIds = emptyList(),
-                    replyToStreamId = null,
-                    totalSize = 3,
-                ),
-            )
-            sender.write(text)
-            sender.close()
-        }
+        val sender = room.localParticipant.streamText(
+            StreamTextOptions(
+                topic = "topic",
+                attributes = mapOf("hello" to "world"),
+                streamId = "stream_id",
+                destinationIdentities = listOf(Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)),
+                operationType = TextStreamInfo.OperationType.CREATE,
+                version = 0,
+                attachedStreamIds = emptyList(),
+                replyToStreamId = null,
+                totalSize = 3,
+            ),
+        )
+        assertTrue(sender.write(text).isSuccess)
+        sender.close()
 
-        job.join()
+        assertFalse(sender.isOpen)
 
         val buffers = pubDataChannel.sentBuffers
 

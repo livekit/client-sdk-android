@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,6 @@ import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
-import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertNotNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +42,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import livekit.LivekitRtc
 import org.junit.Assert
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito

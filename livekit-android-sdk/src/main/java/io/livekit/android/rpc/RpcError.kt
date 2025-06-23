@@ -44,6 +44,12 @@ data class RpcError(
      * An optional data payload. Must be smaller than 15KB in size, or else will be truncated.
      */
     val data: String = "",
+
+    /**
+     * The local cause of the error, if any. This will not be passed over the wire to the remote.
+     */
+    override val cause: Throwable? = null,
+
 ) : Exception(message) {
 
     enum class BuiltinRpcError(val code: Int, val message: String) {
@@ -61,8 +67,8 @@ data class RpcError(
         UNSUPPORTED_VERSION(1404, "Unsupported RPC version"),
         ;
 
-        fun create(data: String = ""): RpcError {
-            return RpcError(code, message, data)
+        fun create(data: String = "", cause: Throwable? = null): RpcError {
+            return RpcError(code, message, data, cause)
         }
     }
 

@@ -17,13 +17,48 @@
 package io.livekit.android.room.datastream
 
 sealed class StreamException(message: String? = null) : Exception(message) {
+    /**
+     * Unable to open a stream with the same ID as an existing open stream.
+     */
     class AlreadyOpenedException : StreamException()
-    class AbnormalEndException(message: String?) : StreamException(message)
+
+    /**
+     * Stream closed abnormally by remote participant.
+     */
+    class AbnormalEndException(message: String? = null) : StreamException(message)
+
+    /**
+     * Incoming chunk data could not be decoded.
+     */
     class DecodeFailedException : StreamException()
+
+    /**
+     * Length exceeded total length specified in stream header.
+     */
     class LengthExceededException : StreamException()
+
+    /**
+     * Length is less than total length specified in stream header.
+     */
     class IncompleteException : StreamException()
-    class TerminatedException : StreamException()
+
+    /**
+     * Stream terminated before completion.
+     */
+    class TerminatedException(message: String? = null) : StreamException(message)
+
+    /**
+     * Cannot perform operations on an unknown stream.
+     */
     class UnknownStreamException : StreamException()
+
+    /**
+     * Given destination URL is not a directory.
+     */
     class NotDirectoryException : StreamException()
+
+    /**
+     * Unable to read information about the file to send.
+     */
     class FileInfoUnavailableException : StreamException()
 }

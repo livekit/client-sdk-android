@@ -30,8 +30,9 @@ class ByteStreamSender(
     val info: ByteStreamInfo,
     destination: StreamDestination<ByteArray>,
 ) : BaseStreamSender<ByteArray>(destination = destination) {
-    override suspend fun writeImpl(data: ByteArray) {
-        destination.write(data, byteDataChunker)
+
+    override suspend fun writeImpl(data: ByteArray): Result<Unit> {
+        return destination.write(data, byteDataChunker)
     }
 }
 
@@ -50,9 +51,7 @@ private val byteDataChunker: DataChunker<ByteArray> = { data: ByteArray, chunkSi
 }
 
 /**
- * Reads the file and writes it to the data stream.
- *
- * @throws
+ * Reads the file from [filePath] and writes it to the data stream.
  */
 suspend fun ByteStreamSender.writeFile(filePath: String) {
     write(FileSystem.SYSTEM.source(filePath.toPath()))
@@ -68,14 +67,23 @@ suspend fun ByteStreamSender.write(input: InputStream) {
 /**
  * Reads the source and sends it to the data stream.
  */
-suspend fun ByteStreamSender.write(source: Source) {
+suspend fun ByteStreamSender.write(source: Source): Result<Unit> {
     val buffer = Buffer()
     while (true) {
-        val readLen = source.read(buffer, 4096)
-        if (readLen == -1L) {
-            break
-        }
+        try {
+            val readLen = source.read(buffer, 4096)
+            if (readLen == -1L) {
+                break
+            }
 
-        write(buffer.readByteArray())
+            val result = write(buffer.readByteArray())
+            if (result.isFailure) {
+                return result
+            }
+        } catch (e: Exception) {
+            return Result.failure(e)
+        }
     }
+
+    return Result.success(Unit)
 }

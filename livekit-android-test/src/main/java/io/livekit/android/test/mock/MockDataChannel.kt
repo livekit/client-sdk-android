@@ -27,7 +27,6 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
     }
 
     override fun unregisterObserver() {
-        observer = null
     }
 
     override fun label(): String? {

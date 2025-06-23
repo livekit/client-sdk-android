@@ -19,12 +19,14 @@ package io.livekit.android.room.datastream.outgoing
 import io.livekit.android.room.datastream.TextStreamInfo
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.mock.room.datastream.outgoing.MockStreamDestination
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TextStreamSenderTest : BaseTest() {
 
     companion object {
@@ -40,12 +42,9 @@ class TextStreamSenderTest : BaseTest() {
         )
 
         val text = "abcdefghi"
-        val job = launch {
-            sender.write(text)
-            sender.close()
-        }
-
-        job.join()
+        val result = sender.write(text)
+        assertTrue(result.isSuccess)
+        sender.close()
 
         assertFalse(destination.isOpen)
         assertEquals(1, destination.writtenChunks.size)
@@ -67,12 +66,9 @@ class TextStreamSenderTest : BaseTest() {
             toString()
         }
 
-        val job = launch {
-            sender.write(text)
-            sender.close()
-        }
-
-        job.join()
+        val result = sender.write(text)
+        assertTrue(result.isSuccess)
+        sender.close()
 
         assertFalse(destination.isOpen)
         assertNotEquals(1, destination.writtenChunks.size)
@@ -85,6 +81,25 @@ class TextStreamSenderTest : BaseTest() {
         }
 
         assertEquals(text, writtenString)
+    }
+
+    @Test
+    fun writeFailsAfterClose() = runTest {
+        val destination = MockStreamDestination<String>(CHUNK_SIZE)
+        val sender = TextStreamSender(
+            info = createInfo(),
+            destination = destination,
+        )
+
+        val text = "abcdefghi"
+        assertTrue(sender.write(text).isSuccess)
+        sender.close()
+
+        assertTrue(sender.write(text).isFailure)
+
+        assertFalse(destination.isOpen)
+        assertEquals(1, destination.writtenChunks.size)
+        assertEquals(text, destination.writtenChunks[0].decodeToString())
     }
 
     fun createInfo(): TextStreamInfo = TextStreamInfo(

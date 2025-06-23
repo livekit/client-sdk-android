@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datastream.outgoing
 
+import androidx.annotation.CheckResult
 import com.google.protobuf.ByteString
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.datastream.ByteStreamInfo
@@ -36,11 +37,15 @@ import javax.inject.Inject
 interface OutgoingDataStreamManager {
     /**
      * Start sending a stream of text. Call [TextStreamSender.close] when finished sending.
+     *
+     * @throws StreamException if the stream failed to open.
      */
     suspend fun streamText(options: StreamTextOptions = StreamTextOptions()): TextStreamSender
 
     /**
      * Start sending a stream of bytes. Call [ByteStreamSender.close] when finished sending.
+     *
+     * @throws StreamException if the stream failed to open.
      */
     suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender
 }
@@ -63,10 +68,11 @@ constructor(
 
     private val openStreams = Collections.synchronizedMap(mutableMapOf<String, Descriptor>())
 
+    @CheckResult
     private suspend fun openStream(
         info: StreamInfo,
         destinationIdentities: List<Participant.Identity> = emptyList(),
-    ) {
+    ): Result<Unit> {
         if (openStreams.containsKey(info.id)) {
             throw StreamException.AlreadyOpenedException()
         }
@@ -112,15 +118,20 @@ constructor(
             build()
         }
 
-        engine.sendData(headerPacket)
+        val result = engine.sendData(headerPacket)
+        if (result.isFailure) {
+            return result
+        }
 
         val descriptor = Descriptor(info, destinationIdentityStrings)
         openStreams[info.id] = descriptor
 
         LKLog.d { "Opened send stream ${info.id}" }
+        return Result.success(Unit)
     }
 
-    private suspend fun sendChunk(streamId: String, dataChunk: ByteArray) {
+    @CheckResult
+    private suspend fun sendChunk(streamId: String, dataChunk: ByteArray): Result<Unit> {
         val descriptor = openStreams[streamId] ?: throw StreamException.UnknownStreamException()
         val nextChunkIndex = descriptor.nextChunkIndex.getAndIncrement()
 
@@ -137,7 +148,7 @@ constructor(
         }
 
         engine.waitForBufferStatusLow(DataPacket.Kind.RELIABLE)
-        engine.sendData(chunkPacket)
+        return engine.sendData(chunkPacket)
     }
 
     private suspend fun closeStream(streamId: String, reason: String? = null) {
@@ -157,7 +168,12 @@ constructor(
         }
 
         engine.waitForBufferStatusLow(DataPacket.Kind.RELIABLE)
-        engine.sendData(trailerPacket)
+        val result = engine.sendData(trailerPacket)
+
+        if (result.isFailure) {
+            // Log close failure only for now.
+            LKLog.w(result.exceptionOrNull()) { "Error when closing stream!" }
+        }
 
         openStreams.remove(streamId)
         LKLog.d { "Closed send stream $streamId" }
@@ -178,7 +194,11 @@ constructor(
         )
 
         val streamId = options.streamId
-        openStream(streamInfo, options.destinationIdentities)
+        val result = openStream(streamInfo, options.destinationIdentities)
+
+        if (result.isFailure) {
+            throw result.exceptionOrNull() ?: StreamException.TerminatedException("Unknown failure when opening the stream!")
+        }
 
         val destination = ManagerStreamDestination<String>(streamId)
         return TextStreamSender(
@@ -199,8 +219,11 @@ constructor(
         )
 
         val streamId = options.streamId
-        openStream(streamInfo, options.destinationIdentities)
+        val result = openStream(streamInfo, options.destinationIdentities)
 
+        if (result.isFailure) {
+            throw result.exceptionOrNull() ?: StreamException.TerminatedException("Unknown failure when opening the stream!")
+        }
         val destination = ManagerStreamDestination<ByteArray>(streamId)
         return ByteStreamSender(
             streamInfo,
@@ -212,12 +235,19 @@ constructor(
         override val isOpen: Boolean
             get() = openStreams.contains(streamId)
 
-        override suspend fun write(data: T, chunker: DataChunker<T>) {
+        override suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit> {
+            if (!isOpen) {
+                return Result.failure(StreamException.TerminatedException("Stream is closed!"))
+            }
             val chunks = chunker.invoke(data, RTCEngine.MAX_DATA_PACKET_SIZE)
 
             for (chunk in chunks) {
-                sendChunk(streamId, chunk)
+                val result = sendChunk(streamId, chunk)
+                if (result.isFailure) {
+                    return result
+                }
             }
+            return Result.success(Unit)
         }
 
         override suspend fun close(reason: String?) {

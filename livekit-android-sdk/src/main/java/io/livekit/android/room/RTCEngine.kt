@@ -17,6 +17,7 @@
 package io.livekit.android.room
 
 import android.os.SystemClock
+import androidx.annotation.CheckResult
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
 import com.vdurmont.semver4j.Semver
@@ -82,7 +83,6 @@ import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SessionDescription
-import java.net.ConnectException
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Named
@@ -445,7 +445,7 @@ internal constructor(
      * reconnect Signal and PeerConnections
      */
     @Synchronized
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     fun reconnect() {
         if (reconnectingJob?.isActive == true) {
             LKLog.d { "Reconnection is already in progress" }
@@ -625,22 +625,32 @@ internal constructor(
         }
     }
 
-    internal suspend fun sendData(dataPacket: LivekitModels.DataPacket) {
-        ensurePublisherConnected(dataPacket.kind)
+    @CheckResult
+    internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result<Unit> {
+        try {
+            ensurePublisherConnected(dataPacket.kind)
 
-        val buf = DataChannel.Buffer(
-            ByteBuffer.wrap(dataPacket.toByteArray()),
-            true,
-        )
+            val buf = DataChannel.Buffer(
+                ByteBuffer.wrap(dataPacket.toByteArray()),
+                true,
+            )
 
-        val channel = dataChannelForKind(dataPacket.kind)
-            ?: throw TrackException.PublishException("channel not established for ${dataPacket.kind.name}")
+            val channel = dataChannelForKind(dataPacket.kind)
+                ?: throw RoomException.ConnectException("channel not established for ${dataPacket.kind.name}")
 
-        channel.send(buf)
+            channel.send(buf)
+        } catch (e: Exception) {
+            return Result.failure(e)
+        }
+        return Result.success(Unit)
     }
 
     internal suspend fun waitForBufferStatusLow(kind: LivekitModels.DataPacket.Kind) {
-        ensurePublisherConnected(kind)
+        try {
+            ensurePublisherConnected(kind)
+        } catch (e: Exception) {
+            return
+        }
         val manager = when (kind) {
             LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
             LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannelManager
@@ -650,11 +660,12 @@ internal constructor(
         }
 
         if (manager == null) {
-            throw IllegalStateException("Not connected!")
+            return
         }
         manager.waitForBufferedAmountLow(DATA_CHANNEL_LOW_THRESHOLD.toLong())
     }
 
+    @Throws(exceptionClasses = [RoomException.ConnectException::class])
     private suspend fun ensurePublisherConnected(kind: LivekitModels.DataPacket.Kind) {
         if (!isSubscriberPrimary) {
             return
@@ -671,7 +682,7 @@ internal constructor(
             this.negotiatePublisher()
         }
 
-        val targetChannel = dataChannelForKind(kind) ?: throw IllegalArgumentException("Unknown data packet kind!")
+        val targetChannel = dataChannelForKind(kind) ?: throw RoomException.ConnectException("Publisher isn't setup yet! Is room not connected?!")
         if (targetChannel.state() == DataChannel.State.OPEN) {
             return
         }
@@ -685,14 +696,14 @@ internal constructor(
             delay(50)
         }
 
-        throw ConnectException("could not establish publisher connection")
+        throw RoomException.ConnectException("could not establish publisher connection")
     }
 
     private fun dataChannelForKind(kind: LivekitModels.DataPacket.Kind) =
         when (kind) {
             LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannel
             LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannel
-            else -> null
+            LivekitModels.DataPacket.Kind.UNRECOGNIZED -> throw IllegalArgumentException("Unknown data packet kind!")
         }
 
     private fun getPublisherOfferConstraints(): MediaConstraints {
@@ -1137,6 +1148,7 @@ internal constructor(
 
         val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
             .toList()
+            .filterNot { it == LivekitModels.DataPacket.Kind.UNRECOGNIZED }
             .mapNotNull { kind -> dataChannelForKind(kind) }
             .map { dataChannel ->
                 LivekitRtc.DataChannelInfo.newBuilder()
