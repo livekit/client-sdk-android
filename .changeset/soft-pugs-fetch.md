@@ -2,4 +2,5 @@
 "client-sdk-android": minor
 ---
 
-Switch away from throwing exceptions internally where not needed to avoid crashes.
+Refactor some internal data message sending methods to use Result instead of throwing Exceptions to
+fix crashes.
