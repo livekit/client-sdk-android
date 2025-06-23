@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@
 package io.livekit.android.room
 
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.events.FlowCollector
 import io.livekit.android.test.mock.TestData
-import io.livekit.android.test.util.toOkioByteString
 import io.livekit.android.test.util.toPBByteString
+import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
@@ -41,6 +42,18 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     @Before
     fun setupRTCEngine() {
         rtcEngine = component.rtcEngine()
+    }
+
+    @Test
+    fun connectionState() = runTest {
+        val collector = FlowCollector(rtcEngine::connectionState.flow, coroutineRule.scope)
+        connect()
+        val events = collector.stopCollecting()
+        println(events)
+        assertEquals(3, events.size)
+        assertEquals(ConnectionState.DISCONNECTED, events[0])
+        assertEquals(ConnectionState.CONNECTING, events[1])
+        assertEquals(ConnectionState.CONNECTED, events[2])
     }
 
     @Test
@@ -143,6 +156,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         assertEquals(PeerConnection.IceTransportsType.RELAY, subPeerConnection.rtcConfig.iceTransportsType)
     }
 
+    @Test
     fun participantIdOnReconnect() = runTest {
         connect()
         wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
