@@ -148,7 +148,10 @@ internal constructor(timeout: Duration) : AudioTrackSink {
         )
 
         try {
-            sender.write(audioData)
+            val result = sender.write(audioData)
+            if (result.isFailure) {
+                result.exceptionOrNull()?.let { throw it }
+            }
             sender.close()
         } catch (e: Exception) {
             sender.close(e.localizedMessage)

@@ -23,8 +23,8 @@ class TextStreamSender(
     val info: TextStreamInfo,
     destination: StreamDestination<String>,
 ) : BaseStreamSender<String>(destination) {
-    override suspend fun writeImpl(data: String) {
-        destination.write(data, stringChunker)
+    override suspend fun writeImpl(data: String): Result<Unit> {
+        return destination.write(data, stringChunker)
     }
 }
 

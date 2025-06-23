@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,10 @@ private suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
         }
 
         try {
-            rtcEngine.sendData(dataPacket)
+            val result = rtcEngine.sendData(dataPacket)
+            result.exceptionOrNull()?.let {
+                throw it
+            }
         } catch (e: Exception) {
             LKLog.i(e) { "Error sending metrics: " }
         }
@@ -98,7 +101,10 @@ private suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
         }
 
         try {
-            rtcEngine.sendData(dataPacket)
+            val result = rtcEngine.sendData(dataPacket)
+            result.exceptionOrNull()?.let {
+                throw it
+            }
         } catch (e: Exception) {
             LKLog.i(e) { "Error sending metrics: " }
         }

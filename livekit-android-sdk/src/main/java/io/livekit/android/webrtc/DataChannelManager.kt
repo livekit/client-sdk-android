@@ -74,6 +74,7 @@ class DataChannelManager(
                 return
             }
             disposed = true
+            bufferedAmount = 0
         }
         executeOnRTCThread {
             dataChannel.unregisterObserver()

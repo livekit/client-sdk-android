@@ -16,21 +16,31 @@
 
 package io.livekit.android.room.datastream.outgoing
 
+import androidx.annotation.CheckResult
 import io.livekit.android.room.datastream.StreamException
 
 abstract class BaseStreamSender<T>(
     internal val destination: StreamDestination<T>,
 ) {
 
-    suspend fun write(data: T) {
+    val isOpen: Boolean
+        get() = destination.isOpen
+
+    /**
+     * Write to the stream.
+     */
+    @CheckResult
+    suspend fun write(data: T): Result<Unit> {
         if (!destination.isOpen) {
-            throw StreamException.TerminatedException()
+            return Result.failure(StreamException.TerminatedException())
         }
 
-        writeImpl(data)
+        return writeImpl(data)
     }
 
-    internal abstract suspend fun writeImpl(data: T)
+    @CheckResult
+    internal abstract suspend fun writeImpl(data: T): Result<Unit>
+
     suspend fun close(reason: String? = null) {
         destination.close(reason)
     }
@@ -41,7 +51,9 @@ abstract class BaseStreamSender<T>(
  */
 interface StreamDestination<T> {
     val isOpen: Boolean
-    suspend fun write(data: T, chunker: DataChunker<T>)
+
+    @CheckResult
+    suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit>
     suspend fun close(reason: String?)
 }
 
