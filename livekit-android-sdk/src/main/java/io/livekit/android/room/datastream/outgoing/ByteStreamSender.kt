@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datastream.outgoing
 
+import androidx.annotation.CheckResult
 import io.livekit.android.room.datastream.ByteStreamInfo
 import okio.Buffer
 import okio.FileSystem
@@ -53,20 +54,23 @@ private val byteDataChunker: DataChunker<ByteArray> = { data: ByteArray, chunkSi
 /**
  * Reads the file from [filePath] and writes it to the data stream.
  */
-suspend fun ByteStreamSender.writeFile(filePath: String) {
-    write(FileSystem.SYSTEM.source(filePath.toPath()))
+@CheckResult
+suspend fun ByteStreamSender.writeFile(filePath: String): Result<Unit> {
+    return write(FileSystem.SYSTEM.source(filePath.toPath()))
 }
 
 /**
  * Reads the input stream and sends it to the data stream.
  */
-suspend fun ByteStreamSender.write(input: InputStream) {
-    write(input.source())
+@CheckResult
+suspend fun ByteStreamSender.write(input: InputStream): Result<Unit> {
+    return write(input.source())
 }
 
 /**
  * Reads the source and sends it to the data stream.
  */
+@CheckResult
 suspend fun ByteStreamSender.write(source: Source): Result<Unit> {
     val buffer = Buffer()
     while (true) {
