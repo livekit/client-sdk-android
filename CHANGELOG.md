@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.18.2
+
+### Patch Changes
+
+- Properly return Result on ByteStreamSender convenience methods - [#709](https://github.com/livekit/client-sdk-android/pull/709) ([@davidliu](https://github.com/davidliu))
+
 ## 2.18.1
 
 ### Patch Changes
