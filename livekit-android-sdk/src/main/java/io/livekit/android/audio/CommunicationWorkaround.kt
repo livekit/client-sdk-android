@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import androidx.annotation.RequiresApi
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.LKLog
-import kotlinx.coroutines.MainCoroutineDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -83,8 +83,8 @@ constructor() : CommunicationWorkaround {
 internal class CommunicationWorkaroundImpl
 @Inject
 constructor(
-    @Named(InjectionNames.DISPATCHER_MAIN)
-    dispatcher: MainCoroutineDispatcher,
+    @Named(InjectionNames.DISPATCHER_IO)
+    dispatcher: CoroutineDispatcher,
 ) : CommunicationWorkaround {
 
     private val coroutineScope = CloseableCoroutineScope(dispatcher)
