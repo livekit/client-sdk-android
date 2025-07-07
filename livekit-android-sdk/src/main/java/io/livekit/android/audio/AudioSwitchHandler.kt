@@ -21,8 +21,10 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import com.twilio.audioswitch.*
+import io.livekit.android.util.LKLog
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -138,13 +140,26 @@ constructor(private val context: Context) : AudioHandler {
 
     private var audioSwitch: AbstractAudioSwitch? = null
 
-    // AudioSwitch is not threadsafe, so all calls should be done on the main thread.
-    private val handler = Handler(Looper.getMainLooper())
+    // AudioSwitch is not threadsafe, so all calls should be done through a single thread.
+    private var handler: Handler? = null
+    private var thread: HandlerThread? = null
 
+    @Synchronized
     override fun start() {
+        if (handler != null || thread != null) {
+            LKLog.i { "AudioSwitchHandler called start multiple times?" }
+        }
+
+        if (thread == null) {
+            thread = HandlerThread("AudioSwitchHandlerThread").also { it.start() }
+        }
+        if (handler == null) {
+            handler = Handler(thread!!.looper)
+        }
+
         if (audioSwitch == null) {
-            handler.removeCallbacksAndMessages(null)
-            handler.postAtFrontOfQueue {
+            handler?.removeCallbacksAndMessages(null)
+            handler?.postAtFrontOfQueue {
                 val switch =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         AudioSwitch(
@@ -176,12 +191,17 @@ constructor(private val context: Context) : AudioHandler {
         }
     }
 
+    @Synchronized
     override fun stop() {
-        handler.removeCallbacksAndMessages(null)
-        handler.postAtFrontOfQueue {
+        handler?.removeCallbacksAndMessages(null)
+        handler?.postAtFrontOfQueue {
             audioSwitch?.stop()
             audioSwitch = null
         }
+        thread?.quitSafely()
+
+        handler = null
+        thread = null
     }
 
     /**
@@ -199,11 +219,12 @@ constructor(private val context: Context) : AudioHandler {
     /**
      * Select a specific audio device.
      */
+    @Synchronized
     fun selectDevice(audioDevice: AudioDevice?) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
+        if (Looper.myLooper() == handler?.looper) {
             audioSwitch?.selectDevice(audioDevice)
         } else {
-            handler.post {
+            handler?.post {
                 audioSwitch?.selectDevice(audioDevice)
             }
         }
