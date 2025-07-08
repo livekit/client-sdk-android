@@ -172,7 +172,7 @@ jobs:
 
     - name: Publish snapshot
       if: github.event_name == 'push' && contains(steps.version_name.outputs.version_name,'SNAPSHOT')
-      run: ./gradlew publish
+      run: ./gradlew publishReleasePublicationToMavenRepository
 
     - name: Repository Dispatch
       if: github.event_name == 'push'

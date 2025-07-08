@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
@@ -13,14 +15,16 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlin_version"
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:$dokka_version"
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.5'
-        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0"
         classpath 'com.dicedmelon.gradle:jacoco-android:0.1.5'
         classpath "com.diffplug.spotless:spotless-plugin-gradle:6.23.3"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
 }
-apply plugin: 'io.codearte.nexus-staging'
+
+plugins {
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+}
 
 subprojects {
     // Ignore examples folder, it's not a module itself.
@@ -73,7 +77,7 @@ subprojects {
     // From Gradle 8 onwards, Kapt no longer automatically picks up jvmTarget
     // from normal KotlinOptions. Must be manually set.
     // JvmToolchain should not be used since it changes the actual JDK used.
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs).configureEach {
+    tasks.withType(KaptGenerateStubs).configureEach {
         kotlinOptions {
             jvmTarget = java_version
         }
@@ -81,26 +85,30 @@ subprojects {
 
 }
 
-task clean(type: Delete) {
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
 
-nexusStaging {
-    serverUrl = "https://s01.oss.sonatype.org/service/local/"
-    packageGroup = GROUP
-    stagingProfileId = STAGING_PROFILE_ID
+group = GROUP
+version = VERSION_NAME
+
+def getRepositoryUsername() {
+    return hasProperty('nexusUsername') ? nexusUsername : ""
 }
 
-afterEvaluate {
-    // These aren't supported for snapshots. From nexus staging plugin.
-    if (VERSION_NAME.contains("SNAPSHOT")) {
-        ["closeAndReleaseRepository",
-         "closeRepository",
-         "createRepository",
-         "getStagingProfile",
-         "releaseRepository"]
-            .forEach { taskName ->
-                getTasksByName(taskName, false).forEach { task -> task.enabled = false }
-            }
+def getRepositoryPassword() {
+    return hasProperty('nexusPassword') ? nexusPassword : ""
+}
+
+nexusPublishing {
+    packageGroup = GROUP
+    repositories {
+        maven {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username = getRepositoryUsername()
+            password = getRepositoryPassword()
+            stagingProfileId = STAGING_PROFILE_ID
+        }
     }
 }
