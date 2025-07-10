@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.18.3
+
+### Patch Changes
+
+- Move audio handling to background thread to avoid UI freezes. - [#715](https://github.com/livekit/client-sdk-android/pull/715) ([@davidliu](https://github.com/davidliu))
+
 ## 2.18.2
 
 ### Patch Changes
