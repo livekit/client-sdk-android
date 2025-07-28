@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,9 @@ internal fun PeerConnection.PeerConnectionState.isDisconnected(): Boolean {
          * as that is a temporary state and may return to connected state by itself.
          */
         PeerConnection.PeerConnectionState.FAILED,
-        PeerConnection.PeerConnectionState.CLOSED -> true
+        PeerConnection.PeerConnectionState.CLOSED,
+        -> true
+
         else -> false
     }
 }
@@ -50,45 +52,47 @@ fun RTCConfiguration.copy(): RTCConfiguration {
 }
 
 fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
-    iceTransportsType = config.iceTransportsType
-    iceServers = config.iceServers
-    bundlePolicy = config.bundlePolicy
-    certificate = config.certificate
-    rtcpMuxPolicy = config.rtcpMuxPolicy
-    tcpCandidatePolicy = config.tcpCandidatePolicy
-    candidateNetworkPolicy = config.candidateNetworkPolicy
-    audioJitterBufferMaxPackets = config.audioJitterBufferMaxPackets
+    activeResetSrtpParams = config.activeResetSrtpParams
     audioJitterBufferFastAccelerate = config.audioJitterBufferFastAccelerate
-    iceConnectionReceivingTimeout = config.iceConnectionReceivingTimeout
-    iceBackupCandidatePairPingInterval = config.iceBackupCandidatePairPingInterval
-    keyType = config.keyType
+    audioJitterBufferMaxPackets = config.audioJitterBufferMaxPackets
+    bundlePolicy = config.bundlePolicy
+    candidateNetworkPolicy = config.candidateNetworkPolicy
+    certificate = config.certificate
     continualGatheringPolicy = config.continualGatheringPolicy
+    cryptoOptions = config.cryptoOptions
+    disableIPv6OnWifi = config.disableIPv6OnWifi
+    enableCpuOveruseDetection = config.enableCpuOveruseDetection
+    enableDscp = config.enableDscp
+    enableIceGatheringOnAnyAddressPorts = config.enableIceGatheringOnAnyAddressPorts
+    enableImplicitRollback = config.enableImplicitRollback
+    iceBackupCandidatePairPingInterval = config.iceBackupCandidatePairPingInterval
     iceCandidatePoolSize = config.iceCandidatePoolSize
-
-    pruneTurnPorts = config.pruneTurnPorts
-    turnPortPrunePolicy = config.turnPortPrunePolicy
-    presumeWritableWhenFullyRelayed = config.presumeWritableWhenFullyRelayed
-    surfaceIceCandidatesOnIceTransportTypeChanged = config.surfaceIceCandidatesOnIceTransportTypeChanged
     iceCheckIntervalStrongConnectivityMs = config.iceCheckIntervalStrongConnectivityMs
     iceCheckIntervalWeakConnectivityMs = config.iceCheckIntervalWeakConnectivityMs
     iceCheckMinInterval = config.iceCheckMinInterval
-    iceUnwritableTimeMs = config.iceUnwritableTimeMs
+    iceConnectionReceivingTimeout = config.iceConnectionReceivingTimeout
+    iceServers = config.iceServers
+    iceTransportsType = config.iceTransportsType
     iceUnwritableMinChecks = config.iceUnwritableMinChecks
-    stunCandidateKeepaliveIntervalMs = config.stunCandidateKeepaliveIntervalMs
-    stableWritableConnectionPingIntervalMs = config.stableWritableConnectionPingIntervalMs
-    disableIPv6OnWifi = config.disableIPv6OnWifi
+    iceUnwritableTimeMs = config.iceUnwritableTimeMs
+    keyType = config.keyType
     maxIPv6Networks = config.maxIPv6Networks
-    enableDscp = config.enableDscp
-    enableCpuOveruseDetection = config.enableCpuOveruseDetection
-    suspendBelowMinBitrate = config.suspendBelowMinBitrate
-    screencastMinBitrate = config.screencastMinBitrate
     networkPreference = config.networkPreference
-    sdpSemantics = config.sdpSemantics
-    turnCustomizer = config.turnCustomizer
-    activeResetSrtpParams = config.activeResetSrtpParams
-    cryptoOptions = config.cryptoOptions
-    turnLoggingId = config.turnLoggingId
-    enableImplicitRollback = config.enableImplicitRollback
     offerExtmapAllowMixed = config.offerExtmapAllowMixed
-    enableIceGatheringOnAnyAddressPorts = config.enableIceGatheringOnAnyAddressPorts
+    portAllocatorFlags = config.portAllocatorFlags
+    portAllocatorMaxPort = config.portAllocatorMaxPort
+    portAllocatorMinPort = config.portAllocatorMinPort
+    presumeWritableWhenFullyRelayed = config.presumeWritableWhenFullyRelayed
+    pruneTurnPorts = config.pruneTurnPorts
+    rtcpMuxPolicy = config.rtcpMuxPolicy
+    screencastMinBitrate = config.screencastMinBitrate
+    sdpSemantics = config.sdpSemantics
+    stableWritableConnectionPingIntervalMs = config.stableWritableConnectionPingIntervalMs
+    stunCandidateKeepaliveIntervalMs = config.stunCandidateKeepaliveIntervalMs
+    surfaceIceCandidatesOnIceTransportTypeChanged = config.surfaceIceCandidatesOnIceTransportTypeChanged
+    suspendBelowMinBitrate = config.suspendBelowMinBitrate
+    tcpCandidatePolicy = config.tcpCandidatePolicy
+    turnCustomizer = config.turnCustomizer
+    turnLoggingId = config.turnLoggingId
+    turnPortPrunePolicy = config.turnPortPrunePolicy
 }
