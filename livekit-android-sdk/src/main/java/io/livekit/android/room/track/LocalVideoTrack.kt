@@ -256,7 +256,10 @@ constructor(
     /**
      * Restart a track with new options.
      */
-    fun restartTrack(options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy()) {
+    fun restartTrack(
+        options: LocalVideoTrackOptions = defaultsManager.videoTrackCaptureDefaults.copy(),
+        videoProcessor: VideoProcessor? = null
+    ) {
         if (isDisposed) {
             LKLog.e { "Attempting to restart track that was already disposed, aborting." }
             return
@@ -290,6 +293,7 @@ constructor(
             options,
             eglBase,
             trackFactory,
+            videoProcessor
         )
 
         // migrate video sinks to the new track

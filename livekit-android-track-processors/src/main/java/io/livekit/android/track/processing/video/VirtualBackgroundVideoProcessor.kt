@@ -137,6 +137,7 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
 
     override fun onCapturerStarted(started: Boolean) {
         if (started) {
+            surfaceTextureHelper.stopListening()
             surfaceTextureHelper.startListening { frame ->
                 targetSink?.onFrame(frame)
             }
