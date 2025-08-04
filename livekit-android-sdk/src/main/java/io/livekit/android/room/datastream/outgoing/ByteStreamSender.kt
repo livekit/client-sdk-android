@@ -20,13 +20,18 @@ import androidx.annotation.CheckResult
 import io.livekit.android.room.datastream.ByteStreamInfo
 import okio.Buffer
 import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
 import okio.Source
 import okio.source
+import java.io.File
 import java.io.InputStream
 import java.util.Arrays
 import kotlin.math.min
 
+/**
+ * A stream sender for sending byte-based messages (e.g. files, images, etc.)
+ */
 class ByteStreamSender(
     val info: ByteStreamInfo,
     destination: StreamDestination<ByteArray>,
@@ -52,7 +57,19 @@ private val byteDataChunker: DataChunker<ByteArray> = { data: ByteArray, chunkSi
 }
 
 /**
+ * Reads the [file] and writes it to the data stream.
+ *
+ * @param file the file to read from
+ */
+@CheckResult
+suspend fun ByteStreamSender.writeFile(file: File): Result<Unit> {
+    return write(FileSystem.SYSTEM.source(file.toOkioPath()))
+}
+
+/**
  * Reads the file from [filePath] and writes it to the data stream.
+ *
+ * @param filePath absolute path to the file
  */
 @CheckResult
 suspend fun ByteStreamSender.writeFile(filePath: String): Result<Unit> {

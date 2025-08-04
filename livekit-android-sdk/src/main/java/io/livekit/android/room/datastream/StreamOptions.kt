@@ -56,7 +56,7 @@ data class StreamBytesOptions(
     /**
      * The name of the file being sent.
      */
-    val name: String,
+    val name: String = "unknown",
     /**
      * The total exact size in bytes, if known.
      */

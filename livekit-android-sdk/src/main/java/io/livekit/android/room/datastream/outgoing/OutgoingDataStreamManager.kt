@@ -29,6 +29,8 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.DataStream
+import java.io.File
+import java.io.InputStream
 import java.util.Collections
 import java.util.Date
 import java.util.concurrent.atomic.AtomicLong
@@ -38,6 +40,7 @@ interface OutgoingDataStreamManager {
     /**
      * Start sending a stream of text. Call [TextStreamSender.close] when finished sending.
      *
+     * @see [TextStreamSender.write]
      * @throws StreamException if the stream failed to open.
      */
     suspend fun streamText(options: StreamTextOptions = StreamTextOptions()): TextStreamSender
@@ -45,9 +48,45 @@ interface OutgoingDataStreamManager {
     /**
      * Start sending a stream of bytes. Call [ByteStreamSender.close] when finished sending.
      *
+     * Extension functions are available for sending bytes from sources such as [InputStream] or [File].
+     *
+     * @see [ByteStreamSender.write]
+     * @see [ByteStreamSender.writeFile]
      * @throws StreamException if the stream failed to open.
      */
     suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender
+
+    /**
+     * Send text through a data stream.
+     */
+    @CheckResult
+    suspend fun sendText(text: String, options: StreamTextOptions = StreamTextOptions()): Result<Unit> {
+        val sender = streamText(options)
+        val result = sender.write(text)
+
+        if (result.isFailure) {
+            sender.close(result.exceptionOrNull()?.message ?: "Unknown error.")
+        } else {
+            sender.close()
+        }
+        return result
+    }
+
+    /**
+     * Send a file through a data stream.
+     */
+    @CheckResult
+    suspend fun sendFile(file: File, options: StreamBytesOptions = StreamBytesOptions()): Result<Unit> {
+        val sender = streamBytes(options)
+        val result = sender.writeFile(file)
+
+        if (result.isFailure) {
+            sender.close(result.exceptionOrNull()?.message ?: "Unknown error.")
+        } else {
+            sender.close()
+        }
+        return result
+    }
 }
 
 /**
