@@ -14,6 +14,7 @@ dagger = "2.46"
 groupie = "2.9.0"
 junit-lib = "4.13.2"
 junit-jupiter = "5.5.0"
+klaxon = "5.5"
 kotlinx-serialization = "1.5.0"
 leakcanaryAndroid = "2.8.1"
 lint = "30.0.1"
@@ -48,6 +49,7 @@ dagger-lib = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 groupie = { module = "com.github.lisawray.groupie:groupie", version.ref = "groupie" }
 groupie-viewbinding = { module = "com.github.lisawray.groupie:groupie-viewbinding", version.ref = "groupie" }
+klaxon = { module = "com.beust:klaxon", version.ref = "klaxon" }
 noise = { module = "com.github.paramsen:noise", version.ref = "noise" }
 androidx-lifecycle-common-java8 = { module = "androidx.lifecycle:lifecycle-common-java8", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
