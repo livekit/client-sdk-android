@@ -22,6 +22,8 @@ import androidx.annotation.OptIn
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -52,15 +54,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             eglBase = eglBase,
         ),
     )
-
-    val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO).apply {
+    private var blur = 16f
+    private val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO, initialBlurRadius = blur).apply {
         val drawable = AppCompatResources.getDrawable(application, R.drawable.background) as BitmapDrawable
         backgroundImage = drawable.bitmap
     }
 
     private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
 
-    private var imageAnalysis = ImageAnalysis.Builder().build()
+    private var imageAnalysis = ImageAnalysis.Builder()
+        .setResolutionSelector(
+            ResolutionSelector.Builder()
+                // LocalVideoTrack has default aspect ratio 16:9 VideoPreset169.H720
+                // ImageAnalysis of CameraX has default aspect ratio 4:3
+                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                .build(),
+        )
+        .build()
         .apply { setAnalyzer(Dispatchers.IO.asExecutor(), processor.imageAnalyzer) }
 
     init {
@@ -98,5 +108,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val newState = !processor.enabled
         processor.enabled = newState
         return newState
+    }
+
+    fun decreaseBlur() {
+        blur -= 5
+        processor.updateBlurRadius(blur)
+    }
+
+    fun increaseBlur() {
+        blur += 5
+        processor.updateBlurRadius(blur)
     }
 }

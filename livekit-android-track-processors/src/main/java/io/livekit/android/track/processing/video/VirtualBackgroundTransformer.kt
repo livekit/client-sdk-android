@@ -37,8 +37,8 @@ import java.nio.ByteBuffer
  * Blurs the background of the camera video stream.
  */
 class VirtualBackgroundTransformer(
-    val blurRadius: Float = 16f,
-    val downSampleFactor: Int = 2,
+    var downSampleFactor: Int = 2,
+    initialBlurRadius: Float = 16f,
 ) : RendererCommon.GlDrawer {
 
     data class MaskHolder(val width: Int, val height: Int, val buffer: ByteBuffer)
@@ -54,7 +54,7 @@ class VirtualBackgroundTransformer(
 
     private lateinit var downSampler: ResamplerShader
 
-    var backgroundImageStateLock = Any()
+    private var backgroundImageStateLock = Any()
     var backgroundImage: Bitmap? = null
         set(value) {
             if (value == field) {
@@ -66,7 +66,8 @@ class VirtualBackgroundTransformer(
                 backgroundImageNeedsUploading = true
             }
         }
-    var backgroundImageNeedsUploading = false
+    private var backgroundImageNeedsUploading = false
+    private var blurRadius: Float = initialBlurRadius
 
     // For double buffering the final mask
     private var readMaskIndex = 0 // Index for renderFrame to read from
@@ -199,6 +200,10 @@ class VirtualBackgroundTransformer(
         newMask = segmentationMask
     }
 
+    fun updateBlurRadius(blurRadius: Float) {
+        this.blurRadius = blurRadius
+    }
+
     private fun updateMaskFrameBuffer(segmentationMask: MaskHolder) {
         val width = segmentationMask.width
         val height = segmentationMask.height
@@ -250,6 +255,7 @@ class VirtualBackgroundTransformer(
     }
 
     override fun release() {
+        if (!initialized) return
         compositeShader.release()
         blurShader.release()
         boxBlurShader.release()
