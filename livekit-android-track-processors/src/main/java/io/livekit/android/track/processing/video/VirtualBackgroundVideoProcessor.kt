@@ -235,7 +235,7 @@ class VirtualBackgroundVideoProcessor(
     }
 
     fun updateBlurRadius(blurRadius: Float) {
-        backgroundTransformer.updateBlurRadius(blurRadius)
+        backgroundTransformer.blurRadius = blurRadius
     }
 
     fun dispose() {
