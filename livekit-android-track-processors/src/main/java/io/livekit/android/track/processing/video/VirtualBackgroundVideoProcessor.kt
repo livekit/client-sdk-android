@@ -52,7 +52,7 @@ import java.util.concurrent.Semaphore
 class VirtualBackgroundVideoProcessor(
     private val eglBase: EglBase,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    initialBlurRadius: Float = 16f
+    initialBlurRadius: Float = 16f,
 ) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
@@ -69,7 +69,7 @@ class VirtualBackgroundVideoProcessor(
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
     private val surface = Surface(surfaceTextureHelper.surfaceTexture)
-    private val backgroundTransformer = VirtualBackgroundTransformer(initialBlurRadius = initialBlurRadius)
+    private val backgroundTransformer = VirtualBackgroundTransformer(blurRadius = initialBlurRadius)
     private val eglRenderer = EglRenderer(VirtualBackgroundVideoProcessor::class.java.simpleName)
         .apply {
             init(eglBase.eglBaseContext, EglBase.CONFIG_PLAIN, backgroundTransformer)
