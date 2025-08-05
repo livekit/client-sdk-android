@@ -148,6 +148,8 @@ dependencies {
     api libs.okhttp.lib
     implementation libs.okhttp.coroutines
     api libs.audioswitch
+    implementation libs.klaxon
+
     implementation libs.androidx.annotation
     implementation libs.androidx.core
     implementation libs.protobuf.javalite
