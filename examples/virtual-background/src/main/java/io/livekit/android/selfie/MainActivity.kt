@@ -51,6 +51,13 @@ class MainActivity : AppCompatActivity() {
             track?.addRenderer(renderer)
         }
 
+        findViewById<Button>(R.id.buttonIncreaseBlur).setOnClickListener {
+            viewModel.increaseBlur()
+        }
+        findViewById<Button>(R.id.buttonDecreaseBlur).setOnClickListener {
+            viewModel.decreaseBlur()
+        }
+
         requestNeededPermissions {
             viewModel.startCapture()
         }

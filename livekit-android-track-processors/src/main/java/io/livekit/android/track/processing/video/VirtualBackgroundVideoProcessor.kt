@@ -49,17 +49,27 @@ import java.util.concurrent.Semaphore
  * By default, blurs the background of the video stream.
  * Setting [backgroundImage] will use the provided image instead.
  */
-class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: CoroutineDispatcher = Dispatchers.Default) : NoDropVideoProcessor() {
+class VirtualBackgroundVideoProcessor(
+    private val eglBase: EglBase,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    initialBlurRadius: Float = 16f,
+) : NoDropVideoProcessor() {
 
     private var targetSink: VideoSink? = null
-    private val segmenter: Segmenter
+    private val segmenter: Segmenter by lazy {
+        val options =
+            SelfieSegmenterOptions.Builder()
+                .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE)
+                .build()
+        Segmentation.getClient(options)
+    }
 
     private var lastRotation = 0
     private var lastWidth = 0
     private var lastHeight = 0
     private val surfaceTextureHelper = SurfaceTextureHelper.create("BitmapToYUV", eglBase.eglBaseContext)
     private val surface = Surface(surfaceTextureHelper.surfaceTexture)
-    private val backgroundTransformer = VirtualBackgroundTransformer()
+    private val backgroundTransformer = VirtualBackgroundTransformer(blurRadius = initialBlurRadius)
     private val eglRenderer = EglRenderer(VirtualBackgroundVideoProcessor::class.java.simpleName)
         .apply {
             init(eglBase.eglBaseContext, EglBase.CONFIG_PLAIN, backgroundTransformer)
@@ -88,12 +98,6 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
     private var backgroundImageNeedsUpdating = false
 
     init {
-        val options =
-            SelfieSegmenterOptions.Builder()
-                .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE)
-                .build()
-        segmenter = Segmentation.getClient(options)
-
         // Funnel processing into a single flow that won't buffer,
         // since processing may be slower than video capture.
         scope.launch {
@@ -167,7 +171,11 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
         }
     }
 
-    fun processFrame(frame: VideoFrame) {
+    override fun setSink(sink: VideoSink?) {
+        targetSink = sink
+    }
+
+    private fun processFrame(frame: VideoFrame) {
         if (lastRotation != frame.rotation) {
             lastRotation = frame.rotation
             backgroundImageNeedsUpdating = true
@@ -227,8 +235,8 @@ class VirtualBackgroundVideoProcessor(private val eglBase: EglBase, dispatcher: 
         }
     }
 
-    override fun setSink(sink: VideoSink?) {
-        targetSink = sink
+    fun updateBlurRadius(blurRadius: Float) {
+        backgroundTransformer.blurRadius = blurRadius
     }
 
     fun dispose() {

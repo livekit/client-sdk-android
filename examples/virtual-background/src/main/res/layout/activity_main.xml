@@ -17,4 +17,21 @@
         android:layout_margin="10dp"
         android:text="Disable" />
 
+    <Button
+        android:id="@+id/buttonIncreaseBlur"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_margin="10dp"
+        android:text="Blur more" />
+
+    <Button
+        android:id="@+id/buttonDecreaseBlur"
+        android:layout_width="wrap_content"
+        android:layout_gravity="end"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="64dp"
+        android:layout_marginEnd="10dp"
+        android:text="Blur less" />
+
 </FrameLayout>

@@ -34,6 +34,11 @@ uniform float u_radius;
 out vec4 fragColor;
 
 void main() {
+    if (u_radius <= 0.0) {
+        fragColor = texture(u_texture, texCoords);
+        return;
+    }
+
     float sigma = u_radius;
     float twoSigmaSq = 2.0 * sigma * sigma;
     float totalWeight = 0.0;
