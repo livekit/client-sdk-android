@@ -1,5 +1,23 @@
 # client-sdk-android
 
+## 2.19.0
+
+### Minor Changes
+
+- Add types for agent and transcription attributes - [#733](https://github.com/livekit/client-sdk-android/pull/733) ([@davidliu](https://github.com/davidliu))
+
+- Update libwebrtc to 137.7151.01 - [#727](https://github.com/livekit/client-sdk-android/pull/727) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix IllegalStateException when switchCamera of localVideoTrack - [#725](https://github.com/livekit/client-sdk-android/pull/725) ([@binkos](https://github.com/binkos))
+
+- Make blurRadius in the VirtualBackgroundTransformer variable to allow for dynamically changing the value. - [#731](https://github.com/livekit/client-sdk-android/pull/731) ([@binkos](https://github.com/binkos))
+
+- Add sendText and sendFile helper methods to LocalParticipant for ease of use - [#732](https://github.com/livekit/client-sdk-android/pull/732) ([@davidliu](https://github.com/davidliu))
+
+- Add default name of "unknown" for StreamByteOptions to allow for no-arg construction - [#732](https://github.com/livekit/client-sdk-android/pull/732) ([@davidliu](https://github.com/davidliu))
+
 ## 2.18.3
 
 ### Patch Changes
