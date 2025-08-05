@@ -199,10 +199,6 @@ class VirtualBackgroundTransformer(
         newMask = segmentationMask
     }
 
-    fun updateBlurRadius(blurRadius: Float) {
-        this.blurRadius = blurRadius
-    }
-
     private fun updateMaskFrameBuffer(segmentationMask: MaskHolder) {
         val width = segmentationMask.width
         val height = segmentationMask.height
