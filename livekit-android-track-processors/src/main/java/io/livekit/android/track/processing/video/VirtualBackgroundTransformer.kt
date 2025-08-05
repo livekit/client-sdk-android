@@ -37,8 +37,8 @@ import java.nio.ByteBuffer
  * Blurs the background of the camera video stream.
  */
 class VirtualBackgroundTransformer(
+    var blurRadius: Float = 16f,
     var downSampleFactor: Int = 2,
-    initialBlurRadius: Float = 16f,
 ) : RendererCommon.GlDrawer {
 
     data class MaskHolder(val width: Int, val height: Int, val buffer: ByteBuffer)
@@ -67,7 +67,6 @@ class VirtualBackgroundTransformer(
             }
         }
     private var backgroundImageNeedsUploading = false
-    private var blurRadius: Float = initialBlurRadius
 
     // For double buffering the final mask
     private var readMaskIndex = 0 // Index for renderFrame to read from
