@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.19.1
+
+### Patch Changes
+
+- Fixed ProGuard rules to keep JniInit class for WebRTC native registration (#735) - [#736](https://github.com/livekit/client-sdk-android/pull/736) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
 ## 2.19.0
 
 ### Minor Changes
