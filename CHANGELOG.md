@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.19.2
+
+### Patch Changes
+
+- E2E reliability for data channels with resending after reconnects - [#738](https://github.com/livekit/client-sdk-android/pull/738) ([@davidliu](https://github.com/davidliu))
+
 ## 2.19.1
 
 ### Patch Changes
