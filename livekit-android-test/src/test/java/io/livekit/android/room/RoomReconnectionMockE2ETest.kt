@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import io.livekit.android.test.util.toPBByteString
@@ -25,6 +27,7 @@ import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -74,6 +77,28 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         }
 
         Assert.assertTrue(sentSyncState)
+    }
+
+    @Test
+    fun softReconnectResendsPackets() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+
+        connect()
+
+        for (i in 1..5) {
+            assertTrue(room.localParticipant.publishData(ByteArray(i), reliability = DataPublishReliability.RELIABLE).isSuccess)
+        }
+        disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+
+        testScheduler.advanceUntilIdle()
+        val pubPeerConnection = getPublisherPeerConnection()
+        val pubDataChannel = pubPeerConnection.dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+
+        assertEquals(5, pubDataChannel.sentBuffers.size)
     }
 
     @Test

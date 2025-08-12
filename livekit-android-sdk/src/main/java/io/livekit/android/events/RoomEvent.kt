@@ -299,6 +299,7 @@ enum class DisconnectReason {
     USER_REJECTED,
     SIP_TRUNK_FAILURE,
     CONNECTION_TIMEOUT,
+    MEDIA_FAILURE,
 }
 
 /**
@@ -320,6 +321,7 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.USER_REJECTED -> DisconnectReason.USER_REJECTED
         LivekitModels.DisconnectReason.SIP_TRUNK_FAILURE -> DisconnectReason.SIP_TRUNK_FAILURE
         LivekitModels.DisconnectReason.CONNECTION_TIMEOUT -> DisconnectReason.CONNECTION_TIMEOUT
+        LivekitModels.DisconnectReason.MEDIA_FAILURE -> DisconnectReason.MEDIA_FAILURE
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,

@@ -36,10 +36,13 @@ import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.TTLMap
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
 import io.livekit.android.util.withCheckLock
 import io.livekit.android.webrtc.DataChannelManager
+import io.livekit.android.webrtc.DataPacketBuffer
+import io.livekit.android.webrtc.DataPacketItem
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
@@ -170,6 +173,11 @@ internal constructor(
     private var reliableDataChannelSubManager: DataChannelManager? = null
     private var lossyDataChannelManager: DataChannelManager? = null
     private var lossyDataChannelSubManager: DataChannelManager? = null
+
+    private val reliableStateLock = Object()
+    private var reliableDataSequence: Int = 1
+    private val reliableMessageBuffer = DataPacketBuffer(RELIABLE_RETRY_AMOUNT)
+    private val reliableReceivedState = TTLMap<String, Int>(RELIABLE_RECEIVE_STATE_TTL_MS)
 
     private var isSubscriberPrimary = false
     private var isClosed = true
@@ -403,6 +411,12 @@ internal constructor(
         abortPendingPublishTracks()
         closeResources(reason)
         connectionState = ConnectionState.DISCONNECTED
+
+        synchronized(reliableStateLock) {
+            reliableDataSequence = 1
+            reliableMessageBuffer.clear()
+            reliableReceivedState.clear()
+        }
     }
 
     private fun closeResources(reason: String) {
@@ -506,6 +520,7 @@ internal constructor(
                     ReconnectType.FORCE_FULL_RECONNECT -> true
                 }
 
+                var lastMessageSeq: Int? = null
                 val connectOptions = connectOptions ?: ConnectOptions()
                 if (isFullReconnect) {
                     LKLog.v { "Attempting full reconnect." }
@@ -539,6 +554,7 @@ internal constructor(
                             val rtcConfig = makeRTCConfig(Either.Right(reconnectResponse), connectOptions)
                             subscriber?.updateRTCConfig(rtcConfig)
                             publisher?.updateRTCConfig(rtcConfig)
+                            lastMessageSeq = reconnectResponse.lastMessageSeq
                         }
                         client.onReadyForResponses()
                     } catch (e: Exception) {
@@ -590,6 +606,9 @@ internal constructor(
                 if (connectionState == ConnectionState.CONNECTED &&
                     (!hasPublished || publisher?.isConnected() == true)
                 ) {
+                    if (lastMessageSeq != null) {
+                        resendReliableMessagesForResume(lastMessageSeq)
+                    }
                     // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
@@ -630,21 +649,62 @@ internal constructor(
 
     @CheckResult
     internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result<Unit> {
-        try {
-            ensurePublisherConnected(dataPacket.kind)
+        ensurePublisherConnected(dataPacket.kind)
 
-            val buf = DataChannel.Buffer(
-                ByteBuffer.wrap(dataPacket.toByteArray()),
-                true,
-            )
+        fun sendDataImpl(dataPacket: LivekitModels.DataPacket): Result<Unit> {
+            try {
+                // Redeclare to make variable
+                var dataPacket = dataPacket
+                if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
+                    dataPacket = dataPacket.toBuilder()
+                        .setSequence(reliableDataSequence)
+                        .build()
+                    reliableDataSequence++
+                }
 
-            val channel = dataChannelForKind(dataPacket.kind)
-                ?: throw RoomException.ConnectException("channel not established for ${dataPacket.kind.name}")
+                val byteBuffer = ByteBuffer.wrap(dataPacket.toByteArray())
 
-            channel.send(buf)
-        } catch (e: Exception) {
-            return Result.failure(e)
+                if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
+                    reliableMessageBuffer.queue(DataPacketItem(byteBuffer, dataPacket.sequence))
+                    if (this.connectionState == ConnectionState.RECONNECTING) {
+                        return Result.success(Unit)
+                    }
+                }
+                val buf = DataChannel.Buffer(
+                    byteBuffer,
+                    true,
+                )
+                val channel = dataChannelForKind(dataPacket.kind)
+                    ?: throw RoomException.ConnectException("channel not established for ${dataPacket.kind.name}")
+
+                channel.send(buf)
+            } catch (e: Exception) {
+                return Result.failure(e)
+            }
+            return Result.success(Unit)
         }
+
+        if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
+            synchronized(reliableStateLock) {
+                return sendDataImpl(dataPacket)
+            }
+        } else {
+            return sendDataImpl(dataPacket)
+        }
+    }
+
+    internal suspend fun resendReliableMessagesForResume(lastMessageSeq: Int): Result<Unit> {
+        ensurePublisherConnected(LivekitModels.DataPacket.Kind.RELIABLE)
+        val channel = dataChannelForKind(LivekitModels.DataPacket.Kind.RELIABLE)
+            ?: return Result.failure(NullPointerException("reliable channel not established!"))
+
+        synchronized(reliableStateLock) {
+            reliableMessageBuffer.popToSequence(lastMessageSeq)
+            reliableMessageBuffer.getAll().forEach { item ->
+                channel.send(DataChannel.Buffer(item.data, true))
+            }
+        }
+
         return Result.success(Unit)
     }
 
@@ -858,7 +918,10 @@ internal constructor(
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
-        private const val DATA_CHANNEL_LOW_THRESHOLD = 64 * 1024 // 64 KB
+        private const val DATA_CHANNEL_LOW_THRESHOLD = 2 * 1024 * 1024 // 64 KB
+
+        private val RELIABLE_RECEIVE_STATE_TTL_MS = 30.seconds
+        private val RELIABLE_RETRY_AMOUNT = (DATA_CHANNEL_LOW_THRESHOLD * 1.25).toLong()
 
         internal val CONN_CONSTRAINTS = MediaConstraints().apply {
             with(optional) {
@@ -1080,6 +1143,17 @@ internal constructor(
             return
         }
         val dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+
+        if (dp.sequence > 0 && dp.participantSid.isNotEmpty()) {
+            synchronized(reliableStateLock) {
+                val lastSeq = reliableReceivedState[dp.participantSid]
+                if (lastSeq != null && dp.sequence <= lastSeq) {
+                    // ignore duplicate or out-of-order packets in reliable channel
+                    return
+                }
+                this.reliableReceivedState[dp.participantSid] = dp.sequence
+            }
+        }
         when (dp.valueCase) {
             LivekitModels.DataPacket.ValueCase.SPEAKER -> {
                 listener?.onActiveSpeakersUpdate(dp.speaker.speakersList)
@@ -1145,8 +1219,13 @@ internal constructor(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
-        val answer = runBlocking {
-            subscriber?.withPeerConnection { localDescription?.toProtoSessionDescription() }
+        var answer: LivekitRtc.SessionDescription? = null
+        var offer: LivekitRtc.SessionDescription? = null
+        runBlocking {
+            subscriber?.withPeerConnection {
+                answer = localDescription?.toProtoSessionDescription()
+                offer = remoteDescription?.toProtoSessionDescription()
+            }
         }
 
         val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
@@ -1160,13 +1239,25 @@ internal constructor(
                     .build()
             }
 
+        val dataChannelReceiveStates = this.reliableReceivedState.map { (participantSid, sequence) ->
+            with(LivekitRtc.DataChannelReceiveState.newBuilder()) {
+                publisherSid = participantSid
+                lastSeq = sequence
+                build()
+            }
+        }
+
         val syncState = with(LivekitRtc.SyncState.newBuilder()) {
             if (answer != null) {
                 setAnswer(answer)
             }
+            if (offer != null) {
+                setOffer(offer)
+            }
             setSubscription(subscription)
             addAllPublishTracks(publishedTracks)
             addAllDataChannels(dataChannelInfos)
+            addAllDatachannelReceiveStates(dataChannelReceiveStates)
             build()
         }
 
