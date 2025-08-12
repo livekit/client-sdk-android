@@ -73,6 +73,7 @@ class ProtoConverterTest(
                 LivekitRtc.SessionDescription::class.java,
                 SessionDescription::class.java,
                 mapping = mapOf("sdp" to "description"),
+                whitelist = listOf("id"),
             ),
         )
 
