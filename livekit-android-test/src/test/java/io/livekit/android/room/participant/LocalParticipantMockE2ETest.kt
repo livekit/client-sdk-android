@@ -20,10 +20,12 @@ import android.Manifest
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.google.protobuf.ByteString
 import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
+import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.Track
@@ -35,6 +37,7 @@ import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.toListUntilSignal
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockAudioProcessingController
+import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockVideoCapturer
 import io.livekit.android.test.mock.MockVideoStreamTrack
@@ -55,6 +58,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
+import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.LivekitRtc.SubscribedQuality
@@ -646,5 +650,23 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertFalse(collectedList[0])
         assertTrue(collectedList[1])
         assertFalse(collectedList[2])
+    }
+
+    @Test
+    fun publishData() = runTest {
+        connect()
+        val pubPeerConnection = getPublisherPeerConnection()
+        val pubDataChannel = pubPeerConnection.dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+
+        val data = "hello".toByteArray()
+        assertTrue(room.localParticipant.publishData(data).isSuccess)
+
+        assertEquals(1, pubDataChannel.sentBuffers.size)
+
+        val headerPacket = DataPacket.parseFrom(ByteString.copyFrom(pubDataChannel.sentBuffers[0].data))
+        assertEquals(1, headerPacket.sequence)
+        assertTrue(headerPacket.hasUser())
+
+        assertTrue(headerPacket.user.payload.toByteArray().contentEquals(data))
     }
 }

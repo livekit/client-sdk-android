@@ -133,6 +133,7 @@ object TestData {
                 forceRelay = LivekitModels.ClientConfigSetting.ENABLED
                 build()
             }
+            lastMessageSeq = 1
             build()
         }
         build()
