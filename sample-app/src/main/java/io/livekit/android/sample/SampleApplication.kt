@@ -8,6 +8,7 @@ class SampleApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        LiveKit.init(this)
         LiveKit.loggingLevel = LoggingLevel.VERBOSE
     }
 }
