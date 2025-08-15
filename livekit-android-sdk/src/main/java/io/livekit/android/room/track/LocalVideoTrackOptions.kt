@@ -89,7 +89,9 @@ enum class VideoCodec(val codecName: String) {
     VP8("vp8"),
     H264("h264"),
     VP9("vp9"),
-    AV1("av1");
+    AV1("av1"),
+    H265("h265"),
+    ;
 
     companion object {
         fun fromCodecName(codecName: String): VideoCodec {
