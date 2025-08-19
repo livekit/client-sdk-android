@@ -60,32 +60,36 @@ interface OutgoingDataStreamManager {
      * Send text through a data stream.
      */
     @CheckResult
-    suspend fun sendText(text: String, options: StreamTextOptions = StreamTextOptions()): Result<Unit> {
+    suspend fun sendText(text: String, options: StreamTextOptions = StreamTextOptions()): Result<TextStreamInfo> {
         val sender = streamText(options)
         val result = sender.write(text)
 
         if (result.isFailure) {
-            sender.close(result.exceptionOrNull()?.message ?: "Unknown error.")
+            val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
+            sender.close(exception.message)
+            return Result.failure(exception)
         } else {
             sender.close()
+            return Result.success(sender.info)
         }
-        return result
     }
 
     /**
      * Send a file through a data stream.
      */
     @CheckResult
-    suspend fun sendFile(file: File, options: StreamBytesOptions = StreamBytesOptions()): Result<Unit> {
+    suspend fun sendFile(file: File, options: StreamBytesOptions = StreamBytesOptions()): Result<ByteStreamInfo> {
         val sender = streamBytes(options)
         val result = sender.writeFile(file)
 
         if (result.isFailure) {
-            sender.close(result.exceptionOrNull()?.message ?: "Unknown error.")
+            val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
+            sender.close(exception.message)
+            return Result.failure(exception)
         } else {
             sender.close()
+            return Result.success(sender.info)
         }
-        return result
     }
 }
 
