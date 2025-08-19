@@ -108,6 +108,96 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun textStreamThroughReadNext() = runTest {
+        connect()
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val scope = CoroutineScope(currentCoroutineContext())
+        val collectedData = mutableListOf<String>()
+        var finished = false
+        room.registerTextStreamHandler("topic") { reader, _ ->
+            scope.launch {
+                try {
+                    while (true) {
+                        collectedData.add(reader.readNext())
+                    }
+                } catch (exception: NoSuchElementException) {
+                    // end of stream
+                }
+                finished = true
+            }
+        }
+
+        val textStreamHeader = with(createStreamHeader().toBuilder()) {
+            streamHeader = with(streamHeader.toBuilder()) {
+                clearByteHeader()
+                textHeader = with(TextHeader.newBuilder()) {
+                    operationType = OperationType.CREATE
+                    generated = false
+                    build()
+                }
+                build()
+            }
+            build()
+        }
+        subDataChannel.observer?.onMessage(textStreamHeader.wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(0, "hello".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(1, "world".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(2, "!".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
+
+        assertTrue(finished)
+        assertEquals(3, collectedData.size)
+        assertEquals("hello", collectedData[0])
+        assertEquals("world", collectedData[1])
+        assertEquals("!", collectedData[2])
+    }
+
+    @Test
+    fun textStreamThroughReadAll() = runTest {
+        connect()
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val scope = CoroutineScope(currentCoroutineContext())
+        val collectedData = mutableListOf<String>()
+        var finished = false
+        room.registerTextStreamHandler("topic") { reader, _ ->
+            scope.launch {
+                collectedData.addAll(reader.readAll())
+                finished = true
+            }
+        }
+
+        val textStreamHeader = with(createStreamHeader().toBuilder()) {
+            streamHeader = with(streamHeader.toBuilder()) {
+                clearByteHeader()
+                textHeader = with(TextHeader.newBuilder()) {
+                    operationType = OperationType.CREATE
+                    generated = false
+                    build()
+                }
+                build()
+            }
+            build()
+        }
+        subDataChannel.observer?.onMessage(textStreamHeader.wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(0, "hello".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(1, "world".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamChunk(2, "!".toByteArray()).wrap())
+        subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
+
+        assertTrue(finished)
+        assertEquals(3, collectedData.size)
+        assertEquals("hello", collectedData[0])
+        assertEquals("world", collectedData[1])
+        assertEquals("!", collectedData[2])
+    }
+
+    @Test
     fun dataStreamTerminated() = runTest {
         connect()
         val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
