@@ -37,6 +37,7 @@ import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.TTLMap
+import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
 import io.livekit.android.util.withCheckLock
@@ -170,6 +171,7 @@ internal constructor(
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
     private var reliableDataChannelManager: DataChannelManager? = null
+    private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
     private var lossyDataChannelManager: DataChannelManager? = null
     private var lossyDataChannelSubManager: DataChannelManager? = null
@@ -313,8 +315,18 @@ internal constructor(
                         RELIABLE_DATA_CHANNEL_LABEL,
                         reliableInit,
                     ).also { dataChannel ->
-                        reliableDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
-                        dataChannel.registerObserver(reliableDataChannelManager)
+
+                        val dataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
+                        reliableDataChannelManager = dataChannelManager
+                        dataChannel.registerObserver(dataChannelManager)
+                        reliableBufferedAmountJob?.cancel()
+                        reliableBufferedAmountJob = coroutineScope.launch {
+                            dataChannelManager::bufferedAmount.flow.collect { bufferedAmount ->
+                                synchronized(reliableStateLock) {
+                                    reliableMessageBuffer.trim(bufferedAmount)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -430,6 +442,8 @@ internal constructor(
                     subscriber?.closeBlocking()
                     subscriber = null
 
+                    reliableBufferedAmountJob?.cancel()
+                    reliableBufferedAmountJob = null
                     reliableDataChannelManager?.dispose()
                     reliableDataChannelManager = null
                     reliableDataChannel = null
@@ -918,7 +932,7 @@ internal constructor(
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 
-        private const val DATA_CHANNEL_LOW_THRESHOLD = 2 * 1024 * 1024 // 64 KB
+        private const val DATA_CHANNEL_LOW_THRESHOLD = 2 * 1024 * 1024 // 2 MB
 
         private val RELIABLE_RECEIVE_STATE_TTL_MS = 30.seconds
         private val RELIABLE_RETRY_AMOUNT = (DATA_CHANNEL_LOW_THRESHOLD * 1.25).toLong()
