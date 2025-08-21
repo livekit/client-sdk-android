@@ -1,5 +1,25 @@
 # client-sdk-android
 
+## 2.20.0
+
+### Minor Changes
+
+- Update libwebrtc to 137.7151.03 - [#742](https://github.com/livekit/client-sdk-android/pull/742) ([@davidliu](https://github.com/davidliu))
+
+- Return streamInfo from datastream send helper methods - [#741](https://github.com/livekit/client-sdk-android/pull/741) ([@davidliu](https://github.com/davidliu))
+
+- Add simulcastLayers to VideoTrackPublishOptions for directly specifying the resolutions to use - [#746](https://github.com/livekit/client-sdk-android/pull/746) ([@davidliu](https://github.com/davidliu))
+
+- Add H265 as a supported codec - [#742](https://github.com/livekit/client-sdk-android/pull/742) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- E2E reliability for data channels with resending after reconnects - [#738](https://github.com/livekit/client-sdk-android/pull/738) ([@davidliu](https://github.com/davidliu))
+
+- Fix default simulcast layers using a lower than intended resolution - [#746](https://github.com/livekit/client-sdk-android/pull/746) ([@davidliu](https://github.com/davidliu))
+
+- Properly use screenShareTrackPublishDefaults when manually publishing a screenshare track - [#746](https://github.com/livekit/client-sdk-android/pull/746) ([@davidliu](https://github.com/davidliu))
+
 ## 2.19.1
 
 ### Patch Changes
