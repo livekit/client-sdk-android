@@ -19,6 +19,9 @@ package io.livekit.android.room.track
 import livekit.org.webrtc.RtpParameters
 
 data class LocalVideoTrackOptions(
+    /**
+     * Whether this is a screenshare track.
+     */
     val isScreencast: Boolean = false,
     /**
      * Preferred deviceId to capture from. If not set or found,
@@ -109,6 +112,11 @@ interface VideoPreset {
     val capture: VideoCaptureParameter
     val encoding: VideoEncoding
 }
+
+data class CustomVideoPreset(
+    override val capture: VideoCaptureParameter,
+    override val encoding: VideoEncoding,
+) : VideoPreset
 
 /**
  * 16:9 Video presets along with suggested bitrates

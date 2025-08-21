@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package io.livekit.android.room.util
 
+import io.livekit.android.room.track.CustomVideoPreset
+import io.livekit.android.room.track.ScreenSharePresets
+import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.track.VideoPreset
 import io.livekit.android.room.track.VideoPreset169
@@ -33,6 +36,15 @@ import kotlin.math.roundToInt
 internal object EncodingUtils {
 
     val VIDEO_RIDS = arrayOf("q", "h", "f")
+
+    // Note: maintain order from smallest to biggest.
+    private val SCREENSHARE_PRESETS = listOf(
+        ScreenSharePresets.H360_FPS3,
+        ScreenSharePresets.H720_FPS5,
+        ScreenSharePresets.H720_FPS15,
+        ScreenSharePresets.H1080_FPS15,
+        ScreenSharePresets.H1080_FPS30,
+    )
 
     // Note: maintain order from smallest to biggest.
     private val PRESETS_16_9 = listOf(
@@ -60,8 +72,20 @@ internal object EncodingUtils {
         VideoPreset43.H1440,
     )
 
-    fun determineAppropriateEncoding(width: Int, height: Int): VideoEncoding {
-        val presets = presetsForResolution(width, height)
+    // Note: maintain order from smallest to biggest.
+    private val DEFAULT_SIMULCAST_LAYERS_169 = listOf(
+        VideoPreset169.H180,
+        VideoPreset169.H360,
+    )
+
+    // Note: maintain order from smallest to biggest.
+    private val DEFAULT_SIMULCAST_LAYERS_43 = listOf(
+        VideoPreset43.H180,
+        VideoPreset43.H360,
+    )
+
+    fun determineAppropriateEncoding(isScreenShare: Boolean, width: Int, height: Int): VideoEncoding {
+        val presets = computeSuggestedPresets(isScreenShare, width, height)
 
         // presets assume width is longest size
         val longestSize = max(width, height)
@@ -72,7 +96,11 @@ internal object EncodingUtils {
         return preset.encoding
     }
 
-    fun presetsForResolution(width: Int, height: Int): List<VideoPreset> {
+    fun computeSuggestedPresets(isScreenShare: Boolean, width: Int, height: Int): List<VideoPreset> {
+        if (isScreenShare) {
+            return SCREENSHARE_PRESETS
+        }
+
         val longestSize = max(width, height)
         val shortestSize = min(width, height)
         val aspectRatio = longestSize.toFloat() / shortestSize
@@ -80,6 +108,41 @@ internal object EncodingUtils {
             PRESETS_16_9
         } else {
             PRESETS_4_3
+        }
+    }
+
+    fun defaultSimulcastLayers(isScreenShare: Boolean, width: Int, height: Int, originalEncoding: VideoEncoding): List<VideoPreset> {
+        if (isScreenShare) {
+            return computeDefaultScreenshareSimulcastLayers(width, height, originalEncoding)
+        }
+        val longestSize = max(width, height)
+        val shortestSize = min(width, height)
+        val aspectRatio = longestSize.toFloat() / shortestSize
+        return if (abs(aspectRatio - 16f / 9f) < abs(aspectRatio - 4f / 3f)) {
+            DEFAULT_SIMULCAST_LAYERS_169
+        } else {
+            DEFAULT_SIMULCAST_LAYERS_43
+        }
+    }
+
+    fun computeDefaultScreenshareSimulcastLayers(width: Int, height: Int, originalEncoding: VideoEncoding): List<VideoPreset> {
+        // pairs of ScaleDownBy to FPS
+        val layers = listOf(2 to 3)
+
+        return layers.map { (scaleDownBy, fps) ->
+            CustomVideoPreset(
+                capture = VideoCaptureParameter(
+                    width = width / scaleDownBy,
+                    height = height / scaleDownBy,
+                    maxFps = fps,
+                    adaptOutputToDimensions = false,
+                ),
+                encoding = VideoEncoding(
+                    maxBitrate = originalEncoding.maxBitrate /
+                        (scaleDownBy.toFloat().pow(2).roundToInt() * (originalEncoding.maxFps / fps)),
+                    maxFps = fps,
+                ),
+            )
         }
     }
 

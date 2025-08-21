@@ -51,6 +51,7 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.room.track.VideoEncoding
+import io.livekit.android.room.track.VideoPreset
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
@@ -480,7 +481,10 @@ internal constructor(
      */
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,
-        options: VideoTrackPublishOptions = VideoTrackPublishOptions(null, videoTrackPublishDefaults),
+        options: VideoTrackPublishOptions = VideoTrackPublishOptions(
+            null,
+            if (track.options.isScreencast) screenShareTrackPublishDefaults else videoTrackPublishDefaults,
+        ),
         publishListener: PublishListener? = null,
     ): Boolean {
         @Suppress("NAME_SHADOWING") var options = options
@@ -514,7 +518,7 @@ internal constructor(
                 options = options.copy(scalabilityMode = "L3T3_KEY")
             }
         }
-        val encodings = computeVideoEncodings(track.dimensions, options)
+        val encodings = computeVideoEncodings(track.options.isScreencast, track.dimensions, options)
         val videoLayers =
             EncodingUtils.videoLayersFromEncodings(track.dimensions.width, track.dimensions.height, encodings, isSVC)
 
@@ -722,7 +726,10 @@ internal constructor(
                             options = options.copy(videoCodec = updatedCodec)
 
                             // recompute encodings since bitrates/etc could have changed
-                            encodings = computeVideoEncodings((track as LocalVideoTrack).dimensions, options)
+                            val videoTrack = track as LocalVideoTrack
+
+                            encodings = computeVideoEncodings(videoTrack.options.isScreencast, videoTrack.dimensions, options)
+                            encodings // encodings is used in negotiate, this suppresses unused lint
                         }
                     }
                 }
@@ -751,35 +758,32 @@ internal constructor(
     }
 
     private fun computeVideoEncodings(
+        isScreenShare: Boolean,
         dimensions: Track.Dimensions,
         options: VideoTrackPublishOptions,
     ): List<RtpParameters.Encoding> {
         val (width, height) = dimensions
-        var encoding = options.videoEncoding
+        var originalEncoding = options.videoEncoding
         val simulcast = options.simulcast
         val scalabilityMode = options.scalabilityMode
 
-        if ((encoding == null && !simulcast) || width == 0 || height == 0) {
+        if ((originalEncoding == null && !simulcast) || width == 0 || height == 0) {
             return emptyList()
         }
 
-        if (encoding == null) {
-            encoding = EncodingUtils.determineAppropriateEncoding(width, height)
-            LKLog.d { "using video encoding: $encoding" }
+        if (originalEncoding == null) {
+            originalEncoding = EncodingUtils.determineAppropriateEncoding(isScreenShare, width, height)
+            LKLog.d { "using video encoding: $originalEncoding" }
         }
 
         val encodings = mutableListOf<RtpParameters.Encoding>()
 
         if (scalabilityMode != null && isSVCCodec(options.videoCodec)) {
-            val rtpEncoding = encoding.toRtpEncoding()
+            val rtpEncoding = originalEncoding.toRtpEncoding()
             rtpEncoding.scalabilityMode = scalabilityMode
             encodings.add(rtpEncoding)
             return encodings
         } else if (simulcast) {
-            val presets = EncodingUtils.presetsForResolution(width, height)
-            val midPreset = presets[1]
-            val lowPreset = presets[0]
-
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
                 if (scale < 1.0) {
                     LKLog.w { "Discarding encoding with a scale < 1.0: $scale." }
@@ -793,27 +797,42 @@ internal constructor(
                 encodings.add(videoEncoding.toRtpEncoding(rid, scale))
             }
 
+            val presets = options.simulcastLayers
+                ?: EncodingUtils.defaultSimulcastLayers(
+                    isScreenShare = isScreenShare,
+                    width = width,
+                    height = height,
+                    originalEncoding = originalEncoding,
+                )
+            if (presets.isEmpty()) {
+                LKLog.w { "Simulcast is enabled but an empty list was set for simulcastLayers!" }
+            }
+
             // if resolution is high enough, we send both h and q res.
             // otherwise only send h
             val size = max(width, height)
-            val maxFps = encoding.maxFps
+            val maxFps = originalEncoding.maxFps
             fun calculateScaleDown(captureParam: VideoCaptureParameter): Double {
                 val targetSize = max(captureParam.width, captureParam.height)
                 return size / targetSize.toDouble()
             }
-            if (size >= 960) {
-                val lowScale = calculateScaleDown(lowPreset.capture)
-                val midScale = calculateScaleDown(midPreset.capture)
 
-                addEncoding(lowPreset.encoding.copy(maxFps = min(lowPreset.encoding.maxFps, maxFps)), lowScale)
-                addEncoding(midPreset.encoding.copy(maxFps = min(midPreset.encoding.maxFps, maxFps)), midScale)
-            } else {
+            // Add encodings from smallest to largest.
+            val orderedPresets = presets.sortedByDescending { calculateScaleDown(it.capture) }
+            val lowPreset = orderedPresets.getOrNull(0)
+            val midPreset = orderedPresets.getOrNull(1)
+
+            if (size >= 480 && lowPreset != null) {
                 val lowScale = calculateScaleDown(lowPreset.capture)
                 addEncoding(lowPreset.encoding.copy(maxFps = min(lowPreset.encoding.maxFps, maxFps)), lowScale)
             }
-            addEncoding(encoding, 1.0)
+            if (size >= 960 && midPreset != null) {
+                val midScale = calculateScaleDown(midPreset.capture)
+                addEncoding(midPreset.encoding.copy(maxFps = min(midPreset.encoding.maxFps, maxFps)), midScale)
+            }
+            addEncoding(originalEncoding, 1.0)
         } else {
-            encodings.add(encoding.toRtpEncoding())
+            encodings.add(originalEncoding.toRtpEncoding())
         }
 
         // Make largest size at front. addTransceiver seems to fail if ordered from smallest to largest.
@@ -838,7 +857,7 @@ internal constructor(
             videoCodec = videoCodec.codecName,
             videoEncoding = options.backupCodec!!.encoding,
         )
-        val backupEncodings = computeVideoEncodings(track.dimensions, backupOptions)
+        val backupEncodings = computeVideoEncodings(track.options.isScreencast, track.dimensions, backupOptions)
         return backupOptions to backupEncodings
     }
 
@@ -1713,8 +1732,19 @@ abstract class BaseVideoTrackPublishOptions {
      * null value indicates default value (maintain framerate).
      */
     abstract val degradationPreference: RtpParameters.DegradationPreference?
+
+    /**
+     * Up to two additional simulcast layers to publish in addition to the original
+     * Track. Layers should be ordered from smallest to largest. Layers beyond the
+     * first two will be ignored. Any layers that have larger resolutions than the
+     * source resolution will also be ignored.
+     *
+     * When set to null, it defaults to H180 and H360.
+     */
+    abstract val simulcastLayers: List<VideoPreset>?
 }
 
+// Remember when adding any defaults to add it in the copy constructor of VideoTrackPublishOptions.
 data class VideoTrackPublishDefaults(
     override val videoEncoding: VideoEncoding? = null,
     override val simulcast: Boolean = true,
@@ -1722,6 +1752,7 @@ data class VideoTrackPublishDefaults(
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
@@ -1734,6 +1765,7 @@ data class VideoTrackPublishOptions(
     override val source: Track.Source? = null,
     override val stream: String? = null,
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
@@ -1750,6 +1782,7 @@ data class VideoTrackPublishOptions(
         source = source,
         stream = stream,
         degradationPreference = base.degradationPreference,
+        simulcastLayers = base.simulcastLayers,
     )
 
     fun createBackupOptions(): VideoTrackPublishOptions? {
@@ -1798,6 +1831,7 @@ enum class AudioPresets(
     MUSIC_HIGH_QUALITY_STEREO(128_000)
 }
 
+// Remember when adding any defaults to add it in the copy constructor of VideoTrackPublishOptions.
 /**
  * Default options for publishing an audio track.
  */
