@@ -6,4 +6,11 @@
       <module name="livekit-android.examples.selfie-segmentation" target="17" />
     </bytecodeTargetLevel>
   </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="livekit-android.livekit-lint" options="-proc:none" />
+      <module name="livekit-android.livekit-lint.main" options="-proc:none" />
+      <module name="livekit-android.livekit-lint.test" options="-proc:none" />
+    </option>
+  </component>
 </project>

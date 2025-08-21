@@ -28,10 +28,12 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.ScreenSharePresets
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.track.VideoCaptureParameter
 import io.livekit.android.room.track.VideoCodec
+import io.livekit.android.room.track.VideoPreset169
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.toListUntilSignal
@@ -288,15 +290,15 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         )
     }
 
-    private fun createLocalTrack() = LocalVideoTrack(
+    private fun createLocalTrack(width: Int = 1280, height: Int = 720, isScreencast: Boolean = false) = LocalVideoTrack(
         capturer = MockVideoCapturer(),
         source = mock(VideoSource::class.java),
         name = "",
         options = LocalVideoTrackOptions(
-            isScreencast = false,
+            isScreencast = isScreencast,
             deviceId = null,
             position = null,
-            captureParams = VideoCaptureParameter(width = 0, height = 0, maxFps = 0),
+            captureParams = VideoCaptureParameter(width = width, height = height, maxFps = 30),
         ),
         rtcTrack = MockVideoStreamTrack(),
         peerConnectionFactory = component.peerConnectionFactory(),
@@ -305,6 +307,219 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         defaultsManager = DefaultsManager(),
         trackFactory = mock(LocalVideoTrack.Factory::class.java),
     )
+
+    @Test
+    fun publishSimulcastDefaultLayers() = runTest {
+        connect()
+
+        val wsFactory = component.websocketFactory()
+        wsFactory.ws.clearRequests()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(width = 1280, height = 720))
+
+        testScheduler.advanceUntilIdle()
+
+        val sentRequests = wsFactory.ws.sentRequests
+        assertEquals(1, sentRequests.size)
+
+        assertTrue(
+            sentRequests.any { requestString ->
+                val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
+
+                if (sentRequest.hasAddTrack()) {
+                    val addTrackRequest = sentRequest.addTrack
+                    println(addTrackRequest)
+                    if (addTrackRequest.type == LivekitModels.TrackType.VIDEO) {
+                        val layerList = addTrackRequest.layersList
+                        var correctLayers = layerList.size == 3
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            // original
+                            layer.quality == LivekitModels.VideoQuality.HIGH &&
+                                layer.bitrate == VideoPreset169.H720.encoding.maxBitrate &&
+                                layer.height == 720 &&
+                                layer.width == 1280
+                        }
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            // default H360
+                            layer.quality == LivekitModels.VideoQuality.MEDIUM &&
+                                layer.bitrate == VideoPreset169.H360.encoding.maxBitrate &&
+                                layer.height == VideoPreset169.H360.capture.height &&
+                                layer.width == VideoPreset169.H360.capture.width
+                        }
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            // default H180
+                            layer.quality == LivekitModels.VideoQuality.LOW &&
+                                layer.bitrate == VideoPreset169.H180.encoding.maxBitrate &&
+                                layer.height == VideoPreset169.H180.capture.height &&
+                                layer.width == VideoPreset169.H180.capture.width
+                        }
+                        return@any correctLayers
+                    }
+                }
+                return@any false
+            },
+        )
+    }
+
+    @Test
+    fun publishSimulcastCustomLayers() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            simulcastLayers = listOf(VideoPreset169.H540, VideoPreset169.H90),
+        )
+        connect()
+
+        val wsFactory = component.websocketFactory()
+        wsFactory.ws.clearRequests()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(width = 1920, height = 1080))
+
+        testScheduler.advanceUntilIdle()
+
+        val sentRequests = wsFactory.ws.sentRequests
+        assertEquals(1, sentRequests.size)
+
+        assertTrue(
+            sentRequests.any { requestString ->
+                val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
+
+                if (sentRequest.hasAddTrack()) {
+                    val addTrackRequest = sentRequest.addTrack
+                    println(addTrackRequest)
+                    if (addTrackRequest.type == LivekitModels.TrackType.VIDEO) {
+                        val layerList = addTrackRequest.layersList
+                        var correctLayers = layerList.size == 3
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            layer.quality == LivekitModels.VideoQuality.HIGH &&
+                                layer.bitrate == VideoPreset169.H1080.encoding.maxBitrate &&
+                                layer.height == VideoPreset169.H1080.capture.height &&
+                                layer.width == VideoPreset169.H1080.capture.width
+                        }
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            layer.quality == LivekitModels.VideoQuality.MEDIUM &&
+                                layer.bitrate == VideoPreset169.H540.encoding.maxBitrate &&
+                                layer.height == VideoPreset169.H540.capture.height &&
+                                layer.width == VideoPreset169.H540.capture.width
+                        }
+                        correctLayers = correctLayers && layerList.any { layer ->
+                            layer.quality == LivekitModels.VideoQuality.LOW &&
+                                layer.bitrate == VideoPreset169.H90.encoding.maxBitrate &&
+                                layer.height == VideoPreset169.H90.capture.height &&
+                                layer.width == VideoPreset169.H90.capture.width
+                        }
+                        return@any correctLayers
+                    }
+                }
+                return@any false
+            },
+        )
+    }
+
+    @Test
+    fun publishSimulcastLargerLayersIgnored() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            simulcastLayers = listOf(VideoPreset169.H1080, VideoPreset169.H90),
+        )
+        connect()
+
+        val wsFactory = component.websocketFactory()
+        wsFactory.ws.clearRequests()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(width = VideoPreset169.H540.capture.width, height = VideoPreset169.H540.capture.height))
+
+        testScheduler.advanceUntilIdle()
+
+        val sentRequests = wsFactory.ws.sentRequests
+        assertEquals(1, sentRequests.size)
+
+        assertTrue(
+            sentRequests.any { requestString ->
+                val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
+
+                if (sentRequest.hasAddTrack()) {
+                    val addTrackRequest = sentRequest.addTrack
+                    println(addTrackRequest)
+                    if (addTrackRequest.type == LivekitModels.TrackType.VIDEO) {
+                        val layerList = addTrackRequest.layersList
+                        assertEquals(2, layerList.size)
+
+                        assertTrue(layerList.none { layer -> layer.quality == LivekitModels.VideoQuality.HIGH })
+                        assertTrue(
+                            layerList.any { layer ->
+                                layer.quality == LivekitModels.VideoQuality.MEDIUM &&
+                                    layer.bitrate == VideoPreset169.H540.encoding.maxBitrate &&
+                                    layer.height == VideoPreset169.H540.capture.height &&
+                                    layer.width == VideoPreset169.H540.capture.width
+                            },
+                        )
+                        assertTrue(
+                            layerList.any { layer ->
+                                layer.quality == LivekitModels.VideoQuality.LOW &&
+                                    layer.bitrate == VideoPreset169.H90.encoding.maxBitrate &&
+                                    layer.height == VideoPreset169.H90.capture.height &&
+                                    layer.width == VideoPreset169.H90.capture.width
+                            },
+                        )
+                        return@any true
+                    }
+                }
+                return@any false
+            },
+        )
+    }
+
+    @Test
+    fun publishScreencastDefaultLayers() = runTest {
+        connect()
+
+        val wsFactory = component.websocketFactory()
+        wsFactory.ws.clearRequests()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(width = 1280, height = 720, isScreencast = true))
+
+        testScheduler.advanceUntilIdle()
+
+        val sentRequests = wsFactory.ws.sentRequests
+        assertEquals(1, sentRequests.size)
+
+        assertTrue(
+            sentRequests.any { requestString ->
+                val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
+
+                if (sentRequest.hasAddTrack()) {
+                    val addTrackRequest = sentRequest.addTrack
+                    println(addTrackRequest)
+                    if (addTrackRequest.type == LivekitModels.TrackType.VIDEO) {
+                        val layerList = addTrackRequest.layersList
+                        assertEquals(2, layerList.size)
+                        assertTrue(
+                            layerList.any { layer ->
+                                // original
+                                layer.quality == LivekitModels.VideoQuality.MEDIUM &&
+                                    layer.bitrate == ScreenSharePresets.ORIGINAL.encoding.maxBitrate &&
+                                    layer.height == 720 &&
+                                    layer.width == 1280
+                            },
+                        )
+                        assertTrue(
+                            layerList.any { layer ->
+                                // default simulcast layer
+                                layer.quality == LivekitModels.VideoQuality.LOW &&
+                                    layer.bitrate == ScreenSharePresets.ORIGINAL.encoding.maxBitrate / 40 &&
+                                    layer.height == 720 / 2 &&
+                                    layer.width == 1280 / 2
+                            },
+                        )
+                        return@any true
+                    }
+                }
+                return@any false
+            },
+        )
+    }
 
     @Test
     fun publishSetCodecPreferencesH264() = runTest {
