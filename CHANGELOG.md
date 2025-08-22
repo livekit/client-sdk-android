@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.20.1
+
+### Patch Changes
+
+- Fix crash caused by extra simulcast layers equal to original resolution - [#749](https://github.com/livekit/client-sdk-android/pull/749) ([@davidliu](https://github.com/davidliu))
+
+- Wrap exceptions thrown in sendText and sendFile into Result - [#749](https://github.com/livekit/client-sdk-android/pull/749) ([@davidliu](https://github.com/davidliu))
+
 ## 2.20.0
 
 ### Minor Changes
