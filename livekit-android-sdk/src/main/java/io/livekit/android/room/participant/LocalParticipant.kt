@@ -786,7 +786,11 @@ internal constructor(
         } else if (simulcast) {
             fun addEncoding(videoEncoding: VideoEncoding, scale: Double) {
                 if (scale < 1.0) {
-                    LKLog.w { "Discarding encoding with a scale < 1.0: $scale." }
+                    LKLog.w { "Discarding encoding with a scale down < 1.0: $scale." }
+                    return
+                }
+                if (scale == 1.0 && videoEncoding !== originalEncoding) {
+                    LKLog.w { "Discarding duplicate encoding with a scale down == 1.0: $scale." }
                     return
                 }
                 if (encodings.size >= EncodingUtils.VIDEO_RIDS.size) {
