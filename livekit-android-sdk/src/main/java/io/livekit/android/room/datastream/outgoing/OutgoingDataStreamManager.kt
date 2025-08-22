@@ -61,16 +61,20 @@ interface OutgoingDataStreamManager {
      */
     @CheckResult
     suspend fun sendText(text: String, options: StreamTextOptions = StreamTextOptions()): Result<TextStreamInfo> {
-        val sender = streamText(options)
-        val result = sender.write(text)
+        try {
+            val sender = streamText(options)
+            val result = sender.write(text)
 
-        if (result.isFailure) {
-            val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
-            sender.close(exception.message)
-            return Result.failure(exception)
-        } else {
-            sender.close()
-            return Result.success(sender.info)
+            if (result.isFailure) {
+                val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
+                sender.close(exception.message)
+                return Result.failure(exception)
+            } else {
+                sender.close()
+                return Result.success(sender.info)
+            }
+        } catch (e: Exception) {
+            return Result.failure(e)
         }
     }
 
@@ -79,16 +83,20 @@ interface OutgoingDataStreamManager {
      */
     @CheckResult
     suspend fun sendFile(file: File, options: StreamBytesOptions = StreamBytesOptions()): Result<ByteStreamInfo> {
-        val sender = streamBytes(options)
-        val result = sender.writeFile(file)
+        try {
+            val sender = streamBytes(options)
+            val result = sender.writeFile(file)
 
-        if (result.isFailure) {
-            val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
-            sender.close(exception.message)
-            return Result.failure(exception)
-        } else {
-            sender.close()
-            return Result.success(sender.info)
+            if (result.isFailure) {
+                val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
+                sender.close(exception.message)
+                return Result.failure(exception)
+            } else {
+                sender.close()
+                return Result.success(sender.info)
+            }
+        } catch (e: Exception) {
+            return Result.failure(e)
         }
     }
 }
