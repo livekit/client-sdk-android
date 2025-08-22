@@ -2,4 +2,4 @@
 "client-sdk-android": patch
 ---
 
-Discard extra simulcast layers equal to original resolution
+Fix crash caused by extra simulcast layers equal to original resolution
