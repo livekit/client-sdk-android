@@ -1,3 +1,4 @@
 [submodule "protocol"]
 	path = protocol
-	url = ../protocol.git
+	url = https://github.com/livekit/protocol.git
+	branch = main
