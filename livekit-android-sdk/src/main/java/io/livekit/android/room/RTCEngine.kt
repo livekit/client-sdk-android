@@ -1212,6 +1212,8 @@ internal constructor(
             -> {
                 listener?.onDataStreamPacket(dp)
             }
+
+            LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET -> TODO()
         }
     }
 

@@ -42,10 +42,13 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.VideoPreset169
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.sample.model.StressTest
@@ -90,6 +93,12 @@ class CallViewModel(
             adaptiveStream = true,
             dynacast = true,
             e2eeOptions = getE2EEOptions(),
+            videoTrackPublishDefaults = VideoTrackPublishDefaults(
+                videoEncoding = VideoPreset169.H1080.encoding.copy(maxBitrate = 3_000_000),
+                simulcast = true,
+                videoCodec = "h265"
+
+            ),
         )
     }
 

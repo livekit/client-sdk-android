@@ -56,6 +56,10 @@ import io.livekit.android.sample.MainViewModel
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.util.requestNeededPermissions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {
@@ -155,76 +159,43 @@ class MainActivity : ComponentActivity() {
                         )
                         Spacer(modifier = Modifier.height(20.dp))
                         OutlinedTextField(
-                            value = url,
-                            onValueChange = { url = it },
-                            label = { Text("URL") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        OutlinedTextField(
                             value = token,
                             onValueChange = { token = it },
-                            label = { Text("Token") },
+                            label = { Text("Tên Phòng") },
                             modifier = Modifier.fillMaxWidth(),
                         )
-
-                        if (e2eeOn) {
-                            Spacer(modifier = Modifier.height(20.dp))
-                            OutlinedTextField(
-                                value = e2eeKey,
-                                onValueChange = { e2eeKey = it },
-                                label = { Text("E2EE Key") },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = e2eeOn,
-                            )
-                        }
-
-                        if (stressTest) {
-                            Spacer(modifier = Modifier.height(20.dp))
-                            OutlinedTextField(
-                                value = secondToken,
-                                onValueChange = { secondToken = it },
-                                label = { Text("Second token") },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = stressTest,
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Enable E2EE")
-                            Switch(
-                                checked = e2eeOn,
-                                onCheckedChange = { e2eeOn = it },
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Stress test")
-                            Switch(
-                                checked = stressTest,
-                                onCheckedChange = { stressTest = it },
-                            )
-                        }
 
                         Spacer(modifier = Modifier.height(40.dp))
                         Button(
                             onClick = {
-                                val stressTestCmd = if (stressTest) {
-                                    StressTest.SwitchRoom(token, secondToken)
-                                } else {
-                                    StressTest.None
+                                val identity = token.trim() + (100..999).random() // dùng ô Token nhập làm identity
+                                val roomName = token.trim() // bạn có thể thay thế bằng trường nhập riêng nếu muốn
+                                val baseUrl = "wss://live.classvn.vn"
+
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    try {
+                                        val tokenResponse = RetrofitClient.api.getToken(roomName, identity)
+                                        val realToken = tokenResponse.token
+
+                                        withContext(Dispatchers.Main) {
+                                            val stressTestCmd = if (stressTest) {
+                                                StressTest.SwitchRoom(realToken, secondToken)
+                                            } else {
+                                                StressTest.None
+                                            }
+                                            onConnect(baseUrl, realToken, e2eeKey, e2eeOn, stressTestCmd)
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Failed to get token: ${e.message}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
                                 }
-                                onConnect(url, token, e2eeKey, e2eeOn, stressTestCmd)
-                            },
+                            }
                         ) {
                             Text("Connect")
                         }

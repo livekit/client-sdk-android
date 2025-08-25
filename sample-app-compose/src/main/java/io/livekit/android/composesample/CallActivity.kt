@@ -17,6 +17,9 @@
 package io.livekit.android.composesample
 
 import android.app.Activity
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
@@ -117,8 +120,8 @@ class CallActivity : AppCompatActivity() {
             val participants by viewModel.participants.collectAsState(initial = emptyList())
             val primarySpeaker by viewModel.primarySpeaker.collectAsState()
             val activeSpeakers by viewModel.activeSpeakers.collectAsState(initial = emptyList())
-            val micEnabled by viewModel.micEnabled.collectAsState(true)
-            val videoEnabled by viewModel.cameraEnabled.collectAsState(true)
+            val micEnabled by viewModel.micEnabled.collectAsState(false)
+            val videoEnabled by viewModel.cameraEnabled.collectAsState(false)
             val screencastEnabled by viewModel.screenshareEnabled.collectAsState(false)
             val permissionAllowed by viewModel.permissionAllowed.collectAsState()
             Content(
@@ -180,8 +183,8 @@ class CallActivity : AppCompatActivity() {
         participants: List<Participant> = listOf(previewParticipant),
         primarySpeaker: Participant? = previewParticipant,
         activeSpeakers: List<Participant> = listOf(previewParticipant),
-        micEnabled: Boolean = true,
-        videoEnabled: Boolean = true,
+        micEnabled: Boolean = false,
+        videoEnabled: Boolean = false,
         screencastEnabled: Boolean = false,
         permissionAllowed: Boolean = true,
         audioSwitchHandler: AudioSwitchHandler? = null,
@@ -195,6 +198,7 @@ class CallActivity : AppCompatActivity() {
         onSimulateLeaveFullReconnect: () -> Unit = {},
         onUpdateAttribute: (key: String, value: String) -> Unit = { _, _ -> },
     ) {
+        var tmpDevices = getAvailableInputDevices(this)
         AppTheme(darkTheme = true) {
             ConstraintLayout(
                 modifier = Modifier
@@ -514,4 +518,24 @@ class CallActivity : AppCompatActivity() {
         val e2eeOn: Boolean,
         val stressTest: StressTest,
     ) : Parcelable
+    fun getAvailableInputDevices(context: Context): List<AudioDeviceInfo> {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_ALL)
+
+        //////////////////////Log.d("AudioInputDevices", "Found ${devices.size} input devices:")
+        devices.forEach {
+            val typeName = when (it.type) {
+                AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in Mic"
+                AudioDeviceInfo.TYPE_USB_DEVICE -> "USB Device"
+                AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
+                AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
+                else -> "Other: ${it.type}"
+            }
+
+            ////////Log.d("AudioInputDevices", " - $typeName: id=${it.id}, name=${it.productName}")
+        }
+
+        return devices.toList()
+    }
 }
