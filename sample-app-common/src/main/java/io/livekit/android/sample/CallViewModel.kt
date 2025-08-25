@@ -90,11 +90,15 @@ class CallViewModel(
 
     private fun getRoomOptions(): RoomOptions {
         return RoomOptions(
-            adaptiveStream = true,
+            adaptiveStream = false,
             dynacast = true,
             e2eeOptions = getE2EEOptions(),
+            videoTrackCaptureDefaults = LocalVideoTrackOptions(
+                position = CameraPosition.BACK,
+                captureParams = VideoPreset169.H2160.capture,
+            ),
             videoTrackPublishDefaults = VideoTrackPublishDefaults(
-                videoEncoding = VideoPreset169.H1080.encoding.copy(maxBitrate = 3_000_000),
+                videoEncoding = VideoPreset169.H2160.encoding.copy(maxBitrate = 3_000_000),
                 simulcast = true,
                 videoCodec = "h265"
 
@@ -260,9 +264,9 @@ class CallViewModel(
 
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
-            localParticipant.setMicrophoneEnabled(true)
+            localParticipant.setMicrophoneEnabled(false)
 
-            localParticipant.setCameraEnabled(true)
+            localParticipant.setCameraEnabled(false)
 
             // Update the speaker
             handlePrimarySpeaker(emptyList(), emptyList(), room)
