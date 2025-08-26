@@ -16,7 +16,6 @@
 
 package io.livekit.android.sample
 
-import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable

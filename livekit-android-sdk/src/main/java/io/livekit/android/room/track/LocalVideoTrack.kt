@@ -38,7 +38,6 @@ import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
-import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.org.webrtc.CameraVideoCapturer

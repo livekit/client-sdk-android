@@ -25,7 +25,6 @@ import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
