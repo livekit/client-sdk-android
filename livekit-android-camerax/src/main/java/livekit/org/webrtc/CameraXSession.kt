@@ -26,7 +26,6 @@ import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_O
 import android.hardware.camera2.CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
-import android.os.Build.VERSION
 import android.os.Handler
 import android.util.Range
 import android.util.Size
@@ -345,7 +344,7 @@ internal constructor(
             if (id == deviceId) return CameraDeviceId(id, null)
 
             // Then check if deviceId is a physical camera ID in a logical camera
-            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val characteristic = cameraManager.getCameraCharacteristics(id)
 
                 for (physicalId in characteristic.physicalCameraIds) {

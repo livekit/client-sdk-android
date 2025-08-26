@@ -578,7 +578,7 @@ internal constructor(
                     }
 
                     LKLog.v { "ws reconnected, restarting ICE" }
-                    listener?.onSignalConnected(!isFullReconnect)
+                    listener?.onSignalConnected(true)
 
                     // trigger publisher reconnect
                     // only restart publisher if it's needed
@@ -833,11 +833,9 @@ internal constructor(
 
         val rtcConfig = connectOptions.rtcConfig?.copy()?.apply {
             val mergedServers = iceServers.toMutableList()
-            if (connectOptions.iceServers != null) {
-                connectOptions.iceServers.forEach { server ->
-                    if (!mergedServers.contains(server)) {
-                        mergedServers.add(server)
-                    }
+            connectOptions.iceServers?.forEach { server ->
+                if (!mergedServers.contains(server)) {
+                    mergedServers.add(server)
                 }
             }
 
@@ -1088,9 +1086,7 @@ internal constructor(
         abortPendingPublishTracks()
 
         if (leave.hasRegions()) {
-            regionUrlProvider?.let {
-                it.setServerReportedRegions(RegionSettings.fromProto(leave.regions))
-            }
+            regionUrlProvider?.setServerReportedRegions(RegionSettings.fromProto(leave.regions))
         }
 
         when {
@@ -1242,8 +1238,7 @@ internal constructor(
             }
         }
 
-        val dataChannelInfos = LivekitModels.DataPacket.Kind.values()
-            .toList()
+        val dataChannelInfos = LivekitModels.DataPacket.Kind.entries
             .filterNot { it == LivekitModels.DataPacket.Kind.UNRECOGNIZED }
             .mapNotNull { kind -> dataChannelForKind(kind) }
             .map { dataChannel ->

@@ -23,7 +23,6 @@ import android.view.View
 import android.view.ViewTreeObserver
 import androidx.annotation.CallSuper
 import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.video.ViewVisibility.Notifier
 import java.util.Observable
 
 /**

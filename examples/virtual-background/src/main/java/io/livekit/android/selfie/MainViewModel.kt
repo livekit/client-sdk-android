@@ -54,10 +54,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             eglBase = eglBase,
         ),
     )
+
+    private val virtualBackground = (AppCompatResources.getDrawable(application, R.drawable.background) as BitmapDrawable).bitmap
+
     private var blur = 16f
     private val processor = VirtualBackgroundVideoProcessor(eglBase, Dispatchers.IO, initialBlurRadius = blur).apply {
-        val drawable = AppCompatResources.getDrawable(application, R.drawable.background) as BitmapDrawable
-        backgroundImage = drawable.bitmap
+        backgroundImage = virtualBackground
     }
 
     private var cameraProvider: CameraCapturerUtils.CameraProvider? = null
@@ -118,5 +120,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun increaseBlur() {
         blur += 5
         processor.updateBlurRadius(blur)
+    }
+
+    fun toggleVirtualBackground(): Boolean {
+        if (processor.backgroundImage != virtualBackground) {
+            processor.backgroundImage = virtualBackground
+            return true
+        } else {
+            processor.backgroundImage = null
+            return false
+        }
+    }
+
+    fun flipCamera() {
+        val videoTrack = track.value ?: return
+        val newPosition = when (videoTrack.options.position) {
+            CameraPosition.FRONT -> CameraPosition.BACK
+            CameraPosition.BACK -> CameraPosition.FRONT
+            else -> CameraPosition.FRONT
+        }
+        videoTrack.switchCamera(position = newPosition)
     }
 }

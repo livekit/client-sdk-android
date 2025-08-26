@@ -22,8 +22,18 @@ import android.view.TextureView
 import android.view.View
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
-import livekit.org.webrtc.*
-import livekit.org.webrtc.RendererCommon.*
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.EglRenderer
+import livekit.org.webrtc.GlRectDrawer
+import livekit.org.webrtc.Logging
+import livekit.org.webrtc.RendererCommon.GlDrawer
+import livekit.org.webrtc.RendererCommon.RendererEvents
+import livekit.org.webrtc.RendererCommon.ScalingType
+import livekit.org.webrtc.RendererCommon.VideoLayoutMeasure
+import livekit.org.webrtc.SurfaceEglRenderer
+import livekit.org.webrtc.ThreadUtils
+import livekit.org.webrtc.VideoFrame
+import livekit.org.webrtc.VideoSink
 import java.util.concurrent.CountDownLatch
 
 /**
@@ -119,7 +129,7 @@ open class TextureViewRenderer :
      * It should be lightweight and must not call removeFrameListener.
      * @param scale    The scale of the Bitmap passed to the callback, or 0 if no Bitmap is
      * required.
-     * @param drawer   Custom drawer to use for this frame listener.
+     * @param drawerParam   Custom drawer to use for this frame listener.
      */
     fun addFrameListener(
         listener: EglRenderer.FrameListener?,

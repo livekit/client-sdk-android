@@ -100,7 +100,7 @@ class CallActivity : AppCompatActivity() {
         ) { result ->
             val resultCode = result.resultCode
             val data = result.data
-            if (resultCode != Activity.RESULT_OK || data == null) {
+            if (resultCode != RESULT_OK || data == null) {
                 return@registerForActivityResult
             }
             viewModel.startScreenCapture(data)

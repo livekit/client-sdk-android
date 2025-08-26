@@ -1,4 +1,4 @@
-package io.livekit.android.composesample.ui.theme
+package io.livekit.android.videoencodedecode.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Shapes

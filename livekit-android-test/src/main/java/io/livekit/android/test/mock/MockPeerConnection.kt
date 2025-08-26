@@ -256,7 +256,7 @@ class MockPeerConnection(
                 if (currentOrdinal < newOrdinal) {
                     // Ensure that we move through each state.
                     for (ordinal in ((currentOrdinal + 1)..newOrdinal)) {
-                        iceConnectionState = IceConnectionState.values()[ordinal]
+                        iceConnectionState = IceConnectionState.entries[ordinal]
                     }
                 } else {
                     iceConnectionState = newState

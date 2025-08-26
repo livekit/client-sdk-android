@@ -26,8 +26,6 @@ import kotlin.coroutines.resume
 
 /**
  * Returns an RTCStatsReport with all the relevant information pertaining to a track.
- *
- * @param trackIdentifier track, sender, or receiver id
  */
 fun RTCStatsReport.getFilteredStats(track: MediaStreamTrack): RTCStatsReport {
     return getFilteredStats(track.id())

@@ -1,4 +1,4 @@
-package io.livekit.android.composesample.ui
+package io.livekit.android.videoencodedecode.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

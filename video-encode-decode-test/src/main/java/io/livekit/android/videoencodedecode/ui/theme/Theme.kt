@@ -1,4 +1,4 @@
-package io.livekit.android.composesample.ui.theme
+package io.livekit.android.videoencodedecode.ui.theme
 
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors

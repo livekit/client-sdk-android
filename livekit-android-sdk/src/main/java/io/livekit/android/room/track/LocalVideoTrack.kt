@@ -357,7 +357,7 @@ constructor(
                     val rid = EncodingUtils.ridForVideoQuality(quality.quality) ?: continue
                     val encoding = encodings.firstOrNull { it.rid == rid }
                         // use low quality layer settings for non-simulcasted streams
-                        ?: encodings.takeIf { it.size == 1 && quality.quality == LivekitModels.VideoQuality.LOW }?.first()
+                        ?: encodings.takeIf { it.size == 1 && quality.quality == ProtoVideoQuality.LOW }?.first()
                         ?: continue
                     if (encoding.active != quality.enabled) {
                         hasChanged = true

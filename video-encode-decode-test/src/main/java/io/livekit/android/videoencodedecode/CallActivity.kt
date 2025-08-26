@@ -18,7 +18,7 @@ import androidx.constraintlayout.compose.Dimension
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
-import io.livekit.android.composesample.ui.theme.AppTheme
+import io.livekit.android.videoencodedecode.ui.theme.AppTheme
 import kotlinx.parcelize.Parcelize
 
 class CallActivity : AppCompatActivity() {

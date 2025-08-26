@@ -69,7 +69,7 @@ open class ScreenCaptureService : Service() {
             "Screen Capture",
             NotificationManager.IMPORTANCE_LOW,
         )
-        val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val service = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         service.createNotificationChannel(channel)
     }
 

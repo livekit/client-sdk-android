@@ -429,9 +429,7 @@ open class Participant(
 
         other as Participant
 
-        if (sid != other.sid) return false
-
-        return true
+        return sid == other.sid
     }
 
     override fun hashCode(): Int {

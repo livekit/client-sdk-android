@@ -36,7 +36,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.accompanist.pager.ExperimentalPagerApi
-import io.livekit.android.composesample.ui.theme.AppTheme
+import io.livekit.android.videoencodedecode.ui.theme.AppTheme
 import io.livekit.android.sample.common.R
 
 @ExperimentalPagerApi

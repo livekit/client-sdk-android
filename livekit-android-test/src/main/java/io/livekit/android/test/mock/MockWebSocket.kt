@@ -48,7 +48,7 @@ class MockWebSocket(
         isClosed = true
         listener.onClosing(this, code, reason ?: "")
         listener.onClosed(this, code, reason ?: "")
-        return willClose
+        return true
     }
 
     override fun queueSize(): Long = 0

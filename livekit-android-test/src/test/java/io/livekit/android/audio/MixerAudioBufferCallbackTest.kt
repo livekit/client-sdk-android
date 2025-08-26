@@ -97,8 +97,7 @@ class MixerAudioBufferCallbackTest {
                 AudioFormat.ENCODING_PCM_FLOAT -> {
                     byteBuffer.asFloatBuffer().put(0, INCREMENT.toFloat())
                 }
-
-                AudioFormat.ENCODING_INVALID -> throw IllegalArgumentException("Bad audio format $audioFormat")
+                else -> throw IllegalArgumentException("Bad audio format $audioFormat")
             }
 
             return BufferResponse(byteBuffer)
@@ -111,7 +110,6 @@ private fun getBytesPerSample(audioFormat: Int): Int {
         AudioFormat.ENCODING_PCM_8BIT -> 1
         AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_IEC61937, AudioFormat.ENCODING_DEFAULT -> 2
         AudioFormat.ENCODING_PCM_FLOAT -> 4
-        AudioFormat.ENCODING_INVALID -> throw IllegalArgumentException("Bad audio format $audioFormat")
         else -> throw IllegalArgumentException("Bad audio format $audioFormat")
     }
 }

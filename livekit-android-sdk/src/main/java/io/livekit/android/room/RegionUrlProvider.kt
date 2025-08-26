@@ -87,8 +87,12 @@ constructor(
                 if (!response.isSuccessful) {
                     throw RoomException.ConnectException("Could not fetch region settings: ${response.code} ${response.message}")
                 }
-                return@use response.body?.string() ?: return null
+                return@use response.body?.string()
             }
+
+        if (bodyString == null) {
+            throw RoomException.ConnectException("Could not fetch region settings: empty response body!")
+        }
 
         return json.decodeFromString<RegionSettings>(bodyString).also {
             regionSettings = it

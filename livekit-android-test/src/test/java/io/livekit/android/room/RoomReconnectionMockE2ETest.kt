@@ -76,7 +76,7 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
             return@any sentRequest.hasSyncState()
         }
 
-        Assert.assertTrue(sentSyncState)
+        assertTrue(sentSyncState)
     }
 
     @Test
@@ -146,6 +146,6 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         }
 
         println(sentRequests)
-        Assert.assertTrue(sentAddTrack)
+        assertTrue(sentAddTrack)
     }
 }
