@@ -25,7 +25,6 @@ import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,7 +75,7 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
             return@any sentRequest.hasSyncState()
         }
 
-        Assert.assertTrue(sentSyncState)
+        assertTrue(sentSyncState)
     }
 
     @Test
@@ -146,6 +145,6 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         }
 
         println(sentRequests)
-        Assert.assertTrue(sentAddTrack)
+        assertTrue(sentAddTrack)
     }
 }

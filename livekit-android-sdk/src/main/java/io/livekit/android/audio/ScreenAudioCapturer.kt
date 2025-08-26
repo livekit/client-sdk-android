@@ -234,7 +234,6 @@ constructor(
             AudioFormat.ENCODING_PCM_8BIT -> 1
             AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_IEC61937, AudioFormat.ENCODING_DEFAULT -> 2
             AudioFormat.ENCODING_PCM_FLOAT -> 4
-            AudioFormat.ENCODING_INVALID -> throw IllegalArgumentException("Bad audio format $audioFormat")
             else -> throw IllegalArgumentException("Bad audio format $audioFormat")
         }
     }

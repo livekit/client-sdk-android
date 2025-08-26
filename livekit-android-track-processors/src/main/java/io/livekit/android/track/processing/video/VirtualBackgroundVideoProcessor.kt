@@ -42,6 +42,7 @@ import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoFrame
 import livekit.org.webrtc.VideoSink
 import java.util.concurrent.Semaphore
+import kotlin.math.roundToInt
 
 /**
  * A virtual background video processor for the local camera video stream.
@@ -90,6 +91,9 @@ class VirtualBackgroundVideoProcessor(
      */
     var enabled: Boolean = true
 
+    /**
+     * A virtual background image to use.
+     */
     var backgroundImage: Bitmap? = null
         set(value) {
             field = value
@@ -191,39 +195,42 @@ class VirtualBackgroundVideoProcessor(
         frame.retain()
         surfaceTextureHelper.handler.post {
             val backgroundImage = this.backgroundImage
-            if (backgroundImageNeedsUpdating && backgroundImage != null) {
-                val imageAspect = backgroundImage.width / backgroundImage.height.toFloat()
-                val targetAspect = frame.rotatedWidth / frame.rotatedHeight.toFloat()
-                var sx = 0
-                var sy = 0
-                var sWidth = backgroundImage.width
-                var sHeight = backgroundImage.height
-
-                if (imageAspect > targetAspect) {
-                    sWidth = Math.round(backgroundImage.height * targetAspect)
-                    sx = Math.round((backgroundImage.width - sWidth) / 2f)
+            if (backgroundImageNeedsUpdating) {
+                if (backgroundImage == null) {
+                    backgroundTransformer.backgroundImage = null
+                    backgroundImageNeedsUpdating = false
                 } else {
-                    sHeight = Math.round(backgroundImage.width / targetAspect)
-                    sy = Math.round((backgroundImage.height - sHeight) / 2f)
+                    val imageAspect = backgroundImage.width / backgroundImage.height.toFloat()
+                    val targetAspect = frame.rotatedWidth / frame.rotatedHeight.toFloat()
+                    var sx = 0
+                    var sy = 0
+                    var sWidth = backgroundImage.width
+                    var sHeight = backgroundImage.height
+
+                    if (imageAspect > targetAspect) {
+                        sWidth = (backgroundImage.height * targetAspect).roundToInt()
+                        sx = ((backgroundImage.width - sWidth) / 2f).roundToInt()
+                    } else {
+                        sHeight = (backgroundImage.width / targetAspect).roundToInt()
+                        sy = ((backgroundImage.height - sHeight) / 2f).roundToInt()
+                    }
+
+                    val matrix = Matrix()
+
+                    matrix.postRotate(-frame.rotation.toFloat())
+
+                    val resizedImage = Bitmap.createBitmap(
+                        backgroundImage,
+                        sx,
+                        sy,
+                        sWidth,
+                        sHeight,
+                        matrix,
+                        true,
+                    )
+                    backgroundTransformer.backgroundImage = resizedImage
+                    backgroundImageNeedsUpdating = false
                 }
-
-                val diffAspect = targetAspect / imageAspect
-
-                val matrix = Matrix()
-
-                matrix.postRotate(-frame.rotation.toFloat())
-
-                val resizedImage = Bitmap.createBitmap(
-                    backgroundImage,
-                    sx,
-                    sy,
-                    sWidth,
-                    sHeight,
-                    matrix,
-                    true,
-                )
-                backgroundTransformer.backgroundImage = resizedImage
-                backgroundImageNeedsUpdating = false
             }
 
             lastMask?.let {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.accompanist.pager.ExperimentalPagerApi
-import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.sample.common.R
+import io.livekit.android.videoencodedecode.ui.theme.AppTheme
 
 @ExperimentalPagerApi
 class MainActivity : ComponentActivity() {

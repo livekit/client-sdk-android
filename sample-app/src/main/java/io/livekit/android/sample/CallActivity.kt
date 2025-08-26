@@ -16,7 +16,6 @@
 
 package io.livekit.android.sample
 
-import android.app.Activity
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Parcelable
@@ -63,7 +62,7 @@ class CallActivity : AppCompatActivity() {
         ) { result ->
             val resultCode = result.resultCode
             val data = result.data
-            if (resultCode != Activity.RESULT_OK || data == null) {
+            if (resultCode != RESULT_OK || data == null) {
                 return@registerForActivityResult
             }
             viewModel.startScreenCapture(data)

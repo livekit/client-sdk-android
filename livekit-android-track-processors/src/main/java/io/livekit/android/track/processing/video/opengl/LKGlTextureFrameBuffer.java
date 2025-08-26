@@ -61,7 +61,7 @@ public class LKGlTextureFrameBuffer {
             textureId = GlUtil.generateTexture(GLES30.GL_TEXTURE_2D);
         }
         if (frameBufferId == 0) {
-            final int frameBuffers[] = new int[1];
+            final int[] frameBuffers = new int[1];
             GLES30.glGenFramebuffers(1, frameBuffers, 0);
             frameBufferId = frameBuffers[0];
         }

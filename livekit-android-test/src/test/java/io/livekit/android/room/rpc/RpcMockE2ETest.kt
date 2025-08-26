@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package io.livekit.android.room.participant
+package io.livekit.android.room.rpc
 
 import com.google.protobuf.ByteString
 import io.livekit.android.room.RTCEngine
-import io.livekit.android.room.rpc.RpcManager
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel

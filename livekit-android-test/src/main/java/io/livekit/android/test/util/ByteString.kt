@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.google.protobuf.ByteString
 import livekit.LivekitRtc
 import okio.ByteString.Companion.toByteString
 
-fun com.google.protobuf.ByteString.toOkioByteString() = toByteArray().toByteString()
+fun ByteString.toOkioByteString() = toByteArray().toByteString()
 
 fun okio.ByteString.toPBByteString() = ByteString.copyFrom(toByteArray())
 

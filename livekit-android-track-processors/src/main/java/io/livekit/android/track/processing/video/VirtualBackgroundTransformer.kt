@@ -140,7 +140,7 @@ class VirtualBackgroundTransformer(
             if (backgroundImage != null) {
                 val bgTextureFrameBuffer = bgTextureFrameBuffers.first
 
-                if (backgroundImageNeedsUploading || true) {
+                if (backgroundImageNeedsUploading) {
                     val byteBuffer = ByteBuffer.allocateDirect(backgroundImage.byteCount)
                     backgroundImage.copyPixelsToBuffer(byteBuffer)
                     byteBuffer.rewind()

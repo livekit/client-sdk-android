@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@ import kotlin.coroutines.resume
 
 /**
  * Returns an RTCStatsReport with all the relevant information pertaining to a track.
- *
- * @param trackIdentifier track, sender, or receiver id
  */
 fun RTCStatsReport.getFilteredStats(track: MediaStreamTrack): RTCStatsReport {
     return getFilteredStats(track.id())

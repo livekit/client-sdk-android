@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,8 @@ internal const val defaultFailureTolerance = -1
 internal const val defaultKeyRingSize = 16
 internal const val defaultDiscardFrameWhenCryptorNotReady = false
 
-class E2EEOptions
-constructor(
-    keyProvider: KeyProvider = BaseKeyProvider(
+class E2EEOptions(
+    var keyProvider: KeyProvider = BaseKeyProvider(
         defaultRatchetSalt,
         defaultMagicBytes,
         defaultRatchetWindowSize,
@@ -38,11 +37,9 @@ constructor(
     ),
     encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
-    var keyProvider: KeyProvider
     var encryptionType: Encryption.Type = Encryption.Type.NONE
 
     init {
-        this.keyProvider = keyProvider
         this.encryptionType = encryptionType
     }
 }

@@ -58,10 +58,10 @@ class RoomMockE2ETest : MockE2ETest() {
         val collector = FlowCollector(room::state.flow, coroutineRule.scope)
         connect()
         val events = collector.stopCollecting()
-        Assert.assertEquals(3, events.size)
-        Assert.assertEquals(Room.State.DISCONNECTED, events[0])
-        Assert.assertEquals(Room.State.CONNECTING, events[1])
-        Assert.assertEquals(Room.State.CONNECTED, events[2])
+        assertEquals(3, events.size)
+        assertEquals(Room.State.DISCONNECTED, events[0])
+        assertEquals(Room.State.CONNECTING, events[1])
+        assertEquals(Room.State.CONNECTED, events[2])
     }
 
     @Test
@@ -155,9 +155,9 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(ConnectionQuality.EXCELLENT, room.localParticipant.connectionQuality)
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.ConnectionQualityChanged)
+        assertEquals(ConnectionQuality.EXCELLENT, room.localParticipant.connectionQuality)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.ConnectionQualityChanged)
     }
 
     @Test
@@ -252,8 +252,8 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.ActiveSpeakersChanged)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.ActiveSpeakersChanged)
     }
 
     @Test
@@ -286,11 +286,11 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.TrackStreamStateChanged)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.TrackStreamStateChanged)
 
         val event = events[0] as RoomEvent.TrackStreamStateChanged
-        Assert.assertEquals(Track.StreamState.ACTIVE, event.streamState)
+        assertEquals(Track.StreamState.ACTIVE, event.streamState)
     }
 
     @Test
@@ -320,13 +320,13 @@ class RoomMockE2ETest : MockE2ETest() {
         )
         val events = eventCollector.stopCollecting()
 
-        Assert.assertEquals(1, events.size)
-        Assert.assertEquals(true, events[0] is RoomEvent.TrackSubscriptionPermissionChanged)
+        assertEquals(1, events.size)
+        assertEquals(true, events[0] is RoomEvent.TrackSubscriptionPermissionChanged)
 
         val event = events[0] as RoomEvent.TrackSubscriptionPermissionChanged
-        Assert.assertEquals(TestData.REMOTE_PARTICIPANT.sid, event.participant.sid.value)
-        Assert.assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.trackPublication.sid)
-        Assert.assertEquals(false, event.subscriptionAllowed)
+        assertEquals(TestData.REMOTE_PARTICIPANT.sid, event.participant.sid.value)
+        assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.trackPublication.sid)
+        assertEquals(false, event.subscriptionAllowed)
     }
 
     @Test
@@ -495,6 +495,6 @@ class RoomMockE2ETest : MockE2ETest() {
         connect()
         room.disconnect()
         connect()
-        Assert.assertEquals(room.state, Room.State.CONNECTED)
+        assertEquals(room.state, Room.State.CONNECTED)
     }
 }

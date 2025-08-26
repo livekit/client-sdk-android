@@ -45,6 +45,17 @@ class MainActivity : AppCompatActivity() {
             enableButton.setText(if (state) "Disable" else "Enable")
         }
 
+        val enableBackgroundButton = findViewById<Button>(R.id.buttonBackground)
+        enableBackgroundButton.setOnClickListener {
+            val state = viewModel.toggleVirtualBackground()
+            enableBackgroundButton.setText(if (state) "Disable Background" else "Enable Background")
+        }
+
+        val flipCameraButton = findViewById<Button>(R.id.buttonFlip)
+        flipCameraButton.setOnClickListener {
+            viewModel.flipCamera()
+        }
+
         val renderer = findViewById<TextureViewRenderer>(R.id.renderer)
         viewModel.room.initVideoRenderer(renderer)
         viewModel.track.observe(this) { track ->
@@ -87,7 +98,7 @@ fun ComponentActivity.requestNeededPermissions(onPermissionsGranted: (() -> Unit
             }
         }
 
-    val neededPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
+    val neededPermissions = listOf(Manifest.permission.CAMERA)
         .filter { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_DENIED }
         .toTypedArray()
 

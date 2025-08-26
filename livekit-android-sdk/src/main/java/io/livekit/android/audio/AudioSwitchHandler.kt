@@ -23,7 +23,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
-import com.twilio.audioswitch.*
+import com.twilio.audioswitch.AbstractAudioSwitch
+import com.twilio.audioswitch.AudioDevice
+import com.twilio.audioswitch.AudioDeviceChangeListener
+import com.twilio.audioswitch.AudioSwitch
+import com.twilio.audioswitch.LegacyAudioSwitch
+import io.livekit.android.room.Room
 import io.livekit.android.util.LKLog
 import javax.inject.Inject
 import javax.inject.Singleton

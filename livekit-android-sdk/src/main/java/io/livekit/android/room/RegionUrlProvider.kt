@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,8 +87,12 @@ constructor(
                 if (!response.isSuccessful) {
                     throw RoomException.ConnectException("Could not fetch region settings: ${response.code} ${response.message}")
                 }
-                return@use response.body?.string() ?: return null
+                return@use response.body?.string()
             }
+
+        if (bodyString == null) {
+            throw RoomException.ConnectException("Could not fetch region settings: empty response body!")
+        }
 
         return json.decodeFromString<RegionSettings>(bodyString).also {
             regionSettings = it

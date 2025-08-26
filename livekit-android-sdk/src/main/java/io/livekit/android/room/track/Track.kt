@@ -229,5 +229,5 @@ sealed class TrackException(message: String? = null, cause: Throwable? = null) :
         TrackException(message, cause)
 }
 
-public const val KIND_AUDIO = "audio"
-public const val KIND_VIDEO = "video"
+const val KIND_AUDIO = "audio"
+const val KIND_VIDEO = "video"

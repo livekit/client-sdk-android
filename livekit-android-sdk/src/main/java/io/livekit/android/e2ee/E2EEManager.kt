@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ constructor(
         this.peerConnectionFactory = peerConnectionFactory
     }
 
-    public fun keyProvider(): KeyProvider {
+    fun keyProvider(): KeyProvider {
         return this.keyProvider
     }
 
@@ -70,16 +70,16 @@ constructor(
         this.enabled = true
         this.room = room
         this.emitEvent = emitEvent
-        this.room?.localParticipant?.trackPublications?.forEach() { item ->
+        this.room?.localParticipant?.trackPublications?.forEach { item ->
             var participant = this.room!!.localParticipant
             var publication = item.value
             if (publication.track != null) {
                 addPublishedTrack(publication.track!!, publication, participant, room)
             }
         }
-        this.room?.remoteParticipants?.forEach() { item ->
+        this.room?.remoteParticipants?.forEach { item ->
             var participant = item.value
-            participant.trackPublications.forEach() { item ->
+            participant.trackPublications.forEach { item ->
                 var publication = item.value
                 if (publication.track != null) {
                     addSubscribedTrack(publication.track!!, publication, participant, room)
@@ -88,7 +88,7 @@ constructor(
         }
     }
 
-    public fun addSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+    fun addSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         var rtpReceiver: RtpReceiver? = when (publication.track!!) {
             is RemoteAudioTrack -> (publication.track!! as RemoteAudioTrack).receiver
             is RemoteVideoTrack -> (publication.track!! as RemoteVideoTrack).receiver
@@ -111,7 +111,7 @@ constructor(
         }
     }
 
-    public fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+    fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         var trackId = publication.sid
         var participantId = participant.identity
         var frameCryptor = frameCryptors.get(trackId to participantId)
@@ -122,7 +122,7 @@ constructor(
         }
     }
 
-    public fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+    fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         var rtpSender: RtpSender? = when (publication.track!!) {
             is LocalAudioTrack -> (publication.track!! as LocalAudioTrack)?.sender
             is LocalVideoTrack -> (publication.track!! as LocalVideoTrack)?.sender
@@ -146,7 +146,7 @@ constructor(
         }
     }
 
-    public fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+    fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         var trackId = publication.sid
         var participantId = participant.identity
         var frameCryptor = frameCryptors.get(trackId to participantId)
@@ -202,7 +202,7 @@ constructor(
      * Enable or disable E2EE
      * @param enabled
      */
-    public fun enableE2EE(enabled: Boolean) {
+    fun enableE2EE(enabled: Boolean) {
         this.enabled = enabled
         for (item in frameCryptors.entries) {
             var frameCryptor = item.value

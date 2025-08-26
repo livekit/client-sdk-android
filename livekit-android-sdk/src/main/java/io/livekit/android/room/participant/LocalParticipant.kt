@@ -319,7 +319,7 @@ internal constructor(
      * @param screenCaptureParams When enabling the screenshare, this must be provided with
      * [ScreenCaptureParams.mediaProjectionPermissionResultData] containing resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
-     * @throws IllegalArgumentException if attempting to enable screenshare without [mediaProjectionPermissionResultData]
+     * @throws IllegalArgumentException if attempting to enable screenshare without [screenCaptureParams]
      * @see Room.screenShareTrackCaptureDefaults
      * @see Room.screenShareTrackPublishDefaults
      * @see ScreenAudioCapturer

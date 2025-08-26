@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import android.view.View
 import android.view.ViewTreeObserver
 import androidx.annotation.CallSuper
 import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.video.ViewVisibility.Notifier
 import java.util.Observable
 
 /**

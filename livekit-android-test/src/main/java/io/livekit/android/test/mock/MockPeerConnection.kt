@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -256,7 +256,7 @@ class MockPeerConnection(
                 if (currentOrdinal < newOrdinal) {
                     // Ensure that we move through each state.
                     for (ordinal in ((currentOrdinal + 1)..newOrdinal)) {
-                        iceConnectionState = IceConnectionState.values()[ordinal]
+                        iceConnectionState = IceConnectionState.entries[ordinal]
                     }
                 } else {
                     iceConnectionState = newState
