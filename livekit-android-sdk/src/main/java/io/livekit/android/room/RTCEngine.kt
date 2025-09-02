@@ -87,6 +87,7 @@ import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SessionDescription
+import okio.ByteString.Companion.toByteString
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Named
@@ -1208,6 +1209,8 @@ internal constructor(
             -> {
                 listener?.onDataStreamPacket(dp)
             }
+
+            LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET -> TODO()
         }
     }
 
