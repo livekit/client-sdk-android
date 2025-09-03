@@ -40,7 +40,7 @@ class CameraXHelper {
             lifecycleOwner: LifecycleOwner,
             useCases: Array<out UseCase> = emptyArray(),
             cameraVersion: Int = 3,
-        ): CameraCapturerUtils.CameraProvider {
+        ): CameraXProvider {
             return CameraXProvider(lifecycleOwner, useCases, cameraVersion)
         }
 
