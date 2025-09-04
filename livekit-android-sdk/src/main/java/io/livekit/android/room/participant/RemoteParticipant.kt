@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 
 package io.livekit.android.room.participant
 
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.KIND_AUDIO
@@ -38,6 +42,7 @@ import livekit.org.webrtc.AudioTrack
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.VideoTrack
+import javax.inject.Named
 
 /**
  * A representation of a remote participant.
@@ -48,6 +53,8 @@ class RemoteParticipant(
     internal val signalClient: SignalClient,
     private val ioDispatcher: CoroutineDispatcher,
     defaultDispatcher: CoroutineDispatcher,
+    private val audioTrackFactory: RemoteAudioTrack.Factory,
+    private val videoTrackFactory: RemoteVideoTrack.Factory,
 ) : Participant(sid, identity, defaultDispatcher) {
     /**
      * Note: This constructor does not update all info due to event listener race conditions.
@@ -56,21 +63,34 @@ class RemoteParticipant(
      *
      * @suppress
      */
+    @AssistedInject
     constructor(
-        info: LivekitModels.ParticipantInfo,
+        @Assisted info: LivekitModels.ParticipantInfo,
         signalClient: SignalClient,
+        @Named(InjectionNames.DISPATCHER_IO)
         ioDispatcher: CoroutineDispatcher,
+        @Named(InjectionNames.DISPATCHER_DEFAULT)
         defaultDispatcher: CoroutineDispatcher,
+        audioTrackFactory: RemoteAudioTrack.Factory,
+        videoTrackFactory: RemoteVideoTrack.Factory,
     ) : this(
         Sid(info.sid),
         Identity(info.identity),
         signalClient,
         ioDispatcher,
         defaultDispatcher,
+        audioTrackFactory,
+        videoTrackFactory,
     ) {
         super.updateFromInfo(info)
     }
 
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            info: LivekitModels.ParticipantInfo,
+        ): RemoteParticipant
+    }
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
 
     /**
@@ -151,12 +171,11 @@ class RemoteParticipant(
         }
 
         val track: Track = when (val kind = mediaTrack.kind()) {
-            KIND_AUDIO -> RemoteAudioTrack(rtcTrack = mediaTrack as AudioTrack, name = "", receiver = receiver)
-            KIND_VIDEO -> RemoteVideoTrack(
+            KIND_AUDIO -> audioTrackFactory.create(rtcTrack = mediaTrack as AudioTrack, name = "", receiver = receiver)
+            KIND_VIDEO -> videoTrackFactory.create(
                 rtcTrack = mediaTrack as VideoTrack,
                 name = "",
                 autoManageVideo = autoManageVideo,
-                dispatcher = ioDispatcher,
                 receiver = receiver,
             )
 

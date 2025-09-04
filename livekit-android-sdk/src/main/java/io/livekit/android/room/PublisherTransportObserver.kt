@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.livekit.android.room.util.PeerConnectionStateObservable
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitRtc
 import livekit.org.webrtc.CandidatePairChangeEvent
@@ -34,6 +35,7 @@ import livekit.org.webrtc.SessionDescription
 internal class PublisherTransportObserver(
     private val engine: RTCEngine,
     private val client: SignalClient,
+    private val rtcThreadToken: RTCThreadToken,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener, PeerConnectionStateObservable {
 
     var connectionChangeListener: PeerConnectionStateListener? = null
@@ -44,7 +46,7 @@ internal class PublisherTransportObserver(
         private set
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             val candidate = iceCandidate ?: return@executeOnRTCThread
             LKLog.v { "onIceCandidate: $candidate" }
             client.sendCandidate(candidate, target = LivekitRtc.SignalTarget.PUBLISHER)
@@ -52,7 +54,7 @@ internal class PublisherTransportObserver(
     }
 
     override fun onRenegotiationNeeded() {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             engine.negotiatePublisher()
         }
     }
@@ -62,7 +64,7 @@ internal class PublisherTransportObserver(
     }
 
     override fun onOffer(sd: SessionDescription) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             client.sendOffer(sd)
         }
     }
@@ -71,7 +73,7 @@ internal class PublisherTransportObserver(
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             LKLog.v { "onConnection new state: $newState" }
             connectionChangeListener?.invoke(newState)
             connectionState = newState

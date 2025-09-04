@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.track
 
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.AudioTrack
 import livekit.org.webrtc.AudioTrackSink
 
@@ -28,7 +29,8 @@ abstract class AudioTrack(
      * The underlying WebRTC audio track.
      */
     override val rtcTrack: AudioTrack,
-) : Track(name, Kind.AUDIO, rtcTrack) {
+    rtcThreadToken: RTCThreadToken,
+) : Track(name, Kind.AUDIO, rtcTrack, rtcThreadToken) {
 
     /**
      * Adds a sink that receives the audio bytes and related information

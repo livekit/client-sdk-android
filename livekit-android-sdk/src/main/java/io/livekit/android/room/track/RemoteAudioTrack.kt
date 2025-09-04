@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,24 @@
 
 package io.livekit.android.room.track
 
-import livekit.org.webrtc.AudioTrack
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.AudioTrackSink
 import livekit.org.webrtc.RtpReceiver
 
 /**
  * A representation of a remote audio track.
  */
-class RemoteAudioTrack(
-    name: String,
-    rtcTrack: AudioTrack,
-    internal val receiver: RtpReceiver,
-) : io.livekit.android.room.track.AudioTrack(name, rtcTrack) {
+class RemoteAudioTrack
+@AssistedInject
+constructor(
+    @Assisted name: String,
+    @Assisted rtcTrack: livekit.org.webrtc.AudioTrack,
+    @Assisted internal val receiver: RtpReceiver,
+    rtcThreadToken: RTCThreadToken,
+) : AudioTrack(name, rtcTrack, rtcThreadToken) {
 
     override fun addSink(sink: AudioTrackSink) {
         withRTCTrack {
@@ -53,5 +59,14 @@ class RemoteAudioTrack(
         withRTCTrack {
             rtcTrack.setVolume(volume)
         }
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            name: String,
+            rtcTrack: livekit.org.webrtc.AudioTrack,
+            receiver: RtpReceiver,
+        ): RemoteAudioTrack
     }
 }

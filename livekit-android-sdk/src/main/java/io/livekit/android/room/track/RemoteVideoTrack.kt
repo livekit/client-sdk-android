@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,15 @@ package io.livekit.android.room.track
 
 import android.view.View
 import androidx.annotation.VisibleForTesting
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.room.track.video.ViewVisibility
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -33,14 +37,17 @@ import livekit.org.webrtc.VideoSink
 import javax.inject.Named
 import kotlin.math.max
 
-class RemoteVideoTrack(
-    name: String,
-    rtcTrack: livekit.org.webrtc.VideoTrack,
-    val autoManageVideo: Boolean = false,
+class RemoteVideoTrack
+@AssistedInject
+constructor(
+    @Assisted name: String,
+    @Assisted rtcTrack: livekit.org.webrtc.VideoTrack,
+    @Assisted val autoManageVideo: Boolean = false,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
-    receiver: RtpReceiver,
-) : VideoTrack(name, rtcTrack) {
+    @Assisted receiver: RtpReceiver,
+    rtcThreadToken: RTCThreadToken,
+) : VideoTrack(name, rtcTrack, rtcThreadToken) {
 
     private var coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
     private val sinkVisibilityMap = mutableMapOf<VideoSink, VideoSinkVisibility>()
@@ -165,5 +172,15 @@ class RemoteVideoTrack(
     override fun dispose() {
         super.dispose()
         coroutineScope.cancel()
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            @Assisted name: String,
+            @Assisted rtcTrack: livekit.org.webrtc.VideoTrack,
+            @Assisted autoManageVideo: Boolean = false,
+            @Assisted receiver: RtpReceiver,
+        ): RemoteVideoTrack
     }
 }

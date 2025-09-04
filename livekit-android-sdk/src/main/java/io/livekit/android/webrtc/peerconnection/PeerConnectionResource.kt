@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,20 +38,23 @@ internal abstract class PeerConnectionResource<T>(val parentPeerConnection: Peer
     abstract fun get(): T?
 }
 
-internal class RtpTransceiverResource(parentPeerConnection: PeerConnection, private val senderId: String) : PeerConnectionResource<RtpTransceiver>(parentPeerConnection) {
-    override fun get() = executeBlockingOnRTCThread {
+internal class RtpTransceiverResource(parentPeerConnection: PeerConnection, private val senderId: String, private val rtcThreadToken: RTCThreadToken) :
+    PeerConnectionResource<RtpTransceiver>(parentPeerConnection) {
+    override fun get() = executeBlockingOnRTCThread(rtcThreadToken) {
         parentPeerConnection.transceivers.firstOrNull { t -> t.sender.id() == senderId }
     }
 }
 
-internal class RtpReceiverResource(parentPeerConnection: PeerConnection, private val receiverId: String) : PeerConnectionResource<RtpReceiver>(parentPeerConnection) {
-    override fun get() = executeBlockingOnRTCThread {
+internal class RtpReceiverResource(parentPeerConnection: PeerConnection, private val receiverId: String, private val rtcThreadToken: RTCThreadToken) :
+    PeerConnectionResource<RtpReceiver>(parentPeerConnection) {
+    override fun get() = executeBlockingOnRTCThread(rtcThreadToken) {
         parentPeerConnection.receivers.firstOrNull { r -> r.id() == receiverId }
     }
 }
 
-internal class RtpSenderResource(parentPeerConnection: PeerConnection, private val senderId: String) : PeerConnectionResource<RtpSender>(parentPeerConnection) {
-    override fun get() = executeBlockingOnRTCThread {
+internal class RtpSenderResource(parentPeerConnection: PeerConnection, private val senderId: String, private val rtcThreadToken: RTCThreadToken) :
+    PeerConnectionResource<RtpSender>(parentPeerConnection) {
+    override fun get() = executeBlockingOnRTCThread(rtcThreadToken) {
         parentPeerConnection.senders.firstOrNull { s -> s.id() == senderId }
     }
 }

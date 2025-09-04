@@ -48,6 +48,7 @@ import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
@@ -107,6 +108,7 @@ internal constructor(
     private val pctFactory: PeerConnectionTransport.Factory,
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
+    private val rtcThreadToken: RTCThreadToken,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -160,8 +162,8 @@ internal constructor(
     internal val serverVersion: Semver?
         get() = client.serverVersion
 
-    private val publisherObserver = PublisherTransportObserver(this, client)
-    private val subscriberObserver = SubscriberTransportObserver(this, client)
+    private val publisherObserver = PublisherTransportObserver(this, client, rtcThreadToken)
+    private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
     internal var publisher: PeerConnectionTransport? = null
     private var subscriber: PeerConnectionTransport? = null
@@ -243,7 +245,7 @@ internal constructor(
     }
 
     private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
-        launchBlockingOnRTCThread {
+        launchBlockingOnRTCThread(rtcThreadToken) {
             configurationLock.withCheckLock(
                 {
                     ensureActive()
@@ -316,7 +318,7 @@ internal constructor(
                         reliableInit,
                     ).also { dataChannel ->
 
-                        val dataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
+                        val dataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
                         reliableDataChannelManager = dataChannelManager
                         dataChannel.registerObserver(dataChannelManager)
                         reliableBufferedAmountJob?.cancel()
@@ -339,7 +341,7 @@ internal constructor(
                         LOSSY_DATA_CHANNEL_LABEL,
                         lossyInit,
                     ).also { dataChannel ->
-                        lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel))
+                        lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
                         dataChannel.registerObserver(lossyDataChannelManager)
                     }
                 }
@@ -432,7 +434,7 @@ internal constructor(
     }
 
     private fun closeResources(reason: String) {
-        executeBlockingOnRTCThread {
+        executeBlockingOnRTCThread(rtcThreadToken) {
             runBlocking {
                 configurationLock.withLock {
                     publisherObserver.connectionChangeListener = null

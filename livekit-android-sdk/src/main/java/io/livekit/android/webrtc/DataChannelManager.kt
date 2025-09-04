@@ -21,6 +21,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
@@ -30,9 +31,10 @@ import livekit.org.webrtc.DataChannel
 /**
  * @suppress
  */
-class DataChannelManager(
+internal class DataChannelManager(
     val dataChannel: DataChannel,
     private val dataMessageListener: DataChannel.Observer,
+    val rtcThreadToken: RTCThreadToken,
 ) : DataChannel.Observer {
 
     @get:FlowObservable
@@ -76,7 +78,7 @@ class DataChannelManager(
             disposed = true
             bufferedAmount = 0
         }
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             dataChannel.unregisterObserver()
             dataChannel.close()
             dataChannel.dispose()

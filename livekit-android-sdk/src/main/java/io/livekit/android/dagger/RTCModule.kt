@@ -23,6 +23,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import dagger.Module
 import dagger.Provides
+import dagger.Reusable
 import io.livekit.android.LiveKit
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
@@ -38,6 +39,9 @@ import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
 import io.livekit.android.webrtc.CustomVideoDecoderFactory
 import io.livekit.android.webrtc.CustomVideoEncoderFactory
+import io.livekit.android.webrtc.PeerConnectionFactoryManager
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
+import io.livekit.android.webrtc.peerconnection.RTCThreadTokenImpl
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.org.webrtc.AudioProcessingFactory
@@ -96,7 +100,7 @@ internal object RTCModule {
     @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
     fun libWebrtcInitialization(appContext: Context): LibWebrtcInitialization {
         if (!hasInitializedWebrtc) {
-            executeBlockingOnRTCThread {
+            executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) {
                 if (!hasInitializedWebrtc) {
                     hasInitializedWebrtc = true
                     PeerConnectionFactory.initialize(
@@ -334,7 +338,7 @@ internal object RTCModule {
 
     @Provides
     @Singleton
-    fun peerConnectionFactory(
+    fun peerConnectionFactoryManager(
         @Suppress("UNUSED_PARAMETER")
         @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION)
         webrtcInitialization: LibWebrtcInitialization,
@@ -345,9 +349,9 @@ internal object RTCModule {
         peerConnectionFactoryOptions: PeerConnectionFactory.Options?,
         memoryManager: CloseableManager,
         audioProcessingFactory: AudioProcessingFactory,
-    ): PeerConnectionFactory {
-        return executeBlockingOnRTCThread {
-            PeerConnectionFactory.builder()
+    ): PeerConnectionFactoryManager {
+        return executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) {
+            val peerConnectionFactory = PeerConnectionFactory.builder()
                 .setAudioDeviceModule(audioDeviceModule)
                 .setAudioProcessingFactory(audioProcessingFactory)
                 .setVideoEncoderFactory(videoEncoderFactory)
@@ -358,14 +362,31 @@ internal object RTCModule {
                     }
                 }
                 .createPeerConnectionFactory()
+            return@executeBlockingOnRTCThread PeerConnectionFactoryManager(peerConnectionFactory)
                 .apply {
                     memoryManager.registerClosable {
-                        executeOnRTCThread {
+                        executeOnRTCThread(RTCThreadTokenImpl(this)) {
                             dispose()
                         }
                     }
                 }
-        }
+        }!!
+    }
+
+    @Provides
+    @Singleton
+    fun peerConnectionFactory(
+        peerConnectionFactoryManager: PeerConnectionFactoryManager,
+    ): PeerConnectionFactory {
+        return peerConnectionFactoryManager.peerConnectionFactory
+    }
+
+    @Provides
+    @Reusable
+    fun rtcThreadToken(
+        peerConnectionFactoryManager: PeerConnectionFactoryManager,
+    ): RTCThreadToken {
+        return RTCThreadTokenImpl(peerConnectionFactoryManager)
     }
 
     @Provides
@@ -385,6 +406,17 @@ internal object RTCModule {
 }
 
 /**
+ * Used to ensure [RTCModule.libWebrtcInitialization] is called prior to other methods.
+ *
  * @suppress
  */
 object LibWebrtcInitialization
+
+/**
+ * To be used **only** for initialization and creation of PeerConnectionFactories,
+ * as those don't need the native threads and cannot deadlock.
+ */
+private object LibWebrtcInitializationThreadToken : RTCThreadToken {
+    override val isDisposed: Boolean
+        get() = false
+}
