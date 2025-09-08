@@ -191,6 +191,9 @@ abstract class Track(
         }
     }
 
+    /**
+     * Ensures the track is valid before attempting to run [action].
+     */
     @OptIn(ExperimentalContracts::class)
     internal inline fun <T> withRTCTrack(crossinline action: MediaStreamTrack.() -> T) {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
