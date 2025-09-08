@@ -45,7 +45,7 @@ fun MockE2ETest.createMockLocalAudioTrack(
     audioRecordPrewarmer: AudioRecordPrewarmer = NoAudioRecordPrewarmer(),
     rtcThreadToken: RTCThreadToken = MockRTCThreadToken(),
 
-    ): LocalAudioTrack {
+): LocalAudioTrack {
     return LocalAudioTrack(
         name = name,
         mediaTrack = mediaTrack,

@@ -99,7 +99,6 @@ object TestRTCModule {
     fun peerConnectionFactoryManager(
         peerConnectionFactory: PeerConnectionFactory,
     ): PeerConnectionFactoryManager {
-
         return PeerConnectionFactoryManager(peerConnectionFactory)
     }
 
@@ -115,6 +114,7 @@ object TestRTCModule {
         override val isDisposed: Boolean
             get() = manager.isDisposed
     }
+
     @Provides
     @Named(InjectionNames.SENDER)
     fun senderCapabilitiesGetter(peerConnectionFactory: PeerConnectionFactory): CapabilitiesGetter {

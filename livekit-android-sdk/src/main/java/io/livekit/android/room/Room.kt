@@ -562,6 +562,9 @@ constructor(
      * Disconnect from the room.
      */
     fun disconnect() {
+        if (state == State.DISCONNECTED) {
+            return
+        }
         engine.client.sendLeave()
         handleDisconnect(DisconnectReason.CLIENT_INITIATED)
     }
@@ -605,6 +608,7 @@ constructor(
      * must be created.
      */
     fun release() {
+        disconnect()
         closeableManager.close()
     }
 
