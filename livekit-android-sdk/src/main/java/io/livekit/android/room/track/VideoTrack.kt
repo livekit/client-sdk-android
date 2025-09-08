@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package io.livekit.android.room.track
 
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.org.webrtc.VideoSink
 import livekit.org.webrtc.VideoTrack
 
-abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
-    Track(name, Kind.VIDEO, rtcTrack) {
+abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack, rtcThreadToken: RTCThreadToken) :
+    Track(name, Kind.VIDEO, rtcTrack, rtcThreadToken) {
     protected val sinks: MutableList<VideoSink> = ArrayList()
 
     /**
@@ -38,7 +39,7 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
      * Remove a previously added [VideoSink].
      */
     open fun removeRenderer(renderer: VideoSink) {
-        executeBlockingOnRTCThread {
+        executeBlockingOnRTCThread(rtcThreadToken) {
             if (!isDisposed) {
                 rtcTrack.removeSink(renderer)
             }
@@ -47,7 +48,7 @@ abstract class VideoTrack(name: String, override val rtcTrack: VideoTrack) :
     }
 
     override fun stop() {
-        executeBlockingOnRTCThread {
+        executeBlockingOnRTCThread(rtcThreadToken) {
             if (!isDisposed) {
                 for (sink in sinks) {
                     rtcTrack.removeSink(sink)

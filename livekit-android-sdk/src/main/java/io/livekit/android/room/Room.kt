@@ -39,16 +39,33 @@ import io.livekit.android.audio.CommunicationWorkaround
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
-import io.livekit.android.events.*
+import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.DisconnectReason
+import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.collect
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
-import io.livekit.android.room.participant.*
+import io.livekit.android.room.participant.AudioTrackPublishDefaults
+import io.livekit.android.room.participant.ConnectionQuality
+import io.livekit.android.room.participant.LocalParticipant
+import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.ParticipantListener
+import io.livekit.android.room.participant.RemoteParticipant
+import io.livekit.android.room.participant.RpcHandler
+import io.livekit.android.room.participant.VideoTrackPublishDefaults
+import io.livekit.android.room.participant.publishTracksInfo
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.rpc.RpcManager
-import io.livekit.android.room.track.*
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.toSDKType
 import io.livekit.android.room.util.ConnectionWarmer
 import io.livekit.android.util.FlowObservable
@@ -57,15 +74,31 @@ import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
 import io.livekit.android.webrtc.getFilteredStats
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
-import livekit.org.webrtc.*
+import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.MediaStream
+import livekit.org.webrtc.MediaStreamTrack
+import livekit.org.webrtc.RTCStatsCollectorCallback
+import livekit.org.webrtc.RendererCommon
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.SurfaceViewRenderer
 import livekit.org.webrtc.audio.AudioDeviceModule
 import java.net.URI
 import java.util.Date
@@ -110,6 +143,7 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val remoteParticipantFactory: RemoteParticipant.Factory,
 ) : RTCEngine.Listener, ParticipantListener, RpcManager, IncomingDataStreamManager by incomingDataStreamManager {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -528,6 +562,9 @@ constructor(
      * Disconnect from the room.
      */
     fun disconnect() {
+        if (state == State.DISCONNECTED) {
+            return
+        }
         engine.client.sendLeave()
         handleDisconnect(DisconnectReason.CLIENT_INITIATED)
     }
@@ -571,6 +608,7 @@ constructor(
      * must be created.
      */
     fun release() {
+        disconnect()
         closeableManager.close()
     }
 
@@ -744,7 +782,7 @@ constructor(
             return participant
         }
 
-        participant = RemoteParticipant(info, engine.client, ioDispatcher, defaultDispatcher)
+        participant = remoteParticipantFactory.create(info)
         participant.internalListener = this
 
         coroutineScope.launch {

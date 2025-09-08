@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,14 @@
 package io.livekit.android.webrtc.peerconnection
 
 import androidx.annotation.VisibleForTesting
+import io.livekit.android.webrtc.PeerConnectionFactoryManager
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
@@ -31,13 +34,13 @@ import java.util.concurrent.atomic.AtomicInteger
 // peer connection API calls to ensure new peer connection factory is
 // created on the same thread as previously destroyed factory.
 
-private const val EXECUTOR_THREADNAME_PREFIX = "LK_RTC_THREAD"
+internal const val RTC_EXECUTOR_THREADNAME_PREFIX = "LK_RTC_THREAD"
 private val threadFactory = object : ThreadFactory {
     private val idGenerator = AtomicInteger(0)
 
     override fun newThread(r: Runnable): Thread {
         val thread = Thread(r)
-        thread.name = EXECUTOR_THREADNAME_PREFIX + "_" + idGenerator.incrementAndGet()
+        thread.name = RTC_EXECUTOR_THREADNAME_PREFIX + "_" + idGenerator.incrementAndGet()
         return thread
     }
 }
@@ -65,11 +68,21 @@ fun overrideExecutorAndDispatcher(executorService: ExecutorService, dispatcher: 
  *
  * @suppress
  */
-internal fun <T> executeOnRTCThread(action: () -> T) {
-    if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
+internal fun <T> executeOnRTCThread(token: RTCThreadToken, action: () -> T) {
+    if (token.isDisposed) {
+        return
+    }
+    if (Thread.currentThread().name.startsWith(RTC_EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
-        executor.submit(action)
+        executor.submit(
+            {
+                if (token.isDisposed) {
+                    return@submit
+                }
+                action()
+            },
+        )
     }
 }
 
@@ -80,11 +93,21 @@ internal fun <T> executeOnRTCThread(action: () -> T) {
  *
  * @suppress
  */
-internal fun <T> executeBlockingOnRTCThread(action: () -> T): T {
-    return if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
+internal inline fun <T> executeBlockingOnRTCThread(token: RTCThreadToken, crossinline action: () -> T): T? {
+    if (token.isDisposed) {
+        return null
+    }
+    return if (Thread.currentThread().name.startsWith(RTC_EXECUTOR_THREADNAME_PREFIX)) {
         action()
     } else {
-        executor.submit(action).get()
+        executor.submit(
+            Callable {
+                if (token.isDisposed) {
+                    return@Callable null
+                }
+                return@Callable action()
+            },
+        ).get()
     }
 }
 
@@ -93,12 +116,38 @@ internal fun <T> executeBlockingOnRTCThread(action: () -> T): T {
  * is generally not thread safe, so all actions relating to
  * peer connection objects should go through the RTC thread.
  */
-internal suspend fun <T> launchBlockingOnRTCThread(action: suspend CoroutineScope.() -> T): T = coroutineScope {
-    return@coroutineScope if (Thread.currentThread().name.startsWith(EXECUTOR_THREADNAME_PREFIX)) {
+internal suspend fun <T> launchBlockingOnRTCThread(token: RTCThreadToken, action: suspend CoroutineScope.() -> T): T? = coroutineScope {
+    if (token.isDisposed) {
+        return@coroutineScope null
+    }
+    return@coroutineScope if (Thread.currentThread().name.startsWith(RTC_EXECUTOR_THREADNAME_PREFIX)) {
         this.action()
     } else {
         async(rtcDispatcher) {
-            this.action()
+            if (token.isDisposed) {
+                null
+            } else {
+                this.action()
+            }
         }.await()
     }
+}
+
+/**
+ * Manages thread run requests associated with a [livekit.org.webrtc.PeerConnectionFactory]
+ *
+ * Required to run on the RTC thread.
+ *
+ * @suppress
+ * @see RTCThreadTokenImpl
+ */
+interface RTCThreadToken {
+    val isDisposed: Boolean
+}
+
+internal class RTCThreadTokenImpl(
+    private val peerConnectionFactoryManager: PeerConnectionFactoryManager,
+) : RTCThreadToken {
+    override val isDisposed
+        get() = peerConnectionFactoryManager.isDisposed
 }

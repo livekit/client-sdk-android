@@ -35,6 +35,7 @@ import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -72,7 +73,8 @@ constructor(
     @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER)
     private val audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
-) : AudioTrack(name, mediaTrack) {
+    rtcThreadToken: RTCThreadToken,
+) : AudioTrack(name, mediaTrack, rtcThreadToken) {
     /**
      * To only be used for flow delegate scoping, and should not be cancelled.
      **/

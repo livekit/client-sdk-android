@@ -38,6 +38,7 @@ import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
 import livekit.org.webrtc.CameraVideoCapturer
@@ -79,7 +80,8 @@ constructor(
      * as this will be used to receive frames in [addRenderer].
      **/
     @Assisted private var dispatchObserver: CaptureDispatchObserver? = null,
-) : VideoTrack(name, rtcTrack) {
+    rtcThreadToken: RTCThreadToken,
+) : VideoTrack(name, rtcTrack, rtcThreadToken) {
 
     var capturer = capturer
         private set

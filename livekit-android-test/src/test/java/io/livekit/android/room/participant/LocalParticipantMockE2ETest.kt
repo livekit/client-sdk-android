@@ -41,6 +41,7 @@ import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockEglBase
+import io.livekit.android.test.mock.MockRTCThreadToken
 import io.livekit.android.test.mock.MockVideoCapturer
 import io.livekit.android.test.mock.MockVideoStreamTrack
 import io.livekit.android.test.mock.TestData
@@ -306,6 +307,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         eglBase = MockEglBase(),
         defaultsManager = DefaultsManager(),
         trackFactory = mock(LocalVideoTrack.Factory::class.java),
+        rtcThreadToken = MockRTCThreadToken(),
     )
 
     @Test

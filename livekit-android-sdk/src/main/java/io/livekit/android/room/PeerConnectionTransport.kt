@@ -38,6 +38,7 @@ import io.livekit.android.webrtc.getFmtps
 import io.livekit.android.webrtc.getMsid
 import io.livekit.android.webrtc.getRtps
 import io.livekit.android.webrtc.isConnected
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import kotlinx.coroutines.CoroutineDispatcher
@@ -72,16 +73,17 @@ constructor(
     private val ioDispatcher: CoroutineDispatcher,
     connectionFactory: PeerConnectionFactory,
     private val sdpFactory: SdpFactory,
+    private val rtcThreadToken: RTCThreadToken,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
     @VisibleForTesting
-    internal val peerConnection: PeerConnection = executeBlockingOnRTCThread {
+    internal val peerConnection: PeerConnection = executeBlockingOnRTCThread(rtcThreadToken) {
         connectionFactory.createPeerConnection(
             config,
             pcObserver,
         ) ?: throw IllegalStateException("peer connection creation failed?")
-    }
+    }!!
     private val pendingCandidates = mutableListOf<IceCandidate>()
     private var restartingIce: Boolean = false
 
@@ -329,7 +331,7 @@ constructor(
         if (isClosed()) {
             return null
         }
-        return launchBlockingOnRTCThread {
+        return launchBlockingOnRTCThread(rtcThreadToken) {
             return@launchBlockingOnRTCThread if (isClosed()) {
                 null
             } else {
@@ -344,7 +346,7 @@ constructor(
         if (isClosed()) {
             return null
         }
-        return executeBlockingOnRTCThread {
+        return executeBlockingOnRTCThread(rtcThreadToken) {
             return@executeBlockingOnRTCThread if (isClosed()) {
                 null
             } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.livekit.android.room.util.PeerConnectionStateObservable
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flowDelegate
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitRtc
 import livekit.org.webrtc.CandidatePairChangeEvent
@@ -37,6 +38,7 @@ import livekit.org.webrtc.RtpTransceiver
 class SubscriberTransportObserver(
     private val engine: RTCEngine,
     private val client: SignalClient,
+    private val rtcThreadToken: RTCThreadToken,
 ) : PeerConnection.Observer, PeerConnectionStateObservable {
 
     var dataChannelListener: ((DataChannel) -> Unit)? = null
@@ -48,14 +50,14 @@ class SubscriberTransportObserver(
         private set
 
     override fun onIceCandidate(candidate: IceCandidate) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             LKLog.v { "onIceCandidate: $candidate" }
             client.sendCandidate(candidate, LivekitRtc.SignalTarget.SUBSCRIBER)
         }
     }
 
     override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             val track = receiver.track() ?: return@executeOnRTCThread
             LKLog.v { "onAddTrack: ${track.kind()}, ${track.id()}, ${streams.fold("") { sum, it -> "$sum, $it" }}" }
             engine.listener?.onAddTrack(receiver, track, streams)
@@ -71,7 +73,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onDataChannel(channel: DataChannel) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             dataChannelListener?.invoke(channel)
         }
     }
@@ -80,7 +82,7 @@ class SubscriberTransportObserver(
     }
 
     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
-        executeOnRTCThread {
+        executeOnRTCThread(rtcThreadToken) {
             LKLog.v { "onConnectionChange new state: $newState" }
             connectionChangeListener?.invoke(newState)
             connectionState = newState

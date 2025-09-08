@@ -33,6 +33,7 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
 import io.livekit.android.room.track.screencapture.ScreenCaptureService
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.ScreenCapturerAndroid
@@ -65,6 +66,7 @@ constructor(
     eglBase: EglBase,
     defaultsManager: DefaultsManager,
     videoTrackFactory: LocalVideoTrack.Factory,
+    rtcThreadToken: RTCThreadToken,
 ) : LocalVideoTrack(
     capturer,
     source,
@@ -76,6 +78,8 @@ constructor(
     eglBase,
     defaultsManager,
     videoTrackFactory,
+
+    rtcThreadToken = rtcThreadToken,
 ) {
 
     private var prevDisplayWidth = 0

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockRTCThreadToken
 import io.livekit.android.test.mock.MockRtpReceiver
 import io.livekit.android.test.mock.MockVideoStreamTrack
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,6 +43,7 @@ class RemoteVideoTrackTest : BaseTest() {
             autoManageVideo = true,
             dispatcher = coroutineRule.dispatcher,
             receiver = MockRtpReceiver.create(),
+            rtcThreadToken = MockRTCThreadToken(),
         )
     }
 

@@ -26,7 +26,9 @@ import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockAudioStreamTrack
+import io.livekit.android.test.mock.MockRTCThreadToken
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.org.webrtc.AudioTrack
@@ -41,6 +43,8 @@ fun MockE2ETest.createMockLocalAudioTrack(
     audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher = AudioRecordSamplesDispatcher(),
     audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher = AudioBufferCallbackDispatcher(),
     audioRecordPrewarmer: AudioRecordPrewarmer = NoAudioRecordPrewarmer(),
+    rtcThreadToken: RTCThreadToken = MockRTCThreadToken(),
+
 ): LocalAudioTrack {
     return LocalAudioTrack(
         name = name,
@@ -51,5 +55,6 @@ fun MockE2ETest.createMockLocalAudioTrack(
         audioRecordSamplesDispatcher = audioRecordSamplesDispatcher,
         audioBufferCallbackDispatcher = audioBufferCallbackDispatcher,
         audioRecordPrewarmer = audioRecordPrewarmer,
+        rtcThreadToken = rtcThreadToken,
     )
 }

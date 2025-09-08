@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,14 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.events.FlowCollector
+import io.livekit.android.test.mock.room.track.TestRemoteAudioTrackFactory
+import io.livekit.android.test.mock.room.track.TestRemoteVideoTrackFactory
 import io.livekit.android.util.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
@@ -45,6 +49,10 @@ class RemoteParticipantTest : BaseTest() {
             signalClient = signalClient,
             ioDispatcher = coroutineRule.dispatcher,
             defaultDispatcher = coroutineRule.dispatcher,
+            audioTrackFactory = TestRemoteAudioTrackFactory,
+            videoTrackFactory = TestRemoteVideoTrackFactory(
+                dispatcher = coroutineRule.dispatcher,
+            ),
         )
     }
 

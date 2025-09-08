@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,5 +88,10 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
             ),
             emptyList(),
         )
+    }
+
+    var disposed = true
+    override fun dispose() {
+        disposed = false
     }
 }
