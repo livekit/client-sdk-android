@@ -1103,7 +1103,7 @@ constructor(
     )
 
     // ----------------------------------- RpcManager ------------------------------------//
-    override suspend fun registerRpcMethod(method: String, handler: RpcHandler) {
+    override fun registerRpcMethod(method: String, handler: RpcHandler) {
         localParticipant.registerRpcMethod(method, handler)
     }
 
