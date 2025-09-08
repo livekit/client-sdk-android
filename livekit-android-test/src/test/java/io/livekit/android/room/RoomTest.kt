@@ -41,6 +41,7 @@ import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockLKObjects
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.room.participant.TestRemoteParticipantFactory
 import io.livekit.android.test.mock.room.util.MockConnectionWarmer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -135,6 +136,11 @@ class RoomTest {
             connectionWarmer = MockConnectionWarmer(),
             audioRecordPrewarmer = NoAudioRecordPrewarmer(),
             incomingDataStreamManager = IncomingDataStreamManagerImpl(),
+            remoteParticipantFactory = TestRemoteParticipantFactory(
+                rtcEngine = rtcEngine,
+                ioDispatcher = coroutineRule.dispatcher,
+                defaultDispatcher = coroutineRule.dispatcher,
+            ),
         )
     }
 

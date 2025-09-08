@@ -20,6 +20,9 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.peerconnection.RTC_EXECUTOR_THREADNAME_PREFIX
 import livekit.org.webrtc.PeerConnectionFactory
 
+/**
+ * @suppress
+ */
 data class PeerConnectionFactoryManager(val peerConnectionFactory: PeerConnectionFactory) {
     var isDisposed = false
         private set

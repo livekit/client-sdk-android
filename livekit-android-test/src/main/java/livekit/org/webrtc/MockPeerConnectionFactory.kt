@@ -89,4 +89,9 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
             emptyList(),
         )
     }
+
+    var disposed = true
+    override fun dispose() {
+        disposed = false
+    }
 }

@@ -20,6 +20,7 @@ import android.content.Context
 import android.javax.sdp.SdpFactory
 import dagger.Module
 import dagger.Provides
+import dagger.Reusable
 import io.livekit.android.audio.AudioBufferCallbackDispatcher
 import io.livekit.android.audio.AudioProcessingController
 import io.livekit.android.audio.AudioRecordPrewarmer
@@ -30,6 +31,8 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
+import io.livekit.android.webrtc.PeerConnectionFactoryManager
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.MockPeerConnectionFactory
@@ -91,6 +94,27 @@ object TestRTCModule {
         return MockPeerConnectionFactory()
     }
 
+    @Provides
+    @Singleton
+    fun peerConnectionFactoryManager(
+        peerConnectionFactory: PeerConnectionFactory,
+    ): PeerConnectionFactoryManager {
+
+        return PeerConnectionFactoryManager(peerConnectionFactory)
+    }
+
+    @Provides
+    @Reusable
+    fun rtcThreadToken(
+        manager: PeerConnectionFactoryManager,
+    ): RTCThreadToken {
+        return RTCThreadTokenImpl(manager)
+    }
+
+    private class RTCThreadTokenImpl(private val manager: PeerConnectionFactoryManager) : RTCThreadToken {
+        override val isDisposed: Boolean
+            get() = manager.isDisposed
+    }
     @Provides
     @Named(InjectionNames.SENDER)
     fun senderCapabilitiesGetter(peerConnectionFactory: PeerConnectionFactory): CapabilitiesGetter {
