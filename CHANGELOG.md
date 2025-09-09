@@ -1,5 +1,19 @@
 # client-sdk-android
 
+## 2.20.2
+
+### Patch Changes
+
+- Remove unneeded suspend modifier from registerRpcMethod - [#757](https://github.com/livekit/client-sdk-android/pull/757) ([@davidliu](https://github.com/davidliu))
+
+- Fix crash when publishing disposed tracks - [#758](https://github.com/livekit/client-sdk-android/pull/758) ([@davidliu](https://github.com/davidliu))
+
+- Fix race condition when releasing Room object - [#756](https://github.com/livekit/client-sdk-android/pull/756) ([@davidliu](https://github.com/davidliu))
+
+- Fix VirtualBackgroundVideoProcessor not responding to changes in backgroundImage - [#752](https://github.com/livekit/client-sdk-android/pull/752) ([@davidliu](https://github.com/davidliu))
+
+- Ensure room is disconnected before releasing resources - [#756](https://github.com/livekit/client-sdk-android/pull/756) ([@davidliu](https://github.com/davidliu))
+
 ## 2.20.1
 
 ### Patch Changes
