@@ -90,7 +90,6 @@ object TestRTCModule {
         appContext: Context,
     ): PeerConnectionFactory {
         WebRTCInitializer.initialize(appContext)
-
         return MockPeerConnectionFactory()
     }
 
