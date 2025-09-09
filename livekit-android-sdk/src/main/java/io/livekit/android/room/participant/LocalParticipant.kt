@@ -432,6 +432,7 @@ internal constructor(
      *
      * @param track The track to publish.
      * @param options The publish options to use, or [Room.audioTrackPublishDefaults] if none is passed.
+     * @return true if the track published successfully
      */
     suspend fun publishAudioTrack(
         track: LocalAudioTrack,
@@ -488,6 +489,7 @@ internal constructor(
      *
      * @param track The track to publish.
      * @param options The publish options to use, or [Room.videoTrackPublishDefaults] if none is passed.
+     * @return true if the track published successfully
      */
     suspend fun publishVideoTrack(
         track: LocalVideoTrack,

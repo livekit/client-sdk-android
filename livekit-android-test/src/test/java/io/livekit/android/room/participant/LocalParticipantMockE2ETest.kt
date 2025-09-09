@@ -789,7 +789,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun lackOfPublishPermissionCausesException() = runTest {
+    fun lackOfPublishPermissionReturnsFalse() = runTest {
         val noCanPublishJoin = with(TestData.JOIN.toBuilder()) {
             join = with(join.toBuilder()) {
                 participant = with(participant.toBuilder()) {
@@ -805,14 +805,7 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         }
         connect(noCanPublishJoin)
 
-        var didThrow = false
-        try {
-            room.localParticipant.publishVideoTrack(createLocalTrack())
-        } catch (e: TrackException.PublishException) {
-            didThrow = true
-        }
-
-        assertTrue(didThrow)
+        assertFalse(room.localParticipant.publishVideoTrack(createLocalTrack()))
     }
 
     @Test
