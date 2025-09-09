@@ -61,8 +61,7 @@ interface RpcManager {
      * @see RpcInvocationData
      * @see performRpc
      */
-    @Suppress("RedundantSuspendModifier")
-    suspend fun registerRpcMethod(
+    fun registerRpcMethod(
         method: String,
         handler: RpcHandler,
     )

@@ -1028,7 +1028,7 @@ internal constructor(
      * @see RpcInvocationData
      * @see performRpc
      */
-    override suspend fun registerRpcMethod(
+    override fun registerRpcMethod(
         method: String,
         handler: RpcHandler,
     ) {
