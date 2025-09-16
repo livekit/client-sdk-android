@@ -452,6 +452,7 @@ constructor(
                         }
                     }
                 }
+                engine.e2EEManager = e2eeManager
             }
         }
 
@@ -976,7 +977,7 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
-        e2eeManager?.cleanUp()
+        e2eeManager?.dispose()
         e2eeManager = null
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
