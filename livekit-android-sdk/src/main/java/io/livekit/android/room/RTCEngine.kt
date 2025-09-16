@@ -708,7 +708,6 @@ internal constructor(
                     reliableDataSequence++
                 }
 
-
                 val byteBuffer = ByteBuffer.wrap(dataPacket.toByteArray())
 
                 if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
@@ -1254,7 +1253,7 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.STREAM_HEADER,
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
-                -> {
+            -> {
                 listener?.onDataStreamPacket(dp)
             }
 
@@ -1264,10 +1263,9 @@ internal constructor(
 
             LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
             null,
-                -> {
+            -> {
                 LKLog.v { "invalid value for data packet" }
             }
-
         }
     }
 
@@ -1473,7 +1471,7 @@ internal fun LivekitModels.DataPacket.asEncryptedPacketPayload(): LivekitModels.
         LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET,
         LivekitModels.DataPacket.ValueCase.TRANSCRIPTION,
         LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
-            -> {
+        -> {
             null
         }
     }

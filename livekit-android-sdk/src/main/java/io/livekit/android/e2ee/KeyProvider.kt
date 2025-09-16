@@ -63,7 +63,6 @@ class BaseKeyProvider(
         discardFrameWhenCryptorNotReady,
     )
 
-
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
         return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
     }
