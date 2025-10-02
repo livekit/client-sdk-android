@@ -43,7 +43,7 @@ internal object WebModule {
         @Named(InjectionNames.OVERRIDE_OKHTTP)
         okHttpClientOverride: OkHttpClient?,
     ): OkHttpClient {
-        return okHttpClientOverride ?: OkHttpClient()
+        return okHttpClientOverride ?: globalOkHttpClient
     }
 
     @Provides
@@ -79,3 +79,8 @@ internal object WebModule {
         }
     }
 }
+
+/**
+ * Singleton okhttpclient to avoid recreating each time a new Room is created.
+ */
+internal val globalOkHttpClient by lazy { OkHttpClient() }
