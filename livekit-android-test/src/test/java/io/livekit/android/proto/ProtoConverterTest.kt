@@ -19,8 +19,15 @@ package io.livekit.android.proto
 import io.livekit.android.room.RegionSettings
 import io.livekit.android.room.participant.ParticipantPermission
 import io.livekit.android.rpc.RpcError
+import io.livekit.android.token.RoomAgentDispatch
+import io.livekit.android.token.RoomConfiguration
+import io.livekit.android.token.TokenRequestOptions
+import io.livekit.android.token.TokenSourceResponse
+import livekit.LivekitAgentDispatch
 import livekit.LivekitModels
+import livekit.LivekitRoom
 import livekit.LivekitRtc
+import livekit.LivekitTokenSource
 import livekit.org.webrtc.SessionDescription
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,6 +81,23 @@ class ProtoConverterTest(
                 SessionDescription::class.java,
                 mapping = mapOf("sdp" to "description"),
                 whitelist = listOf("id"),
+            ),
+            ProtoConverterTestCase(
+                LivekitTokenSource.TokenSourceRequest::class.java,
+                TokenRequestOptions::class.java,
+            ),
+            ProtoConverterTestCase(
+                LivekitTokenSource.TokenSourceResponse::class.java,
+                TokenSourceResponse::class.java,
+            ),
+            ProtoConverterTestCase(
+                LivekitRoom.RoomConfiguration::class.java,
+                RoomConfiguration::class.java,
+                whitelist = listOf("egress"),
+            ),
+            ProtoConverterTestCase(
+                LivekitAgentDispatch.RoomAgentDispatch::class.java,
+                RoomAgentDispatch::class.java,
             ),
         )
 
