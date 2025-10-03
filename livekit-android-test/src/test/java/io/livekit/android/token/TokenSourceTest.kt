@@ -88,7 +88,7 @@ class TokenSourceTest : BaseTest() {
             participantName = "participant-name",
             participantIdentity = "participant-identity",
             participantMetadata = "participant-metadata",
-            roomConfiguration = RoomConfiguration(
+            roomConfig = RoomConfiguration(
                 name = "room-name",
                 emptyTimeout = 10,
                 departureTimeout = 10,
@@ -134,7 +134,7 @@ class TokenSourceTest : BaseTest() {
             participantName = "participant-name",
             participantIdentity = "participant-identity",
             participantMetadata = "participant-metadata",
-            roomConfiguration = RoomConfiguration(
+            roomConfig = RoomConfiguration(
                 name = "room-name",
                 emptyTimeout = 10,
                 departureTimeout = 10,
