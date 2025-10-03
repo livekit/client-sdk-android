@@ -115,9 +115,10 @@ class ProtoConverterTest(
             .map { it.name }
             .filter { it.isNotBlank() }
             .filter { it[0].isLowerCase() }
-            .map { it.slice(0 until it.indexOf('_')) }
+            .map { it.slice(0 until it.indexOf('_')) } // Internally fields may have underscores attached to them.
             .filter { it.isNotBlank() }
             .filterNot { whitelist.contains(it) }
+            .filterNot { it == "bitField0" } // Internal field not related to the declared protobuf structure
             .map { mapping[it] ?: it }
             .toSet()
         val fields = sdkClass.declaredFields

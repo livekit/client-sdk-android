@@ -27,7 +27,8 @@ data class TokenRequestOptions(
     val participantName: String? = null,
     val participantIdentity: String? = null,
     val participantMetadata: String? = null,
-    val roomConfiguration: RoomConfiguration? = null,
+    val participantAttributes: Map<String, String>? = null,
+    val roomConfig: RoomConfiguration? = null,
 )
 
 @SuppressLint("UnsafeOptInUsageError")
