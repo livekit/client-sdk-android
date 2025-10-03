@@ -29,7 +29,6 @@ import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.util.Date
 
 @OptIn(ExperimentalCoroutinesApi::class)
 // JWTPayload requires Android Base64 implementation, so robolectric runner needed.
@@ -124,7 +123,6 @@ class TokenSourceTest : BaseTest() {
         assertEquals("room-name", json["room_name"]?.jsonPrimitive?.content)
     }
 
-
     @Ignore("For manual testing only.")
     @Test
     fun testTokenServer() = runTest {
@@ -157,5 +155,4 @@ class TokenSourceTest : BaseTest() {
 
         assertTrue(response.hasValidToken())
     }
-
 }
