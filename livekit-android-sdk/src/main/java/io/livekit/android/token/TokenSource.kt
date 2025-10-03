@@ -52,6 +52,7 @@ data class RoomAgentDispatch(
     val metadata: String,
 )
 
+@SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class TokenSourceResponse(val serverUrl: String, val participantToken: String)
 
@@ -64,25 +65,43 @@ interface TokenSource {
         fun fromLiteral(serverUrl: String, participantToken: String): FixedTokenSource = LiteralTokenSource(serverUrl, participantToken)
 
         /**
-         * Creates a [ConfigurableTokenSource] that executes [block] to fetch the [TokenSourceResponse].
+         * Creates a custom [ConfigurableTokenSource] that executes [block] to fetch the credentials..
          */
         fun fromCustom(block: suspend (options: TokenRequestOptions) -> TokenSourceResponse): ConfigurableTokenSource = CustomTokenSource(block)
 
+        /**
+         * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
+         */
         fun fromEndpoint(url: URL, method: String = "POST", headers: Map<String, String> = emptyMap()): ConfigurableTokenSource = EndpointTokenSourceImpl(
             url = url,
             method = method,
             headers = headers,
         )
+
+        /**
+         * Creates a [ConfigurableTokenSource] that fetches from a sandbox token server for credentials,
+         * which supports quick prototyping/getting started types of use cases.
+         *
+         * Note: This token provider is **insecure** and should **not** be used in production.
+         */
+        fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource = SandboxTokenSource(
+            sandboxId = sandboxId,
+            options = options,
+        )
+
     }
 }
 
 /**
- * A non-configurable token source that
+ * A non-configurable token source that does not take any options.
  */
 interface FixedTokenSource : TokenSource {
     suspend fun fetch(): TokenSourceResponse
 }
 
+/**
+ * A configurable token source takes in a [TokenRequestOptions] when requesting credentials.
+ */
 interface ConfigurableTokenSource : TokenSource {
-    suspend fun fetch(options: TokenRequestOptions): TokenSourceResponse
+    suspend fun fetch(options: TokenRequestOptions = TokenRequestOptions()): TokenSourceResponse
 }

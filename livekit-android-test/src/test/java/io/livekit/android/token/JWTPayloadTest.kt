@@ -26,6 +26,10 @@ import java.util.Date
 @RunWith(RobolectricTestRunner::class)
 class JWTPayloadTest {
     companion object {
+        // Test JWT created for test purposes only.
+        // Does not actually auth against anything.
+        // Nbf date set at 1234567890 seconds (Fri Feb 13 2009 23:31:30 GMT+0000)
+        // Exp date set at 9876543210 seconds (Fri Dec 22 2282 20:13:30 GMT+0000)
         const val TEST_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiIsImtpZCI6ImRiY2UzNm" +
             "JkNjBjZDI5NWM2ODExNTBiMGU2OGFjNGU5In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwiZXhwIjo" +
             "5ODc2NTQzMjEwLCJuYmYiOjEyMzQ1Njc4OTAsImlhdCI6MTIzNDU2Nzg5MH0.sYQ-blJC16BL" +

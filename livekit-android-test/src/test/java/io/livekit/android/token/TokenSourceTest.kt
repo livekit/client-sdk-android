@@ -25,9 +25,15 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.util.Date
 
 @OptIn(ExperimentalCoroutinesApi::class)
+// JWTPayload requires Android Base64 implementation, so robolectric runner needed.
+@RunWith(RobolectricTestRunner::class)
 class TokenSourceTest : BaseTest() {
 
     @Test
@@ -68,7 +74,7 @@ class TokenSourceTest : BaseTest() {
     "serverUrl": "wss://www.example.com",
     "roomName": "room-name",
     "participantName": "participant-name",
-    "participantToken": "$TEST_TOKEN"
+    "participantToken": "token"
 }""",
             ),
         )
@@ -101,9 +107,13 @@ class TokenSourceTest : BaseTest() {
 
         val response = source.fetch(options)
         assertEquals("wss://www.example.com", response.serverUrl)
-        assertEquals(TEST_TOKEN, response.participantToken)
+        assertEquals("token", response.participantToken)
 
         val request = server.takeRequest()
+
+        assertEquals("POST", request.method)
+        assertEquals("world", request.headers["hello"])
+
         val requestBody = request.body.readUtf8()
 
         println(requestBody)
@@ -114,12 +124,38 @@ class TokenSourceTest : BaseTest() {
         assertEquals("room-name", json["room_name"]?.jsonPrimitive?.content)
     }
 
-    companion object {
-        // Test JWT created for test purposes only.
-        // Does not actually auth against anything.
-        const val TEST_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTkyMzczNDcsImlkZW50aXR5IjoiaW1tdX" +
-            "RhYmxlLXZhdWx0IiwiaXNzIjoiQVBJWFJ1eG1WM2ZBWlFMIiwibmJmIjoxNzU5MjM2NDQ3LCJzdWIiOiJpbW11dGFibGUtdmF1bHQi" +
-            "LCJ2aWRlbyI6eyJjYW5VcGRhdGVPd25NZXRhZGF0YSI6dHJ1ZSwicm9vbSI6ImhlbGxvIiwicm9vbUpvaW4iOnRydWUsInJvb21MaX" +
-            "N0Ijp0cnVlfX0.Oy2vTdWyOP3n7swwMhM2zHA_uB9S75iaDTT-IN-eWss"
+
+    @Ignore("For manual testing only.")
+    @Test
+    fun testTokenServer() = runTest {
+        val source = TokenSource.fromSandboxTokenServer(
+            "", // Put sandboxId here to test manually.
+        )
+        val options = TokenRequestOptions(
+            roomName = "room-name",
+            participantName = "participant-name",
+            participantIdentity = "participant-identity",
+            participantMetadata = "participant-metadata",
+            roomConfiguration = RoomConfiguration(
+                name = "room-name",
+                emptyTimeout = 10,
+                departureTimeout = 10,
+                maxParticipants = 100,
+                metadata = "room-metadata",
+                minPlayoutDelay = 1,
+                maxPlayoutDelay = 1,
+                syncStreams = 1,
+                agents = RoomAgentDispatch(
+                    agentName = "agent-name",
+                    metadata = "agent-metadata",
+                ),
+            ),
+        )
+
+        val response = source.fetch(options)
+        println(response)
+
+        assertTrue(response.hasValidToken())
     }
+
 }

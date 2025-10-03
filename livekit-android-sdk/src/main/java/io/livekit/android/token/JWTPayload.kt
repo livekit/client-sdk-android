@@ -32,8 +32,7 @@ class JWTPayload(token: String) {
 
     /**
      * Date specifying the time
-     * [before which this token is invalid](https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-25#section-4.1.5)
-     * .
+     * [before which this token is invalid](https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-25#section-4.1.5).
      */
     val notBefore: Date?
 
