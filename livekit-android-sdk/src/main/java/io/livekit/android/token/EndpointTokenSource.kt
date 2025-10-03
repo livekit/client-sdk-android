@@ -39,9 +39,15 @@ internal class EndpointTokenSourceImpl(
     override val headers: Map<String, String>,
 ) : EndpointTokenSource
 
-internal class SandboxTokenSource(sandboxId: String) : EndpointTokenSource {
-    override val url: URL = URL("https://cloud-api.livekit.io/api/sandbox/connection-details")
-    override val headers: Map<String, String> = mapOf("X-Sandbox-ID" to sandboxId)
+data class SandboxTokenServerOptions(
+    val baseUrl: String? = null,
+)
+
+internal class SandboxTokenSource(sandboxId: String, options: SandboxTokenServerOptions) : EndpointTokenSource {
+    override val url: URL = URL("${options.baseUrl ?: "https://cloud-api.livekit.io"}/api/v2/sandbox/connection-details")
+    override val headers: Map<String, String> = mapOf(
+        "X-Sandbox-ID" to sandboxId,
+    )
 }
 
 internal interface EndpointTokenSource : ConfigurableTokenSource {
@@ -60,18 +66,21 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
         try {
             val okHttpClient = globalOkHttpClient
 
-            val encodeJson = Json {
+            val snakeCaseJson = Json {
                 namingStrategy = JsonNamingStrategy.SnakeCase
                 ignoreUnknownKeys = true
             }
-            val decodeJson = Json {
+
+            // v1 token server returns camelCase keys
+            val camelCaseJson = Json {
                 ignoreUnknownKeys = true
             }
-            val body = encodeJson.encodeToString(options)
+            val body = snakeCaseJson.encodeToString(options)
 
             val request = Request.Builder()
                 .url(url)
                 .method(method, body.toRequestBody())
+                .addHeader("Content-Type", "application/json")
                 .apply {
                     headers.forEach { (key, value) ->
                         addHeader(key, value)
@@ -83,18 +92,26 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
             call.enqueue(
                 object : Callback {
                     override fun onResponse(call: Call, response: Response) {
-                        val body = response.body
-                        if (body == null) {
+                        val bodyStr = response.body?.string()
+                        if (bodyStr == null) {
                             continuation.resumeWithException(NullPointerException("No response returned from server"))
                             return
                         }
 
-                        val tokenResponse: TokenSourceResponse
+                        var tokenResponse: TokenSourceResponse? = null
                         try {
-                            tokenResponse = decodeJson.decodeFromString<TokenSourceResponse>(body.string())
+                            tokenResponse = snakeCaseJson.decodeFromString<TokenSourceResponse>(bodyStr)
                         } catch (e: Exception) {
-                            continuation.resumeWithException(e)
-                            return
+                        }
+
+                        if (tokenResponse == null) {
+                            // snake_case decoding failed, try camelCase decoding for v1 back compatibility
+                            try {
+                                tokenResponse = camelCaseJson.decodeFromString<TokenSourceResponse>(bodyStr)
+                            } catch (e: Exception) {
+                                continuation.resumeWithException(IllegalArgumentException("Failed to decode response from token server", e))
+                                return
+                            }
                         }
 
                         continuation.resume(tokenResponse)

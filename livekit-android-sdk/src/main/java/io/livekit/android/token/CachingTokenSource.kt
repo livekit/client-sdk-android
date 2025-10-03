@@ -120,7 +120,7 @@ private val defaultValidator: TokenValidator = { options, response ->
 /**
  * Validates whether the JWT token is still valid.
  */
-fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds): Boolean {
+fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds, date: Date = Date()): Boolean {
     try {
         val jwt = JWTPayload(participantToken)
         val now = Date()
@@ -130,7 +130,7 @@ fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds): Boolean
         val isBefore = nbf != null && now.before(nbf)
         val hasExpired = expiresAt != null && now.after(Date(expiresAt.time + tolerance.inWholeMilliseconds))
 
-        return isBefore || hasExpired
+        return !isBefore && !hasExpired
     } catch (e: Exception) {
         LKLog.i(e) { "Could not validate existing token" }
         return false
