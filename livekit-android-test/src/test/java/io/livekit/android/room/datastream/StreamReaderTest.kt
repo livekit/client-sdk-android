@@ -22,6 +22,7 @@ import io.livekit.android.test.BaseTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
+import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -40,7 +41,16 @@ class StreamReaderTest : BaseTest() {
         channel.trySend(ByteArray(1) { 1 })
         channel.trySend(ByteArray(1) { 2 })
         channel.close()
-        val streamInfo = ByteStreamInfo(id = "id", topic = "topic", timestampMs = 3, totalSize = null, attributes = mapOf(), mimeType = "mime", name = null)
+        val streamInfo = ByteStreamInfo(
+            id = "id",
+            topic = "topic",
+            timestampMs = 3,
+            totalSize = null,
+            attributes = mapOf(),
+            mimeType = "mime",
+            name = null,
+            encryptionType = LivekitModels.Encryption.Type.NONE,
+        )
         reader = ByteStreamReceiver(streamInfo, channel)
     }
 

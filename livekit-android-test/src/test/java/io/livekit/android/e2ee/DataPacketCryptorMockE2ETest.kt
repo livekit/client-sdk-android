@@ -105,6 +105,7 @@ class DataPacketCryptorMockE2ETest : MockE2ETest() {
                 encryptedValue = ByteString.copyFrom(encrypted.payload)
                 iv = ByteString.copyFrom(encrypted.iv)
                 keyIndex = encrypted.keyIndex
+                encryptionType = LivekitModels.Encryption.Type.CUSTOM
                 build()
             }
             build()
@@ -120,5 +121,6 @@ class DataPacketCryptorMockE2ETest : MockE2ETest() {
         val event = events[0] as RoomEvent.DataReceived
 
         assertTrue(data.contentEquals(event.data))
+        assertEquals(LivekitModels.Encryption.Type.CUSTOM, event.encryptionType)
     }
 }

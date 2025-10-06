@@ -693,6 +693,7 @@ internal constructor(
                                     encryptedValue = ByteString.copyFrom(encryptedData.payload)
                                     iv = ByteString.copyFrom(encryptedData.iv)
                                     keyIndex = encryptedData.keyIndex
+                                    encryptionType = LivekitModels.Encryption.Type.GCM
                                     build()
                                 }
                                 build()
@@ -930,7 +931,7 @@ internal constructor(
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
-        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
+        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
@@ -941,7 +942,7 @@ internal constructor(
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onRpcPacketReceived(dp: LivekitModels.DataPacket)
-        fun onDataStreamPacket(dp: LivekitModels.DataPacket)
+        fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type)
     }
 
     companion object {
@@ -1199,12 +1200,15 @@ internal constructor(
 
         // Always decrypt if able, to allow for backward compatibility.
         val dataPacketCryptor = dataPacketCryptorManager
+        var encryptionType = LivekitModels.Encryption.Type.NONE
         if (dp.hasEncryptedPacket() && dataPacketCryptor != null) {
             val encryptedPacket = EncryptedPacket(
                 dp.encryptedPacket.encryptedValue.toByteArray(),
                 dp.encryptedPacket.iv.toByteArray(),
                 dp.encryptedPacket.keyIndex,
             )
+            encryptionType = dp.encryptedPacket.encryptionType
+
             val decryptedData = dataPacketCryptor.decrypt(Participant.Identity(dp.participantIdentity), encryptedPacket)
             if (decryptedData == null) {
                 LKLog.i { "Failed to decrypt data packet." }
@@ -1224,7 +1228,7 @@ internal constructor(
             }
 
             LivekitModels.DataPacket.ValueCase.USER -> {
-                listener?.onUserPacket(dp.user, dp.kind)
+                listener?.onUserPacket(dp.user, dp.kind, encryptionType)
             }
 
             LivekitModels.DataPacket.ValueCase.SIP_DTMF -> {
@@ -1254,7 +1258,7 @@ internal constructor(
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
             -> {
-                listener?.onDataStreamPacket(dp)
+                listener?.onDataStreamPacket(dp, encryptionType)
             }
 
             LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET -> {

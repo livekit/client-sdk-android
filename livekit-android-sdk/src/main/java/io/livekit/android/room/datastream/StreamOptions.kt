@@ -17,17 +17,7 @@
 package io.livekit.android.room.datastream
 
 import io.livekit.android.room.participant.Participant
-import livekit.LivekitModels
 import java.util.UUID
-
-interface StreamOptions {
-    val topic: String?
-    val attributes: Map<String, String>?
-    val totalLength: Long?
-    val mimeType: String?
-    val encryptionType: LivekitModels.Encryption.Type?
-    val destinationIdentities: List<Participant.Identity>
-}
 
 data class StreamTextOptions(
     val topic: String = "",

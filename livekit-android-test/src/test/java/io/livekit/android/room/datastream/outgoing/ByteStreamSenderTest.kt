@@ -20,6 +20,7 @@ import io.livekit.android.room.datastream.ByteStreamInfo
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.mock.room.datastream.outgoing.MockStreamDestination
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -83,5 +84,14 @@ class ByteStreamSenderTest : BaseTest() {
         assertTrue(sender.write(ByteArray(100)).isFailure)
     }
 
-    fun createInfo(): ByteStreamInfo = ByteStreamInfo(id = "stream_id", topic = "topic", timestampMs = 0, totalSize = null, attributes = mapOf(), mimeType = "", name = null)
+    fun createInfo(): ByteStreamInfo = ByteStreamInfo(
+        id = "stream_id",
+        topic = "topic",
+        timestampMs = 0,
+        totalSize = null,
+        attributes = mapOf(),
+        mimeType = "",
+        name = null,
+        encryptionType = LivekitModels.Encryption.Type.NONE,
+    )
 }
