@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.20.3
+
+### Patch Changes
+
+- Switch to using header based auth bearer token - [#770](https://github.com/livekit/client-sdk-android/pull/770) ([@davidliu](https://github.com/davidliu))
+
 ## 2.20.2
 
 ### Patch Changes
