@@ -95,6 +95,21 @@ class SignalClientTest : BaseTest() {
     }
 
     @Test
+    fun usesAuthToken() = runTest {
+        val token = "this-is-an-auth-token"
+        val job = async {
+            client.join(EXAMPLE_URL, token)
+        }
+
+        connectWebsocketAndJoin()
+        job.await()
+        val ws = wsFactory.ws
+
+        assertEquals("Bearer $token", ws.request().header("Authorization"))
+        assertFalse(ws.request().url.query?.contains(token) ?: true)
+    }
+
+    @Test
     fun joinAndResponse() = runTest {
         val job = async {
             client.join(EXAMPLE_URL, "")
