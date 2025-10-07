@@ -78,7 +78,7 @@ abstract class MockE2ETest : BaseTest() {
         val job = coroutineRule.scope.launch {
             room.connect(
                 url = TestData.EXAMPLE_URL,
-                token = "",
+                token = "token",
             )
         }
         wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))

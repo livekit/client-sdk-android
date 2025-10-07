@@ -127,12 +127,16 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     fun refreshToken() = runTest {
         connect()
 
-        val oldToken = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_TOKEN)
+        val oldToken = wsFactory.request.header("Authorization")
+            ?.split(" ")
+            ?.get(1)
         wsFactory.listener.onMessage(wsFactory.ws, TestData.REFRESH_TOKEN.toOkioByteString())
         wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
 
         testScheduler.advanceUntilIdle()
-        val newToken = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_TOKEN)
+        val newToken = wsFactory.request.header("Authorization")
+            ?.split(" ")
+            ?.get(1)
         Assert.assertNotEquals(oldToken, newToken)
         assertEquals(TestData.REFRESH_TOKEN.refreshToken, newToken)
     }
