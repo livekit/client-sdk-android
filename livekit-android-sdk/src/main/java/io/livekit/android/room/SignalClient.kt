@@ -163,7 +163,7 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "${url.toWebsocketUrl()}/rtc" + createConnectionParams(token, getClientInfo(), options, roomOptions)
+        val wsUrlString = "${url.toWebsocketUrl()}/rtc" + createConnectionParams(getClientInfo(), options, roomOptions)
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
@@ -175,6 +175,7 @@ constructor(
 
         val request = Request.Builder()
             .url(wsUrlString)
+            .addHeader("Authorization", "Bearer $token")
             .build()
 
         return suspendCancellableCoroutine {
@@ -185,13 +186,11 @@ constructor(
     }
 
     private fun createConnectionParams(
-        token: String,
         clientInfo: LivekitModels.ClientInfo,
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): String {
         val queryParams = mutableListOf<Pair<String, String>>()
-        queryParams.add(CONNECT_QUERY_TOKEN to token)
         queryParams.add(CONNECT_QUERY_PROTOCOL to options.protocolVersion.value.toString())
 
         if (options.reconnect) {
@@ -308,9 +307,18 @@ constructor(
         }
         var reason: String? = null
         try {
+            val lastToken = webSocket.request().header("Authorization")
             lastUrl?.let {
                 val validationUrl = it.toHttpUrl().replaceFirst("/rtc?", "/rtc/validate?")
-                val request = Request.Builder().url(validationUrl).build()
+                val request = Request.Builder()
+                    .url(validationUrl)
+                    .apply {
+                        if (lastToken != null) {
+                            addHeader("Authorization", lastToken)
+                        }
+                    }
+                    .build()
+
                 val resp = okHttpClient.newCall(request).execute()
                 val body = resp.body
                 if (!resp.isSuccessful) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,6 +92,21 @@ class SignalClientTest : BaseTest() {
     private fun connectWebsocketAndJoin() {
         client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         client.onMessage(wsFactory.ws, JOIN.toOkioByteString())
+    }
+
+    @Test
+    fun usesAuthToken() = runTest {
+        val token = "this-is-an-auth-token"
+        val job = async {
+            client.join(EXAMPLE_URL, token)
+        }
+
+        connectWebsocketAndJoin()
+        job.await()
+        val ws = wsFactory.ws
+
+        assertEquals("Bearer $token", ws.request().header("Authorization"))
+        assertFalse(ws.request().url.query?.contains(token) ?: true)
     }
 
     @Test
