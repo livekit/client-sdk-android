@@ -383,7 +383,7 @@ class RpcMockE2ETest : MockE2ETest() {
         val buffers = pubDataChannel.sentBuffers
         val requestBuffer = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
 
-        val expectedResponseTimeout = UInt.MAX_VALUE - 2000u // 2000 comes from maxRoundTripLatency
+        val expectedResponseTimeout = UInt.MAX_VALUE - 7000u // 7000 comes from maxRoundTripLatency
         val responseTimeout = requestBuffer.rpcRequest.responseTimeoutMs.toUInt()
         assertEquals(expectedResponseTimeout, responseTimeout)
         rpcJob.cancel()
