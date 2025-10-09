@@ -24,6 +24,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
@@ -70,10 +71,10 @@ class TokenSourceTest : BaseTest() {
         server.enqueue(
             MockResponse().setBody(
                 """{
-    "serverUrl": "wss://www.example.com",
-    "roomName": "room-name",
-    "participantName": "participant-name",
-    "participantToken": "token"
+    "server_url": "wss://www.example.com",
+    "room_name": "room-name",
+    "participant_name": "participant-name",
+    "participant_token": "token"
 }""",
             ),
         )
@@ -107,6 +108,8 @@ class TokenSourceTest : BaseTest() {
         val response = source.fetch(options)
         assertEquals("wss://www.example.com", response.serverUrl)
         assertEquals("token", response.participantToken)
+        assertEquals("participant-name", response.participantName)
+        assertEquals("room-name", response.roomName)
 
         val request = server.takeRequest()
 
@@ -123,6 +126,51 @@ class TokenSourceTest : BaseTest() {
         assertEquals("room-name", json["room_name"]?.jsonPrimitive?.content)
     }
 
+    @Test
+    fun testCamelCaseCompatibility() = runTest {
+        // V1 token server sends back camelCase keys, ensure we can handle those.
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setBody(
+                """{
+    "serverUrl": "wss://www.example.com",
+    "roomName": "room-name",
+    "participantName": "participant-name",
+    "participantToken": "token"
+}""",
+            ),
+        )
+
+        val source = TokenSource.fromEndpoint(server.url("/").toUrl())
+
+        val response = source.fetch()
+        assertEquals("wss://www.example.com", response.serverUrl)
+        assertEquals("token", response.participantToken)
+        assertEquals("participant-name", response.participantName)
+        assertEquals("room-name", response.roomName)
+    }
+
+
+    @Test
+    fun testMissingKeysDefaultNull() = runTest {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setBody(
+                """{
+    "server_url": "wss://www.example.com",
+    "participant_token": "token"
+}""",
+            ),
+        )
+
+        val source = TokenSource.fromEndpoint(server.url("/").toUrl())
+
+        val response = source.fetch()
+        assertEquals("wss://www.example.com", response.serverUrl)
+        assertEquals("token", response.participantToken)
+        assertNull(response.participantName)
+        assertNull(response.roomName)
+    }
     @Ignore("For manual testing only.")
     @Test
     fun testTokenServer() = runTest {
