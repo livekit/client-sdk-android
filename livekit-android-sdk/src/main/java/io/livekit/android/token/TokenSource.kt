@@ -55,18 +55,22 @@ data class RoomAgentDispatch(
 
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
-data class TokenSourceResponse(val serverUrl: String, val participantToken: String)
+data class TokenSourceResponse(
+    val serverUrl: String,
+    val participantToken: String,
+    val roomName: String? = null,
+    val participantName: String? = null,
+)
 
 interface TokenSource {
     companion object {
-
         /**
          * Creates a [FixedTokenSource] that immediately returns with the supplied [serverUrl] and [participantToken].
          */
         fun fromLiteral(serverUrl: String, participantToken: String): FixedTokenSource = LiteralTokenSource(serverUrl, participantToken)
 
         /**
-         * Creates a custom [ConfigurableTokenSource] that executes [block] to fetch the credentials..
+         * Creates a custom [ConfigurableTokenSource] that executes [block] to fetch the credentials.
          */
         fun fromCustom(block: suspend (options: TokenRequestOptions) -> TokenSourceResponse): ConfigurableTokenSource = CustomTokenSource(block)
 
