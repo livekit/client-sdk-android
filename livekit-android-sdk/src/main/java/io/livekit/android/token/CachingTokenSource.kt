@@ -25,7 +25,13 @@ abstract class BaseCachingTokenSource(
     private val store: TokenStore,
     private val validator: TokenValidator,
 ) {
-    suspend fun fetchImpl(options: TokenRequestOptions?): TokenSourceResponse {
+
+    /**
+     * The entrypoint for the caching store; subclasses should call this from their fetch methods.
+     *
+     * If a new token is needed, [fetchFromSource] will be called.
+     */
+    internal suspend fun fetchImpl(options: TokenRequestOptions?): TokenSourceResponse {
         val cached = store.retrieve()
 
         if (cached != null && cached.options == options && validator.invoke(cached.options, cached.response)) {
@@ -37,7 +43,24 @@ abstract class BaseCachingTokenSource(
         return response
     }
 
+    /**
+     * Implement this to fetch the [TokenSourceResponse] from the token source.
+     */
     abstract suspend fun fetchFromSource(options: TokenRequestOptions?): TokenSourceResponse
+
+    /**
+     * Invalidate the cached credentials, forcing a fresh fetch on the next request.
+     */
+    suspend fun invalidate() {
+        store.clear()
+    }
+
+    /**
+     * Get the cached credentials if one exists.
+     */
+    suspend fun cachedResponse(): TokenSourceResponse? {
+        return store.retrieve()?.response
+    }
 }
 
 class CachingFixedTokenSource(
