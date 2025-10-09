@@ -66,16 +66,25 @@ interface TokenSource {
     companion object {
         /**
          * Creates a [FixedTokenSource] that immediately returns with the supplied [serverUrl] and [participantToken].
+         *
+         * @see cached
+         * @see CachingFixedTokenSource
          */
         fun fromLiteral(serverUrl: String, participantToken: String): FixedTokenSource = LiteralTokenSource(serverUrl, participantToken)
 
         /**
          * Creates a custom [ConfigurableTokenSource] that executes [block] to fetch the credentials.
+         *
+         * @see cached
+         * @see CachingConfigurableTokenSource
          */
         fun fromCustom(block: suspend (options: TokenRequestOptions) -> TokenSourceResponse): ConfigurableTokenSource = CustomTokenSource(block)
 
         /**
          * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
+         *
+         * @see cached
+         * @see CachingConfigurableTokenSource
          */
         fun fromEndpoint(url: URL, method: String = "POST", headers: Map<String, String> = emptyMap()): ConfigurableTokenSource = EndpointTokenSourceImpl(
             url = url,
@@ -88,6 +97,9 @@ interface TokenSource {
          * which supports quick prototyping/getting started types of use cases.
          *
          * Note: This token provider is **insecure** and should **not** be used in production.
+         *
+         * @see cached
+         * @see CachingConfigurableTokenSource
          */
         fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource = SandboxTokenSource(
             sandboxId = sandboxId,
