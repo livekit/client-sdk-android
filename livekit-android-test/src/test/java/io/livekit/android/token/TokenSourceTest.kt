@@ -150,7 +150,6 @@ class TokenSourceTest : BaseTest() {
         assertEquals("room-name", response.roomName)
     }
 
-
     @Test
     fun testMissingKeysDefaultNull() = runTest {
         val server = MockWebServer()
@@ -171,6 +170,7 @@ class TokenSourceTest : BaseTest() {
         assertNull(response.participantName)
         assertNull(response.roomName)
     }
+
     @Ignore("For manual testing only.")
     @Test
     fun testTokenServer() = runTest {
