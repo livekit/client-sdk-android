@@ -792,6 +792,14 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
                 // TODO
             }
+
+            LivekitRtc.SignalResponse.MessageCase.MEDIA_SECTIONS_REQUIREMENT -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_AUDIO_CODEC_UPDATE -> {
+                // TODO
+            }
         }
     }
 
