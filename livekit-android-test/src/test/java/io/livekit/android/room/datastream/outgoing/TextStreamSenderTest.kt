@@ -20,6 +20,7 @@ import io.livekit.android.room.datastream.TextStreamInfo
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.mock.room.datastream.outgoing.MockStreamDestination
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -113,5 +114,6 @@ class TextStreamSenderTest : BaseTest() {
         replyToStreamId = null,
         attachedStreamIds = listOf(),
         generated = false,
+        encryptionType = LivekitModels.Encryption.Type.NONE,
     )
 }

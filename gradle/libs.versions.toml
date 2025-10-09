@@ -1,5 +1,5 @@
 [versions]
-webrtc = "137.7151.03"
+webrtc = "137.7151.04"
 
 androidJainSipRi = "1.3.0-91"
 androidx-activity = "1.9.0"

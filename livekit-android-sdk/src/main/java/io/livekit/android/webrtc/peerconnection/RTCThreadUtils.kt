@@ -145,6 +145,9 @@ interface RTCThreadToken {
     val isDisposed: Boolean
 }
 
+/**
+ * This token should live throughout the lifecycle of the underlying PeerConnectionFactory.
+ */
 internal class RTCThreadTokenImpl(
     private val peerConnectionFactoryManager: PeerConnectionFactoryManager,
 ) : RTCThreadToken {

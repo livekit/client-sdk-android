@@ -24,8 +24,12 @@ import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.DataPacketCryptorManager
+import io.livekit.android.e2ee.E2EEManager
+import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.MediaConstraintKeys
@@ -109,6 +113,7 @@ internal constructor(
     @Named(InjectionNames.DISPATCHER_IO)
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
+    private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -189,6 +194,10 @@ internal constructor(
     private var hasPublished = false
 
     private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+
+    internal var e2EEManager: E2EEManager? = null
+    private val dataPacketCryptorManager: DataPacketCryptorManager?
+        get() = e2EEManager?.dataPacketCryptorManager
 
     /**
      * Note: If this lock is ever used in conjunction with the RTC thread,
@@ -671,6 +680,28 @@ internal constructor(
             try {
                 // Redeclare to make variable
                 var dataPacket = dataPacket
+
+                val e2EEManager = e2EEManager
+                val dataEncryptionEnabled = e2EEManager?.isDataChannelEncryptionEnabled() ?: false
+                if (dataEncryptionEnabled && e2EEManager != null) {
+                    val encryptedPacketPayload = dataPacket.asEncryptedPacketPayload()
+                    if (encryptedPacketPayload != null) {
+                        val encryptedData = e2EEManager.encrypt(encryptedPacketPayload.toByteArray())
+                        if (encryptedData != null) {
+                            dataPacket = with(dataPacket.toBuilder()) {
+                                encryptedPacket = with(LivekitModels.EncryptedPacket.newBuilder()) {
+                                    encryptedValue = ByteString.copyFrom(encryptedData.payload)
+                                    iv = ByteString.copyFrom(encryptedData.iv)
+                                    keyIndex = encryptedData.keyIndex
+                                    encryptionType = LivekitModels.Encryption.Type.GCM
+                                    build()
+                                }
+                                build()
+                            }
+                        }
+                    }
+                }
+
                 if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
                     dataPacket = dataPacket.toBuilder()
                         .setSequence(reliableDataSequence)
@@ -900,7 +931,7 @@ internal constructor(
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
-        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind)
+        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
@@ -911,7 +942,7 @@ internal constructor(
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onRpcPacketReceived(dp: LivekitModels.DataPacket)
-        fun onDataStreamPacket(dp: LivekitModels.DataPacket)
+        fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type)
     }
 
     companion object {
@@ -1154,7 +1185,7 @@ internal constructor(
         if (buffer == null) {
             return
         }
-        val dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+        var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
 
         if (dp.sequence > 0 && dp.participantSid.isNotEmpty()) {
             synchronized(reliableStateLock) {
@@ -1166,13 +1197,38 @@ internal constructor(
                 this.reliableReceivedState[dp.participantSid] = dp.sequence
             }
         }
+
+        // Always decrypt if able, to allow for backward compatibility.
+        val dataPacketCryptor = dataPacketCryptorManager
+        var encryptionType = LivekitModels.Encryption.Type.NONE
+        if (dp.hasEncryptedPacket() && dataPacketCryptor != null) {
+            val encryptedPacket = EncryptedPacket(
+                dp.encryptedPacket.encryptedValue.toByteArray(),
+                dp.encryptedPacket.iv.toByteArray(),
+                dp.encryptedPacket.keyIndex,
+            )
+            encryptionType = dp.encryptedPacket.encryptionType
+
+            val decryptedData = dataPacketCryptor.decrypt(Participant.Identity(dp.participantIdentity), encryptedPacket)
+            if (decryptedData == null) {
+                LKLog.i { "Failed to decrypt data packet." }
+                return
+            }
+            val payload = LivekitModels.EncryptedPacketPayload.parseFrom(decryptedData)
+
+            dp = with(dp.toBuilder()) {
+                setFromEncryptedPayload(payload)
+                build()
+            }
+        }
+
         when (dp.valueCase) {
             LivekitModels.DataPacket.ValueCase.SPEAKER -> {
                 listener?.onActiveSpeakersUpdate(dp.speaker.speakersList)
             }
 
             LivekitModels.DataPacket.ValueCase.USER -> {
-                listener?.onUserPacket(dp.user, dp.kind)
+                listener?.onUserPacket(dp.user, dp.kind, encryptionType)
             }
 
             LivekitModels.DataPacket.ValueCase.SIP_DTMF -> {
@@ -1198,17 +1254,21 @@ internal constructor(
                 listener?.onRpcPacketReceived(dp)
             }
 
-            LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
-            null,
-            -> {
-                LKLog.v { "invalid value for data packet" }
-            }
-
             LivekitModels.DataPacket.ValueCase.STREAM_HEADER,
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK,
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER,
             -> {
-                listener?.onDataStreamPacket(dp)
+                listener?.onDataStreamPacket(dp, encryptionType)
+            }
+
+            LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET -> {
+                // should be handled above.
+            }
+
+            LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
+            null,
+            -> {
+                LKLog.v { "invalid value for data packet" }
             }
         }
     }
@@ -1347,6 +1407,9 @@ enum class ReconnectType {
     FORCE_FULL_RECONNECT,
 }
 
+/**
+ * @suppress
+ */
 fun LivekitRtc.ICEServer.toWebrtc(): PeerConnection.IceServer = PeerConnection.IceServer.builder(urlsList)
     .setUsername(username ?: "")
     .setPassword(credential ?: "")
@@ -1355,3 +1418,106 @@ fun LivekitRtc.ICEServer.toWebrtc(): PeerConnection.IceServer = PeerConnection.I
     .createIceServer()
 
 typealias PeerConnectionStateListener = (PeerConnectionState) -> Unit
+
+internal fun LivekitModels.DataPacket.asEncryptedPacketPayload(): LivekitModels.EncryptedPacketPayload? {
+    return when (valueCase) {
+        LivekitModels.DataPacket.ValueCase.USER -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setUser(this.user)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.RPC_REQUEST -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setRpcRequest(this.rpcRequest)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.RPC_ACK -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setRpcAck(this.rpcAck)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.RPC_RESPONSE -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setRpcResponse(this.rpcResponse)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setStreamHeader(this.streamHeader)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setStreamChunk(this.streamChunk)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setStreamTrailer(this.streamTrailer)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.CHAT_MESSAGE -> {
+            LivekitModels.EncryptedPacketPayload.newBuilder()
+                .setChatMessage(this.chatMessage)
+                .build()
+        }
+
+        LivekitModels.DataPacket.ValueCase.METRICS,
+        LivekitModels.DataPacket.ValueCase.SIP_DTMF,
+        LivekitModels.DataPacket.ValueCase.SPEAKER,
+        LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET,
+        LivekitModels.DataPacket.ValueCase.TRANSCRIPTION,
+        LivekitModels.DataPacket.ValueCase.VALUE_NOT_SET,
+        -> {
+            null
+        }
+    }
+}
+
+internal fun LivekitModels.DataPacket.Builder.setFromEncryptedPayload(payload: LivekitModels.EncryptedPacketPayload) {
+    when (payload.valueCase) {
+        LivekitModels.EncryptedPacketPayload.ValueCase.USER -> {
+            this.user = payload.user
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.CHAT_MESSAGE -> {
+            this.chatMessage = payload.chatMessage
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.RPC_REQUEST -> {
+            this.rpcRequest = payload.rpcRequest
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.RPC_ACK -> {
+            this.rpcAck = payload.rpcAck
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.RPC_RESPONSE -> {
+            this.rpcResponse = payload.rpcResponse
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.STREAM_HEADER -> {
+            this.streamHeader = payload.streamHeader
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.STREAM_CHUNK -> {
+            this.streamChunk = payload.streamChunk
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.STREAM_TRAILER -> {
+            this.streamTrailer = payload.streamTrailer
+        }
+
+        LivekitModels.EncryptedPacketPayload.ValueCase.VALUE_NOT_SET -> {
+            // decryption likely failed
+            LKLog.w { "Attempting to set from non-valid payload" }
+        }
+    }
+}

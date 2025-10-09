@@ -452,6 +452,7 @@ constructor(
                         }
                     }
                 }
+                engine.e2EEManager = e2eeManager
             }
         }
 
@@ -976,7 +977,7 @@ constructor(
      * Removes all participants and tracks from the room.
      */
     private fun cleanupRoom() {
-        e2eeManager?.cleanUp()
+        e2eeManager?.dispose()
         e2eeManager = null
         localParticipant.cleanup()
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
@@ -1271,7 +1272,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind) {
+    override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type) {
         val participant = getParticipantBySid(packet.participantSid) as? RemoteParticipant
         val data = packet.payload.toByteArray()
         val topic = if (packet.hasTopic()) {
@@ -1280,25 +1281,26 @@ constructor(
             null
         }
 
-        eventBus.postEvent(RoomEvent.DataReceived(this, data, participant, topic), coroutineScope)
-        participant?.onDataReceived(data, topic)
+        val event = RoomEvent.DataReceived(this, data, participant, topic, encryptionType)
+        eventBus.postEvent(event, coroutineScope)
+        participant?.onDataReceived(event)
     }
 
     /**
      * @suppress
      */
-    override fun onDataStreamPacket(dp: LivekitModels.DataPacket) {
+    override fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type) {
         when (dp.valueCase) {
             LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
-                incomingDataStreamManager.handleStreamHeader(dp.streamHeader, Participant.Identity(dp.participantIdentity))
+                incomingDataStreamManager.handleStreamHeader(dp.streamHeader, Participant.Identity(dp.participantIdentity), encryptionType)
             }
 
             LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
-                incomingDataStreamManager.handleDataChunk(dp.streamChunk)
+                incomingDataStreamManager.handleDataChunk(dp.streamChunk, encryptionType)
             }
 
             LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
-                incomingDataStreamManager.handleStreamTrailer(dp.streamTrailer)
+                incomingDataStreamManager.handleStreamTrailer(dp.streamTrailer, encryptionType)
             }
 
             // Ignore other cases.

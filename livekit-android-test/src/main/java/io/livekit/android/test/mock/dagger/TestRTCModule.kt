@@ -28,9 +28,12 @@ import io.livekit.android.audio.AudioRecordSamplesDispatcher
 import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.e2ee.DataPacketCryptorManager
+import io.livekit.android.e2ee.KeyProvider
 import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
+import io.livekit.android.test.mock.e2ee.ReversingDataPacketCryptorManager
 import io.livekit.android.webrtc.PeerConnectionFactoryManager
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.EglBase
@@ -128,4 +131,11 @@ object TestRTCModule {
 
     @Provides
     fun sdpFactory() = SdpFactory.getInstance()
+
+    @Provides
+    fun dataPacketCryptorManagerFactory(): DataPacketCryptorManager.Factory = object : DataPacketCryptorManager.Factory {
+        override fun create(keyProvider: KeyProvider): DataPacketCryptorManager {
+            return ReversingDataPacketCryptorManager()
+        }
+    }
 }

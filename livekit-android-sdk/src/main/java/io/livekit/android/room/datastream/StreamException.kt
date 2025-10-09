@@ -61,4 +61,9 @@ sealed class StreamException(message: String? = null) : Exception(message) {
      * Unable to read information about the file to send.
      */
     class FileInfoUnavailableException : StreamException()
+
+    /**
+     *
+     */
+    class EncryptionTypeMismatch(message: String? = null) : StreamException(message)
 }

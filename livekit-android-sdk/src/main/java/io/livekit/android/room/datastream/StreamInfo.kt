@@ -27,6 +27,7 @@ sealed class StreamInfo(
     open val timestampMs: Long,
     open val totalSize: Long?,
     open val attributes: Map<String, String>,
+    open val encryptionType: LivekitModels.Encryption.Type,
 )
 
 data class TextStreamInfo(
@@ -40,8 +41,9 @@ data class TextStreamInfo(
     val replyToStreamId: String?,
     val attachedStreamIds: List<String>,
     val generated: Boolean,
-) : StreamInfo(id, topic, timestampMs, totalSize, attributes) {
-    constructor(header: Header, textHeader: TextHeader) : this(
+    override val encryptionType: LivekitModels.Encryption.Type,
+) : StreamInfo(id, topic, timestampMs, totalSize, attributes, encryptionType) {
+    constructor(header: Header, textHeader: TextHeader, encryptionType: LivekitModels.Encryption.Type) : this(
         id = header.streamId,
         topic = header.topic,
         timestampMs = header.timestamp,
@@ -60,6 +62,7 @@ data class TextStreamInfo(
         },
         attachedStreamIds = textHeader.attachedStreamIdsList ?: emptyList(),
         generated = textHeader.generated,
+        encryptionType = encryptionType,
     )
 
     enum class OperationType {
@@ -105,8 +108,9 @@ data class ByteStreamInfo(
     override val attributes: Map<String, String>,
     val mimeType: String,
     val name: String?,
-) : StreamInfo(id, topic, timestampMs, totalSize, attributes) {
-    constructor(header: Header, byteHeader: ByteHeader) : this(
+    override val encryptionType: LivekitModels.Encryption.Type,
+) : StreamInfo(id, topic, timestampMs, totalSize, attributes, encryptionType) {
+    constructor(header: Header, byteHeader: ByteHeader, encryptionType: LivekitModels.Encryption.Type) : this(
         id = header.streamId,
         topic = header.topic,
         timestampMs = header.timestamp,
@@ -118,5 +122,6 @@ data class ByteStreamInfo(
         attributes = header.attributesMap.toMap(),
         mimeType = header.mimeType,
         name = byteHeader.name,
+        encryptionType = encryptionType,
     )
 }
