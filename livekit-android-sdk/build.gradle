@@ -149,6 +149,7 @@ dependencies {
     implementation libs.okhttp.coroutines
     api libs.audioswitch
     implementation libs.klaxon
+    implementation libs.jwtdecode
 
     implementation libs.androidx.annotation
     implementation libs.androidx.core

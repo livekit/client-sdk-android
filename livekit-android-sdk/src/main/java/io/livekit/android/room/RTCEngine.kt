@@ -1270,6 +1270,10 @@ internal constructor(
             -> {
                 LKLog.v { "invalid value for data packet" }
             }
+
+            LivekitModels.DataPacket.ValueCase.ENCRYPTED_PACKET -> {
+                // TODO
+            }
         }
     }
 

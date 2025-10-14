@@ -19,8 +19,15 @@ package io.livekit.android.proto
 import io.livekit.android.room.RegionSettings
 import io.livekit.android.room.participant.ParticipantPermission
 import io.livekit.android.rpc.RpcError
+import io.livekit.android.token.RoomAgentDispatch
+import io.livekit.android.token.RoomConfiguration
+import io.livekit.android.token.TokenSourceRequest
+import io.livekit.android.token.TokenSourceResponse
+import livekit.LivekitAgentDispatch
 import livekit.LivekitModels
+import livekit.LivekitRoom
 import livekit.LivekitRtc
+import livekit.LivekitTokenSource
 import livekit.org.webrtc.SessionDescription
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,6 +82,23 @@ class ProtoConverterTest(
                 mapping = mapOf("sdp" to "description"),
                 whitelist = listOf("id"),
             ),
+            ProtoConverterTestCase(
+                LivekitTokenSource.TokenSourceRequest::class.java,
+                TokenSourceRequest::class.java,
+            ),
+            ProtoConverterTestCase(
+                LivekitTokenSource.TokenSourceResponse::class.java,
+                TokenSourceResponse::class.java,
+            ),
+            ProtoConverterTestCase(
+                LivekitRoom.RoomConfiguration::class.java,
+                RoomConfiguration::class.java,
+                whitelist = listOf("egress"),
+            ),
+            ProtoConverterTestCase(
+                LivekitAgentDispatch.RoomAgentDispatch::class.java,
+                RoomAgentDispatch::class.java,
+            ),
         )
 
         @JvmStatic
@@ -91,9 +115,10 @@ class ProtoConverterTest(
             .map { it.name }
             .filter { it.isNotBlank() }
             .filter { it[0].isLowerCase() }
-            .map { it.slice(0 until it.indexOf('_')) }
+            .map { it.slice(0 until it.indexOf('_')) } // Internally fields may have underscores attached to them.
             .filter { it.isNotBlank() }
             .filterNot { whitelist.contains(it) }
+            .filterNot { it == "bitField0" } // Internal field not related to the declared protobuf structure
             .map { mapping[it] ?: it }
             .toSet()
         val fields = sdkClass.declaredFields
