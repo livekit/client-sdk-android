@@ -145,7 +145,7 @@ private val defaultValidator: TokenValidator = { options, response ->
  */
 fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds, date: Date = Date()): Boolean {
     try {
-        val jwt = JWTPayload(participantToken)
+        val jwt = TokenPayload(participantToken)
         val now = Date()
         val expiresAt = jwt.expiresAt
         val nbf = jwt.notBefore

@@ -116,7 +116,7 @@ data class TokenSourceResponse(
     /**
      * The JWT token used to connect to the room.
      *
-     * Specific details of the payload may be examined with [JWTPayload]
+     * Specific details of the payload may be examined with [TokenPayload]
      * (such as the permissions, metadata, etc.)
      */
     val participantToken: String,

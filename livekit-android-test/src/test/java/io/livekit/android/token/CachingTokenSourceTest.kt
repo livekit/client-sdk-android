@@ -37,7 +37,7 @@ class CachingTokenSourceTest : BaseTest() {
     fun tokenIsValid() {
         val tokenResponse = TokenSourceResponse(
             "wss://www.example.com",
-            JWTPayloadTest.TEST_TOKEN,
+            TokenPayloadTest.TEST_TOKEN,
         )
 
         assertTrue(tokenResponse.hasValidToken(date = Date(5000000000000)))
@@ -47,7 +47,7 @@ class CachingTokenSourceTest : BaseTest() {
     fun tokenBeforeNbfIsInvalid() {
         val tokenResponse = TokenSourceResponse(
             "wss://www.example.com",
-            JWTPayloadTest.TEST_TOKEN,
+            TokenPayloadTest.TEST_TOKEN,
         )
 
         assertTrue(tokenResponse.hasValidToken(date = Date(0)))
@@ -57,7 +57,7 @@ class CachingTokenSourceTest : BaseTest() {
     fun tokenAfterExpIsInvalid() {
         val tokenResponse = TokenSourceResponse(
             "wss://www.example.com",
-            JWTPayloadTest.TEST_TOKEN,
+            TokenPayloadTest.TEST_TOKEN,
         )
 
         assertTrue(tokenResponse.hasValidToken(date = Date(9999999990000)))
@@ -72,7 +72,7 @@ class CachingTokenSourceTest : BaseTest() {
     "serverUrl": "wss://www.example.com",
     "roomName": "room-name",
     "participantName": "participant-name",
-    "participantToken": "${JWTPayloadTest.TEST_TOKEN}"
+    "participantToken": "${TokenPayloadTest.TEST_TOKEN}"
 }""",
             ),
         )
@@ -107,7 +107,7 @@ class CachingTokenSourceTest : BaseTest() {
     "serverUrl": "wss://www.example.com",
     "roomName": "room-name",
     "participantName": "participant-name",
-    "participantToken": "${JWTPayloadTest.TEST_TOKEN}"
+    "participantToken": "${TokenPayloadTest.TEST_TOKEN}"
 }""",
             ),
         )
