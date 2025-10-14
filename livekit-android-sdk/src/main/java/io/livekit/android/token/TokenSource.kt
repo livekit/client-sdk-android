@@ -20,45 +20,117 @@ import android.annotation.SuppressLint
 import kotlinx.serialization.Serializable
 import java.net.URL
 
-@SuppressLint("UnsafeOptInUsageError")
-@Serializable
+/**
+ * The options for a token request.
+ *
+ * When making a custom request against a token server, this is converted into
+ * [TokenSourceRequest] through [toRequest].
+ */
 data class TokenRequestOptions(
     val roomName: String? = null,
     val participantName: String? = null,
     val participantIdentity: String? = null,
     val participantMetadata: String? = null,
     val participantAttributes: Map<String, String>? = null,
-    val roomConfig: RoomConfiguration? = null,
+    val agentName: String? = null,
+    val agentMetadata: String? = null,
 )
 
+/**
+ * Converts a [TokenRequestOptions] to [TokenSourceRequest], a JSON serializable request body.
+ */
+fun TokenRequestOptions.toRequest(): TokenSourceRequest {
+    val agents = if (agentName != null || agentMetadata != null) {
+        listOf(
+            RoomAgentDispatch(
+                agentName = agentName,
+                metadata = agentMetadata,
+            ),
+        )
+    } else {
+        null
+    }
+    return TokenSourceRequest(
+        roomName = roomName,
+        participantName = participantName,
+        participantIdentity = participantIdentity,
+        participantMetadata = participantMetadata,
+        participantAttributes = participantAttributes,
+        roomConfig = RoomConfiguration(
+            agents = agents,
+        ),
+    )
+}
+
+/**
+ * The JSON serializable format of the request sent to standard LiveKit token servers.
+ *
+ * Equivalent to [livekit.LivekitTokenSource.TokenSourceRequest]
+ */
+@SuppressLint("UnsafeOptInUsageError")
+@Serializable
+data class TokenSourceRequest(
+    val roomName: String?,
+    val participantName: String?,
+    val participantIdentity: String?,
+    val participantMetadata: String?,
+    val participantAttributes: Map<String, String>?,
+    val roomConfig: RoomConfiguration?,
+)
+
+/**
+ * @see livekit.LivekitRoom.RoomConfiguration
+ */
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class RoomConfiguration(
-    val name: String,
-    val emptyTimeout: Int,
-    val departureTimeout: Int,
-    val maxParticipants: Int,
-    val metadata: String,
+    val name: String? = null,
+    val emptyTimeout: Int? = null,
+    val departureTimeout: Int? = null,
+    val maxParticipants: Int? = null,
+    val metadata: String? = null,
     // egress is omitted due to complexity of serialization here.
-    val minPlayoutDelay: Int,
-    val maxPlayoutDelay: Int,
-    val syncStreams: Int,
-    val agents: RoomAgentDispatch,
+    val minPlayoutDelay: Int? = null,
+    val maxPlayoutDelay: Int? = null,
+    val syncStreams: Int? = null,
+    val agents: List<RoomAgentDispatch>? = null,
 )
 
+/**
+ * @see livekit.LivekitAgentDispatch.RoomAgentDispatch
+ */
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class RoomAgentDispatch(
-    val agentName: String,
-    val metadata: String,
+    val agentName: String? = null,
+    val metadata: String? = null,
 )
 
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class TokenSourceResponse(
+    /**
+     * The server url to connect with the associated [participantToken].
+     */
     val serverUrl: String,
+    /**
+     * The JWT token used to connect to the room.
+     *
+     * Specific details of the payload may be examined with [JWTPayload]
+     * (such as the permissions, metadata, etc.)
+     */
     val participantToken: String,
+    /**
+     * The room name.
+     *
+     * Note: Not required to be sent by the server response.
+     */
     val roomName: String? = null,
+    /**
+     * The participant name.
+     *
+     * Note: Not required to be sent by the server response.
+     */
     val participantName: String? = null,
 )
 

@@ -69,13 +69,15 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
             val snakeCaseJson = Json {
                 namingStrategy = JsonNamingStrategy.SnakeCase
                 ignoreUnknownKeys = true
+                explicitNulls = false
             }
 
             // v1 token server returns camelCase keys
             val camelCaseJson = Json {
                 ignoreUnknownKeys = true
+                explicitNulls = false
             }
-            val body = snakeCaseJson.encodeToString(options)
+            val body = snakeCaseJson.encodeToString(options.toRequest())
 
             val request = Request.Builder()
                 .url(url)

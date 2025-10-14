@@ -19,6 +19,7 @@ package io.livekit.android.token
 import io.livekit.android.test.BaseTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
@@ -89,20 +90,8 @@ class TokenSourceTest : BaseTest() {
             participantName = "participant-name",
             participantIdentity = "participant-identity",
             participantMetadata = "participant-metadata",
-            roomConfig = RoomConfiguration(
-                name = "room-name",
-                emptyTimeout = 10,
-                departureTimeout = 10,
-                maxParticipants = 100,
-                metadata = "room-metadata",
-                minPlayoutDelay = 1,
-                maxPlayoutDelay = 1,
-                syncStreams = 1,
-                agents = RoomAgentDispatch(
-                    agentName = "agent-name",
-                    metadata = "agent-metadata",
-                ),
-            ),
+            agentName = "agent-name",
+            agentMetadata = "agent-metadata",
         )
 
         val response = source.fetch(options)
@@ -124,6 +113,14 @@ class TokenSourceTest : BaseTest() {
 
         // Check sends snake_case
         assertEquals("room-name", json["room_name"]?.jsonPrimitive?.content)
+
+        val roomConfig = json["room_config"]?.jsonObject
+        val agents = roomConfig?.get("agents")?.jsonArray
+        assertEquals(1, agents?.size)
+
+        val agent = agents?.get(0)?.jsonObject
+        assertEquals("agent-name", agent?.get("agent_name")?.jsonPrimitive?.content)
+        assertEquals("agent-metadata", agent?.get("metadata")?.jsonPrimitive?.content)
     }
 
     @Test
@@ -182,20 +179,8 @@ class TokenSourceTest : BaseTest() {
             participantName = "participant-name",
             participantIdentity = "participant-identity",
             participantMetadata = "participant-metadata",
-            roomConfig = RoomConfiguration(
-                name = "room-name",
-                emptyTimeout = 10,
-                departureTimeout = 10,
-                maxParticipants = 100,
-                metadata = "room-metadata",
-                minPlayoutDelay = 1,
-                maxPlayoutDelay = 1,
-                syncStreams = 1,
-                agents = RoomAgentDispatch(
-                    agentName = "agent-name",
-                    metadata = "agent-metadata",
-                ),
-            ),
+            agentName = "agent-name",
+            agentMetadata = "agent-metadata",
         )
 
         val response = source.fetch(options)
