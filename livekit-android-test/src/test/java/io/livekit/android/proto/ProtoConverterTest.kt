@@ -21,7 +21,7 @@ import io.livekit.android.room.participant.ParticipantPermission
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.token.RoomAgentDispatch
 import io.livekit.android.token.RoomConfiguration
-import io.livekit.android.token.TokenRequestOptions
+import io.livekit.android.token.TokenSourceRequest
 import io.livekit.android.token.TokenSourceResponse
 import livekit.LivekitAgentDispatch
 import livekit.LivekitModels
@@ -84,7 +84,7 @@ class ProtoConverterTest(
             ),
             ProtoConverterTestCase(
                 LivekitTokenSource.TokenSourceRequest::class.java,
-                TokenRequestOptions::class.java,
+                TokenSourceRequest::class.java,
             ),
             ProtoConverterTestCase(
                 LivekitTokenSource.TokenSourceResponse::class.java,
