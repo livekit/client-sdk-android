@@ -213,7 +213,13 @@ sealed class RoomEvent(val room: Room) : Event() {
      * @param data the published data
      * @param participant the participant if available
      */
-    class DataReceived(room: Room, val data: ByteArray, val participant: RemoteParticipant?, val topic: String?) :
+    class DataReceived(
+        room: Room,
+        val data: ByteArray,
+        val participant: RemoteParticipant?,
+        val topic: String?,
+        val encryptionType: LivekitModels.Encryption.Type,
+    ) :
         RoomEvent(room)
 
     /**

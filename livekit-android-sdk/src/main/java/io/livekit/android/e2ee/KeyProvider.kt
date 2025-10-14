@@ -20,7 +20,7 @@ import io.livekit.android.util.LKLog
 import livekit.org.webrtc.FrameCryptorFactory
 import livekit.org.webrtc.FrameCryptorKeyProvider
 
-class KeyInfo(var participantId: String, var keyIndex: Int, var key: String) {
+internal class KeyInfo(var participantId: String, var keyIndex: Int, var key: String) {
     override fun toString(): String {
         return "KeyInfo(participantId='$participantId', keyIndex=$keyIndex)"
     }
@@ -34,6 +34,7 @@ interface KeyProvider {
     fun ratchetKey(participantId: String, keyIndex: Int? = 0): ByteArray
     fun exportKey(participantId: String, keyIndex: Int? = 0): ByteArray
     fun setSifTrailer(trailer: ByteArray)
+    fun getLatestKeyIndex(participantId: String): Int
 
     val rtcKeyProvider: FrameCryptorKeyProvider
 
@@ -49,21 +50,19 @@ class BaseKeyProvider(
     keyRingSize: Int = defaultKeyRingSize,
     discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady,
 ) : KeyProvider {
-    override val rtcKeyProvider: FrameCryptorKeyProvider
 
-    private var keys: MutableMap<String, MutableMap<Int, String>> = mutableMapOf()
+    private val latestSetIndex = mutableMapOf<String, Int>()
 
-    init {
-        this.rtcKeyProvider = FrameCryptorFactory.createFrameCryptorKeyProvider(
-            enableSharedKey,
-            ratchetSalt.toByteArray(),
-            ratchetWindowSize,
-            uncryptedMagicBytes.toByteArray(),
-            failureTolerance,
-            keyRingSize,
-            discardFrameWhenCryptorNotReady,
-        )
-    }
+    override val rtcKeyProvider: FrameCryptorKeyProvider = FrameCryptorFactory.createFrameCryptorKeyProvider(
+        enableSharedKey,
+        ratchetSalt.toByteArray(),
+        ratchetWindowSize,
+        uncryptedMagicBytes.toByteArray(),
+        failureTolerance,
+        keyRingSize,
+        discardFrameWhenCryptorNotReady,
+    )
+
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
         return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
     }
@@ -92,13 +91,10 @@ class BaseKeyProvider(
             return
         }
 
-        var keyInfo = KeyInfo(participantId, keyIndex ?: 0, key)
+        val keyIndex = keyIndex ?: 0
+        latestSetIndex[participantId] = keyIndex
 
-        if (!keys.containsKey(keyInfo.participantId)) {
-            keys[keyInfo.participantId] = mutableMapOf()
-        }
-        keys[keyInfo.participantId]!![keyInfo.keyIndex] = keyInfo.key
-        rtcKeyProvider.setKey(participantId, keyInfo.keyIndex, key.toByteArray())
+        rtcKeyProvider.setKey(participantId, keyIndex, key.toByteArray())
     }
 
     override fun ratchetKey(participantId: String, keyIndex: Int?): ByteArray {
@@ -111,5 +107,9 @@ class BaseKeyProvider(
 
     override fun setSifTrailer(trailer: ByteArray) {
         rtcKeyProvider.setSifTrailer(trailer)
+    }
+
+    override fun getLatestKeyIndex(participantId: String): Int {
+        return latestSetIndex[participantId] ?: 0
     }
 }

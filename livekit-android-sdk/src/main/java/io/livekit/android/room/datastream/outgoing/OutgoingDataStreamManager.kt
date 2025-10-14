@@ -27,6 +27,7 @@ import io.livekit.android.room.datastream.StreamTextOptions
 import io.livekit.android.room.datastream.TextStreamInfo
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
+import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.DataStream
 import java.io.File
@@ -242,6 +243,11 @@ constructor(
             replyToStreamId = options.replyToStreamId,
             attachedStreamIds = options.attachedStreamIds,
             generated = false,
+            encryptionType = if (engine.e2EEManager?.isDataChannelEncryptionEnabled() ?: false) {
+                LivekitModels.Encryption.Type.GCM
+            } else {
+                LivekitModels.Encryption.Type.NONE
+            },
         )
 
         val streamId = options.streamId
@@ -267,6 +273,11 @@ constructor(
             attributes = options.attributes,
             mimeType = options.mimeType,
             name = options.name,
+            encryptionType = if (engine.e2EEManager?.isDataChannelEncryptionEnabled() ?: false) {
+                LivekitModels.Encryption.Type.GCM
+            } else {
+                LivekitModels.Encryption.Type.NONE
+            },
         )
 
         val streamId = options.streamId

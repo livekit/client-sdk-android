@@ -27,6 +27,7 @@ import io.livekit.android.util.LKLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import livekit.LivekitModels
 import livekit.LivekitModels.DataStream
 import java.util.Collections
 import javax.inject.Inject
@@ -66,17 +67,17 @@ interface IncomingDataStreamManager {
     /**
      * @suppress
      */
-    fun handleStreamHeader(header: DataStream.Header, fromIdentity: Participant.Identity)
+    fun handleStreamHeader(header: DataStream.Header, fromIdentity: Participant.Identity, encryptionType: LivekitModels.Encryption.Type)
 
     /**
      * @suppress
      */
-    fun handleDataChunk(chunk: DataStream.Chunk)
+    fun handleDataChunk(chunk: DataStream.Chunk, encryptionType: LivekitModels.Encryption.Type)
 
     /**
      * @suppress
      */
-    fun handleStreamTrailer(trailer: DataStream.Trailer)
+    fun handleStreamTrailer(trailer: DataStream.Trailer, encryptionType: LivekitModels.Encryption.Type)
 
     /**
      * @suppress
@@ -89,12 +90,20 @@ interface IncomingDataStreamManager {
  */
 class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamManager {
 
+    /**
+     * A stream descriptor for any open incoming streams.
+     */
     private data class Descriptor(
         val streamInfo: StreamInfo,
         /**
          * Measured by SystemClock.elapsedRealtime()
          */
         val openTime: Long,
+        /**
+         * The channel to pipe any incoming data into.
+         *
+         * Calling [Channel.close] will automatically call [closeStream] and remove the stream.
+         */
         val channel: Channel<ByteArray>,
         var readLength: Long = 0,
     )
@@ -154,8 +163,8 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
     /**
      * @suppress
      */
-    override fun handleStreamHeader(header: DataStream.Header, fromIdentity: Participant.Identity) {
-        val info = streamInfoFromHeader(header) ?: return
+    override fun handleStreamHeader(header: DataStream.Header, fromIdentity: Participant.Identity, encryptionType: LivekitModels.Encryption.Type) {
+        val info = streamInfoFromHeader(header, encryptionType) ?: return
         openStream(info, fromIdentity)
     }
 
@@ -189,9 +198,18 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
     /**
      * @suppress
      */
-    override fun handleDataChunk(chunk: DataStream.Chunk) {
+    override fun handleDataChunk(chunk: DataStream.Chunk, encryptionType: LivekitModels.Encryption.Type) {
         val content = chunk.content ?: return
         val descriptor = openStreams[chunk.streamId] ?: return
+
+        if (encryptionType != descriptor.streamInfo.encryptionType) {
+            descriptor.channel.close(
+                StreamException.EncryptionTypeMismatch(
+                    "Encryption type mismatch for stream ${chunk.streamId}. Expected ${descriptor.streamInfo.encryptionType}, got $encryptionType",
+                ),
+            )
+        }
+
         val totalReadLength = descriptor.readLength + content.size()
 
         val totalLength = descriptor.streamInfo.totalSize
@@ -208,11 +226,19 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
     /**
      * @suppress
      */
-    override fun handleStreamTrailer(trailer: DataStream.Trailer) {
+    override fun handleStreamTrailer(trailer: DataStream.Trailer, encryptionType: LivekitModels.Encryption.Type) {
         val descriptor = openStreams[trailer.streamId]
         if (descriptor == null) {
             LKLog.w { "Received trailer for unknown stream: ${trailer.streamId}" }
             return
+        }
+
+        if (encryptionType != descriptor.streamInfo.encryptionType) {
+            descriptor.channel.close(
+                StreamException.EncryptionTypeMismatch(
+                    "Encryption type mismatch for stream ${trailer.streamId}. Expected ${descriptor.streamInfo.encryptionType}, got $encryptionType",
+                ),
+            )
         }
 
         val totalLength = descriptor.streamInfo.totalSize
@@ -294,15 +320,15 @@ class IncomingDataStreamManagerImpl @Inject constructor() : IncomingDataStreamMa
         }
     }
 
-    private fun streamInfoFromHeader(header: DataStream.Header): StreamInfo? {
+    private fun streamInfoFromHeader(header: DataStream.Header, encryptionType: LivekitModels.Encryption.Type): StreamInfo? {
         try {
             return when (header.contentHeaderCase) {
                 DataStream.Header.ContentHeaderCase.TEXT_HEADER -> {
-                    TextStreamInfo(header, header.textHeader)
+                    TextStreamInfo(header, header.textHeader, encryptionType)
                 }
 
                 DataStream.Header.ContentHeaderCase.BYTE_HEADER -> {
-                    ByteStreamInfo(header, header.byteHeader)
+                    ByteStreamInfo(header, header.byteHeader, encryptionType)
                 }
 
                 DataStream.Header.ContentHeaderCase.CONTENTHEADER_NOT_SET,

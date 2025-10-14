@@ -792,6 +792,10 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
                 // TODO
             }
+
+            LivekitRtc.SignalResponse.MessageCase.MEDIA_SECTIONS_REQUIREMENT -> {
+                // TODO
+            }
         }
     }
 

@@ -21,6 +21,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.SignalClient
 import io.livekit.android.room.track.KIND_AUDIO
 import io.livekit.android.room.track.KIND_VIDEO
@@ -233,7 +234,7 @@ class RemoteParticipant(
     }
 
     // Internal methods just for posting events.
-    internal fun onDataReceived(data: ByteArray, topic: String?) {
-        eventBus.postEvent(ParticipantEvent.DataReceived(this, data, topic), scope)
+    internal fun onDataReceived(event: RoomEvent.DataReceived) {
+        eventBus.postEvent(ParticipantEvent.DataReceived(this, event.data, event.topic, event.encryptionType), scope)
     }
 }

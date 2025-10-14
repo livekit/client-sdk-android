@@ -26,6 +26,7 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.TranscriptionSegment
+import livekit.LivekitModels
 
 sealed class ParticipantEvent(open val participant: Participant) : Event() {
     // all participants
@@ -155,6 +156,7 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
         override val participant: RemoteParticipant,
         val data: ByteArray,
         val topic: String?,
+        val encryptionType: LivekitModels.Encryption.Type,
     ) : ParticipantEvent(participant)
 
     /**
