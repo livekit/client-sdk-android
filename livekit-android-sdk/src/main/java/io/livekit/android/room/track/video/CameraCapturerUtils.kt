@@ -69,7 +69,7 @@ object CameraCapturerUtils {
      *
      * Picks CameraProvider of highest available version that is supported on device
      */
-    private fun getCameraProvider(context: Context): CameraProvider {
+    fun getCameraProvider(context: Context): CameraProvider {
         return cameraProviders
             .sortedByDescending { it.cameraVersion }
             .first { it.isSupported(context) }
