@@ -1,6 +1,6 @@
 {
   "name": "client-sdk-android",
-  "version": "2.20.3",
+  "version": "2.21.0",
   "repository": "https://github.com/livekit/client-sdk-android.git",
   "license": "Apache License 2.0",
   "private": true,
