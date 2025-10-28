@@ -66,6 +66,9 @@ constructor(
 data class VideoEncoding(
     val maxBitrate: Int,
     val maxFps: Int,
+    val temporalLayersNumber: Int? = null ,
+    val minBitrate: Int? = null ,
+    val isAdaptiveAudioPacketTimeEnabled: Boolean? = null ,
 ) {
     fun toRtpEncoding(
         rid: String? = null,
@@ -75,6 +78,18 @@ data class VideoEncoding(
             numTemporalLayers = 1
             maxBitrateBps = maxBitrate
             maxFramerate = maxFps
+
+            temporalLayersNumber?.let {
+                numTemporalLayers = it
+            }
+
+            minBitrate?.let {
+                minBitrateBps = it
+            }
+
+            isAdaptiveAudioPacketTimeEnabled?.let {
+                adaptiveAudioPacketTime = it
+            }
 
             // only set on the full track
             if (scaleDownBy == 1.0) {
