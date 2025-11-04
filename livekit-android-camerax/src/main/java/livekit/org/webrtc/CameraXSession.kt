@@ -167,7 +167,12 @@ internal constructor(
 
                 // Select camera by ID
                 val cameraSelector = CameraSelector.Builder()
-                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraDevice.deviceId } }
+                    .addCameraFilter { cameraInfo ->
+                        cameraInfo.filter {
+                            val cameraId = Camera2CameraInfo.from(it).cameraId
+                            cameraId == cameraDevice.deviceId || cameraId == cameraDevice.physicalId
+                        }
+                    }
                     .build()
 
                 try {
