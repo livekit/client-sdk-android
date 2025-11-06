@@ -1,5 +1,15 @@
 # client-sdk-android
 
+## 2.22.0
+
+### Minor Changes
+
+- Extract CameraXProvider and expose it. - [#754](https://github.com/livekit/client-sdk-android/pull/754) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+### Patch Changes
+
+- Fix camera lookup to check physicalId - [#792](https://github.com/livekit/client-sdk-android/pull/792) ([@KasemJaffer](https://github.com/KasemJaffer))
+
 ## 2.21.1
 
 ### Patch Changes
