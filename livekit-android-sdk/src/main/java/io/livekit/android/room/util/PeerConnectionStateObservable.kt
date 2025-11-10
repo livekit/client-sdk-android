@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package io.livekit.android.room.util
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.flow
 import io.livekit.android.webrtc.isConnected
+import io.livekit.android.webrtc.isDisconnected
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import livekit.org.webrtc.PeerConnection.PeerConnectionState
@@ -36,6 +37,21 @@ internal suspend fun PeerConnectionStateObservable.waitUntilConnected() {
     this::connectionState.flow
         .takeWhile {
             !it.isConnected()
+        }
+        .collect()
+}
+
+/**
+ * Waits until the connection reaches a stable terminal state:
+ * [PeerConnectionState.isConnected] or [PeerConnectionState.isDisconnected].
+ *
+ * Note: [PeerConnectionState.isDisconnected] intentionally excludes the temporary
+ * [PeerConnectionState.DISCONNECTED] state and only treats FAILED/CLOSED as disconnected.
+ */
+internal suspend fun PeerConnectionStateObservable.waitUntilConnectedOrDisconnected() {
+    this::connectionState.flow
+        .takeWhile {
+            !it.isConnected() && !it.isDisconnected()
         }
         .collect()
 }

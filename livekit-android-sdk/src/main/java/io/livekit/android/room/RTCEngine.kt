@@ -36,6 +36,7 @@ import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.room.util.waitUntilConnected
+import io.livekit.android.room.util.waitUntilConnectedOrDisconnected
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
@@ -194,6 +195,7 @@ internal constructor(
     private var isSubscriberPrimary = false
     private var isClosed = true
 
+    @Volatile
     private var hasPublished = false
 
     private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
@@ -670,21 +672,24 @@ internal constructor(
     }
 
     internal fun negotiatePublisher() {
+        // Mark intent to publish before checking Signal state so reconnect() can
+        // re-trigger negotiation even if the first attempt occurs before Signal connects.
+        hasPublished = true
+
         if (!client.isConnected) {
             return
         }
 
-        hasPublished = true
-
         coroutineScope.launch {
-            if (negotiatePublisherMutex.tryLock()) {
-                try {
-                    publisher?.negotiate?.invoke(getPublisherOfferConstraints())
-                } finally {
-                    negotiatePublisherMutex.unlock()
+            // Ensure only one negotiation sequence runs at a time.
+            negotiatePublisherMutex.withLock {
+                publisher?.negotiate?.invoke(getPublisherOfferConstraints())
+
+                // Best-effort wait for publisher to connect before releasing mutex
+                // to avoid overlapping renegotiations.
+                withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
+                    publisherObserver.waitUntilConnectedOrDisconnected()
                 }
-            } else {
-                LKLog.v { "negotiatePublisher: skipping, negotiation already in progress" }
             }
         }
     }
