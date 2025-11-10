@@ -1644,6 +1644,28 @@ internal constructor(
                 }
             }
         }
+
+        // Dispose tracks that were saved for republishing but never got republished.
+        // This happens when reconnection fails after prepareForFullReconnect() was called.
+        val republishesToDispose = republishes?.toList() ?: emptyList()
+        for (pub in republishesToDispose) {
+            val track = pub.track
+            if (track != null) {
+                try {
+                    track.stop()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception stopping republish track:" }
+                }
+
+                try {
+                    track.dispose()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception disposing republish track:" }
+                }
+            }
+        }
+        republishes = null
+
         defaultAudioTrack?.dispose()
         defaultAudioTrack = null
         defaultVideoTrack?.dispose()
