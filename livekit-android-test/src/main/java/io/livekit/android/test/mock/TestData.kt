@@ -17,6 +17,7 @@
 package io.livekit.android.test.mock
 
 import livekit.LivekitModels
+import livekit.LivekitModels.ParticipantInfo.Kind
 import livekit.LivekitRtc
 import java.util.UUID
 
@@ -216,6 +217,21 @@ object TestData {
                 .build()
 
             addParticipants(disconnectedParticipant)
+            build()
+        }
+        build()
+    }
+
+    val AGENT_JOIN = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
+        update = with(update.toBuilder()) {
+            clearParticipants()
+            val agent = with(TestData.REMOTE_PARTICIPANT.toBuilder()) {
+                kind = Kind.AGENT
+                clearAttributes()
+                putAttributes("lk.agent.state", "listening")
+                build()
+            }
+            addParticipants(agent)
             build()
         }
         build()

@@ -31,10 +31,10 @@ private fun <T> Klaxon.convert(k: kotlin.reflect.KClass<*>, fromJson: (JsonValue
         },
     )
 
-private val klaxon = Klaxon()
+internal val klaxon = Klaxon()
     .convert(AgentInput::class, { AgentInput.fromValue(it.string!!) }, { "\"${it.value}\"" })
     .convert(AgentOutput::class, { AgentOutput.fromValue(it.string!!) }, { "\"${it.value}\"" })
-    .convert(AgentState::class, { AgentState.fromValue(it.string!!) }, { "\"${it.value}\"" })
+    .convert(AgentSdkState::class, { AgentSdkState.fromValue(it.string!!) }, { "\"${it.value}\"" })
 
 data class AgentAttributes(
     @Json(name = "lk.agent.inputs")
@@ -44,7 +44,7 @@ data class AgentAttributes(
     val lkAgentOutputs: List<AgentOutput>? = null,
 
     @Json(name = "lk.agent.state")
-    val lkAgentState: AgentState? = null,
+    val lkAgentState: AgentSdkState? = null,
 
     @Json(name = "lk.publish_on_behalf")
     val lkPublishOnBehalf: String? = null,
@@ -84,7 +84,8 @@ enum class AgentOutput(val value: String) {
     }
 }
 
-enum class AgentState(val value: String) {
+// Renamed from AgentState to AgentSdkState to avoid naming conflicts elsewhere.
+enum class AgentSdkState(val value: String) {
     Idle("idle"),
     Initializing("initializing"),
     Listening("listening"),
@@ -92,7 +93,7 @@ enum class AgentState(val value: String) {
     Thinking("thinking");
 
     companion object {
-        fun fromValue(value: String): AgentState = when (value) {
+        fun fromValue(value: String): AgentSdkState = when (value) {
             "idle" -> Idle
             "initializing" -> Initializing
             "listening" -> Listening
