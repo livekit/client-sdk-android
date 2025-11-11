@@ -30,6 +30,7 @@ import com.twilio.audioswitch.AudioSwitch
 import com.twilio.audioswitch.LegacyAudioSwitch
 import io.livekit.android.room.Room
 import io.livekit.android.util.LKLog
+import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,14 +55,45 @@ constructor(private val context: Context) : AudioHandler {
      *
      * @see AudioDeviceChangeListener
      */
+    @Deprecated("Use registerAudioDeviceChangeListener.")
     var audioDeviceChangeListener: AudioDeviceChangeListener? = null
 
+    private val audioDeviceChangeListeners = Collections.synchronizedSet(mutableSetOf<AudioDeviceChangeListener>())
+
+    private val audioDeviceChangeDispatcher by lazy(LazyThreadSafetyMode.NONE) {
+        object : AudioDeviceChangeListener {
+            override fun invoke(audioDevices: List<AudioDevice>, selectedAudioDevice: AudioDevice?) {
+                @Suppress("DEPRECATION")
+                audioDeviceChangeListener?.invoke(audioDevices, selectedAudioDevice)
+                synchronized(audioDeviceChangeListeners) {
+                    for (listener in audioDeviceChangeListeners) {
+                        listener.invoke(audioDevices, selectedAudioDevice)
+                    }
+                }
+            }
+        }
+    }
     /**
      * Listen to changes in audio focus.
      *
      * @see AudioManager.OnAudioFocusChangeListener
      */
+    @Deprecated("Use registerOnAudioFocusChangeListener.")
     var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
+
+    private val onAudioFocusChangeListeners = Collections.synchronizedSet(mutableSetOf<AudioManager.OnAudioFocusChangeListener>())
+
+    private val onAudioFocusChangeDispatcher by lazy(LazyThreadSafetyMode.NONE) {
+        AudioManager.OnAudioFocusChangeListener { focusChange ->
+            @Suppress("DEPRECATION")
+            onAudioFocusChangeListener?.onAudioFocusChange(focusChange)
+            synchronized(onAudioFocusChangeListeners) {
+                for (listener in onAudioFocusChangeListeners) {
+                    listener.onAudioFocusChange(focusChange)
+                }
+            }
+        }
+    }
 
     /**
      * The preferred priority of audio devices to use. The first available audio device will be used.
@@ -165,19 +197,21 @@ constructor(private val context: Context) : AudioHandler {
         if (audioSwitch == null) {
             handler?.removeCallbacksAndMessages(null)
             handler?.postAtFrontOfQueue {
+
+
                 val switch =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         AudioSwitch(
                             context = context,
                             loggingEnabled = loggingEnabled,
-                            audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
+                            audioFocusChangeListener = onAudioFocusChangeDispatcher,
                             preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
                         )
                     } else {
                         LegacyAudioSwitch(
                             context = context,
                             loggingEnabled = loggingEnabled,
-                            audioFocusChangeListener = onAudioFocusChangeListener ?: defaultOnAudioFocusChangeListener,
+                            audioFocusChangeListener = onAudioFocusChangeDispatcher,
                             preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
                         )
                     }
@@ -190,7 +224,7 @@ constructor(private val context: Context) : AudioHandler {
                 switch.forceHandleAudioRouting = forceHandleAudioRouting
 
                 audioSwitch = switch
-                switch.start(audioDeviceChangeListener ?: defaultAudioDeviceChangeListener)
+                switch.start(audioDeviceChangeDispatcher)
                 switch.activate()
             }
         }
@@ -235,16 +269,43 @@ constructor(private val context: Context) : AudioHandler {
         }
     }
 
+    /**
+     * Listen to changes in the available and active audio devices.
+     * @see unregisterAudioDeviceChangeListener
+     */
+    fun registerAudioDeviceChangeListener(listener: AudioDeviceChangeListener) {
+        audioDeviceChangeListeners.add(listener)
+    }
+
+    /**
+     * Remove a previously registered audio device change listener.
+     * @see registerAudioDeviceChangeListener
+     */
+    fun unregisterAudioDeviceChangeListener(listener: AudioDeviceChangeListener) {
+        audioDeviceChangeListeners.remove(listener)
+    }
+
+    /**
+     * Listen to changes in audio focus.
+     *
+     * @see AudioManager.OnAudioFocusChangeListener
+     * @see unregisterOnAudioFocusChangeListener
+     */
+    fun registerOnAudioFocusChangeListener(listener: AudioManager.OnAudioFocusChangeListener) {
+        onAudioFocusChangeListeners.add(listener)
+    }
+
+    /**
+     * Remove a previously registered focus change listener.
+     *
+     * @see AudioManager.OnAudioFocusChangeListener
+     * @see registerOnAudioFocusChangeListener
+     */
+    fun unregisterOnAudioFocusChangeListener(listener: AudioManager.OnAudioFocusChangeListener) {
+        onAudioFocusChangeListeners.remove(listener)
+    }
+
     companion object {
-        private val defaultOnAudioFocusChangeListener by lazy(LazyThreadSafetyMode.NONE) {
-            AudioManager.OnAudioFocusChangeListener { }
-        }
-        private val defaultAudioDeviceChangeListener by lazy(LazyThreadSafetyMode.NONE) {
-            object : AudioDeviceChangeListener {
-                override fun invoke(audioDevices: List<AudioDevice>, selectedAudioDevice: AudioDevice?) {
-                }
-            }
-        }
         private val defaultPreferredDeviceList by lazy(LazyThreadSafetyMode.NONE) {
             listOf(
                 AudioDevice.BluetoothHeadset::class.java,
