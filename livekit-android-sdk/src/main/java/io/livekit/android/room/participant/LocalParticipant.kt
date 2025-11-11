@@ -1635,15 +1635,28 @@ internal constructor(
                 // We have the original track object reference, meaning we own it. Dispose here.
                 try {
                     track.dispose()
+                    if (track === defaultAudioTrack) {
+                        defaultAudioTrack = null
+                    } else if (track === defaultVideoTrack) {
+                        defaultVideoTrack = null
+                    }
                 } catch (e: Exception) {
                     LKLog.d(e) { "Exception thrown when cleaning up local participant track $pub:" }
                 }
             }
         }
-        defaultAudioTrack?.dispose()
-        defaultAudioTrack = null
-        defaultVideoTrack?.dispose()
-        defaultVideoTrack = null
+        try {
+            defaultAudioTrack?.dispose()
+            defaultAudioTrack = null
+        } catch (_: Exception) {
+            // Possible double dispose, ignore.
+        }
+        try {
+            defaultVideoTrack?.dispose()
+            defaultVideoTrack = null
+        } catch (_: Exception) {
+            // Possible double dispose, ignore.
+        }
     }
 
     /**
