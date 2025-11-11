@@ -22,6 +22,7 @@ import android.content.Context
 import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import androidx.annotation.VisibleForTesting
+import com.vdurmont.semver4j.Semver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -334,6 +335,9 @@ constructor(
      */
     val audioSwitchHandler: AudioSwitchHandler?
         get() = audioHandler as? AudioSwitchHandler
+
+    val serverInfo: ServerInfo?
+        get() = engine.serverInfo
 
     private var sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
 
