@@ -161,7 +161,7 @@ dependencies {
     kapt libs.dagger.compiler
 
     implementation libs.timber
-    implementation libs.semver4j
+    api libs.semver4j
 
     lintChecks project(':livekit-lint')
     lintPublish project(':livekit-lint')
