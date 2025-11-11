@@ -22,7 +22,6 @@ import android.content.Context
 import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import androidx.annotation.VisibleForTesting
-import com.vdurmont.semver4j.Semver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -37,6 +36,7 @@ import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.CommunicationWorkaround
+import io.livekit.android.audio.startPreconnectAudioJob
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
@@ -524,9 +524,15 @@ constructor(
             if (options.audio) {
                 val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
                 audioTrack.prewarm()
+                var cancelPreconnect: (() -> Unit)? = null
+
+                if (audioTrackPublishDefaults.preconnect) {
+                    cancelPreconnect = startPreconnectAudioJob(roomScope = coroutineScope)
+                }
                 if (!localParticipant.publishAudioTrack(audioTrack)) {
                     audioTrack.stop()
                     audioTrack.stopPrewarm()
+                    cancelPreconnect?.invoke()
                 }
             }
             ensureActive()

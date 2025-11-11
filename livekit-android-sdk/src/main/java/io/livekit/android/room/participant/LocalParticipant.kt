@@ -1831,6 +1831,13 @@ abstract class BaseAudioTrackPublishOptions {
      * red (Redundant Audio Data), enabled by default for mono tracks.
      */
     abstract val red: Boolean
+
+    /**
+     * preconnect buffer, starts the audio track and buffers it prior to connection,
+     * in order to send it to agents that connect afterwards. Improves perceived
+     * connection time.
+     */
+    abstract val preconnect: Boolean
 }
 
 enum class AudioPresets(
@@ -1852,6 +1859,7 @@ data class AudioTrackPublishDefaults(
     override val audioBitrate: Int? = AudioPresets.MUSIC.maxBitrate,
     override val dtx: Boolean = true,
     override val red: Boolean = true,
+    override val preconnect: Boolean = false,
 ) : BaseAudioTrackPublishOptions()
 
 /**
@@ -1864,7 +1872,7 @@ data class AudioTrackPublishOptions(
     override val red: Boolean = true,
     override val source: Track.Source? = null,
     override val stream: String? = null,
-    val preconnect: Boolean = false,
+    override val preconnect: Boolean = false,
 ) : BaseAudioTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
