@@ -31,7 +31,6 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.URL
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal class EndpointTokenSourceImpl(
     override val url: URL,
@@ -62,7 +61,7 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
     val headers: Map<String, String>
 
     @OptIn(ExperimentalSerializationApi::class)
-    override suspend fun fetch(options: TokenRequestOptions): TokenSourceResponse = suspendCancellableCoroutine { continuation ->
+    override suspend fun fetch(options: TokenRequestOptions): Result<TokenSourceResponse> = suspendCancellableCoroutine { continuation ->
         try {
             val okHttpClient = globalOkHttpClient
 
@@ -96,7 +95,7 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
                     override fun onResponse(call: Call, response: Response) {
                         val bodyStr = response.body?.string()
                         if (bodyStr == null) {
-                            continuation.resumeWithException(NullPointerException("No response returned from server"))
+                            continuation.resume(Result.failure(NullPointerException("No response returned from server")))
                             return
                         }
 
@@ -111,21 +110,21 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
                             try {
                                 tokenResponse = camelCaseJson.decodeFromString<TokenSourceResponse>(bodyStr)
                             } catch (e: Exception) {
-                                continuation.resumeWithException(IllegalArgumentException("Failed to decode response from token server", e))
+                                continuation.resume(Result.failure(IllegalArgumentException("Failed to decode response from token server", e)))
                                 return
                             }
                         }
 
-                        continuation.resume(tokenResponse)
+                        continuation.resume(Result.success(tokenResponse))
                     }
 
                     override fun onFailure(call: Call, e: IOException) {
-                        continuation.resumeWithException(e)
+                        continuation.resume(Result.failure(e))
                     }
                 },
             )
         } catch (e: Exception) {
-            continuation.resumeWithException(e)
+            continuation.resume(Result.failure(e))
         }
     }
 }

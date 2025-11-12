@@ -20,7 +20,7 @@ internal class LiteralTokenSource(
     val serverUrl: String,
     val participantToken: String,
 ) : FixedTokenSource {
-    override suspend fun fetch(): TokenSourceResponse {
-        return TokenSourceResponse(serverUrl, participantToken)
+    override suspend fun fetch(): Result<TokenSourceResponse> {
+        return Result.success(TokenSourceResponse(serverUrl, participantToken))
     }
 }

@@ -16,8 +16,12 @@
 
 package io.livekit.android.token
 
-internal class CustomTokenSource(val block: suspend (options: TokenRequestOptions) -> TokenSourceResponse) : ConfigurableTokenSource {
-    override suspend fun fetch(options: TokenRequestOptions): TokenSourceResponse {
-        return block(options)
+internal class CustomTokenSource(val block: suspend (options: TokenRequestOptions) -> Result<TokenSourceResponse>) : ConfigurableTokenSource {
+    override suspend fun fetch(options: TokenRequestOptions): Result<TokenSourceResponse> {
+        return try {
+            block(options)
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
     }
 }

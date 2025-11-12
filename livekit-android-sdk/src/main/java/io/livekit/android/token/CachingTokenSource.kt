@@ -31,22 +31,26 @@ abstract class BaseCachingTokenSource(
      *
      * If a new token is needed, [fetchFromSource] will be called.
      */
-    internal suspend fun fetchImpl(options: TokenRequestOptions?): TokenSourceResponse {
+    internal suspend fun fetchImpl(options: TokenRequestOptions?): Result<TokenSourceResponse> {
         val cached = store.retrieve()
 
         if (cached != null && cached.options == options && validator.invoke(cached.options, cached.response)) {
-            return cached.response
+            return Result.success(cached.response)
         }
 
-        val response = fetchFromSource(options)
-        store.store(options, response)
-        return response
+        val result = fetchFromSource(options)
+
+        if (result.isSuccess) {
+            val response = result.getOrThrow()
+            store.store(options, response)
+        }
+        return result
     }
 
     /**
      * Implement this to fetch the [TokenSourceResponse] from the token source.
      */
-    abstract suspend fun fetchFromSource(options: TokenRequestOptions?): TokenSourceResponse
+    abstract suspend fun fetchFromSource(options: TokenRequestOptions?): Result<TokenSourceResponse>
 
     /**
      * Invalidate the cached credentials, forcing a fresh fetch on the next request.
@@ -68,11 +72,11 @@ class CachingFixedTokenSource(
     store: TokenStore,
     validator: TokenValidator,
 ) : BaseCachingTokenSource(store, validator), FixedTokenSource {
-    override suspend fun fetchFromSource(options: TokenRequestOptions?): TokenSourceResponse {
+    override suspend fun fetchFromSource(options: TokenRequestOptions?): Result<TokenSourceResponse> {
         return source.fetch()
     }
 
-    override suspend fun fetch(): TokenSourceResponse {
+    override suspend fun fetch(): Result<TokenSourceResponse> {
         return fetchImpl(null)
     }
 }
@@ -82,11 +86,11 @@ class CachingConfigurableTokenSource(
     store: TokenStore,
     validator: TokenValidator,
 ) : BaseCachingTokenSource(store, validator), ConfigurableTokenSource {
-    override suspend fun fetchFromSource(options: TokenRequestOptions?): TokenSourceResponse {
+    override suspend fun fetchFromSource(options: TokenRequestOptions?): Result<TokenSourceResponse> {
         return source.fetch(options ?: TokenRequestOptions())
     }
 
-    override suspend fun fetch(options: TokenRequestOptions): TokenSourceResponse {
+    override suspend fun fetch(options: TokenRequestOptions): Result<TokenSourceResponse> {
         return fetchImpl(options)
     }
 }

@@ -17,6 +17,7 @@
 package io.livekit.android.token
 
 import android.annotation.SuppressLint
+import androidx.annotation.CheckResult
 import kotlinx.serialization.Serializable
 import java.net.URL
 
@@ -150,7 +151,7 @@ interface TokenSource {
          * @see cached
          * @see CachingConfigurableTokenSource
          */
-        fun fromCustom(block: suspend (options: TokenRequestOptions) -> TokenSourceResponse): ConfigurableTokenSource = CustomTokenSource(block)
+        fun fromCustom(block: suspend (options: TokenRequestOptions) -> Result<TokenSourceResponse>): ConfigurableTokenSource = CustomTokenSource(block)
 
         /**
          * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
@@ -184,12 +185,14 @@ interface TokenSource {
  * A non-configurable token source that does not take any options.
  */
 interface FixedTokenSource : TokenSource {
-    suspend fun fetch(): TokenSourceResponse
+    @CheckResult
+    suspend fun fetch(): Result<TokenSourceResponse>
 }
 
 /**
  * A configurable token source takes in a [TokenRequestOptions] when requesting credentials.
  */
 interface ConfigurableTokenSource : TokenSource {
-    suspend fun fetch(options: TokenRequestOptions = TokenRequestOptions()): TokenSourceResponse
+    @CheckResult
+    suspend fun fetch(options: TokenRequestOptions = TokenRequestOptions()): Result<TokenSourceResponse>
 }
