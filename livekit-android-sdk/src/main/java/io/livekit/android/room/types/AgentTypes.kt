@@ -16,10 +16,12 @@
 
 package io.livekit.android.room.types
 
+import android.annotation.SuppressLint
 import com.beust.klaxon.Converter
 import com.beust.klaxon.Json
 import com.beust.klaxon.JsonValue
 import com.beust.klaxon.Klaxon
+import kotlinx.serialization.Serializable
 
 private fun <T> Klaxon.convert(k: kotlin.reflect.KClass<*>, fromJson: (JsonValue) -> T, toJson: (T) -> String, isUnion: Boolean = false) =
     this.converter(
@@ -107,6 +109,8 @@ enum class AgentSdkState(val value: String) {
 /**
  * Schema for transcription-related attributes
  */
+@SuppressLint("UnsafeOptInUsageError")
+@Serializable
 data class TranscriptionAttributes(
     /**
      * The segment id of the transcription

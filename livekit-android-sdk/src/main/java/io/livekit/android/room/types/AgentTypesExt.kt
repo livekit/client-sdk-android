@@ -17,6 +17,13 @@ fun TranscriptionAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
     klaxon.parseFromJsonObject<TranscriptionAttributes>(jsonObject)
 
 fun TranscriptionAttributes.Companion.fromMap(map: Map<String, *>): TranscriptionAttributes {
+    var map = map
+    val transcriptionFinal = map["lk.transcription_final"]
+    if (transcriptionFinal !is Boolean) {
+        map = map.toMutableMap()
+        map["lk.transcription_final"] = transcriptionFinal?.toString()?.toBooleanStrictOrNull()
+    }
     val jsonObject = JsonObject(map)
+
     return fromJsonObject(jsonObject)!!
 }
