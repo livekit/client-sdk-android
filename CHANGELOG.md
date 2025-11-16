@@ -1,5 +1,36 @@
 # client-sdk-android
 
+## 2.22.0
+
+### Minor Changes
+
+- Extract CameraXProvider and expose it. - [#754](https://github.com/livekit/client-sdk-android/pull/754) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+### Patch Changes
+
+- Fix camera lookup to check physicalId - [#792](https://github.com/livekit/client-sdk-android/pull/792) ([@KasemJaffer](https://github.com/KasemJaffer))
+
+## 2.21.1
+
+### Patch Changes
+
+- #721 Fixed publisher negotiation race condition causing ICE timeouts. - [#789](https://github.com/livekit/client-sdk-android/pull/789) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+## 2.21.0
+
+### Minor Changes
+
+- End to end encryption for data channels option - [#762](https://github.com/livekit/client-sdk-android/pull/762) ([@davidliu](https://github.com/davidliu))
+
+  - Added EncryptionType fields to DataReceived events and StreamInfo objects to indicate the
+    encryption status.
+
+- Add TokenSource implementation for use with token servers - [#769](https://github.com/livekit/client-sdk-android/pull/769) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Increase RPC method max roundtrip time to 7s - [#775](https://github.com/livekit/client-sdk-android/pull/775) ([@davidliu](https://github.com/davidliu))
+
 ## 2.20.3
 
 ### Patch Changes

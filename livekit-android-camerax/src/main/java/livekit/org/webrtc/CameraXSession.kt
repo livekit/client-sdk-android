@@ -167,7 +167,12 @@ internal constructor(
 
                 // Select camera by ID
                 val cameraSelector = CameraSelector.Builder()
-                    .addCameraFilter { cameraInfo -> cameraInfo.filter { Camera2CameraInfo.from(it).cameraId == cameraDevice.deviceId } }
+                    .addCameraFilter { cameraInfo ->
+                        cameraInfo.filter {
+                            val cameraId = Camera2CameraInfo.from(it).cameraId
+                            cameraId == cameraDevice.deviceId || cameraId == cameraDevice.physicalId
+                        }
+                    }
                     .build()
 
                 try {
@@ -282,7 +287,10 @@ internal constructor(
     }
 
     private fun obtainCameraConfiguration() {
-        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }.first { it.cameraId == cameraDevice.deviceId }
+        val camera = cameraProvider.availableCameraInfos.map { Camera2CameraInfo.from(it) }
+            .first {
+                it.cameraId == cameraDevice.deviceId || it.cameraId == cameraDevice.physicalId
+            }
 
         cameraOrientation = camera.getCameraCharacteristic(CameraCharacteristics.SENSOR_ORIENTATION) ?: -1
         isCameraFrontFacing = camera.getCameraCharacteristic(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_FRONT

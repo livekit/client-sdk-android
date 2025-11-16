@@ -208,6 +208,12 @@ internal constructor(
      */
     private var configurationLock = Mutex()
 
+    /**
+     * Prevents concurrent publisher negotiations which can cause ICE gathering
+     * race conditions and connection failures.
+     */
+    private val negotiatePublisherMutex = Mutex()
+
     init {
         client.listener = this
     }
@@ -671,7 +677,15 @@ internal constructor(
         hasPublished = true
 
         coroutineScope.launch {
-            publisher?.negotiate?.invoke(getPublisherOfferConstraints())
+            if (negotiatePublisherMutex.tryLock()) {
+                try {
+                    publisher?.negotiate?.invoke(getPublisherOfferConstraints())
+                } finally {
+                    negotiatePublisherMutex.unlock()
+                }
+            } else {
+                LKLog.v { "negotiatePublisher: skipping, negotiation already in progress" }
+            }
         }
     }
 

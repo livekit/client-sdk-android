@@ -1098,6 +1098,9 @@ internal constructor(
         // Maximum amount of time it should ever take for an RPC request to reach the destination, and the ACK to come back
         // This is set to 7 seconds to account for various relay timeouts and retries in LiveKit Cloud that occur in rare cases
         val maxRoundTripLatency = 7.seconds
+        // Minimum allowed effective timeout to ensure the RPC lifecycle always has at least
+        // one second to complete, even after accounting for round-trip latency.
+        val minEffectiveTimeout = 1.seconds
 
         if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
             throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
@@ -1111,13 +1114,14 @@ internal constructor(
         }
 
         val requestId = UUID.randomUUID().toString()
-
+        // Ensure the effective response timeout is not less than 1 second
+        val effectiveTimeout = (responseTimeout - maxRoundTripLatency).coerceAtLeast(minEffectiveTimeout)
         val result = publishRpcRequest(
             destinationIdentity = destinationIdentity,
             requestId = requestId,
             method = method,
             payload = payload,
-            responseTimeout = responseTimeout - maxRoundTripLatency,
+            responseTimeout = effectiveTimeout,
         )
 
         if (result.isFailure) {
@@ -1645,18 +1649,40 @@ internal constructor(
                 }
             }
         }
+
+        // Dispose tracks that were saved for republishing but never got republished.
+        // This happens when reconnection fails after prepareForFullReconnect() was called.
+        val republishesToDispose = republishes?.toList() ?: emptyList()
+        for (pub in republishesToDispose) {
+            val track = pub.track
+            if (track != null) {
+                try {
+                    track.stop()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception stopping republish track:" }
+                }
+
+                try {
+                    track.dispose()
+                } catch (e: Exception) {
+                    LKLog.d(e) { "Exception disposing republish track:" }
+                }
+            }
+        }
+        republishes = null
+
         try {
             defaultAudioTrack?.dispose()
-            defaultAudioTrack = null
         } catch (_: Exception) {
             // Possible double dispose, ignore.
         }
         try {
             defaultVideoTrack?.dispose()
-            defaultVideoTrack = null
         } catch (_: Exception) {
             // Possible double dispose, ignore.
         }
+        defaultAudioTrack = null
+        defaultVideoTrack = null
     }
 
     /**
