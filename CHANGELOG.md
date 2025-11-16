@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.22.1
+
+### Patch Changes
+
+- Fixed camera indicator remaining on after network disconnection by disposing orphaned tracks from failed reconnection attempts (#296) - [#798](https://github.com/livekit/client-sdk-android/pull/798) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
 ## 2.22.0
 
 ### Minor Changes
