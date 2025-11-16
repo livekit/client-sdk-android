@@ -642,7 +642,6 @@ constructor(
                 startPingJob()
                 try {
                     serverVersion = Semver(response.join.serverVersion)
-
                 } catch (t: Throwable) {
                     LKLog.w(t) { "Thrown while trying to parse server version." }
                 }

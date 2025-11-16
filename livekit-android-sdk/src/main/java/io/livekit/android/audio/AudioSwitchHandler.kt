@@ -73,6 +73,7 @@ constructor(private val context: Context) : AudioHandler {
             }
         }
     }
+
     /**
      * Listen to changes in audio focus.
      *
@@ -197,8 +198,6 @@ constructor(private val context: Context) : AudioHandler {
         if (audioSwitch == null) {
             handler?.removeCallbacksAndMessages(null)
             handler?.postAtFrontOfQueue {
-
-
                 val switch =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         AudioSwitch(
