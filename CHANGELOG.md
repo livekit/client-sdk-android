@@ -1,5 +1,29 @@
 # client-sdk-android
 
+## 2.23.0
+
+### Minor Changes
+
+- Change TokenSource.fetch methods to return Result<TokenSourceResponse> to explicitly handle exceptions - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+- Add support for multiple listeners on AudioSwitchHandler - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+- Rename AgentState to AgentSdkState - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+- Deprecate Room.withPreconnectAudio method. - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+  - Set AudioTrackPublishDefaults.preconnect = true on the RoomOptions instead to use the preconnect buffer.
+
+- Expose agentAttributes as a value on Participant - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+- Expose the server info of the currently connected server on Room - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix crash when cleaning up local participant - [#802](https://github.com/livekit/client-sdk-android/pull/802) ([@davidliu](https://github.com/davidliu))
+
+- Fix crash when creating audio track for communication mode workaround - [#805](https://github.com/livekit/client-sdk-android/pull/805) ([@davidliu](https://github.com/davidliu))
+
 ## 2.22.1
 
 ### Patch Changes
