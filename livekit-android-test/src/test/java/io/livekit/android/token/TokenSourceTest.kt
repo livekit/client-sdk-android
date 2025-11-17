@@ -41,7 +41,7 @@ class TokenSourceTest : BaseTest() {
     fun testLiteral() = runTest {
         val source = TokenSource.fromLiteral("https://www.example.com", "token")
 
-        val response = source.fetch()
+        val response = source.fetch().getOrThrow()
 
         assertEquals("https://www.example.com", response.serverUrl)
         assertEquals("token", response.participantToken)
@@ -56,10 +56,10 @@ class TokenSourceTest : BaseTest() {
         val source = TokenSource.fromCustom { options ->
             wasCalled = true
             assertEquals(requestOptions, options)
-            return@fromCustom TokenSourceResponse("https://www.example.com", "token")
+            return@fromCustom Result.success(TokenSourceResponse("https://www.example.com", "token"))
         }
 
-        val response = source.fetch(requestOptions)
+        val response = source.fetch(requestOptions).getOrThrow()
 
         assertTrue(wasCalled)
         assertEquals("https://www.example.com", response.serverUrl)
@@ -94,7 +94,7 @@ class TokenSourceTest : BaseTest() {
             agentMetadata = "agent-metadata",
         )
 
-        val response = source.fetch(options)
+        val response = source.fetch(options).getOrThrow()
         assertEquals("wss://www.example.com", response.serverUrl)
         assertEquals("token", response.participantToken)
         assertEquals("participant-name", response.participantName)
@@ -140,7 +140,7 @@ class TokenSourceTest : BaseTest() {
 
         val source = TokenSource.fromEndpoint(server.url("/").toUrl())
 
-        val response = source.fetch()
+        val response = source.fetch().getOrThrow()
         assertEquals("wss://www.example.com", response.serverUrl)
         assertEquals("token", response.participantToken)
         assertEquals("participant-name", response.participantName)
@@ -161,11 +161,27 @@ class TokenSourceTest : BaseTest() {
 
         val source = TokenSource.fromEndpoint(server.url("/").toUrl())
 
-        val response = source.fetch()
+        val response = source.fetch().getOrThrow()
         assertEquals("wss://www.example.com", response.serverUrl)
         assertEquals("token", response.participantToken)
         assertNull(response.participantName)
         assertNull(response.roomName)
+    }
+
+    @Test
+    fun testBadResponseFails() = runTest {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setBody(
+                "",
+            ),
+        )
+
+        val source = TokenSource.fromEndpoint(server.url("/").toUrl())
+
+        val result = source.fetch()
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() != null)
     }
 
     @Ignore("For manual testing only.")
@@ -183,7 +199,7 @@ class TokenSourceTest : BaseTest() {
             agentMetadata = "agent-metadata",
         )
 
-        val response = source.fetch(options)
+        val response = source.fetch(options).getOrThrow()
         println(response)
 
         assertTrue(response.hasValidToken())

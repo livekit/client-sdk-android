@@ -51,5 +51,9 @@ abstract class BaseTest {
         )
     }
 
-    fun runTest(testBody: suspend TestScope.() -> Unit) = coroutineRule.scope.runTest(testBody = testBody)
+    fun runTest(dispatchTimeoutMs: Long = 30_000L, testBody: suspend TestScope.() -> Unit) =
+        coroutineRule.scope.runTest(
+            dispatchTimeoutMs = dispatchTimeoutMs,
+            testBody = testBody
+        )
 }

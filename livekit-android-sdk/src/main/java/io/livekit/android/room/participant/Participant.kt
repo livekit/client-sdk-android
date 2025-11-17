@@ -26,6 +26,8 @@ import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.types.AgentAttributes
+import io.livekit.android.room.types.fromMap
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.diffMapChange
 import io.livekit.android.util.flow
@@ -196,6 +198,20 @@ open class Participant(
         }
     }
         @VisibleForTesting set
+
+    /**
+     * The agent attributes for this participant.
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     *
+     * A [ParticipantEvent.AttributesChanged] event is emitted from [events] whenever
+     * this changes.
+     *
+     * @see io.livekit.android.room.types.AgentAttributes
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var agentAttributes: AgentAttributes by flowDelegate(AgentAttributes())
 
     /**
      * The permissions for this participant.
@@ -420,6 +436,7 @@ open class Participant(
             permissions = ParticipantPermission.fromProto(info.permission)
         }
         attributes = info.attributesMap
+        agentAttributes = AgentAttributes.fromMap(info.attributesMap)
         state = State.fromProto(info.state)
     }
 

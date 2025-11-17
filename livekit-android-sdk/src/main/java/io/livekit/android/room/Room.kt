@@ -36,6 +36,7 @@ import io.livekit.android.audio.AudioRecordPrewarmer
 import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.audio.AuthedAudioProcessingController
 import io.livekit.android.audio.CommunicationWorkaround
+import io.livekit.android.audio.startPreconnectAudioJob
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.E2EEOptions
@@ -335,6 +336,9 @@ constructor(
     val audioSwitchHandler: AudioSwitchHandler?
         get() = audioHandler as? AudioSwitchHandler
 
+    val serverInfo: ServerInfo?
+        get() = engine.serverInfo
+
     private var sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
@@ -520,9 +524,15 @@ constructor(
             if (options.audio) {
                 val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
                 audioTrack.prewarm()
+                var cancelPreconnect: (() -> Unit)? = null
+
+                if (audioTrackPublishDefaults.preconnect) {
+                    cancelPreconnect = startPreconnectAudioJob(roomScope = coroutineScope)
+                }
                 if (!localParticipant.publishAudioTrack(audioTrack)) {
                     audioTrack.stop()
                     audioTrack.stopPrewarm()
+                    cancelPreconnect?.invoke()
                 }
             }
             ensureActive()

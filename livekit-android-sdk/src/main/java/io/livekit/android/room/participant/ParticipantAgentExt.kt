@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package io.livekit.android.token
+package io.livekit.android.room.participant
 
-internal class LiteralTokenSource(
-    val serverUrl: String,
-    val participantToken: String,
-) : FixedTokenSource {
-    override suspend fun fetch(): Result<TokenSourceResponse> {
-        return Result.success(TokenSourceResponse(serverUrl, participantToken))
-    }
-}
+val Participant.isAgent
+    get() = kind == Participant.Kind.AGENT
+
+val Participant.agentState
+    get() = agentAttributes.lkAgentState

@@ -26,8 +26,11 @@ import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.test.mock.dagger.TestCoroutinesModule
 import io.livekit.android.test.mock.dagger.TestLiveKitComponent
+import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
@@ -74,17 +77,26 @@ abstract class MockE2ETest : BaseTest() {
         connectPeerConnection()
     }
 
-    suspend fun connectSignal(joinResponse: LivekitRtc.SignalResponse) {
+    suspend fun connectSignal(joinResponse: LivekitRtc.SignalResponse = TestData.JOIN) {
         val job = coroutineRule.scope.launch {
             room.connect(
                 url = TestData.EXAMPLE_URL,
                 token = "token",
             )
         }
+        prepareSignal(joinResponse)
+        job.join()
+    }
+
+    suspend fun prepareSignal(joinResponse: LivekitRtc.SignalResponse = TestData.JOIN) {
+        room::state.flow
+            .takeWhile {
+                println("prepare signal state = $it")
+                it != Room.State.CONNECTING
+            }
+            .collect()
         wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
         simulateMessageFromServer(joinResponse)
-
-        job.join()
     }
 
     fun getSubscriberPeerConnection() =

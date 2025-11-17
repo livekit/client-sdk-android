@@ -85,6 +85,7 @@ constructor(
     private var isReconnecting: Boolean = false
     var listener: Listener? = null
     internal var serverVersion: Semver? = null
+    internal var serverInfo: ServerInfo? = null
     private var lastUrl: String? = null
     private var lastOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
@@ -644,6 +645,10 @@ constructor(
                 } catch (t: Throwable) {
                     LKLog.w(t) { "Thrown while trying to parse server version." }
                 }
+                serverInfo = ServerInfo(
+                    edition = ServerInfo.Edition.fromProto(response.join.serverInfo.edition),
+                    version = serverVersion
+                )
                 joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
@@ -863,6 +868,7 @@ constructor(
         lastOptions = null
         lastRoomOptions = null
         serverVersion = null
+        serverInfo = null
     }
 
     interface Listener {
@@ -949,4 +955,26 @@ enum class ProtocolVersion(val value: Int) {
 
     // new leave request handling
     v13(13),
+}
+
+class ServerInfo(
+    val edition: Edition,
+    val version: Semver?,
+) {
+    enum class Edition {
+        STANDARD,
+        CLOUD,
+        UNKNOWN
+        ;
+
+        companion object {
+            fun fromProto(proto: LivekitModels.ServerInfo.Edition): Edition {
+                return when (proto) {
+                    LivekitModels.ServerInfo.Edition.Standard -> STANDARD
+                    LivekitModels.ServerInfo.Edition.Cloud -> CLOUD
+                    LivekitModels.ServerInfo.Edition.UNRECOGNIZED -> UNKNOWN
+                }
+            }
+        }
+    }
 }

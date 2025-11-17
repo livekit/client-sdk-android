@@ -27,9 +27,12 @@ import io.livekit.android.room.datastream.StreamBytesOptions
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
@@ -195,8 +198,8 @@ internal constructor(timeout: Duration) : AudioTrackSink {
  * use with LiveKit Agents.
  * @param onError The error handler to call when an error occurs while sending the audio buffer.
  * @param operation The connection lambda to call with the pre-connect audio.
- *
  */
+@Deprecated("Set AudioTrackPublishDefaults.preconnect = true on the RoomOptions instead.")
 suspend fun <T> Room.withPreconnectAudio(
     timeout: Duration = TIMEOUT,
     topic: String = DEFAULT_TOPIC,
@@ -297,4 +300,105 @@ suspend fun <T> Room.withPreconnectAudio(
     }
 
     return@coroutineScope retValue
+}
+
+internal suspend fun Room.startPreconnectAudioJob(
+    roomScope: CoroutineScope,
+    timeout: Duration = TIMEOUT,
+    topic: String = DEFAULT_TOPIC
+): () -> Unit {
+    isPrerecording = true
+    val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
+    val preconnectAudioBuffer = PreconnectAudioBuffer(timeout)
+
+    LKLog.v { "Starting preconnect audio buffer" }
+    preconnectAudioBuffer.startRecording()
+    audioTrack.addSink(preconnectAudioBuffer)
+    audioTrack.prewarm()
+
+    val jobs = mutableListOf<Job>()
+    fun stopRecording() {
+        if (!isPrerecording) {
+            return
+        }
+
+        LKLog.v { "Stopping preconnect audio buffer" }
+        audioTrack.removeSink(preconnectAudioBuffer)
+        preconnectAudioBuffer.stopRecording()
+        isPrerecording = false
+    }
+
+    // Clear the preconnect audio buffer after the timeout to free memory.
+    roomScope.launch {
+        delay(TIMEOUT)
+        preconnectAudioBuffer.clear()
+    }
+
+    val sentIdentities = mutableSetOf<Participant.Identity>()
+    roomScope.launch {
+        suspend fun handleSendIfNeeded(participant: Participant) {
+            coroutineScope inner@{
+                engine::connectionState.flow
+                    .takeWhile { it != ConnectionState.CONNECTED }
+                    .collect()
+
+                ensureActive()
+                val kind = participant.kind
+                val state = participant.state
+                val identity = participant.identity
+                if (sentIdentities.contains(identity) || kind != Participant.Kind.AGENT || state != Participant.State.ACTIVE || identity == null) {
+                    return@inner
+                }
+
+                stopRecording()
+                launch {
+                    try {
+                        preconnectAudioBuffer.sendAudioData(
+                            room = this@startPreconnectAudioJob,
+                            trackSid = audioTrack.sid,
+                            agentIdentities = listOf(identity),
+                            topic = topic,
+                        )
+                        sentIdentities.add(identity)
+                    } catch (e: Exception) {
+                        LKLog.w(e) { "Error occurred while sending the audio preconnect data." }
+                    }
+                }
+            }
+        }
+
+        events.collect { event ->
+            when (event) {
+                is RoomEvent.LocalTrackSubscribed -> {
+                    LKLog.i { "Local audio track has been subscribed to, stopping preconnect audio recording." }
+                    stopRecording()
+                }
+
+                is RoomEvent.ParticipantConnected -> {
+                    // agents may connect with ACTIVE state and not trigger a participant state changed.
+                    handleSendIfNeeded(event.participant)
+                }
+
+                is RoomEvent.ParticipantStateChanged -> {
+                    handleSendIfNeeded(event.participant)
+                }
+
+                is RoomEvent.Disconnected -> {
+                    cancel()
+                }
+
+                else -> {
+                    // Intentionally blank.
+                }
+            }
+        }
+    }
+
+    return cancelPrerecord@{
+        if (!isPrerecording) {
+            return@cancelPrerecord
+        }
+        jobs.forEach { it.cancel() }
+        preconnectAudioBuffer.clear()
+    }
 }
