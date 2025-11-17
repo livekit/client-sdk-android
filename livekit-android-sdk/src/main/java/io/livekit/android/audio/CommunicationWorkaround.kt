@@ -17,6 +17,8 @@
 package io.livekit.android.audio
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Context.AUDIO_SERVICE
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -83,8 +85,9 @@ constructor() : CommunicationWorkaround {
 internal class CommunicationWorkaroundImpl
 @Inject
 constructor(
+    private val context: Context,
     @Named(InjectionNames.DISPATCHER_IO)
-    dispatcher: CoroutineDispatcher,
+    private val dispatcher: CoroutineDispatcher,
 ) : CommunicationWorkaround {
 
     private val coroutineScope = CloseableCoroutineScope(dispatcher)
@@ -141,32 +144,51 @@ constructor(
         }
     }
 
-    @SuppressLint("Range")
-    private fun buildAudioTrack(): AudioTrack {
-        val audioSample = ByteBuffer.allocateDirect(getBytesPerSample(AUDIO_FORMAT) * AUDIO_FRAME_PER_BUFFER)
+    private fun String.toIntOrDefault(default: Int): Int {
+        return try {
+            toInt()
+        } catch (e: NumberFormatException) {
+            default
+        }
+    }
 
-        return AudioTrack.Builder()
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AUDIO_FORMAT)
-                    .setSampleRate(SAMPLE_RATE)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build(),
-            )
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build(),
-            )
-            .setBufferSizeInBytes(audioSample.capacity())
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
-            .build()
-            .apply {
-                write(audioSample, audioSample.remaining(), AudioTrack.WRITE_BLOCKING)
-                setLoopPoints(0, AUDIO_FRAME_PER_BUFFER - 1, -1)
-            }
+    @SuppressLint("Range")
+    private fun buildAudioTrack(): AudioTrack? {
+        try {
+            // Get preferred audio output settings
+            val audioManager = context.getSystemService(AUDIO_SERVICE) as AudioManager
+            val sampleRate = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE).toIntOrDefault(SAMPLE_RATE)
+            val framesPerBuffer = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER).toIntOrDefault(AUDIO_FRAME_PER_BUFFER)
+
+            // ByteBuffers are zeroed by default on Android
+            val audioSample = ByteBuffer.allocateDirect(getBytesPerSample(AUDIO_FORMAT) * framesPerBuffer)
+
+            return AudioTrack.Builder()
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AUDIO_FORMAT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build(),
+                )
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build(),
+                )
+                .setBufferSizeInBytes(audioSample.capacity())
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
+                .build()
+                .apply {
+                    write(audioSample, audioSample.remaining(), AudioTrack.WRITE_BLOCKING)
+                    setLoopPoints(0, AUDIO_FRAME_PER_BUFFER - 1, -1)
+                }
+        } catch (e: Exception) {
+            LKLog.w(e) { "Failed to build audio track for communication workaround." }
+            return null
+        }
     }
 
     private fun playAudioTrackIfNeeded() {
@@ -177,6 +199,9 @@ constructor(
         }
 
         val audioTrack = audioTrack ?: buildAudioTrack().also { audioTrack = it }
+        if (audioTrack == null) {
+            return
+        }
         synchronized(audioTrack) {
             if (audioTrack.state == AudioTrack.STATE_INITIALIZED) {
                 audioTrack.play()
