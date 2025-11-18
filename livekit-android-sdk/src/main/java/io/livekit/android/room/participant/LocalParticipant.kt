@@ -129,7 +129,7 @@ internal constructor(
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
-    private val jobs = mutableMapOf<Any, Job>()
+    private val jobs = mutableMapOf<LocalTrackPublication, Job>()
 
     private val rpcHandlers = Collections.synchronizedMap(mutableMapOf<String, RpcHandler>()) // methodName to handler
     private val pendingAcks = Collections.synchronizedMap(mutableMapOf<String, PendingRpcAck>()) // requestId to pending ack
@@ -940,7 +940,7 @@ internal constructor(
         val publicationJob = jobs[publication]
         if (publicationJob != null) {
             publicationJob.cancel()
-            jobs.remove(publicationJob)
+            jobs.remove(publication)
         }
 
         val sid = publication.sid
