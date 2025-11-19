@@ -17,6 +17,7 @@
 package io.livekit.android.room.types
 
 import android.annotation.SuppressLint
+import androidx.annotation.Keep
 import com.beust.klaxon.Converter
 import com.beust.klaxon.Json
 import com.beust.klaxon.JsonValue
@@ -38,6 +39,7 @@ internal val klaxon = Klaxon()
     .convert(AgentOutput::class, { AgentOutput.fromValue(it.string!!) }, { "\"${it.value}\"" })
     .convert(AgentSdkState::class, { AgentSdkState.fromValue(it.string!!) }, { "\"${it.value}\"" })
 
+@Keep
 data class AgentAttributes(
     @Json(name = "lk.agent.inputs")
     val lkAgentInputs: List<AgentInput>? = null,
@@ -58,6 +60,7 @@ data class AgentAttributes(
     }
 }
 
+@Keep
 enum class AgentInput(val value: String) {
     Audio("audio"),
     Text("text"),
@@ -73,6 +76,7 @@ enum class AgentInput(val value: String) {
     }
 }
 
+@Keep
 enum class AgentOutput(val value: String) {
     Audio("audio"),
     Transcription("transcription");
@@ -87,6 +91,7 @@ enum class AgentOutput(val value: String) {
 }
 
 // Renamed from AgentState to AgentSdkState to avoid naming conflicts elsewhere.
+@Keep
 enum class AgentSdkState(val value: String) {
     Idle("idle"),
     Initializing("initializing"),
@@ -109,6 +114,7 @@ enum class AgentSdkState(val value: String) {
 /**
  * Schema for transcription-related attributes
  */
+@Keep
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class TranscriptionAttributes(

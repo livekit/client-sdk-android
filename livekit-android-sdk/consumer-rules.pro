@@ -39,3 +39,11 @@
 # Protobuf
 #########################################
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+
+# Klaxon JSON parsing
+#########################################
+# Klaxon uses reflection and doesn't ship ProGuard rules.
+# Keep Klaxon library classes for reflection to work
+-keep class com.beust.klaxon.** { *; }
+-keep interface com.beust.klaxon.** { *; }
+# Data classes using Klaxon should be annotated with @Keep at the source level
