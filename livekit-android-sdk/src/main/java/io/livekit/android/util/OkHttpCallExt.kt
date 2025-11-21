@@ -21,8 +21,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
-import okhttp3.internal.closeQuietly
 import okio.IOException
+import java.io.Closeable
 import kotlin.coroutines.resumeWithException
 
 // TODO: Switch to official executeAsync when released.
@@ -52,3 +52,12 @@ suspend fun Call.executeAsync(): Response =
             },
         )
     }
+
+fun Closeable.closeQuietly() {
+    try {
+        close()
+    } catch (rethrown: RuntimeException) {
+        throw rethrown
+    } catch (_: Exception) {
+    }
+}
