@@ -994,12 +994,12 @@ internal constructor(
 
     // ---------------------------------- SignalClient.Listener --------------------------------------//
 
-    override fun onAnswer(sessionDescription: SessionDescription) {
+    override fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int) {
         val signalingState = runBlocking { publisher?.signalingState() }
         LKLog.v { "received server answer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
             LKLog.i { sessionDescription.toString() }
-            when (val outcome = publisher?.setRemoteDescription(sessionDescription).nullSafe()) {
+            when (val outcome = publisher?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {
                 is Either.Left -> {
                     // do nothing.
                 }
@@ -1011,14 +1011,14 @@ internal constructor(
         }
     }
 
-    override fun onOffer(sessionDescription: SessionDescription) {
+    override fun onServerOffer(sessionDescription: SessionDescription, offerId: Int) {
         val signalingState = runBlocking { publisher?.signalingState() }
         LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
         coroutineScope.launch {
             run {
-                when (val outcome = subscriber?.setRemoteDescription(sessionDescription).nullSafe()) {
+                when (val outcome = subscriber?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {
                     is Either.Right -> {
-                        LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                        LKLog.e { "error setting remote description for offer: ${outcome.value} " }
                         return@launch
                     }
 
@@ -1057,7 +1057,7 @@ internal constructor(
             if (isClosed) {
                 return@launch
             }
-            client.sendAnswer(answer)
+            client.sendAnswer(answer, offerId)
         }
     }
 

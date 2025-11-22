@@ -177,7 +177,10 @@ class SignalClientTest : BaseTest() {
         job.await()
         client.onReadyForResponses()
         Mockito.verify(listener)
-            .onOffer(argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp })
+            .onServerOffer(
+                sessionDescription = argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp },
+                offerId = argThat { id -> id == OFFER.offer.id },
+            )
     }
 
     /**
@@ -216,7 +219,10 @@ class SignalClientTest : BaseTest() {
 
         client.onReadyForResponses()
 
-        inOrder.verify(listener).onOffer(any())
+        inOrder.verify(listener).onServerOffer(
+            sessionDescription = argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp },
+            offerId = argThat { id -> id == OFFER.offer.id },
+        )
         inOrder.verify(listener, times(2)).onRoomUpdate(any())
     }
 

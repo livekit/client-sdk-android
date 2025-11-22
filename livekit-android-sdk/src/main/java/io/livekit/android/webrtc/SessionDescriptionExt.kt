@@ -19,10 +19,18 @@ package io.livekit.android.webrtc
 import livekit.LivekitRtc
 import livekit.org.webrtc.SessionDescription
 
-internal fun SessionDescription.toProtoSessionDescription(): LivekitRtc.SessionDescription {
-    val sdBuilder = LivekitRtc.SessionDescription.newBuilder()
-    sdBuilder.sdp = description
-    sdBuilder.type = type.canonicalForm()
+internal fun SessionDescription.toProtoSessionDescription(offerId: Int? = null): LivekitRtc.SessionDescription {
+    val protoSd = with(LivekitRtc.SessionDescription.newBuilder()) {
+        sdp = description
+        type = this@toProtoSessionDescription.type.canonicalForm()
+        if (offerId != null) {
+            id = offerId
+        } else {
+            clearId()
+        }
+        build()
+    }
 
-    return sdBuilder.build()
+
+    return protoSd
 }

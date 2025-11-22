@@ -54,6 +54,7 @@ import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.SessionDescription
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Named
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -92,8 +93,10 @@ constructor(
     private var trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
     private var isClosed = AtomicBoolean(false)
 
+    private val latestOfferId = AtomicInteger(0)
+
     interface Listener {
-        fun onOffer(sd: SessionDescription)
+        fun onOffer(sd: SessionDescription, offerId: Int)
     }
 
     fun addIceCandidate(candidate: IceCandidate) {
@@ -112,7 +115,11 @@ constructor(
         }
     }
 
-    suspend fun setRemoteDescription(sd: SessionDescription): Either<Unit, String?> {
+    suspend fun setRemoteDescription(sd: SessionDescription, offerId: Int): Either<Unit, String?> {
+        val currentOfferId = latestOfferId.get()
+        if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
+            return Either.Right("Old offer, ignoring.")
+        }
         val result = launchRTCIfNotClosed {
             val result = peerConnection.setRemoteDescription(sd)
             if (result is Either.Left) {
@@ -146,10 +153,16 @@ constructor(
             return
         }
 
+        var offerId = 0
         var finalSdp: SessionDescription? = null
 
         // TODO: This is a potentially long lock hold. May need to break up.
         launchRTCIfNotClosed {
+            // increase the offer id at the start to ensure the offer is always > 0
+            // so that we can use 0 as a default value for legacy behavior
+            // this may skip some ids, but is not an issue.
+            offerId = latestOfferId.incrementAndGet()
+
             val iceRestart =
                 constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
             if (iceRestart) {
@@ -200,8 +213,14 @@ constructor(
             }
             finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
         }
+
+        val currentOfferId = latestOfferId.get()
+        if (currentOfferId > offerId) {
+            LKLog.i { "latestOfferId mismatch, expected: $currentOfferId, actual: $offerId" }
+            return
+        }
         if (finalSdp != null) {
-            listener.onOffer(finalSdp!!)
+            listener.onOffer(finalSdp!!, offerId)
         }
     }
 

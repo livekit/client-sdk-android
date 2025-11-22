@@ -18,16 +18,20 @@ package io.livekit.android.room
 
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.events.FlowCollector
+import io.livekit.android.test.mock.MockPeerConnection
+import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.util.toPBByteString
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -81,10 +85,204 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         val subPeerConnection = getSubscriberPeerConnection()
         val localAnswer = subPeerConnection.localDescription ?: throw IllegalStateException("no answer was created.")
-        Assert.assertTrue(sentRequest.hasAnswer())
+        assertTrue(sentRequest.hasAnswer())
         assertEquals(localAnswer.description, sentRequest.answer.sdp)
         assertEquals(localAnswer.type.canonicalForm(), sentRequest.answer.type)
         assertEquals(ConnectionState.CONNECTED, rtcEngine.connectionState)
+        assertEquals(TestData.OFFER.offer.id, sentRequest.answer.id) // Offer id must match answer id
+    }
+
+    @Test
+    fun icePublisherConnect() = runTest {
+        connect()
+
+        val ws = wsFactory.ws
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+
+        ws.clearRequests()
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+
+        assertEquals(1, ws.sentRequests.size)
+        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(ws.sentRequests[0].toPBByteString())
+            .build()
+
+        assertTrue(sentRequest.hasOffer())
+
+        assertEquals("local_offer", sentRequest.offer.sdp)
+        assertEquals("offer", sentRequest.offer.type)
+        assertEquals(1, sentRequest.offer.id) // Offer id must match answer id
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        assertEquals(PeerConnection.PeerConnectionState.CONNECTED, publisher.connectionState())
+    }
+
+    @Test
+    fun multiplePublisherOffersIncrementsIds() = runTest {
+        connect()
+
+        val ws = wsFactory.ws
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+
+        for (i in 1..3) {
+            ws.clearRequests()
+            publisher.observer?.onRenegotiationNeeded()
+            advanceUntilIdle()
+
+            assertEquals(1, ws.sentRequests.size)
+            val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                .mergeFrom(ws.sentRequests[0].toPBByteString())
+                .build()
+
+            assertTrue(sentRequest.hasOffer())
+
+            assertEquals("local_offer", sentRequest.offer.sdp)
+            assertEquals("offer", sentRequest.offer.type)
+            assertEquals(i, sentRequest.offer.id) // Offer id must match answer id
+            assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+            assertEquals(PeerConnection.PeerConnectionState.CONNECTED, publisher.connectionState())
+        }
+    }
+
+    @Test
+    fun offerIdMismatchIsIgnored() = runTest {
+        connect()
+
+        val goodHandler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+        wsFactory.registerSignalRequestHandler(goodHandler)
+
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        wsFactory.unregisterSignalRequestHandler(goodHandler)
+
+        val oldIdHandler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = 1
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+        wsFactory.registerSignalRequestHandler(oldIdHandler)
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+
+        // Answer with old id must be ignored
+        assertEquals(PeerConnection.SignalingState.HAVE_LOCAL_OFFER, publisher.signalingState())
+        wsFactory.unregisterSignalRequestHandler(goodHandler)
+
+    }
+
+    @Test
+    fun offerIdMismatchButZeroIsAccepted() = runTest {
+        connect()
+
+        val goodHandler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+        wsFactory.registerSignalRequestHandler(goodHandler)
+
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        wsFactory.unregisterSignalRequestHandler(goodHandler)
+
+        val oldIdHandler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = 0
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+        wsFactory.registerSignalRequestHandler(oldIdHandler)
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+
+        // Answer with zero id must be accepted
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        wsFactory.unregisterSignalRequestHandler(goodHandler)
     }
 
     @Test
