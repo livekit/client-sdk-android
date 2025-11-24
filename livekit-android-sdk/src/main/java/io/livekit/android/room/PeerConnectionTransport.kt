@@ -152,7 +152,6 @@ constructor(
 
     private val offerLock = Mutex()
     private suspend fun createAndSendOffer(constraints: MediaConstraints = MediaConstraints()) {
-
         offerLock.withLock {
             if (listener == null) {
                 return
