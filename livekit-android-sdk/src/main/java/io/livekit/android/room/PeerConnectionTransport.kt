@@ -116,11 +116,11 @@ constructor(
     }
 
     suspend fun setRemoteDescription(sd: SessionDescription, offerId: Int): Either<Unit, String?> {
-        val currentOfferId = latestOfferId.get()
-        if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
-            return Either.Right("Old offer, ignoring.")
-        }
         val result = launchRTCIfNotClosed {
+            val currentOfferId = latestOfferId.get()
+            if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
+                return@launchRTCIfNotClosed Either.Right("Old offer, ignoring.")
+            }
             val result = peerConnection.setRemoteDescription(sd)
             if (result is Either.Left) {
                 pendingCandidates.forEach { pending ->
@@ -129,7 +129,7 @@ constructor(
                 pendingCandidates.clear()
                 restartingIce = false
             }
-            result
+            return@launchRTCIfNotClosed result
         } ?: Either.Right("PCT is closed.")
 
         if (this.renegotiate) {
@@ -216,11 +216,11 @@ constructor(
 
         val currentOfferId = latestOfferId.get()
         if (currentOfferId > offerId) {
-            LKLog.i { "latestOfferId mismatch, expected: $currentOfferId, actual: $offerId" }
+            LKLog.i { "simultaneous offer attempt, current: $currentOfferId, offer attempt: $offerId" }
             return
         }
-        if (finalSdp != null) {
-            listener.onOffer(finalSdp!!, offerId)
+        finalSdp?.let { sdp ->
+            listener.onOffer(sdp, offerId)
         }
     }
 
