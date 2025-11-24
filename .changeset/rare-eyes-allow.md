@@ -2,4 +2,4 @@
 "client-sdk-android": patch
 ---
 
-Drop outdated sdp answers and forward offer ids
+Increase RTC negotiation reliability by dropping outdated sdp answers and forwarding offer ids
