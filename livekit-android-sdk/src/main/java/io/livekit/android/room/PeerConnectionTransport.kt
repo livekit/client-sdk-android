@@ -119,7 +119,7 @@ constructor(
         val result = launchRTCIfNotClosed {
             val currentOfferId = latestOfferId.get()
             if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
-                return@launchRTCIfNotClosed Either.Right("Old offer, ignoring.")
+                return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: $currentOfferId, actual: $offerId")
             }
             val result = peerConnection.setRemoteDescription(sd)
             if (result is Either.Left) {
@@ -153,15 +153,11 @@ constructor(
             return
         }
 
-        var offerId = 0
+        var offerId = -1
         var finalSdp: SessionDescription? = null
 
         // TODO: This is a potentially long lock hold. May need to break up.
         launchRTCIfNotClosed {
-            // increase the offer id at the start to ensure the offer is always > 0
-            // so that we can use 0 as a default value for legacy behavior
-            // this may skip some ids, but is not an issue.
-            offerId = latestOfferId.incrementAndGet()
 
             val iceRestart =
                 constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
@@ -185,6 +181,12 @@ constructor(
             }
 
             // actually negotiate
+
+            // increase the offer id at the start to ensure the offer is always > 0
+            // so that we can use 0 as a default value for legacy behavior
+            // this may skip some ids, but is not an issue.
+            offerId = latestOfferId.incrementAndGet()
+
             val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
                 is Either.Left -> outcome.value
                 is Either.Right -> {
@@ -214,12 +216,16 @@ constructor(
             finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
         }
 
-        val currentOfferId = latestOfferId.get()
-        if (currentOfferId > offerId) {
-            LKLog.i { "simultaneous offer attempt, current: $currentOfferId, offer attempt: $offerId" }
-            return
-        }
         finalSdp?.let { sdp ->
+            val currentOfferId = latestOfferId.get()
+            if (offerId < 0) {
+                LKLog.w { "createAndSendOffer: invalid offer id?" }
+                return
+            }
+            if (currentOfferId > offerId) {
+                LKLog.i { "createAndSendOffer: simultaneous offer attempt? current: $currentOfferId, offer attempt: $offerId" }
+                return
+            }
             listener.onOffer(sdp, offerId)
         }
     }
