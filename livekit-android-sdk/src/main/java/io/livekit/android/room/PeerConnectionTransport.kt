@@ -158,7 +158,6 @@ constructor(
 
         // TODO: This is a potentially long lock hold. May need to break up.
         launchRTCIfNotClosed {
-
             val iceRestart =
                 constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
             if (iceRestart) {
