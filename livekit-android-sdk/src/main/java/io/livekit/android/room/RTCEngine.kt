@@ -150,8 +150,12 @@ internal constructor(
             }
         }
     }
+
+    @Volatile
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
     private var reconnectingJob: Job? = null
+
+    @Volatile
     private var fullReconnectOnNext = false
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
@@ -192,6 +196,8 @@ internal constructor(
     private val reliableReceivedState = TTLMap<String, Int>(RELIABLE_RECEIVE_STATE_TTL_MS)
 
     private var isSubscriberPrimary = false
+
+    @Volatile
     private var isClosed = true
 
     private var hasPublished = false
@@ -1324,11 +1330,13 @@ internal constructor(
                     .build()
             }
 
-        val dataChannelReceiveStates = this.reliableReceivedState.map { (participantSid, sequence) ->
-            with(LivekitRtc.DataChannelReceiveState.newBuilder()) {
-                publisherSid = participantSid
-                lastSeq = sequence
-                build()
+        val dataChannelReceiveStates = synchronized(reliableStateLock) {
+            this.reliableReceivedState.map { (participantSid, sequence) ->
+                with(LivekitRtc.DataChannelReceiveState.newBuilder()) {
+                    publisherSid = participantSid
+                    lastSeq = sequence
+                    build()
+                }
             }
         }
 
