@@ -229,7 +229,6 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         // Answer with old id must be ignored
         assertEquals(PeerConnection.SignalingState.HAVE_LOCAL_OFFER, publisher.signalingState())
         wsFactory.unregisterSignalRequestHandler(goodHandler)
-
     }
 
     @Test

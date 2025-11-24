@@ -115,7 +115,7 @@ object TestData {
         join = with(LivekitRtc.JoinResponse.newBuilder()) {
 
             addAllEnabledPublishCodecs(ENABLED_CODECS)
-            //fastPublish = true
+            // fastPublish = true
 
             room = with(LivekitModels.Room.newBuilder()) {
                 name = "roomname"
