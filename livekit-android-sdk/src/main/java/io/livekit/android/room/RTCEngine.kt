@@ -995,10 +995,8 @@ internal constructor(
     // ---------------------------------- SignalClient.Listener --------------------------------------//
 
     override fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int) {
-        val signalingState = runBlocking { publisher?.signalingState() }
-        LKLog.v { "received server answer: ${sessionDescription.type}, $signalingState" }
+        LKLog.v { "received server answer: ${sessionDescription.type}, ${runBlocking { publisher?.signalingState() }}" }
         coroutineScope.launch {
-            LKLog.i { sessionDescription.toString() }
             when (val outcome = publisher?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {
                 is Either.Left -> {
                     // do nothing.
@@ -1012,8 +1010,7 @@ internal constructor(
     }
 
     override fun onServerOffer(sessionDescription: SessionDescription, offerId: Int) {
-        val signalingState = runBlocking { publisher?.signalingState() }
-        LKLog.v { "received server offer: ${sessionDescription.type}, $signalingState" }
+        LKLog.v { "received server offer: ${sessionDescription.type}, ${runBlocking { publisher?.signalingState() }}" }
         coroutineScope.launch {
             run {
                 when (val outcome = subscriber?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {
