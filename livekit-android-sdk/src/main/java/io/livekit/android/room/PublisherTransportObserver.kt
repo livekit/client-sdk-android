@@ -63,9 +63,9 @@ internal class PublisherTransportObserver(
         LKLog.v { "onIceConnection new state: $newState" }
     }
 
-    override fun onOffer(sd: SessionDescription) {
+    override fun onOffer(sd: SessionDescription, offerId: Int) {
         executeOnRTCThread(rtcThreadToken) {
-            client.sendOffer(sd)
+            client.sendOffer(sd, offerId)
         }
     }
 

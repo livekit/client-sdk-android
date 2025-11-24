@@ -22,6 +22,11 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
 
     var observer: Observer? = null
     var sentBuffers = mutableListOf<Buffer>()
+
+    fun clearSentBuffers() {
+        sentBuffers.clear()
+    }
+
     override fun registerObserver(observer: Observer?) {
         this.observer = observer
     }

@@ -66,6 +66,8 @@ object TestData {
             recorder = false
             build()
         }
+        joinedAt = 0
+        joinedAtMs = 0
         putAttributes("attribute", "value")
         build()
     }
@@ -95,26 +97,53 @@ object TestData {
         build()
     }
 
+    val ENABLED_CODECS = listOf(
+        codecForMime("video/VP8"),
+        codecForMime("video/VP9"),
+        codecForMime("video/H264"),
+        codecForMime("video/AV1"),
+        codecForMime("video/H265"),
+        codecForMime("audio/red"),
+        codecForMime("audio/opus"),
+        codecForMime("audio/PCMU"),
+        codecForMime("audio/PCMA"),
+    )
     // Signal Responses
     // /////////////////////////////////
 
     val JOIN = with(LivekitRtc.SignalResponse.newBuilder()) {
         join = with(LivekitRtc.JoinResponse.newBuilder()) {
+
+            addAllEnabledPublishCodecs(ENABLED_CODECS)
+            // fastPublish = true
+
             room = with(LivekitModels.Room.newBuilder()) {
                 name = "roomname"
+                creationTime = 0
+                creationTimeMs = 0
+                departureTimeout = 20
+                emptyTimeout = 300
+                addAllEnabledCodecs(ENABLED_CODECS)
                 build()
             }
             participant = LOCAL_PARTICIPANT
             subscriberPrimary = true
             addIceServers(
                 with(LivekitRtc.ICEServer.newBuilder()) {
-                    addUrls("stun:stun.join.com:19302")
+                    addUrls("stun:stun.example.com:19302")
                     username = "username"
                     credential = "credential"
                     build()
                 },
             )
-            serverVersion = "1.8.0"
+            serverInfo = with(LivekitModels.ServerInfo.newBuilder()) {
+                edition = LivekitModels.ServerInfo.Edition.Cloud
+                protocol = 16
+                region = "Earth"
+                version = "1.9.3"
+                build()
+            }
+            serverVersion = "1.9.3"
             build()
         }
         build()
@@ -144,6 +173,7 @@ object TestData {
         offer = with(LivekitRtc.SessionDescription.newBuilder()) {
             sdp = "remote_offer"
             type = "offer"
+            id = 99
             build()
         }
         build()
@@ -362,4 +392,9 @@ object TestData {
         }
         build()
     }
+}
+
+private fun codecForMime(mime: String, fmtpLine: String? = null) = with(LivekitModels.Codec.newBuilder()) {
+    setMime(mime)
+    build()
 }

@@ -50,14 +50,40 @@ class MockPeerConnection(
     private val transceivers = mutableListOf<RtpTransceiver>()
     override fun getLocalDescription(): SessionDescription? = localDesc
     override fun setLocalDescription(observer: SdpObserver?, sdp: SessionDescription?) {
+        if (sdp?.description?.isEmpty() == true) {
+            observer?.onSetFailure("empty local description")
+            return
+        }
+
+        // https://w3c.github.io/webrtc-pc/#fig-non-normative-signaling-state-transitions-diagram-method-calls-abbreviated
+        if (signalingState() == SignalingState.STABLE) {
+            remoteDesc = null
+        }
         localDesc = sdp
         observer?.onSetSuccess()
+
+        if (signalingState() == SignalingState.STABLE) {
+            moveToIceConnectionState(IceConnectionState.CONNECTED)
+        }
     }
 
     override fun getRemoteDescription(): SessionDescription? = remoteDesc
     override fun setRemoteDescription(observer: SdpObserver?, sdp: SessionDescription?) {
+        if (sdp?.description?.isEmpty() == true) {
+            observer?.onSetFailure("empty remote description")
+            return
+        }
+
+        // https://w3c.github.io/webrtc-pc/#fig-non-normative-signaling-state-transitions-diagram-method-calls-abbreviated
+        if (signalingState() == SignalingState.STABLE) {
+            localDesc = null
+        }
         remoteDesc = sdp
         observer?.onSetSuccess()
+
+        if (signalingState() == SignalingState.STABLE) {
+            moveToIceConnectionState(IceConnectionState.CONNECTED)
+        }
     }
 
     override fun getCertificate(): RtcCertificatePem? {

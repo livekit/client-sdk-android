@@ -377,8 +377,8 @@ constructor(
         return SessionDescription(rtcSdpType, sd.sdp)
     }
 
-    fun sendOffer(offer: SessionDescription) {
-        val sd = offer.toProtoSessionDescription()
+    fun sendOffer(offer: SessionDescription, offerId: Int) {
+        val sd = offer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
             .build()
@@ -386,8 +386,8 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendAnswer(answer: SessionDescription) {
-        val sd = answer.toProtoSessionDescription()
+    fun sendAnswer(answer: SessionDescription, offerId: Int) {
+        val sd = answer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)
             .build()
@@ -688,12 +688,14 @@ constructor(
         when (response.messageCase) {
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
-                listener?.onAnswer(sd)
+                val offerId = response.answer.id
+                listener?.onServerAnswer(sd, offerId)
             }
 
             LivekitRtc.SignalResponse.MessageCase.OFFER -> {
                 val sd = fromProtoSessionDescription(response.offer)
-                listener?.onOffer(sd)
+                val offerId = response.offer.id
+                listener?.onServerOffer(sd, offerId)
             }
 
             LivekitRtc.SignalResponse.MessageCase.TRICKLE -> {
@@ -872,8 +874,8 @@ constructor(
     }
 
     interface Listener {
-        fun onAnswer(sessionDescription: SessionDescription)
-        fun onOffer(sessionDescription: SessionDescription)
+        fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int)
+        fun onServerOffer(sessionDescription: SessionDescription, offerId: Int)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
         fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
         fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
