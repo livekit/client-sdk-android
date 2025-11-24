@@ -295,6 +295,7 @@ internal constructor(
                     publisherObserver,
                     publisherObserver,
                 )
+                LKLog.e { "publisher signal state: ${publisher?.peerConnection?.signalingState()}" }
                 subscriber?.close()
                 subscriber = pctFactory.create(
                     rtcConfig,
@@ -686,14 +687,8 @@ internal constructor(
         }
 
         coroutineScope.launch {
-            if (negotiatePublisherMutex.tryLock()) {
-                try {
-                    publisher?.negotiate?.invoke(getPublisherOfferConstraints())
-                } finally {
-                    negotiatePublisherMutex.unlock()
-                }
-            } else {
-                LKLog.v { "negotiatePublisher: skipping, negotiation already in progress" }
+            negotiatePublisherMutex.withLock {
+                publisher?.negotiate?.invoke(getPublisherOfferConstraints())
             }
         }
     }
