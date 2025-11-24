@@ -47,20 +47,27 @@ class MockPeerConnection(
     var localDesc: SessionDescription? = null
     var remoteDesc: SessionDescription? = null
 
+    private val signalStateMachine = SignalStateMachine { newState ->
+        observer?.onSignalingChange(newState)
+    }
+
     private val transceivers = mutableListOf<RtpTransceiver>()
+
     override fun getLocalDescription(): SessionDescription? = localDesc
-    override fun setLocalDescription(observer: SdpObserver?, sdp: SessionDescription?) {
-        if (sdp?.description?.isEmpty() == true) {
-            observer?.onSetFailure("empty local description")
+    override fun setLocalDescription(observer: SdpObserver, sdp: SessionDescription) {
+        if (sdp.description.isEmpty()) {
+            observer.onSetFailure("empty local description")
             return
         }
 
-        // https://w3c.github.io/webrtc-pc/#fig-non-normative-signaling-state-transitions-diagram-method-calls-abbreviated
-        if (signalingState() == SignalingState.STABLE) {
-            remoteDesc = null
+        try {
+            signalStateMachine.handleSetMethod(Location.LOCAL, sdp.type)
+        } catch (e: IllegalStateException) {
+            observer.onSetFailure(e.message)
         }
+
         localDesc = sdp
-        observer?.onSetSuccess()
+        observer.onSetSuccess()
 
         if (signalingState() == SignalingState.STABLE) {
             moveToIceConnectionState(IceConnectionState.CONNECTED)
@@ -68,18 +75,20 @@ class MockPeerConnection(
     }
 
     override fun getRemoteDescription(): SessionDescription? = remoteDesc
-    override fun setRemoteDescription(observer: SdpObserver?, sdp: SessionDescription?) {
-        if (sdp?.description?.isEmpty() == true) {
-            observer?.onSetFailure("empty remote description")
+    override fun setRemoteDescription(observer: SdpObserver, sdp: SessionDescription) {
+        if (sdp.description.isEmpty()) {
+            observer.onSetFailure("empty remote description")
             return
         }
 
-        // https://w3c.github.io/webrtc-pc/#fig-non-normative-signaling-state-transitions-diagram-method-calls-abbreviated
-        if (signalingState() == SignalingState.STABLE) {
-            localDesc = null
+        try {
+            signalStateMachine.handleSetMethod(Location.REMOTE, sdp.type)
+        } catch (e: IllegalStateException) {
+            observer.onSetFailure(e.message)
         }
+
         remoteDesc = sdp
-        observer?.onSetSuccess()
+        observer.onSetSuccess()
 
         if (signalingState() == SignalingState.STABLE) {
             moveToIceConnectionState(IceConnectionState.CONNECTED)
@@ -211,29 +220,7 @@ class MockPeerConnection(
     override fun stopRtcEventLog() {
     }
 
-    override fun signalingState(): SignalingState {
-        if (closed) {
-            return SignalingState.CLOSED
-        }
-
-        if ((localDesc?.type == null && remoteDesc?.type == null) ||
-            (localDesc?.type == SessionDescription.Type.OFFER &&
-                remoteDesc?.type == SessionDescription.Type.ANSWER) ||
-            (localDesc?.type == SessionDescription.Type.ANSWER &&
-                remoteDesc?.type == SessionDescription.Type.OFFER)
-        ) {
-            return SignalingState.STABLE
-        }
-
-        if (localDesc?.type == SessionDescription.Type.OFFER && remoteDesc?.type == null) {
-            return SignalingState.HAVE_LOCAL_OFFER
-        }
-        if (remoteDesc?.type == SessionDescription.Type.OFFER && localDesc?.type == null) {
-            return SignalingState.HAVE_REMOTE_OFFER
-        }
-
-        throw IllegalStateException("Illegal signalling state? localDesc: $localDesc, remoteDesc: $remoteDesc")
-    }
+    override fun signalingState(): SignalingState = signalStateMachine.state
 
     private var iceConnectionState = IceConnectionState.NEW
         set(value) {
@@ -312,10 +299,88 @@ class MockPeerConnection(
     override fun dispose() {
         iceConnectionState = IceConnectionState.CLOSED
         closed = true
+        signalStateMachine.close()
 
         transceivers.forEach { t -> t.dispose() }
         transceivers.clear()
     }
 
     override fun getNativePeerConnection(): Long = 0L
+}
+
+
+private class SignalStateMachine(
+    var changeListener: ((PeerConnection.SignalingState) -> Unit)? = null,
+) {
+    var state = PeerConnection.SignalingState.STABLE
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed) {
+                changeListener?.invoke(field)
+            }
+        }
+
+    /**
+     * Throws if would go to invalid state.
+     *
+     * Does not handle PRANSWER or ROLLBACK.
+     *
+     * State machine as shown here:
+     * https://w3c.github.io/webrtc-pc/#fig-non-normative-signaling-state-transitions-diagram-method-calls-abbreviated
+     */
+    @Throws(IllegalStateException::class)
+    fun handleSetMethod(location: Location, type: SessionDescription.Type) {
+
+        fun throwException() {
+            throw IllegalStateException("Illegal set of $location with $type on signal state $state")
+        }
+        when (state) {
+            PeerConnection.SignalingState.STABLE -> {
+                // Can only accept offers from stable
+                if (type != SessionDescription.Type.OFFER) {
+                    throwException()
+                }
+                state = when (location) {
+                    Location.LOCAL -> PeerConnection.SignalingState.HAVE_LOCAL_OFFER
+                    Location.REMOTE -> PeerConnection.SignalingState.HAVE_REMOTE_OFFER
+                }
+            }
+
+            PeerConnection.SignalingState.HAVE_LOCAL_OFFER -> {
+                if (location == Location.LOCAL && type == SessionDescription.Type.OFFER) {
+                    // legal, does not change state.
+                } else if (location == Location.REMOTE && type == SessionDescription.Type.ANSWER) {
+                    state = PeerConnection.SignalingState.STABLE
+                } else {
+                    throwException()
+                }
+            }
+
+            PeerConnection.SignalingState.HAVE_REMOTE_OFFER -> {
+                if (location == Location.REMOTE && type == SessionDescription.Type.OFFER) {
+                    // legal, does not change state.
+                } else if (location == Location.LOCAL && type == SessionDescription.Type.ANSWER) {
+                    state = PeerConnection.SignalingState.STABLE
+                } else {
+                    throwException()
+                }
+            }
+
+            PeerConnection.SignalingState.HAVE_LOCAL_PRANSWER -> TODO()
+            PeerConnection.SignalingState.HAVE_REMOTE_PRANSWER -> TODO()
+            PeerConnection.SignalingState.CLOSED -> {
+                throw IllegalStateException("Closed")
+            }
+        }
+    }
+
+    fun close() {
+        state = PeerConnection.SignalingState.CLOSED
+    }
+}
+
+private enum class Location {
+    LOCAL,
+    REMOTE;
 }
