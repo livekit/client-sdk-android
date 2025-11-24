@@ -318,11 +318,15 @@ constructor(
     }
 
     fun registerTrackBitrateInfo(cid: String, trackBitrateInfo: TrackBitrateInfo) {
-        trackBitrates[TrackBitrateInfoKey.Cid(cid)] = trackBitrateInfo
+        executeRTCIfNotClosed {
+            trackBitrates[TrackBitrateInfoKey.Cid(cid)] = trackBitrateInfo
+        }
     }
 
     fun registerTrackBitrateInfo(transceiver: RtpTransceiver, trackBitrateInfo: TrackBitrateInfo) {
-        trackBitrates[TrackBitrateInfoKey.Transceiver(transceiver)] = trackBitrateInfo
+        executeRTCIfNotClosed {
+            trackBitrates[TrackBitrateInfoKey.Transceiver(transceiver)] = trackBitrateInfo
+        }
     }
 
     suspend fun isConnected(): Boolean {
