@@ -200,6 +200,7 @@ internal constructor(
     @Volatile
     private var isClosed = true
 
+    @Volatile
     private var hasPublished = false
 
     private var coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
@@ -676,11 +677,13 @@ internal constructor(
     }
 
     internal fun negotiatePublisher() {
+        // Mark intent to publish before checking Signal state so reconnect() can
+        // re-trigger negotiation even if the first attempt occurs before Signal connects.
+        hasPublished = true
+
         if (!client.isConnected) {
             return
         }
-
-        hasPublished = true
 
         coroutineScope.launch {
             if (negotiatePublisherMutex.tryLock()) {
