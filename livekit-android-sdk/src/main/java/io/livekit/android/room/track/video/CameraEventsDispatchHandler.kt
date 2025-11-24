@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,61 +17,54 @@
 package io.livekit.android.room.track.video
 
 import livekit.org.webrtc.CameraVideoCapturer.CameraEventsHandler
+import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Dispatches CameraEventsHandler callbacks to registered handlers.
  */
 class CameraEventsDispatchHandler : CameraEventsHandler {
-    private val handlers = mutableSetOf<CameraEventsHandler>()
+    private val handlers = CopyOnWriteArraySet<CameraEventsHandler>()
 
-    @Synchronized
     fun registerHandler(handler: CameraEventsHandler) {
         handlers.add(handler)
     }
 
-    @Synchronized
     fun unregisterHandler(handler: CameraEventsHandler) {
         handlers.remove(handler)
     }
 
     override fun onCameraError(errorDescription: String) {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onCameraError(errorDescription)
         }
     }
 
     override fun onCameraDisconnected() {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onCameraDisconnected()
         }
     }
 
     override fun onCameraFreezed(errorDescription: String) {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onCameraFreezed(errorDescription)
         }
     }
 
     override fun onCameraOpening(cameraName: String) {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onCameraOpening(cameraName)
         }
     }
 
     override fun onFirstFrameAvailable() {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onFirstFrameAvailable()
         }
     }
 
     override fun onCameraClosed() {
-        val handlersCopy = handlers.toMutableSet()
-        for (handler in handlersCopy) {
+        for (handler in handlers) {
             handler.onCameraClosed()
         }
     }
