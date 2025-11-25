@@ -1,5 +1,34 @@
 # client-sdk-android
 
+## 2.23.1
+
+### Patch Changes
+
+- Fixed non-local return in `onConnectionQuality` that caused lost connection quality updates for remaining participants when one participant was not found in the list. - [#817](https://github.com/livekit/client-sdk-android/pull/817) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed impossible empty streams check in Room.onAddTrack that could crash if WebRTC called onAddTrack with an empty streams array. - [#816](https://github.com/livekit/client-sdk-android/pull/816) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Improve thread-safety and reconnection reliability for hasPublished flag. - [#814](https://github.com/livekit/client-sdk-android/pull/814) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed `ConcurrentModificationException` in `LocalAudioTrack.dispose()` when sinks are registered. - [#820](https://github.com/livekit/client-sdk-android/pull/820) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix LocalParticipant jobs map clean-up when unpublishing tracks. - [#807](https://github.com/livekit/client-sdk-android/pull/807) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed PeerConnectionTransport coroutine scope not being cancelled on close. - [#818](https://github.com/livekit/client-sdk-android/pull/818) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Improve reconnection reliability by hardening state flags and synchronizing data channel receive state. - [#806](https://github.com/livekit/client-sdk-android/pull/806) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Remove reference to internal OkHttp method - [#811](https://github.com/livekit/client-sdk-android/pull/811) ([@davidliu](https://github.com/davidliu))
+
+- Increase RTC negotiation reliability by dropping outdated sdp answers and forwarding offer ids - [#813](https://github.com/livekit/client-sdk-android/pull/813) ([@davidliu](https://github.com/davidliu))
+
+- Fixed ProGuard/R8 minification crash in release builds when using AgentAttributes. Added @Keep annotations to Klaxon-based data classes and updated ProGuard rules to prevent obfuscation of reflection-based JSON parsing classes. #808 - [#809](https://github.com/livekit/client-sdk-android/pull/809) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Update WebRTC-SDK to 137.7151.05. - [#824](https://github.com/livekit/client-sdk-android/pull/824) ([@davidliu](https://github.com/davidliu))
+
+  - Fixes echo cancellation and noise suppression failing to enable.
+  - Fixes microphone not shutting off when muted.
+
 ## 2.23.0
 
 ### Minor Changes
