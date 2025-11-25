@@ -44,6 +44,7 @@ import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import livekit.org.webrtc.IceCandidate
 import livekit.org.webrtc.MediaConstraints
@@ -309,6 +310,7 @@ constructor(
             isClosed.set(true)
             peerConnection.dispose()
         }
+        coroutineScope.cancel()
     }
 
     fun updateRTCConfig(config: RTCConfiguration) {
