@@ -171,9 +171,9 @@ constructor(
     override fun dispose() {
         synchronized(trackSinks) {
             for (sink in trackSinks) {
-                trackSinks.remove(sink)
                 audioRecordSamplesDispatcher.unregisterSink(sink)
             }
+            trackSinks.clear()
         }
         super.dispose()
     }
