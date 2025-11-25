@@ -295,7 +295,6 @@ internal constructor(
                     publisherObserver,
                     publisherObserver,
                 )
-                LKLog.e { "publisher signal state: ${publisher?.peerConnection?.signalingState()}" }
                 subscriber?.close()
                 subscriber = pctFactory.create(
                     rtcConfig,
