@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.livekit.android.test.mock
 
 import livekit.org.webrtc.PeerConnection
@@ -65,7 +81,7 @@ class MockPeerConnectionTest {
     }
 
     @Test
-    fun badNegotiation() {
+    fun cannotSetAnswerOnStable() {
         run {
             val observer = mock<SdpObserver>()
             pc.setLocalDescription(
@@ -74,6 +90,79 @@ class MockPeerConnectionTest {
             )
             verify(observer, times(1)).onSetFailure(any())
             assertEquals(PeerConnection.SignalingState.STABLE, pc.signalingState())
+        }
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setRemoteDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.ANSWER, "remote_answer"),
+            )
+            verify(observer, times(1)).onSetFailure(any())
+            assertEquals(PeerConnection.SignalingState.STABLE, pc.signalingState())
+        }
+    }
+
+    @Test
+    fun cannotIllegalSetOnHaveLocalOffer() {
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setLocalDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.OFFER, "local_offer"),
+            )
+            assertEquals(PeerConnection.SignalingState.HAVE_LOCAL_OFFER, pc.signalingState())
+        }
+
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setLocalDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.ANSWER, "local_answer"),
+            )
+            verify(observer, times(1)).onSetFailure(any())
+            assertEquals(PeerConnection.SignalingState.HAVE_LOCAL_OFFER, pc.signalingState())
+        }
+
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setRemoteDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.OFFER, "remote_offer"),
+            )
+            verify(observer, times(1)).onSetFailure(any())
+            assertEquals(PeerConnection.SignalingState.HAVE_LOCAL_OFFER, pc.signalingState())
+        }
+    }
+
+    @Test
+    fun cannotIllegalSetOnHaveRemoteOffer() {
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setRemoteDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.OFFER, "remote_offer"),
+            )
+            assertEquals(PeerConnection.SignalingState.HAVE_REMOTE_OFFER, pc.signalingState())
+        }
+
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setLocalDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.OFFER, "local_offer"),
+            )
+            verify(observer, times(1)).onSetFailure(any())
+            assertEquals(PeerConnection.SignalingState.HAVE_REMOTE_OFFER, pc.signalingState())
+        }
+
+        run {
+            val observer = mock<SdpObserver>()
+            pc.setRemoteDescription(
+                observer,
+                SessionDescription(SessionDescription.Type.ANSWER, "remote_offer"),
+            )
+            verify(observer, times(1)).onSetFailure(any())
+            assertEquals(PeerConnection.SignalingState.HAVE_REMOTE_OFFER, pc.signalingState())
         }
     }
 }

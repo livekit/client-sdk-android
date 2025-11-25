@@ -308,7 +308,6 @@ class MockPeerConnection(
     override fun getNativePeerConnection(): Long = 0L
 }
 
-
 private class SignalStateMachine(
     var changeListener: ((PeerConnection.SignalingState) -> Unit)? = null,
 ) {
@@ -331,7 +330,6 @@ private class SignalStateMachine(
      */
     @Throws(IllegalStateException::class)
     fun handleSetMethod(location: Location, type: SessionDescription.Type) {
-
         fun throwException() {
             throw IllegalStateException("Illegal set of $location with $type on signal state $state")
         }
@@ -382,5 +380,5 @@ private class SignalStateMachine(
 
 private enum class Location {
     LOCAL,
-    REMOTE;
+    REMOTE
 }
