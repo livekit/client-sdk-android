@@ -686,14 +686,8 @@ internal constructor(
         }
 
         coroutineScope.launch {
-            if (negotiatePublisherMutex.tryLock()) {
-                try {
-                    publisher?.negotiate?.invoke(getPublisherOfferConstraints())
-                } finally {
-                    negotiatePublisherMutex.unlock()
-                }
-            } else {
-                LKLog.v { "negotiatePublisher: skipping, negotiation already in progress" }
+            negotiatePublisherMutex.withLock {
+                publisher?.negotiate?.invoke(getPublisherOfferConstraints())
             }
         }
     }
