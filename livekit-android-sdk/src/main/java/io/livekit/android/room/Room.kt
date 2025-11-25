@@ -1156,7 +1156,7 @@ constructor(
      * @suppress
      */
     override fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>) {
-        if (streams.count() < 0) {
+        if (streams.isEmpty()) {
             LKLog.i { "add track with empty streams?" }
             return
         }
