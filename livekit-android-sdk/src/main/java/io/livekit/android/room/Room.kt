@@ -1266,7 +1266,7 @@ constructor(
     override fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>) {
         updates.forEach { info ->
             val quality = ConnectionQuality.fromProto(info.quality)
-            val participant = getParticipantBySid(info.participantSid) ?: return
+            val participant = getParticipantBySid(info.participantSid) ?: return@forEach
             participant.connectionQuality = quality
             eventBus.postEvent(RoomEvent.ConnectionQualityChanged(this, participant, quality), coroutineScope)
         }
