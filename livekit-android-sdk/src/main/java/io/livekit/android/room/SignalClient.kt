@@ -79,9 +79,14 @@ constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val networkInfo: NetworkInfo,
 ) : WebSocketListener() {
+    @Volatile
     var isConnected = false
         private set
+
+    @Volatile
     private var currentWs: WebSocket? = null
+
+    @Volatile
     private var isReconnecting: Boolean = false
     var listener: Listener? = null
     internal var serverVersion: Semver? = null
