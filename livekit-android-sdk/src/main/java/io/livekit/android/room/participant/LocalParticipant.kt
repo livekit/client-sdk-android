@@ -540,6 +540,10 @@ internal constructor(
             if (options.scalabilityMode == null) {
                 options = options.copy(scalabilityMode = "L3T3_KEY")
             }
+            // VP9/AV1 with screen sharing requires single spatial layer, always override
+            if (track.options.isScreencast) {
+                options = options.copy(scalabilityMode = "L1T3")
+            }
         }
         val encodings = computeVideoEncodings(track.options.isScreencast, track.dimensions, options)
         val videoLayers =
