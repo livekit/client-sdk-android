@@ -1010,7 +1010,10 @@ constructor(
             builder.participantSid = participant.sid.value
             for (trackPub in participant.trackPublications.values) {
                 val remoteTrackPub = (trackPub as? RemoteTrackPublication) ?: continue
-                if (remoteTrackPub.subscribed != sendUnsub) {
+
+                // Use isDesired (subscription intent) instead of isSubscribed (actual state)
+                // to avoid race condition during quick reconnect where tracks aren't attached yet.
+                if (remoteTrackPub.isDesired != sendUnsub) {
                     builder.addTrackSids(remoteTrackPub.sid)
                 }
             }

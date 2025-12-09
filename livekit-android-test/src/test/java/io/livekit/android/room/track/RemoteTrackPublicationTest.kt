@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2025 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels.VideoQuality
 import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -81,5 +82,51 @@ class RemoteTrackPublicationTest : MockE2ETest() {
         assertTrue(lastRequest.hasTrackSetting())
         assertEquals(100, lastRequest.trackSetting.fps)
         assertEquals(VideoQuality.LOW, lastRequest.trackSetting.quality)
+    }
+
+    @Test
+    fun subscriptionStatus() = runTest {
+        connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockVideoStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_VIDEO_TRACK.sid,
+                    ),
+                ),
+            ),
+        )
+
+        advanceUntilIdle()
+        wsFactory.ws.clearRequests()
+
+        val remoteVideoPub = room.remoteParticipants.values.first()
+            .videoTrackPublications.first()
+            .first as RemoteTrackPublication
+
+        assertEquals(RemoteTrackPublication.SubscriptionStatus.SUBSCRIBED, remoteVideoPub.subscriptionStatus)
+
+        remoteVideoPub.setSubscribed(false)
+
+        assertEquals(RemoteTrackPublication.SubscriptionStatus.UNSUBSCRIBED, remoteVideoPub.subscriptionStatus)
+
+        val lastRequest = LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+            .build()
+
+        assertTrue(lastRequest.hasSubscription())
+        assertFalse(lastRequest.subscription.subscribe)
+        val trackList = lastRequest.subscription.trackSidsList
+        assertEquals(1, trackList.size)
+        assertEquals(TestData.REMOTE_VIDEO_TRACK.sid, trackList.first())
     }
 }

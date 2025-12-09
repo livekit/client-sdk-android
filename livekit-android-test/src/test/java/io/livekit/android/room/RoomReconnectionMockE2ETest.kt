@@ -17,12 +17,20 @@
 package io.livekit.android.room
 
 import io.livekit.android.room.track.DataPublishReliability
+import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel
+import io.livekit.android.test.mock.MockMediaStream
+import io.livekit.android.test.mock.MockRtpReceiver
+import io.livekit.android.test.mock.MockVideoStreamTrack
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import io.livekit.android.test.util.toPBByteString
+import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert.assertEquals
@@ -59,6 +67,27 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
 
         connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockVideoStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_VIDEO_TRACK.sid,
+                    ),
+                ),
+            ),
+        )
+
+        advanceUntilIdle()
+
         disconnectPeerConnection()
         // Wait so that the reconnect job properly starts first.
         testScheduler.advanceTimeBy(1000)
@@ -72,6 +101,92 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
                 .mergeFrom(requestString.toPBByteString())
                 .build()
 
+            // Should send zero since we auto subscribe and don't want to unsub from anything.
+            assertEquals(0, sentRequest.syncState.subscription.participantTracksCount)
+            return@any sentRequest.hasSyncState()
+        }
+
+        assertTrue(sentSyncState)
+    }
+
+    @Test
+    fun softReconnectSendsSyncStatePreSubscribe() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+
+        connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        advanceUntilIdle()
+
+        disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+
+        testScheduler.advanceUntilIdle()
+        val sentRequests = wsFactory.ws.sentRequests
+        val sentSyncState = sentRequests.any { requestString ->
+            val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                .mergeFrom(requestString.toPBByteString())
+                .build()
+
+            // Should send zero since we auto subscribe and don't want to unsub from anything.
+            assertEquals(0, sentRequest.syncState.subscription.participantTracksCount)
+            return@any sentRequest.hasSyncState()
+        }
+
+        assertTrue(sentSyncState)
+    }
+
+    @Test
+    fun softReconnectSendsSyncStateUnsub() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+
+        connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockVideoStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_VIDEO_TRACK.sid,
+                    ),
+                ),
+            ),
+        )
+
+        advanceUntilIdle()
+
+        val remoteTrackPub = room.remoteParticipants.values.first().getTrackPublication(Track.Source.CAMERA) as RemoteTrackPublication
+        remoteTrackPub.setSubscribed(false)
+
+        disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+
+        testScheduler.advanceUntilIdle()
+        val sentRequests = wsFactory.ws.sentRequests
+        val sentSyncState = sentRequests.any { requestString ->
+            val sentRequest = LivekitRtc.SignalRequest.newBuilder()
+                .mergeFrom(requestString.toPBByteString())
+                .build()
+
+            // Should include the track of the remote participant to unsubscribe.
+            assertEquals(1, sentRequest.syncState.subscription.participantTracksCount)
             return@any sentRequest.hasSyncState()
         }
 
