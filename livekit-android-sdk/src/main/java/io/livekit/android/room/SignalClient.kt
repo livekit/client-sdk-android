@@ -92,7 +92,7 @@ constructor(
     internal var serverVersion: Semver? = null
     internal var serverInfo: ServerInfo? = null
     private var lastUrl: String? = null
-    private var lastOptions: ConnectOptions? = null
+    internal var lastOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
 
     // join will always return a JoinResponse.
