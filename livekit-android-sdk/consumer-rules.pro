@@ -22,10 +22,10 @@
 #########################################
 # Ensure java methods called from Native are preserved.
 -keepclasseswithmembers,includedescriptorclasses class * {
-    @livekit.org.webrtc.CalledByNative <methods>;
+    @livekit.**.CalledByNative <methods>;
 }
 -keepclasseswithmembers,includedescriptorclasses class * {
-    @livekit.org.webrtc.CalledByNativeUnchecked <methods>;
+    @livekit.**.CalledByNativeUnchecked <methods>;
 }
 
 # NIST sdp parser
