@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.23.2
+
+### Patch Changes
+
+- Fixed data race in `CameraEventsDispatchHandler` by using `CopyOnWriteArraySet` for thread-safe iteration. - [#822](https://github.com/livekit/client-sdk-android/pull/822) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix thread visibility issues in SignalClient that could cause messages to be silently dropped. - [#819](https://github.com/livekit/client-sdk-android/pull/819) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix race condition when sending sync state before tracks are subscribed - [#831](https://github.com/livekit/client-sdk-android/pull/831) ([@davidliu](https://github.com/davidliu))
+
+- Fixed screen sharing with VP9/AV1 codecs - [#828](https://github.com/livekit/client-sdk-android/pull/828) ([@pblazej](https://github.com/pblazej))
+
 ## 2.23.1
 
 ### Patch Changes
