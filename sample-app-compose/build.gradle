@@ -23,8 +23,10 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // For testing purposes only. Use your own signing keys when making a production app.
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
