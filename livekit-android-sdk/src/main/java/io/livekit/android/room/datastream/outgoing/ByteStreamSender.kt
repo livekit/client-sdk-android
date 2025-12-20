@@ -86,25 +86,28 @@ suspend fun ByteStreamSender.write(input: InputStream): Result<Unit> {
 
 /**
  * Reads the source and sends it to the data stream.
+ *
+ * The source will be closed when this function completes, whether it succeeds or fails.
  */
 @CheckResult
 suspend fun ByteStreamSender.write(source: Source): Result<Unit> {
-    val buffer = Buffer()
-    while (true) {
-        try {
-            val readLen = source.read(buffer, 4096)
-            if (readLen == -1L) {
-                break
-            }
+    return try {
+        source.use { src ->
+            val buffer = Buffer()
+            while (true) {
+                val readLen = src.read(buffer, 4096)
+                if (readLen == -1L) {
+                    break
+                }
 
-            val result = write(buffer.readByteArray())
-            if (result.isFailure) {
-                return result
+                val result = write(buffer.readByteArray())
+                if (result.isFailure) {
+                    return@use result
+                }
             }
-        } catch (e: Exception) {
-            return Result.failure(e)
+            Result.success(Unit)
         }
+    } catch (e: Exception) {
+        Result.failure(e)
     }
-
-    return Result.success(Unit)
 }
