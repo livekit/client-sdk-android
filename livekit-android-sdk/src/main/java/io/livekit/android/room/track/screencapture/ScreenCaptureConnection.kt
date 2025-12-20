@@ -57,13 +57,21 @@ internal class ScreenCaptureConnection(private val context: Context) {
         }
 
         val intent = Intent(context, ScreenCaptureService::class.java)
-        context.bindService(intent, connection, BIND_AUTO_CREATE)
-        return suspendCancellableCoroutine {
+        val bound = context.bindService(intent, connection, BIND_AUTO_CREATE)
+        if (!bound) {
+            throw IllegalStateException("Failed to bind ScreenCaptureService.")
+        }
+        return suspendCancellableCoroutine { cont ->
+            cont.invokeOnCancellation {
+                synchronized(this) {
+                    queuedConnects.remove(cont)
+                }
+            }
             synchronized(this) {
                 if (isBound) {
-                    it.resume(Unit)
+                    cont.resume(Unit)
                 } else {
-                    queuedConnects.add(it)
+                    queuedConnects.add(cont)
                 }
             }
         }
