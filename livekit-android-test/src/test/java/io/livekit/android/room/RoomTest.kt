@@ -269,4 +269,90 @@ class RoomTest {
 
         assertEquals(update.sid, sid.sid)
     }
+
+    @Test
+    fun connectFailureResetsStateToDisconnected() = runTest {
+        val connectException = RuntimeException("Connection failed")
+        rtcEngine.stub {
+            onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull()) }
+                .doSuspendableAnswer {
+                    throw connectException
+                }
+        }
+        rtcEngine.stub {
+            onBlocking { rtcEngine.client }
+                .doReturn(Mockito.mock(SignalClient::class.java))
+        }
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+
+        var caughtException: Throwable? = null
+        try {
+            room.connect(
+                url = TestData.EXAMPLE_URL,
+                token = "",
+            )
+        } catch (e: Throwable) {
+            caughtException = e
+        }
+
+        val events = eventCollector.stopCollecting()
+
+        // Verify exception was thrown (check message since coroutines may wrap exceptions)
+        assertEquals("Connection failed", caughtException?.message)
+
+        // Verify room state is reset to DISCONNECTED
+        assertEquals(Room.State.DISCONNECTED, room.state)
+
+        // Verify Disconnected event was posted with JOIN_FAILURE reason
+        val disconnectedEvents = events.filterIsInstance<RoomEvent.Disconnected>()
+        assertEquals(1, disconnectedEvents.size)
+        assertEquals(DisconnectReason.JOIN_FAILURE, disconnectedEvents[0].reason)
+    }
+
+    @Test
+    fun connectRetryAfterFailureSucceeds() = runTest {
+        val connectException = RuntimeException("Connection failed")
+        var shouldFail = true
+
+        rtcEngine.stub {
+            onBlocking { rtcEngine.join(any(), any(), anyOrNull(), anyOrNull()) }
+                .doSuspendableAnswer {
+                    if (shouldFail) {
+                        throw connectException
+                    }
+                    room.onJoinResponse(TestData.JOIN.join)
+                    TestData.JOIN.join
+                }
+        }
+        rtcEngine.stub {
+            onBlocking { rtcEngine.client }
+                .doReturn(Mockito.mock(SignalClient::class.java))
+        }
+
+        // First connect attempt fails
+        try {
+            room.connect(
+                url = TestData.EXAMPLE_URL,
+                token = "",
+            )
+        } catch (e: Throwable) {
+            // Expected
+        }
+
+        // Verify room is in DISCONNECTED state after failure
+        assertEquals(Room.State.DISCONNECTED, room.state)
+
+        // Second connect attempt should succeed
+        shouldFail = false
+        room.connect(
+            url = TestData.EXAMPLE_URL,
+            token = "",
+        )
+
+        // Verify room connected successfully
+        val roomInfo = TestData.JOIN.join.room
+        assertEquals(roomInfo.name, room.name)
+        assertEquals(Room.Sid(roomInfo.sid), room.sid)
+    }
 }

@@ -566,7 +566,12 @@ constructor(
         }
         connectJob.join()
 
-        error?.let { throw it }
+        error?.let {
+            if (it !is CancellationException) {
+                handleDisconnect(DisconnectReason.JOIN_FAILURE)
+            }
+            throw it
+        }
     }
 
     /**
