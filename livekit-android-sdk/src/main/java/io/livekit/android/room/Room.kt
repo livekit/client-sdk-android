@@ -969,6 +969,7 @@ constructor(
                     return@runBlocking
                 }
                 networkCallbackManager.unregisterCallback()
+                hasLostConnectivity = false
 
                 state = State.DISCONNECTED
                 cleanupRoom()
