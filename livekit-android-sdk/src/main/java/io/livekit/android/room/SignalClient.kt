@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -62,6 +63,7 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * SignalClient to LiveKit WS servers
@@ -184,10 +186,19 @@ constructor(
             .addHeader("Authorization", "Bearer $token")
             .build()
 
-        return suspendCancellableCoroutine {
-            // Wait for join response through WebSocketListener
-            joinContinuation = it
-            currentWs = websocketFactory.newWebSocket(request, this)
+        return withTimeout(5.seconds) {
+            suspendCancellableCoroutine { cont ->
+                // Wait for join response through WebSocketListener
+                joinContinuation = cont
+                //When a coroutine is canceled, WebSocket must be interrupted.
+                cont.invokeOnCancellation {
+                    LKLog.w { "connect cancelled, abort websocket" }
+                    currentWs?.cancel()
+                    currentWs = null
+                    joinContinuation = null
+                }
+                currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
+            }
         }
     }
 
@@ -863,7 +874,7 @@ constructor(
         pingJob = null
         pongJob?.cancel()
         pongJob = null
-        currentWs?.close(code, reason)
+        currentWs?.cancel()
         currentWs = null
         joinContinuation?.cancel()
         joinContinuation = null
