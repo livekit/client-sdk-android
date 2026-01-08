@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -156,6 +156,20 @@ interface TokenSource {
         /**
          * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
          *
+         * @param method the HTTP request method to use. Defaults to POST.
+         * @see cached
+         * @see CachingConfigurableTokenSource
+         */
+        fun fromEndpoint(url: String, method: String = "POST", headers: Map<String, String> = emptyMap()): ConfigurableTokenSource = EndpointTokenSourceImpl(
+            url = url,
+            method = method,
+            headers = headers,
+        )
+
+        /**
+         * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
+         *
+         * @param method the HTTP request method to use. Defaults to POST.
          * @see cached
          * @see CachingConfigurableTokenSource
          */
