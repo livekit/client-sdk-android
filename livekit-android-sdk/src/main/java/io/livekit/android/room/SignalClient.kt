@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -190,7 +190,7 @@ constructor(
             suspendCancellableCoroutine { cont ->
                 // Wait for join response through WebSocketListener
                 joinContinuation = cont
-                //When a coroutine is canceled, WebSocket must be interrupted.
+                // When a coroutine is canceled, WebSocket must be interrupted.
                 cont.invokeOnCancellation {
                     LKLog.w { "connect cancelled, abort websocket" }
                     currentWs?.cancel()
