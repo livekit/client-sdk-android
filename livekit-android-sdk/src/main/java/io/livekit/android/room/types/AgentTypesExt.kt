@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,25 +21,66 @@ import com.beust.klaxon.JsonObject
 // AgentTypes.kt is a generated file and should not be edited.
 // Add any required functions through extensions here.
 
-fun AgentAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
+internal fun AgentAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
     klaxon.parseFromJsonObject<AgentAttributes>(jsonObject)
 
+/**
+ * @suppress
+ */
 fun AgentAttributes.Companion.fromMap(map: Map<String, *>): AgentAttributes {
-    val jsonObject = JsonObject(map)
-    return fromJsonObject(jsonObject)!!
+    return fromJsonObject(JsonObject(map)) ?: AgentAttributes()
 }
 
-fun TranscriptionAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
+/**
+ * @suppress
+ */
+fun AgentAttributes.Companion.fromStringMap(map: Map<String, String>): AgentAttributes {
+    val parseMap = mutableMapOf<String, Any?>()
+    for ((key, converter) in AGENT_ATTRIBUTES_CONVERSION) {
+        parseMap[key] = converter(map[key])
+    }
+
+    return fromMap(parseMap)
+}
+
+/**
+ * Protobuf attribute maps are [String, String], so need to parse arrays/maps manually.
+ * @suppress
+ */
+val AGENT_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
+    "lk.agent.inputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
+    "lk.agent.outputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
+    "lk.agent.state" to { json -> json },
+    "lk.publish_on_behalf" to { json -> json },
+)
+
+internal fun TranscriptionAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
     klaxon.parseFromJsonObject<TranscriptionAttributes>(jsonObject)
 
+/**
+ * @suppress
+ */
 fun TranscriptionAttributes.Companion.fromMap(map: Map<String, *>): TranscriptionAttributes {
-    var map = map
-    val transcriptionFinal = map["lk.transcription_final"]
-    if (transcriptionFinal !is Boolean) {
-        map = map.toMutableMap()
-        map["lk.transcription_final"] = transcriptionFinal?.toString()?.toBooleanStrictOrNull()
-    }
-    val jsonObject = JsonObject(map)
-
-    return fromJsonObject(jsonObject)!!
+    return fromJsonObject(JsonObject(map)) ?: TranscriptionAttributes()
 }
+
+/**
+ * @suppress
+ */
+fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): TranscriptionAttributes {
+    val parseMap = mutableMapOf<String, Any?>()
+    for ((key, converter) in TRANSCRIPTION_ATTRIBUTES_CONVERSION) {
+        parseMap[key] = converter(map[key])
+    }
+    return fromMap(parseMap)
+}
+
+/**
+ * Protobuf attribute maps are [String, String], so need to parse arrays/maps manually.
+ * @suppress
+ */
+val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
+    "lk.segment_id" to { json -> json },
+    "lk.transcribed_track_id" to { json -> json },
+    "lk.transcription_final" to { json -> json?.let { klaxon.parse(json) } },
+)

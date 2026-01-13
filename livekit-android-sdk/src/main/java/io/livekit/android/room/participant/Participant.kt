@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.AgentAttributes
-import io.livekit.android.room.types.fromMap
+import io.livekit.android.room.types.fromStringMap
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.diffMapChange
 import io.livekit.android.util.flow
@@ -436,7 +436,7 @@ open class Participant(
             permissions = ParticipantPermission.fromProto(info.permission)
         }
         attributes = info.attributesMap
-        agentAttributes = AgentAttributes.fromMap(info.attributesMap)
+        agentAttributes = AgentAttributes.fromStringMap(info.attributesMap)
         state = State.fromProto(info.state)
     }
 

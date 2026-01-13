@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,17 @@ package io.livekit.android.room.participant
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.track.TrackPublication
+import io.livekit.android.room.types.AgentInput
+import io.livekit.android.room.types.AgentOutput
+import io.livekit.android.room.types.AgentSdkState
 import io.livekit.android.test.coroutines.TestCoroutineRule
 import io.livekit.android.test.events.EventCollector
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import livekit.LivekitModels
 import org.junit.Assert
 import org.junit.Assert.assertEquals
@@ -60,6 +67,74 @@ class ParticipantTest {
         assertEquals(INFO.attributesMap, participant.attributes)
         assertEquals(Participant.State.fromProto(INFO.state), participant.state)
         assertEquals(INFO, participant.participantInfo)
+    }
+
+    @Test
+    fun agentAttributes() = runTest {
+        val json = Json
+        val inputs = json.encodeToString(
+            buildJsonArray {
+                add("audio")
+                add("text")
+                add("video")
+            },
+        )
+
+        val outputs = json.encodeToString(
+            buildJsonArray {
+                add("audio")
+                add("transcription")
+            },
+        )
+
+        println(inputs)
+        println(outputs)
+
+        val agentInfo = with(INFO.toBuilder()) {
+            putAttributes("lk.agent.inputs", inputs)
+            putAttributes("lk.agent.outputs", outputs)
+            putAttributes("lk.agent.state", "idle")
+            putAttributes("lk.publish_on_behalf", "other_participant_id")
+            build()
+        }
+        participant.updateFromInfo(agentInfo)
+
+        val agentAttributes = participant.agentAttributes
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Audio) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Text) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Video) ?: false)
+        assertTrue(agentAttributes.lkAgentOutputs?.contains(AgentOutput.Audio) ?: false)
+        assertTrue(agentAttributes.lkAgentOutputs?.contains(AgentOutput.Transcription) ?: false)
+
+        // WARNING: Do not change AgentSdkState to AgentState.
+        // The attribute definitions are renamed, so this test is used
+        // to throw a compile error if it was renamed back.
+        assertEquals(AgentSdkState.Idle, agentAttributes.lkAgentState)
+        assertEquals("other_participant_id", agentAttributes.lkPublishOnBehalf)
+    }
+
+    @Test
+    fun invalidAgentAttributeDoesNotThrow() = runTest {
+        val json = Json
+        val inputs = json.encodeToString(
+            buildJsonArray {
+                add("audio")
+                add("lorem")
+                add("video")
+            },
+        )
+
+        val agentInfo = with(INFO.toBuilder()) {
+            putAttributes("lk.agent.inputs", inputs)
+            build()
+        }
+        participant.updateFromInfo(agentInfo)
+
+        val agentAttributes = participant.agentAttributes
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Audio) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Video) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Unknown) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.size == 3)
     }
 
     @Test
