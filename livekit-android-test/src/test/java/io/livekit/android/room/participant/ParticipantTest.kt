@@ -133,7 +133,7 @@ class ParticipantTest {
         val agentAttributes = participant.agentAttributes
         assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Audio) ?: false)
         assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Video) ?: false)
-        // TODO: This should probably be 2
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Unknown) ?: false)
         assertTrue(agentAttributes.lkAgentInputs?.size == 3)
     }
 

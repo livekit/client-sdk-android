@@ -65,7 +65,9 @@ data class AgentAttributes(
 enum class AgentInput(val value: String) {
     Audio("audio"),
     Text("text"),
-    Video("video");
+    Video("video"),
+    Unknown("unknown"),
+    ;
 
     companion object {
         fun fromValue(value: String): AgentInput? = when (value) {
@@ -74,7 +76,7 @@ enum class AgentInput(val value: String) {
             "video" -> Video
             else -> {
                 LKLog.e { "Unknown agent input value: $value" }
-                null
+                Unknown
             }
         }
     }
@@ -83,7 +85,9 @@ enum class AgentInput(val value: String) {
 @Keep
 enum class AgentOutput(val value: String) {
     Audio("audio"),
-    Transcription("transcription");
+    Transcription("transcription"),
+    Unknown("unknown"),
+    ;
 
     companion object {
         fun fromValue(value: String): AgentOutput? = when (value) {
@@ -91,7 +95,7 @@ enum class AgentOutput(val value: String) {
             "transcription" -> Transcription
             else -> {
                 LKLog.e { "Unknown agent output value: $value" }
-                null
+                Unknown
             }
         }
     }
@@ -104,7 +108,9 @@ enum class AgentSdkState(val value: String) {
     Initializing("initializing"),
     Listening("listening"),
     Speaking("speaking"),
-    Thinking("thinking");
+    Thinking("thinking"),
+    Unknown("unknown"),
+    ;
 
     companion object {
         fun fromValue(value: String): AgentSdkState? = when (value) {
@@ -115,7 +121,7 @@ enum class AgentSdkState(val value: String) {
             "thinking" -> Thinking
             else -> {
                 LKLog.e { "Unknown agent sdk state value: $value" }
-                null
+                Unknown
             }
         }
     }
