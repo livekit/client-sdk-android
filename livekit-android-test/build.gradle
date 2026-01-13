@@ -97,6 +97,7 @@ dependencies {
     testImplementation libs.junit
     testImplementation libs.robolectric
     testImplementation libs.okhttp.mockwebserver
+    testImplementation libs.klaxon
     kaptTest libs.dagger.compiler
 
     androidTestImplementation libs.androidx.test.junit
