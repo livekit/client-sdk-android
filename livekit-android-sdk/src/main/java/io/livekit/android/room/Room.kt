@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -348,6 +348,7 @@ constructor(
     val activeSpeakers: List<Participant>
         get() = mutableActiveSpeakers
 
+    @Volatile
     private var hasLostConnectivity: Boolean = false
     private var connectOptions: ConnectOptions = ConnectOptions()
 
@@ -969,6 +970,7 @@ constructor(
                     return@runBlocking
                 }
                 networkCallbackManager.unregisterCallback()
+                hasLostConnectivity = false
 
                 state = State.DISCONNECTED
                 cleanupRoom()
