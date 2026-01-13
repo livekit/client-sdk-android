@@ -48,8 +48,8 @@ fun AgentAttributes.Companion.fromStringMap(map: Map<String, String>): AgentAttr
  * @suppress
  */
 val AGENT_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
-    "lk.agent.inputs" to { json -> klaxon.parseArray<List<String>>(json ?: "[]") },
-    "lk.agent.outputs" to { json -> klaxon.parseArray<List<String>>(json ?: "[]") },
+    "lk.agent.inputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
+    "lk.agent.outputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
     "lk.agent.state" to { json -> json },
     "lk.publish_on_behalf" to { json -> json },
 )
@@ -82,5 +82,5 @@ fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): T
 val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
     "lk.segment_id" to { json -> json },
     "lk.transcribed_track_id" to { json -> json },
-    "lk.transcription_final" to { json -> klaxon.parse(json ?: "") },
+    "lk.transcription_final" to { json -> json?.let { klaxon.parse(json) } },
 )

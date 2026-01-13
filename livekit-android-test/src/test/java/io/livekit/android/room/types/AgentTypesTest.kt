@@ -62,4 +62,17 @@ class AgentTypesTest {
         assertEquals(AgentSdkState.Idle, agentAttributes.lkAgentState)
         assertEquals("agent_identity", agentAttributes.lkPublishOnBehalf)
     }
+
+    @Test
+    fun testEmptyStringMapDoesNotThrow() {
+        AgentAttributes.fromStringMap(emptyMap())
+        TranscriptionAttributes.fromStringMap(emptyMap())
+    }
+
+    @Test
+    fun testInvalidStringConversionDoesNotThrow() {
+        AgentInput.fromValue("lorem")
+        AgentOutput.fromValue("lorem")
+        AgentSdkState.fromValue("lorem")
+    }
 }

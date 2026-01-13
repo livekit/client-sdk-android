@@ -22,6 +22,7 @@ import com.beust.klaxon.Converter
 import com.beust.klaxon.Json
 import com.beust.klaxon.JsonValue
 import com.beust.klaxon.Klaxon
+import io.livekit.android.util.LKLog
 import kotlinx.serialization.Serializable
 
 private fun <T> Klaxon.convert(k: kotlin.reflect.KClass<*>, fromJson: (JsonValue) -> T, toJson: (T) -> String, isUnion: Boolean = false) =
@@ -29,15 +30,15 @@ private fun <T> Klaxon.convert(k: kotlin.reflect.KClass<*>, fromJson: (JsonValue
         object : Converter {
             @Suppress("UNCHECKED_CAST")
             override fun toJson(value: Any) = toJson(value as T)
-            override fun fromJson(jv: JsonValue) = fromJson(jv) as Any
+            override fun fromJson(jv: JsonValue) = fromJson(jv) as Any?
             override fun canConvert(cls: Class<*>) = cls == k.java || (isUnion && cls.superclass == k.java)
         },
     )
 
 internal val klaxon = Klaxon()
-    .convert(AgentInput::class, { AgentInput.fromValue(it.string!!) }, { "\"${it.value}\"" })
-    .convert(AgentOutput::class, { AgentOutput.fromValue(it.string!!) }, { "\"${it.value}\"" })
-    .convert(AgentSdkState::class, { AgentSdkState.fromValue(it.string!!) }, { "\"${it.value}\"" })
+    .convert(AgentInput::class, { it.string?.let { AgentInput.fromValue(it) } }, { "\"${it?.value}\"" })
+    .convert(AgentOutput::class, { it.string?.let { AgentOutput.fromValue(it) } }, { "\"${it?.value}\"" })
+    .convert(AgentSdkState::class, { it.string?.let { AgentSdkState.fromValue(it) } }, { "\"${it?.value}\"" })
 
 @Keep
 data class AgentAttributes(
@@ -67,11 +68,14 @@ enum class AgentInput(val value: String) {
     Video("video");
 
     companion object {
-        fun fromValue(value: String): AgentInput = when (value) {
+        fun fromValue(value: String): AgentInput? = when (value) {
             "audio" -> Audio
             "text" -> Text
             "video" -> Video
-            else -> throw IllegalArgumentException()
+            else -> {
+                LKLog.e { "Unknown agent input value: $value" }
+                null
+            }
         }
     }
 }
@@ -82,10 +86,13 @@ enum class AgentOutput(val value: String) {
     Transcription("transcription");
 
     companion object {
-        fun fromValue(value: String): AgentOutput = when (value) {
+        fun fromValue(value: String): AgentOutput? = when (value) {
             "audio" -> Audio
             "transcription" -> Transcription
-            else -> throw IllegalArgumentException()
+            else -> {
+                LKLog.e { "Unknown agent output value: $value" }
+                null
+            }
         }
     }
 }
@@ -100,13 +107,16 @@ enum class AgentSdkState(val value: String) {
     Thinking("thinking");
 
     companion object {
-        fun fromValue(value: String): AgentSdkState = when (value) {
+        fun fromValue(value: String): AgentSdkState? = when (value) {
             "idle" -> Idle
             "initializing" -> Initializing
             "listening" -> Listening
             "speaking" -> Speaking
             "thinking" -> Thinking
-            else -> throw IllegalArgumentException()
+            else -> {
+                LKLog.e { "Unknown agent sdk state value: $value" }
+                null
+            }
         }
     }
 }

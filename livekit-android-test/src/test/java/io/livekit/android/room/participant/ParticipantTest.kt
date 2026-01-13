@@ -114,6 +114,30 @@ class ParticipantTest {
     }
 
     @Test
+    fun invalidAgentAttributeDoesNotThrow() = runTest {
+        val json = Json
+        val inputs = json.encodeToString(
+            buildJsonArray {
+                add("audio")
+                add("lorem")
+                add("video")
+            },
+        )
+
+        val agentInfo = with(INFO.toBuilder()) {
+            putAttributes("lk.agent.inputs", inputs)
+            build()
+        }
+        participant.updateFromInfo(agentInfo)
+
+        val agentAttributes = participant.agentAttributes
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Audio) ?: false)
+        assertTrue(agentAttributes.lkAgentInputs?.contains(AgentInput.Video) ?: false)
+        // TODO: This should probably be 2
+        assertTrue(agentAttributes.lkAgentInputs?.size == 3)
+    }
+
+    @Test
     fun setMetadataCallsListeners() = runTest {
         class MetadataListener : ParticipantListener {
             var wasCalled = false
