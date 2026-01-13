@@ -1,5 +1,33 @@
 # client-sdk-android
 
+## 2.23.2
+
+### Patch Changes
+
+- Fix exception when parsing AgentAttribute inputs and outputs - [#847](https://github.com/livekit/client-sdk-android/pull/847) ([@davidliu](https://github.com/davidliu))
+
+- Properly reset network callback manager after disconnect - [#841](https://github.com/livekit/client-sdk-android/pull/841) ([@davidliu](https://github.com/davidliu))
+
+- Fixed audio focus not being abandoned on pre-O devices due to mismatched listener instance. - [#837](https://github.com/livekit/client-sdk-android/pull/837) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed file descriptor leak in ByteStreamSender where Source was not closed after reading. - [#839](https://github.com/livekit/client-sdk-android/pull/839) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed data race in `CameraEventsDispatchHandler` by using `CopyOnWriteArraySet` for thread-safe iteration. - [#822](https://github.com/livekit/client-sdk-android/pull/822) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fixed Room getting stuck in CONNECTING state after failed connect attempts. - [#836](https://github.com/livekit/client-sdk-android/pull/836) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix thread visibility issues in SignalClient that could cause messages to be silently dropped. - [#819](https://github.com/livekit/client-sdk-android/pull/819) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix race condition when sending sync state before tracks are subscribed - [#831](https://github.com/livekit/client-sdk-android/pull/831) ([@davidliu](https://github.com/davidliu))
+
+- Don't throw on invalid values for Agent enum types - [#847](https://github.com/livekit/client-sdk-android/pull/847) ([@davidliu](https://github.com/davidliu))
+
+- Add overload for TokenSource.fromEndpoint that accepts a string for the url - [#844](https://github.com/livekit/client-sdk-android/pull/844) ([@davidliu](https://github.com/davidliu))
+
+- Fixed screen sharing with VP9/AV1 codecs - [#828](https://github.com/livekit/client-sdk-android/pull/828) ([@pblazej](https://github.com/pblazej))
+
+- Proguard rule optimizations - [#803](https://github.com/livekit/client-sdk-android/pull/803) ([@davidliu](https://github.com/davidliu))
+
 ## 2.23.1
 
 ### Patch Changes
