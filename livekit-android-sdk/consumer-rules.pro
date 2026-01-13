@@ -13,28 +13,27 @@
 }
 
 -keep,includedescriptorclasses class io.livekit.android.**$$serializer { *; }
--keepclassmembers class io.livekit.android.** {
-    *** Companion;
-}
+
 -keepclasseswithmembers class io.livekit.android.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
 # WebRTC
 #########################################
--keep class livekit.org.webrtc.** { *; }
-
-# JNI Zero initialization (required for WebRTC native method registration)
--keep class livekit.org.jni_zero.JniInit {
-    # Keep the init method un-obfuscated for native code callback
-    private static java.lang.Object[] init();
+# Ensure java methods called from Native are preserved.
+-keepclasseswithmembers,includedescriptorclasses class * {
+    @livekit.**.CalledByNative <methods>;
+}
+-keepclasseswithmembers,includedescriptorclasses class * {
+    @livekit.**.CalledByNativeUnchecked <methods>;
 }
 
 # NIST sdp parser
 #########################################
--keep class android.gov.nist.** { *; }
--dontwarn com.sun.nio.sctp.**
--dontwarn org.apache.log4j.**
+# Preserve reflection used for Parser registrations
+-keep class android.gov.nist.javax.sdp.parser.*Parser { *; }
+-keep class android.gov.nist.javax.sdp.parser.ParserFactory { *; }
+-keep class android.gov.nist.javax.sdp.parser.SDPParser { *; }
 
 # Protobuf
 #########################################
