@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,13 @@ internal class EndpointTokenSourceImpl(
     override val url: URL,
     override val method: String,
     override val headers: Map<String, String>,
-) : EndpointTokenSource
+) : EndpointTokenSource {
+    constructor(
+        url: String,
+        method: String,
+        headers: Map<String, String>,
+    ) : this(URL(url), method, headers)
+}
 
 data class SandboxTokenServerOptions(
     val baseUrl: String? = null,
