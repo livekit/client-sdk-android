@@ -28,6 +28,10 @@ internal fun AgentAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
  * @suppress
  */
 fun AgentAttributes.Companion.fromMap(map: Map<String, *>): AgentAttributes {
+    if (map.values.all { it == null }) {
+        return AgentAttributes()
+    }
+
     return fromJsonObject(JsonObject(map)) ?: AgentAttributes()
 }
 
