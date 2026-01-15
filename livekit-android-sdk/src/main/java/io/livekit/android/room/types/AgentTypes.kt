@@ -16,61 +16,50 @@
 
 package io.livekit.android.room.types
 
-import android.annotation.SuppressLint
 import androidx.annotation.Keep
-import com.beust.klaxon.Converter
-import com.beust.klaxon.Json
-import com.beust.klaxon.JsonValue
-import com.beust.klaxon.Klaxon
 import io.livekit.android.util.LKLog
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-
-private fun <T> Klaxon.convert(k: kotlin.reflect.KClass<*>, fromJson: (JsonValue) -> T, toJson: (T) -> String, isUnion: Boolean = false) =
-    this.converter(
-        object : Converter {
-            @Suppress("UNCHECKED_CAST")
-            override fun toJson(value: Any) = toJson(value as T)
-            override fun fromJson(jv: JsonValue) = fromJson(jv) as Any?
-            override fun canConvert(cls: Class<*>) = cls == k.java || (isUnion && cls.superclass == k.java)
-        },
-    )
-
-internal val klaxon = Klaxon()
-    .convert(AgentInput::class, { it.string?.let { AgentInput.fromValue(it) } }, { "\"${it?.value}\"" })
-    .convert(AgentOutput::class, { it.string?.let { AgentOutput.fromValue(it) } }, { "\"${it?.value}\"" })
-    .convert(AgentSdkState::class, { it.string?.let { AgentSdkState.fromValue(it) } }, { "\"${it?.value}\"" })
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 @Keep
+@Serializable
 data class AgentAttributes(
-    @Json(name = "lk.agent.inputs")
+    @SerialName("lk.agent.inputs")
     val lkAgentInputs: List<AgentInput>? = null,
 
-    @Json(name = "lk.agent.outputs")
+    @SerialName("lk.agent.outputs")
     val lkAgentOutputs: List<AgentOutput>? = null,
 
-    @Json(name = "lk.agent.state")
+    @SerialName("lk.agent.state")
     val lkAgentState: AgentSdkState? = null,
 
-    @Json(name = "lk.publish_on_behalf")
+    @SerialName("lk.publish_on_behalf")
     val lkPublishOnBehalf: String? = null,
-) {
-    fun toJson() = klaxon.toJsonString(this)
-
-    companion object {
-        fun fromJson(json: String) = klaxon.parse<AgentAttributes>(json)
-    }
-}
+)
 
 @Keep
+@Serializable(with = AgentInputSerializer::class)
 enum class AgentInput(val value: String) {
+    @SerialName("audio")
     Audio("audio"),
+
+    @SerialName("text")
     Text("text"),
+
+    @SerialName("video")
     Video("video"),
-    Unknown("unknown"),
-    ;
+
+    @SerialName("unknown")
+    Unknown("unknown");
 
     companion object {
-        fun fromValue(value: String): AgentInput? = when (value) {
+        fun fromValue(value: String): AgentInput = when (value) {
             "audio" -> Audio
             "text" -> Text
             "video" -> Video
@@ -83,14 +72,34 @@ enum class AgentInput(val value: String) {
 }
 
 @Keep
+internal object AgentInputSerializer : KSerializer<AgentInput> {
+    // Serial names of descriptors should be unique, this is why we advise including app package in the name.
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("io.livekit.android.room.types.AgentInput", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: AgentInput) {
+        encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): AgentInput {
+        val string = decoder.decodeString()
+        return AgentInput.fromValue(string)
+    }
+}
+
+@Keep
+@Serializable(with = AgentOutputSerializer::class)
 enum class AgentOutput(val value: String) {
+    @SerialName("audio")
     Audio("audio"),
+
+    @SerialName("transcription")
     Transcription("transcription"),
-    Unknown("unknown"),
-    ;
+
+    @SerialName("unknown")
+    Unknown("unknown");
 
     companion object {
-        fun fromValue(value: String): AgentOutput? = when (value) {
+        fun fromValue(value: String): AgentOutput = when (value) {
             "audio" -> Audio
             "transcription" -> Transcription
             else -> {
@@ -101,19 +110,45 @@ enum class AgentOutput(val value: String) {
     }
 }
 
+@Keep
+internal object AgentOutputSerializer : KSerializer<AgentOutput> {
+    // Serial names of descriptors should be unique, this is why we advise including app package in the name.
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("io.livekit.android.room.types.AgentOutput", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: AgentOutput) {
+        encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): AgentOutput {
+        val string = decoder.decodeString()
+        return AgentOutput.fromValue(string)
+    }
+}
+
 // Renamed from AgentState to AgentSdkState to avoid naming conflicts elsewhere.
 @Keep
+@Serializable(with = AgentSdkStateSerializer::class)
 enum class AgentSdkState(val value: String) {
+    @SerialName("idle")
     Idle("idle"),
+
+    @SerialName("initializing")
     Initializing("initializing"),
+
+    @SerialName("listening")
     Listening("listening"),
+
+    @SerialName("speaking")
     Speaking("speaking"),
+
+    @SerialName("thinking")
     Thinking("thinking"),
-    Unknown("unknown"),
-    ;
+
+    @SerialName("unknown")
+    Unknown("unknown");
 
     companion object {
-        fun fromValue(value: String): AgentSdkState? = when (value) {
+        fun fromValue(value: String): AgentSdkState = when (value) {
             "idle" -> Idle
             "initializing" -> Initializing
             "listening" -> Listening
@@ -127,34 +162,42 @@ enum class AgentSdkState(val value: String) {
     }
 }
 
+@Keep
+internal object AgentSdkStateSerializer : KSerializer<AgentSdkState> {
+    // Serial names of descriptors should be unique, this is why we advise including app package in the name.
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("io.livekit.android.room.types.AgentSdkState", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: AgentSdkState) {
+        encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): AgentSdkState {
+        val string = decoder.decodeString()
+        return AgentSdkState.fromValue(string)
+    }
+}
+
 /**
  * Schema for transcription-related attributes
  */
 @Keep
-@SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class TranscriptionAttributes(
     /**
      * The segment id of the transcription
      */
-    @Json(name = "lk.segment_id")
+    @SerialName("lk.segment_id")
     val lkSegmentID: String? = null,
 
     /**
      * The associated track id of the transcription
      */
-    @Json(name = "lk.transcribed_track_id")
+    @SerialName("lk.transcribed_track_id")
     val lkTranscribedTrackID: String? = null,
 
     /**
      * Whether the transcription is final
      */
-    @Json(name = "lk.transcription_final")
+    @SerialName("lk.transcription_final")
     val lkTranscriptionFinal: Boolean? = null,
-) {
-    fun toJson() = klaxon.toJsonString(this)
-
-    companion object {
-        fun fromJson(json: String) = klaxon.parse<TranscriptionAttributes>(json)
-    }
-}
+)
