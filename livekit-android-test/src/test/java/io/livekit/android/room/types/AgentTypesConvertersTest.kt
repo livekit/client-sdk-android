@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.types
 
-import com.beust.klaxon.Json
+import kotlinx.serialization.SerialName
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,11 +67,10 @@ class AgentTypesConvertersTest(
 
     @Test
     fun convertersVerify() {
-        (AgentAttributes::class.members.first().annotations.first() as Json).name
         val jsonFields = quickTypeClass.members
             .map { it.annotations }
-            .mapNotNull { it.firstOrNull { annotation -> annotation is Json } as Json? }
-            .map { it.name }
+            .mapNotNull { it.firstOrNull { annotation -> annotation is SerialName } as SerialName? }
+            .map { it.value }
 
         val converters = convertersMap.keys
 

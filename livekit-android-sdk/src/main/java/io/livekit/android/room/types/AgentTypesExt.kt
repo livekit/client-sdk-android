@@ -16,32 +16,44 @@
 
 package io.livekit.android.room.types
 
-import com.beust.klaxon.JsonObject
+import androidx.annotation.VisibleForTesting
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
 
 // AgentTypes.kt is a generated file and should not be edited.
 // Add any required functions through extensions here.
-
+private val jsonSerializer = Json {
+    allowStructuredMapKeys = true
+    coerceInputValues = true
+}
 internal fun AgentAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
-    klaxon.parseFromJsonObject<AgentAttributes>(jsonObject)
+    jsonSerializer.decodeFromJsonElement<AgentAttributes>(jsonObject)
 
 /**
  * @suppress
  */
-fun AgentAttributes.Companion.fromMap(map: Map<String, *>): AgentAttributes {
-    if (map.values.all { it == null }) {
+fun AgentAttributes.Companion.fromMap(map: Map<String, JsonElement>): AgentAttributes {
+    if (map.values.none()) {
         return AgentAttributes()
     }
 
-    return fromJsonObject(JsonObject(map)) ?: AgentAttributes()
+    return fromJsonObject(JsonObject(map))
 }
 
 /**
  * @suppress
  */
 fun AgentAttributes.Companion.fromStringMap(map: Map<String, String>): AgentAttributes {
-    val parseMap = mutableMapOf<String, Any?>()
+    val parseMap = mutableMapOf<String, JsonElement>()
     for ((key, converter) in AGENT_ATTRIBUTES_CONVERSION) {
-        parseMap[key] = converter(map[key])
+        converter(map[key])?.let { converted ->
+            parseMap[key] = converted
+        }
     }
 
     return fromMap(parseMap)
@@ -51,31 +63,39 @@ fun AgentAttributes.Companion.fromStringMap(map: Map<String, String>): AgentAttr
  * Protobuf attribute maps are [String, String], so need to parse arrays/maps manually.
  * @suppress
  */
-val AGENT_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
-    "lk.agent.inputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
-    "lk.agent.outputs" to { json -> json?.let { klaxon.parseArray<List<String>>(json) } },
-    "lk.agent.state" to { json -> json },
-    "lk.publish_on_behalf" to { json -> json },
+@VisibleForTesting
+val AGENT_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> JsonElement?>(
+    "lk.agent.inputs" to { json -> json?.let { jsonSerializer.decodeFromString<JsonArray>(json) } },
+    "lk.agent.outputs" to { json -> json?.let { jsonSerializer.decodeFromString<JsonArray>(json) } },
+    "lk.agent.state" to { json -> JsonPrimitive(json) },
+    "lk.publish_on_behalf" to { json -> JsonPrimitive(json) },
 )
 
 internal fun TranscriptionAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
-    klaxon.parseFromJsonObject<TranscriptionAttributes>(jsonObject)
+    jsonSerializer.decodeFromJsonElement<TranscriptionAttributes>(jsonObject)
 
 /**
  * @suppress
  */
-fun TranscriptionAttributes.Companion.fromMap(map: Map<String, *>): TranscriptionAttributes {
-    return fromJsonObject(JsonObject(map)) ?: TranscriptionAttributes()
+fun TranscriptionAttributes.Companion.fromMap(map: Map<String, JsonElement>): TranscriptionAttributes {
+    if (map.values.none()) {
+        return TranscriptionAttributes()
+    }
+
+    return fromJsonObject(JsonObject(map))
 }
 
 /**
  * @suppress
  */
 fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): TranscriptionAttributes {
-    val parseMap = mutableMapOf<String, Any?>()
+    val parseMap = mutableMapOf<String, JsonElement>()
     for ((key, converter) in TRANSCRIPTION_ATTRIBUTES_CONVERSION) {
-        parseMap[key] = converter(map[key])
+        converter(map[key])?.let { converted ->
+            parseMap[key] = converted
+        }
     }
+
     return fromMap(parseMap)
 }
 
@@ -83,8 +103,9 @@ fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): T
  * Protobuf attribute maps are [String, String], so need to parse arrays/maps manually.
  * @suppress
  */
-val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> Any?>(
-    "lk.segment_id" to { json -> json },
-    "lk.transcribed_track_id" to { json -> json },
-    "lk.transcription_final" to { json -> json?.let { klaxon.parse(json) } },
+@VisibleForTesting
+val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> JsonElement?>(
+    "lk.segment_id" to { json -> JsonPrimitive(json) },
+    "lk.transcribed_track_id" to { json -> JsonPrimitive(json) },
+    "lk.transcription_final" to { json -> json?.let { jsonSerializer.decodeFromString<JsonArray>(json) } },
 )
