@@ -26,10 +26,10 @@ import org.junit.Test
 
 class AgentTypesTest {
 
-    // Some basic tests to ensure klaxon functionality.
+    // Some basic tests to ensure deserialization functionality.
     @Test
     fun testEmptyMapConversion() {
-        val agentAttributes = AgentAttributes.fromMap(emptyMap())
+        val agentAttributes = AgentAttributes.fromStringMap(emptyMap())
 
         assertNull(agentAttributes.lkAgentInputs)
         assertNull(agentAttributes.lkAgentOutputs)
