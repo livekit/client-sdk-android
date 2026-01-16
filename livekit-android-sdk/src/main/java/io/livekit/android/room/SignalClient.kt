@@ -169,7 +169,7 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "${url.toWebsocketUrl()}/rtc" + createConnectionParams(getClientInfo(), options, roomOptions)
+        val wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(), options, roomOptions)}"
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
@@ -196,34 +196,39 @@ constructor(
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): String {
-        val queryParams = mutableListOf<Pair<String, String>>()
-        queryParams.add(CONNECT_QUERY_PROTOCOL to options.protocolVersion.value.toString())
+        val queryBuilder = StringBuilder()
+        var first = true
+
+        fun addParam(key: String, value: String) {
+            queryBuilder.append(if (first) "?" else "&")
+                .append(key).append("=").append(value)
+            first = false
+        }
+
+        addParam(CONNECT_QUERY_PROTOCOL, options.protocolVersion.value.toString())
 
         if (options.reconnect) {
-            queryParams.add(CONNECT_QUERY_RECONNECT to 1.toString())
+            addParam(CONNECT_QUERY_RECONNECT, "1")
             options.participantSid?.let { sid ->
-                queryParams.add(CONNECT_QUERY_PARTICIPANT_SID to sid)
+                addParam(CONNECT_QUERY_PARTICIPANT_SID, sid)
             }
         }
 
         val autoSubscribe = if (options.autoSubscribe) 1 else 0
-        queryParams.add(CONNECT_QUERY_AUTOSUBSCRIBE to autoSubscribe.toString())
+        addParam(CONNECT_QUERY_AUTOSUBSCRIBE, autoSubscribe.toString())
 
         val adaptiveStream = if (roomOptions.adaptiveStream) 1 else 0
-        queryParams.add(CONNECT_QUERY_ADAPTIVE_STREAM to adaptiveStream.toString())
+        addParam(CONNECT_QUERY_ADAPTIVE_STREAM, adaptiveStream.toString())
 
         // Client info
-        queryParams.add(CONNECT_QUERY_SDK to "android")
-        queryParams.add(CONNECT_QUERY_VERSION to clientInfo.version)
-        queryParams.add(CONNECT_QUERY_DEVICE_MODEL to clientInfo.deviceModel)
-        queryParams.add(CONNECT_QUERY_OS to clientInfo.os)
-        queryParams.add(CONNECT_QUERY_OS_VERSION to clientInfo.osVersion)
-        queryParams.add(CONNECT_QUERY_NETWORK_TYPE to networkInfo.getNetworkType().protoName)
+        addParam(CONNECT_QUERY_SDK, "android")
+        addParam(CONNECT_QUERY_VERSION, clientInfo.version)
+        addParam(CONNECT_QUERY_DEVICE_MODEL, clientInfo.deviceModel)
+        addParam(CONNECT_QUERY_OS, clientInfo.os)
+        addParam(CONNECT_QUERY_OS_VERSION, clientInfo.osVersion)
+        addParam(CONNECT_QUERY_NETWORK_TYPE, networkInfo.getNetworkType().protoName)
 
-        return queryParams.foldIndexed("") { index, acc, pair ->
-            val separator = if (index == 0) "?" else "&"
-            acc + separator + "${pair.first}=${pair.second}"
-        }
+        return queryBuilder.toString()
     }
 
     /**
