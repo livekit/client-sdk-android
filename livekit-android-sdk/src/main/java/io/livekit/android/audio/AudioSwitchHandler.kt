@@ -117,11 +117,11 @@ constructor(private val context: Context) : AudioHandler {
     /**
      * The audio mode to use when requesting audio focus.
      *
-     * Defaults to [AudioManager.MODE_IN_COMMUNICATION].
+     * Defaults to [AudioManager.MODE_NORMAL] for media playback.
      *
      * Note: Manual audio routing may not work appropriately when using non-default values.
      */
-    var audioMode: Int = AudioManager.MODE_IN_COMMUNICATION
+    var audioMode: Int = AudioManager.MODE_NORMAL
 
     /**
      * The audio focus mode to use while started.
@@ -133,38 +133,38 @@ constructor(private val context: Context) : AudioHandler {
     /**
      * The audio stream type to use when requesting audio focus on pre-O devices.
      *
-     * Defaults to [AudioManager.STREAM_VOICE_CALL].
+     * Defaults to [AudioManager.STREAM_MUSIC] for media playback.
      *
      * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
      * to ensure that your values match between android versions.
      *
      * Note: Manual audio routing may not work appropriately when using non-default values.
      */
-    var audioStreamType: Int = AudioManager.STREAM_VOICE_CALL
+    var audioStreamType: Int = AudioManager.STREAM_MUSIC
 
     /**
      * The audio attribute usage type to use when requesting audio focus on devices O and beyond.
      *
-     * Defaults to [AudioAttributes.USAGE_VOICE_COMMUNICATION].
+     * Defaults to [AudioAttributes.USAGE_MEDIA] for media playback.
      *
      * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
      * to ensure that your values match between android versions.
      *
      * Note: Manual audio routing may not work appropriately when using non-default values.
      */
-    var audioAttributeUsageType: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION
+    var audioAttributeUsageType: Int = AudioAttributes.USAGE_MEDIA
 
     /**
      * The audio attribute content type to use when requesting audio focus on devices O and beyond.
      *
-     * Defaults to [AudioAttributes.CONTENT_TYPE_SPEECH].
+     * Defaults to [AudioAttributes.CONTENT_TYPE_MUSIC] for media playback.
      *
      * Refer to this [compatibility table](https://source.android.com/docs/core/audio/attributes#compatibility)
      * to ensure that your values match between android versions.
      *
      * Note: Manual audio routing may not work appropriately when using non-default values.
      */
-    var audioAttributeContentType: Int = AudioAttributes.CONTENT_TYPE_SPEECH
+    var audioAttributeContentType: Int = AudioAttributes.CONTENT_TYPE_MUSIC
 
     /**
      * On certain Android devices, audio routing does not function properly and bluetooth microphones will not work
