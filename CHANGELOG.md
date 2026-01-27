@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.23.3
+
+### Patch Changes
+
+- Optimised connection params building - [#852](https://github.com/livekit/client-sdk-android/pull/852) ([@pulakdp](https://github.com/pulakdp))
+
+- Fixed ScreenCaptureConnection suspending forever when bindService fails and crashing when resuming canceled continuations. - [#838](https://github.com/livekit/client-sdk-android/pull/838) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Migrate from Klaxon decoding to kotlinx-serialization for AgentAttribute deserialization - [#851](https://github.com/livekit/client-sdk-android/pull/851) ([@davidliu](https://github.com/davidliu))
+
+- perf: Skip Klaxon parsing for empty agent attribute maps - [#849](https://github.com/livekit/client-sdk-android/pull/849) ([@YashJainSC](https://github.com/YashJainSC))
+
 ## 2.23.2
 
 ### Patch Changes
