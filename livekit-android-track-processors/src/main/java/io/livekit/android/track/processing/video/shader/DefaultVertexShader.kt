@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ package io.livekit.android.track.processing.video.shader
 
 internal const val DEFAULT_VERTEX_SHADER_SOURCE = """#version 300 es
 out vec2 texCoords;
+out vec2 vMaskCoords;
 in vec4 in_pos;
 in vec4 in_tc;
 uniform mat4 tex_mat;
 void main() {
     gl_Position = in_pos;
     texCoords = (tex_mat * in_tc).xy;
+    vMaskCoords = vec2(in_tc.x, 1.0 - in_tc.y);
 }
 """
 

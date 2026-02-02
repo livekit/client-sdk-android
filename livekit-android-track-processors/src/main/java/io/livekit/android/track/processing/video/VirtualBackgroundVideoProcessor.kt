@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,9 +122,7 @@ class VirtualBackgroundVideoProcessor(
             val image = imageProxy.image
 
             if (enabled && image != null) {
-                // Put 0 for rotation degrees
-                // We'll rotate it together with the original video frame in the shader.
-                val inputImage = InputImage.fromMediaImage(image, 0)
+                val inputImage = InputImage.fromMediaImage(image, imageProxy.imageInfo.rotationDegrees)
                 latch.acquire()
                 val task = segmenter.process(inputImage)
                 task.addOnSuccessListener { mask ->
