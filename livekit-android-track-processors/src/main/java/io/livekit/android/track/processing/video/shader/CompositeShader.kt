@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,13 +29,14 @@ uniform sampler2D background;
 uniform samplerExternalOES frame;
 uniform sampler2D mask;
 out vec4 fragColor;
+in vec2 vMaskCoords;
 
 void main() {
 
     vec4 frameTex = texture(frame, texCoords);
     vec4 bgTex = texture(background, texCoords);
 
-    float maskVal = texture(mask, texCoords).r;
+    float maskVal = texture(mask, vMaskCoords).r;
 
     // Compute screen-space gradient to detect edge sharpness
     float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
