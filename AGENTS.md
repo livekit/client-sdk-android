@@ -1,4 +1,4 @@
-# LiveKit Swift SDK
+# LiveKit Android SDK
 
 ## Commands
 
