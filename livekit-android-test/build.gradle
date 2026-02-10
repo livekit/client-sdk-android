@@ -81,7 +81,7 @@ dependencies {
     api libs.okhttp.lib
     api libs.audioswitch
     implementation libs.androidx.annotation
-    api libs.protobuf.javalite
+    api libs.protobuf.java
     implementation libs.android.jain.sip.ri
     implementation libs.junit
     implementation libs.robolectric

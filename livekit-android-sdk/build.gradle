@@ -37,7 +37,7 @@ android {
                 exclude '*/*.proto' // only use top-level protos.
             }
             java {
-                srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
+                srcDir "${protobuf.generatedFilesBaseDir}/main/java"
             }
         }
     }
@@ -88,7 +88,7 @@ protobuf {
         all().each { task ->
             task.builtins {
                 java {
-                    option "lite"
+                    // Removed 'lite' option to generate full protobuf (not lite)
                 }
             }
         }
@@ -152,7 +152,7 @@ dependencies {
 
     implementation libs.androidx.annotation
     implementation libs.androidx.core
-    implementation libs.protobuf.javalite
+    implementation libs.protobuf.java
 
     implementation libs.android.jain.sip.ri
 

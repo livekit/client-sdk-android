@@ -69,7 +69,7 @@ dependencies {
     api libs.androidx.lifecycle.viewmodel.ktx
     api libs.androidx.lifecycle.common.java8
     api libs.androidx.lifecycle.process
-    api libs.protobuf.javalite
+    api libs.protobuf.java
     api libs.androidx.preference.ktx
     // debugImplementation because LeakCanary should only run in debug builds.
     debugImplementation libs.leakcanary.android
