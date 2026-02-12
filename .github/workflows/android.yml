@@ -61,46 +61,10 @@ jobs:
     - name: Build and test with Gradle
       run: ./gradlew assembleRelease livekit-android-test:testRelease
 
-      # Diffuse checking for pull requests
-    - uses: actions/cache@v4
-      if: github.event_name == 'pull_request'
-      name: Download base source file for diffuse
+    - name: Upload AAR
+      uses: actions/upload-artifact@v6
       with:
-        path: diffuse-source-file
-        key: diffuse-${{ github.event.pull_request.base.sha }}
-
-    - id: diffuse
-      uses: usefulness/diffuse-action@v1
-      if: github.event_name == 'pull_request'
-      with:
-        old-file-path: diffuse-source-file
-        new-file-path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
-
-      # Consuming diffuse action output
-
-    - uses: peter-evans/find-comment@v4
-      id: find_comment
-      if: github.event_name == 'pull_request'
-      with:
-        issue-number: ${{ github.event.pull_request.number }}
-        body-includes: Diffuse output
-
-    - uses: peter-evans/create-or-update-comment@v5
-      if: ${{ steps.diffuse.outputs.diff-raw != null || steps.find_comment.outputs.comment-id != null }}
-      with:
-        body: |
-          Diffuse output:
-
-          ${{ steps.diffuse.outputs.diff-gh-comment }}
-        edit-mode: replace
-        comment-id: ${{ steps.find_comment.outputs.comment-id }}
-        issue-number: ${{ github.event.pull_request.number }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - uses: actions/upload-artifact@v6
-      with:
-        name: diffuse-output
-        path: ${{ steps.diffuse.outputs.diff-file }}
+        path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
 
       # TODO: Figure out appropriate place to run this. Takes ~3 mins, so pretty slow.
 #    # generates coverage-report.md and publishes as checkrun
@@ -241,3 +205,54 @@ jobs:
         repository: livekit/e2e-android
         event-type: client-sdk-android-push
         client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+
+  diffuse:
+    runs-on: ubuntu-latest
+    name: Diffuse checker
+    needs: build
+    steps:
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 23
+
+      # Diffuse checking for pull requests
+      - uses: actions/cache@v4
+        if: github.event_name == 'pull_request'
+        name: Download base source file for diffuse
+        with:
+          path: diffuse-source-file
+          key: diffuse-${{ github.event.pull_request.base.sha }}
+
+      - id: diffuse
+        uses: usefulness/diffuse-action@v1
+        if: github.event_name == 'pull_request'
+        with:
+          old-file-path: diffuse-source-file
+          new-file-path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
+
+      # Consuming diffuse action output
+
+      - uses: peter-evans/find-comment@v4
+        id: find_comment
+        if: github.event_name == 'pull_request'
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: Diffuse output
+
+      - uses: peter-evans/create-or-update-comment@v5
+        if: ${{ steps.diffuse.outputs.diff-raw != null || steps.find_comment.outputs.comment-id != null }}
+        with:
+          body: |
+            Diffuse output:
+
+            ${{ steps.diffuse.outputs.diff-gh-comment }}
+          edit-mode: replace
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: diffuse-output
+          path: ${{ steps.diffuse.outputs.diff-file }}
