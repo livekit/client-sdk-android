@@ -3,6 +3,10 @@ name: Generate dependency diff
 on:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   generate-diff:
     runs-on: ubuntu-latest
