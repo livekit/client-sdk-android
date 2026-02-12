@@ -209,6 +209,7 @@ jobs:
 
   diffuse:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     name: Diffuse checker
     needs: build
     steps:
@@ -219,7 +220,6 @@ jobs:
 
       # Diffuse checking for pull requests
       - uses: actions/cache@v4
-        if: github.event_name == 'pull_request'
         name: Download base source file for diffuse
         with:
           path: diffuse-source-file
@@ -227,7 +227,6 @@ jobs:
 
       - id: diffuse
         uses: usefulness/diffuse-action@v1
-        if: github.event_name == 'pull_request'
         with:
           old-file-path: diffuse-source-file
           new-file-path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
@@ -236,7 +235,6 @@ jobs:
 
       - uses: peter-evans/find-comment@v4
         id: find_comment
-        if: github.event_name == 'pull_request'
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-includes: Diffuse output
