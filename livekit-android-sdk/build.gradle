@@ -141,7 +141,7 @@ dokkaHtml {
 
 dependencies {
     // For testing diffuse/dependency-diff
-    implementation 'com.conena.nanokt:nanokt:1.3.0'
+    implementation("com.google.guava:guava:33.5.0-android")
 
     //api fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
