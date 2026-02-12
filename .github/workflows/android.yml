@@ -64,6 +64,7 @@ jobs:
     - name: Upload AAR
       uses: actions/upload-artifact@v6
       with:
+        name: livekit-android-sdk-release.aar
         path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
 
       # TODO: Figure out appropriate place to run this. Takes ~3 mins, so pretty slow.
