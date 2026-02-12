@@ -16,6 +16,10 @@ on:
       - 'NOTICE'
       - '.gitignore'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,7 +34,7 @@ jobs:
         submodules: recursive
 
     - name: set up JDK 17
-      uses: actions/setup-java@v3.12.0
+      uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'adopt'
@@ -54,8 +58,14 @@ jobs:
         git fetch origin main --depth 1
         ./gradlew spotlessCheck
 
-    - name: Build with Gradle
+    - name: Build and test with Gradle
       run: ./gradlew assembleRelease livekit-android-test:testRelease
+
+    - name: Upload AAR
+      uses: actions/upload-artifact@v6
+      with:
+        name: livekit-android-sdk-release.aar
+        path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
 
       # TODO: Figure out appropriate place to run this. Takes ~3 mins, so pretty slow.
 #    # generates coverage-report.md and publishes as checkrun
@@ -174,6 +184,20 @@ jobs:
       if: github.event_name == 'push' && contains(steps.version_name.outputs.version_name,'SNAPSHOT')
       run: ./gradlew publishReleasePublicationToMavenRepository
 
+      # Setting up diffuse artifacts
+    - name: Setup cache for base source file for diffuse
+      if: github.event_name == 'push'
+      uses: actions/cache@v4
+      with:
+        path: diffuse-source-file
+        key: diffuse-${{ github.sha }}
+
+      # Copy your build artifact under `diffuse-source-file` name which will be saved in cache
+    - name: Copy diffuse source file
+      run: cp ./livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar diffuse-source-file
+      if: github.event_name == 'push'
+      shell: bash
+
     - name: Repository Dispatch
       if: github.event_name == 'push'
       uses: peter-evans/repository-dispatch@v2
@@ -182,3 +206,52 @@ jobs:
         repository: livekit/e2e-android
         event-type: client-sdk-android-push
         client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+
+  diffuse:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Diffuse checker
+    needs: build
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      # Diffuse checking for pull requests
+      - uses: actions/cache@v4
+        name: Download base source file for diffuse
+        with:
+          path: diffuse-source-file
+          key: diffuse-${{ github.event.pull_request.base.sha }}
+
+      - id: diffuse
+        uses: usefulness/diffuse-action@v1
+        with:
+          old-file-path: diffuse-source-file
+          new-file-path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
+
+      # Consuming diffuse action output
+
+      - uses: peter-evans/find-comment@v4
+        id: find_comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: Diffuse output
+
+      - uses: peter-evans/create-or-update-comment@v5
+        if: ${{ steps.diffuse.outputs.diff-raw != null || steps.find_comment.outputs.comment-id != null }}
+        with:
+          body: |
+            Diffuse output:
+
+            ${{ steps.diffuse.outputs.diff-gh-comment }}
+          edit-mode: replace
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: diffuse-output
+          path: ${{ steps.diffuse.outputs.diff-file }}
