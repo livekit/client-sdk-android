@@ -18,6 +18,8 @@ package io.livekit.android
 
 import android.app.Application
 import android.content.Context
+import com.conena.nanokt.ternary
+import io.livekit.android.LiveKit.loggingLevel
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
 import io.livekit.android.dagger.create
@@ -94,5 +96,34 @@ object LiveKit {
         room.setRoomOptions(options)
 
         return room
+    }
+
+    /**
+     * A new api for diffuse
+     */
+    fun newApi(someBool: Boolean): Boolean {
+        return someBool.ternary(ifTrue = true, ifFalse = false)
+    }
+
+    /**
+     * This is a suppressed api.
+     * @suppress
+     */
+    fun suppressedApi(): String {
+        return "suppressed"
+    }
+
+    /**
+     * This is an internal api.
+     */
+    internal fun internalApi(): String {
+        return "suppressed"
+    }
+
+    /**
+     * This is a private api.
+     */
+    private fun privateApi(): String {
+        return "suppressed"
     }
 }
