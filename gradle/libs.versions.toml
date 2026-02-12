@@ -63,7 +63,7 @@ segmentation-selfie = { module = "com.google.mlkit:segmentation-selfie", version
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 webrtc = { module = "io.github.webrtc-sdk:android-prefixed", version.ref = "webrtc" }
 
-androidx-annotation = { module = "androidx.annotation:annotation", version = "1.7.1" }
+androidx-annotation = { module = "androidx.annotation:annotation", version = "1.9.1" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.9.0" }
 androidx-constraintlayout-compose = { module = "androidx.constraintlayout:constraintlayout-compose", version = "1.0.1" }
 auto-service-compiler = { module = "com.google.auto.service:auto-service", version.ref = "autoService" }

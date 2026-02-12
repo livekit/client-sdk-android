@@ -18,7 +18,6 @@ package io.livekit.android
 
 import android.app.Application
 import android.content.Context
-import com.google.common.base.Preconditions
 import io.livekit.android.LiveKit.loggingLevel
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
@@ -102,7 +101,6 @@ object LiveKit {
      * A new api for diffuse
      */
     fun newApi(someBool: Boolean): Boolean {
-        Preconditions.checkArgument(someBool)
         return true
     }
 
