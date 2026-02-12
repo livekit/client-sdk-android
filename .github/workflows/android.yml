@@ -222,19 +222,19 @@ jobs:
       - uses: actions/cache@v4
         name: Download base source file for diffuse
         with:
-          path: diffuse-source-file
+          path: client-sdk-android/diffuse-source-file
           key: diffuse-${{ github.event.pull_request.base.sha }}
 
       - uses: actions/download-artifact@v5
         with:
           name: livekit-android-sdk-release.aar
-
+          path: client-sdk-android/
 
       - id: diffuse
         uses: usefulness/diffuse-action@v1
         with:
-          old-file-path: diffuse-source-file
-          new-file-path: livekit-android-sdk-release.aar
+          old-file-path: client-sdk-android/diffuse-source-file
+          new-file-path: client-sdk-android/livekit-android-sdk-release.aar
 
       # Consuming diffuse action output
 
