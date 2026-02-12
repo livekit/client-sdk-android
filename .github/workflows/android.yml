@@ -189,7 +189,7 @@ jobs:
       if: github.event_name == 'push'
       uses: actions/cache@v4
       with:
-        path: diffuse-source-file
+        path: client-sdk-android/diffuse-source-file
         key: diffuse-${{ github.sha }}
 
       # Copy your build artifact under `diffuse-source-file` name which will be saved in cache
@@ -222,13 +222,13 @@ jobs:
       - uses: actions/cache@v4
         name: Download base source file for diffuse
         with:
-          path: diffuse-source-file
+          path: client-sdk-android/diffuse-source-file
           key: diffuse-${{ github.event.pull_request.base.sha }}
 
       - id: diffuse
         uses: usefulness/diffuse-action@v1
         with:
-          old-file-path: diffuse-source-file
+          old-file-path: client-sdk-android/diffuse-source-file
           new-file-path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
 
       # Consuming diffuse action output
