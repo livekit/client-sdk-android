@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.23.4
+
+### Patch Changes
+
+- Make selfie segmenter work better - [#861](https://github.com/livekit/client-sdk-android/pull/861) ([@Deneath](https://github.com/Deneath))
+
 ## 2.23.3
 
 ### Patch Changes
