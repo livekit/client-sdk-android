@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -620,20 +620,20 @@ internal constructor(
                     break
                 }
 
-                // wait until publisher ICE connected
-                var publisherWaitJob: Job? = null
-                if (hasPublished) {
-                    publisherWaitJob = launch {
-                        publisherObserver.waitUntilConnected()
-                    }
-                }
-
-                // wait until subscriber ICE connected
-                val subscriberWaitJob = launch {
-                    subscriberObserver.waitUntilConnected()
-                }
-
                 withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
+                    // wait until publisher ICE connected
+                    var publisherWaitJob: Job? = null
+                    if (hasPublished) {
+                        publisherWaitJob = launch {
+                            publisherObserver.waitUntilConnected()
+                        }
+                    }
+
+                    // wait until subscriber ICE connected
+                    val subscriberWaitJob = launch {
+                        subscriberObserver.waitUntilConnected()
+                    }
+
                     listOfNotNull(publisherWaitJob, subscriberWaitJob)
                         .joinAll()
                 }
