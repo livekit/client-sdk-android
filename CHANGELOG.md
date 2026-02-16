@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.23.4
+
+### Patch Changes
+
+- Make selfie segmenter work better - [#861](https://github.com/livekit/client-sdk-android/pull/861) ([@Deneath](https://github.com/Deneath))
+
+- Ensure child jobs are cleaned up on ICE reconnect timeout - [#870](https://github.com/livekit/client-sdk-android/pull/870) ([@davidliu](https://github.com/davidliu))
+
+- Cancel websocket when join coroutine is cancelled - [#871](https://github.com/livekit/client-sdk-android/pull/871) ([@davidliu](https://github.com/davidliu))
+
+- Concurrency fixes for SignalClient connection - [#871](https://github.com/livekit/client-sdk-android/pull/871) ([@davidliu](https://github.com/davidliu))
+
 ## 2.23.3
 
 ### Patch Changes
