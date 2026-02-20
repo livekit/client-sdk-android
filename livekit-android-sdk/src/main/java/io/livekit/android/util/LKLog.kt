@@ -41,7 +41,6 @@ limitations under the License.
 Original repo can be found at: https://github.com/ajalt/LKLogkt
  */
 
-
 private val DEBUG_TREE = LKDebugTree()
 
 /**
