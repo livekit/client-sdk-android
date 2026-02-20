@@ -64,7 +64,6 @@ dependencies {
     api libs.appcompat
     api libs.material
     api libs.coroutines.lib
-    api libs.timber
     api libs.androidx.lifecycle.runtime.ktx
     api libs.androidx.lifecycle.viewmodel.ktx
     api libs.androidx.lifecycle.common.java8

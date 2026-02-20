@@ -18,11 +18,12 @@ package io.livekit.android.test.util
 
 import android.util.Log
 import io.livekit.android.LiveKit
+import io.livekit.android.util.LKDebugTree
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
-import timber.log.Timber
 
 /**
  * Add this rule to a test class to turn on logs.
@@ -31,7 +32,13 @@ class LoggingRule : TestRule {
 
     companion object {
 
-        val logTree = object : Timber.DebugTree() {
+        val logger = object : LKLog.Logger {
+            override fun log(priority: LoggingLevel, t: Throwable?, message: String) {
+                printlnTree.prepareLog(priority.toAndroidLogPriority(), t, message)
+            }
+
+        }
+        val printlnTree = object : LKDebugTree() {
             override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
                 val priorityChar = when (priority) {
                     Log.VERBOSE -> "v"
@@ -54,11 +61,12 @@ class LoggingRule : TestRule {
     override fun apply(base: Statement, description: Description?) = object : Statement() {
         override fun evaluate() {
             val oldLoggingLevel = LiveKit.loggingLevel
-            Timber.plant(logTree)
+            val oldLogger = LiveKit.logger
             LiveKit.loggingLevel = LoggingLevel.VERBOSE
+            LiveKit.logger = logger
             base.evaluate()
-            Timber.uproot(logTree)
             LiveKit.loggingLevel = oldLoggingLevel
+            LiveKit.logger = oldLogger
         }
     }
 }

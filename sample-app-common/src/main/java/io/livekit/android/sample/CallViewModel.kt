@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewModelScope
-import com.github.ajalt.timberkt.Timber
 import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.LiveKitOverrides
@@ -57,7 +56,6 @@ import io.livekit.android.util.flow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -169,7 +167,7 @@ class CallViewModel(
         viewModelScope.launch(Dispatchers.Default) {
             // Collect any errors.
             launch {
-                error.collect { Timber.e(it) }
+                error.collect { LKLog.e(it) }
             }
 
             // Handle any changes in speakers.
@@ -197,7 +195,7 @@ class CallViewModel(
                         }
 
                         else -> {
-                            Timber.e { "Room event: $it" }
+                            LKLog.e { "Room event: $it" }
                         }
                     }
                 }
@@ -225,10 +223,10 @@ class CallViewModel(
             delay(10000)
             if (pub.subscribed) {
                 val statsReport = pub.track?.getRTCStats() ?: continue
-                Timber.e { "stats for ${pub.sid}:" }
+                LKLog.e { "stats for ${pub.sid}:" }
 
                 for (entry in statsReport.statsMap) {
-                    Timber.e { "${entry.key} = ${entry.value}" }
+                    LKLog.e { "${entry.key} = ${entry.value}" }
                 }
             }
         }
@@ -409,7 +407,7 @@ class CallViewModel(
     }
 
     fun reconnect() {
-        Timber.e { "Reconnecting." }
+        LKLog.e { "Reconnecting." }
         mutablePrimarySpeaker.value = null
         room.disconnect()
         viewModelScope.launch(Dispatchers.IO) {
@@ -426,12 +424,12 @@ class CallViewModel(
         }
 
         while (isActive) {
-            Timber.d { "Stress test -> connect to first room" }
+            LKLog.d { "Stress test -> connect to first room" }
             launch(Dispatchers.IO) { quickConnectToRoom(firstToken) }
             delay(200)
             room.disconnect()
             delay(50)
-            Timber.d { "Stress test -> connect to second room" }
+            LKLog.d { "Stress test -> connect to second room" }
             launch(Dispatchers.IO) { quickConnectToRoom(secondToken) }
             delay(200)
             room.disconnect()
@@ -446,7 +444,7 @@ class CallViewModel(
                 token = token,
             )
         } catch (e: Throwable) {
-            Timber.e(e) { "Failed to connect to room" }
+            LKLog.e(e) { "Failed to connect to room" }
         }
     }
 
@@ -467,4 +465,3 @@ class CallViewModel(
 
 private fun <T> LiveData<T>.hide(): LiveData<T> = this
 private fun <T> MutableStateFlow<T>.hide(): StateFlow<T> = this
-private fun <T> Flow<T>.hide(): Flow<T> = this

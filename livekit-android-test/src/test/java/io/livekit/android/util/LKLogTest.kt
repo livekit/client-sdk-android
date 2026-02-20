@@ -27,7 +27,10 @@ class LKLogTest {
     fun log() {
         var called = false
         LiveKit.loggingLevel = LoggingLevel.INFO
-        LKLog.log(LoggingLevel.ERROR) { called = true }
+        LKLog.log(LoggingLevel.ERROR) {
+            called = true
+            ""
+        }
         assertTrue(called)
     }
 
@@ -35,7 +38,10 @@ class LKLogTest {
     fun noLog() {
         var called = false
         LiveKit.loggingLevel = LoggingLevel.OFF
-        LKLog.log(LoggingLevel.VERBOSE) { called = true }
+        LKLog.log(LoggingLevel.VERBOSE) {
+            called = true
+            ""
+        }
         assertFalse(called)
     }
 }
