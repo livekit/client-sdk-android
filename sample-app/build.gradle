@@ -61,7 +61,6 @@ dependencies {
     implementation libs.androidx.lifecycle.common.java8
     implementation libs.groupie
     implementation libs.groupie.viewbinding
-    implementation libs.timber
     testImplementation libs.junit
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso

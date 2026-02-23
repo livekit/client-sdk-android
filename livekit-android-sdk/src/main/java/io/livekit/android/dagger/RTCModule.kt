@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,6 @@ import livekit.org.webrtc.VideoDecoderFactory
 import livekit.org.webrtc.VideoEncoderFactory
 import livekit.org.webrtc.audio.AudioDeviceModule
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
-import timber.log.Timber
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -123,9 +122,7 @@ internal object RTCModule {
                                         else -> LoggingLevel.OFF
                                     }
 
-                                    LKLog.log(loggingLevel) {
-                                        Timber.log(loggingLevel.toAndroidLogPriority(), "$s2: $s")
-                                    }
+                                    LKLog.log(loggingLevel, null) { "$s2: $s" }
                                 },
                                 Logging.Severity.LS_VERBOSE,
                             )

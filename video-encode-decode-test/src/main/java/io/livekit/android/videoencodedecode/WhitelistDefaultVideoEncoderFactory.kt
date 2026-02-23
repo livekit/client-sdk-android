@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.livekit.android.videoencodedecode
 
-import com.github.ajalt.timberkt.Timber
+import io.livekit.android.util.LKLog
 import livekit.org.webrtc.DefaultVideoEncoderFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.VideoCodecInfo
@@ -31,10 +31,10 @@ class WhitelistDefaultVideoEncoderFactory(
 
     override fun getSupportedCodecs(): Array<VideoCodecInfo> {
         val supportedCodecs = super.getSupportedCodecs()
-        Timber.v { "actual supported codecs: ${supportedCodecs.map { it.name }}" }
+        LKLog.v { "actual supported codecs: ${supportedCodecs.map { it.name }}" }
 
         val filteredCodecs = supportedCodecs.filter { codecWhitelist?.contains(it.name) ?: true }.toTypedArray()
-        Timber.v { "filtered supported codecs: ${filteredCodecs.map { it.name }}" }
+        LKLog.v { "filtered supported codecs: ${filteredCodecs.map { it.name }}" }
 
         return filteredCodecs
     }

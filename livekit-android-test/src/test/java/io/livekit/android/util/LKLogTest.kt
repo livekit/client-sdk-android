@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,10 @@ class LKLogTest {
     fun log() {
         var called = false
         LiveKit.loggingLevel = LoggingLevel.INFO
-        LKLog.log(LoggingLevel.ERROR) { called = true }
+        LKLog.log(LoggingLevel.ERROR) {
+            called = true
+            ""
+        }
         assertTrue(called)
     }
 
@@ -35,7 +38,10 @@ class LKLogTest {
     fun noLog() {
         var called = false
         LiveKit.loggingLevel = LoggingLevel.OFF
-        LKLog.log(LoggingLevel.VERBOSE) { called = true }
+        LKLog.log(LoggingLevel.VERBOSE) {
+            called = true
+            ""
+        }
         assertFalse(called)
     }
 }

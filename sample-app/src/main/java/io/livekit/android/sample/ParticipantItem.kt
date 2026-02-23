@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 package io.livekit.android.sample
 
 import android.view.View
-import com.github.ajalt.timberkt.Timber
 import com.xwray.groupie.viewbinding.BindableItem
 import com.xwray.groupie.viewbinding.GroupieViewHolder
 import io.livekit.android.room.Room
@@ -30,6 +29,7 @@ import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import io.livekit.android.sample.databinding.ParticipantItemBinding
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +154,7 @@ class ParticipantItem(
         }
         boundVideoTrack?.removeRenderer(viewBinding.renderer)
         boundVideoTrack = videoTrack
-        Timber.v { "adding renderer to $videoTrack" }
+        LKLog.v { "adding renderer to $videoTrack" }
         videoTrack?.addRenderer(viewBinding.renderer)
     }
 

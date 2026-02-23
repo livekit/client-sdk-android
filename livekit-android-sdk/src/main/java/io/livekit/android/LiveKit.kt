@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package io.livekit.android
 
 import android.app.Application
 import android.content.Context
+import io.livekit.android.LiveKit.loggingLevel
 import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
 import io.livekit.android.dagger.create
 import io.livekit.android.room.Room
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
-import timber.log.Timber
 
 /**
  * The main entry point into using LiveKit.
@@ -42,16 +42,18 @@ object LiveKit {
         get() = LKLog.loggingLevel
         set(value) {
             LKLog.loggingLevel = value
+        }
 
-            // Plant debug tree if needed.
-            if (value != LoggingLevel.OFF) {
-                val forest = Timber.forest()
-                val needsPlanting = forest.none { it is Timber.DebugTree }
-
-                if (needsPlanting) {
-                    Timber.plant(Timber.DebugTree())
-                }
-            }
+    /**
+     * The [LKLog.Logger] to use for Livekit logs.
+     *
+     * Default implementation prints to logcat.
+     */
+    @JvmStatic
+    var logger: LKLog.Logger?
+        get() = LKLog.logger
+        set(value) {
+            LKLog.logger = value
         }
 
     /**

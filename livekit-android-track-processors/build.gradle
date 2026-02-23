@@ -73,7 +73,6 @@ dependencies {
 
     implementation(project(":livekit-android-sdk"))
     implementation(project(":livekit-android-camerax"))
-    implementation libs.timber
     implementation libs.coroutines.lib
     implementation libs.androidx.annotation
 

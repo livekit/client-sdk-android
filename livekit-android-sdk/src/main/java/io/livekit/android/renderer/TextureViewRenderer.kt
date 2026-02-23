@@ -9,7 +9,6 @@
  */
 package io.livekit.android.renderer
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources.NotFoundException
 import android.graphics.Matrix
@@ -213,7 +212,6 @@ open class TextureViewRenderer :
     }
 
     // VideoSink interface.
-    @SuppressLint("LogNotTimber")
     override fun onFrame(frame: VideoFrame) {
         if (!initialized) {
             Log.e("TextureViewRenderer", "Received frame when not initialized! You must call Room.initVideoRenderer(view) before using this view!")
