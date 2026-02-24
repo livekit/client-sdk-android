@@ -65,6 +65,7 @@ constructor(
 
 data class VideoEncoding(
     val maxBitrate: Int,
+    val minBitrate: Int? = null,
     val maxFps: Int,
 ) {
     fun toRtpEncoding(
@@ -74,6 +75,7 @@ data class VideoEncoding(
         return RtpParameters.Encoding(rid, true, scaleDownBy).apply {
             numTemporalLayers = 1
             maxBitrateBps = maxBitrate
+            minBitrateBps = minBitrate
             maxFramerate = maxFps
 
             // only set on the full track
@@ -127,39 +129,39 @@ enum class VideoPreset169(
 ) : VideoPreset {
     H90(
         VideoCaptureParameter(160, 90, 15),
-        VideoEncoding(90_000, 15),
+        VideoEncoding(90_000, maxFps = 15),
     ),
     H180(
         VideoCaptureParameter(320, 180, 15),
-        VideoEncoding(160_000, 15),
+        VideoEncoding(160_000, maxFps = 15),
     ),
     H216(
         VideoCaptureParameter(384, 216, 15),
-        VideoEncoding(180_000, 15),
+        VideoEncoding(180_000, maxFps = 15),
     ),
     H360(
         VideoCaptureParameter(640, 360, 30),
-        VideoEncoding(450_000, 30),
+        VideoEncoding(450_000, maxFps = 30),
     ),
     H540(
         VideoCaptureParameter(960, 540, 30),
-        VideoEncoding(800_000, 30),
+        VideoEncoding(800_000, maxFps = 30),
     ),
     H720(
         VideoCaptureParameter(1280, 720, 30),
-        VideoEncoding(1_700_000, 30),
+        VideoEncoding(1_700_000, maxFps = 30),
     ),
     H1080(
         VideoCaptureParameter(1920, 1080, 30),
-        VideoEncoding(3_000_000, 30),
+        VideoEncoding(3_000_000, maxFps = 30),
     ),
     H1440(
         VideoCaptureParameter(2560, 1440, 30),
-        VideoEncoding(5_000_000, 30),
+        VideoEncoding(5_000_000, maxFps = 30),
     ),
     H2160(
         VideoCaptureParameter(3840, 2160, 30),
-        VideoEncoding(8_000_000, 30),
+        VideoEncoding(8_000_000, maxFps = 30),
     ),
 }
 
@@ -172,39 +174,39 @@ enum class VideoPreset43(
 ) : VideoPreset {
     H120(
         VideoCaptureParameter(160, 120, 15),
-        VideoEncoding(70_000, 15),
+        VideoEncoding(70_000, maxFps = 15),
     ),
     H180(
         VideoCaptureParameter(240, 180, 15),
-        VideoEncoding(125_000, 15),
+        VideoEncoding(125_000, maxFps = 15),
     ),
     H240(
         VideoCaptureParameter(320, 240, 15),
-        VideoEncoding(140_000, 15),
+        VideoEncoding(140_000, maxFps = 15),
     ),
     H360(
         VideoCaptureParameter(480, 360, 30),
-        VideoEncoding(330_000, 30),
+        VideoEncoding(330_000, maxFps = 30),
     ),
     H480(
         VideoCaptureParameter(640, 480, 30),
-        VideoEncoding(500_000, 30),
+        VideoEncoding(500_000, maxFps = 30),
     ),
     H540(
         VideoCaptureParameter(720, 540, 30),
-        VideoEncoding(600_000, 30),
+        VideoEncoding(600_000, maxFps = 30),
     ),
     H720(
         VideoCaptureParameter(960, 720, 30),
-        VideoEncoding(1_300_000, 30),
+        VideoEncoding(1_300_000, maxFps = 30),
     ),
     H1080(
         VideoCaptureParameter(1440, 1080, 30),
-        VideoEncoding(2_300_000, 30),
+        VideoEncoding(2_300_000, maxFps = 30),
     ),
     H1440(
         VideoCaptureParameter(1920, 1440, 30),
-        VideoEncoding(3_800_000, 30),
+        VideoEncoding(3_800_000, maxFps = 30),
     ),
 }
 
@@ -217,31 +219,31 @@ enum class ScreenSharePresets(
 ) : VideoPreset {
     H360_FPS3(
         VideoCaptureParameter(640, 360, 3),
-        VideoEncoding(200_000, 3),
+        VideoEncoding(200_000, maxFps = 3),
     ),
     H360_FPS15(
         VideoCaptureParameter(640, 360, 15),
-        VideoEncoding(400_000, 15),
+        VideoEncoding(400_000, maxFps = 15),
     ),
     H720_FPS5(
         VideoCaptureParameter(1280, 720, 5),
-        VideoEncoding(800_000, 5),
+        VideoEncoding(800_000, maxFps = 5),
     ),
     H720_FPS15(
         VideoCaptureParameter(1280, 720, 15),
-        VideoEncoding(1_500_000, 15),
+        VideoEncoding(1_500_000, maxFps = 15),
     ),
     H720_FPS30(
         VideoCaptureParameter(1280, 720, 30),
-        VideoEncoding(2_000_000, 30),
+        VideoEncoding(2_000_000, maxFps = 30),
     ),
     H1080_FPS15(
         VideoCaptureParameter(1920, 1080, 15),
-        VideoEncoding(2_500_000, 15),
+        VideoEncoding(2_500_000, maxFps = 15),
     ),
     H1080_FPS30(
         VideoCaptureParameter(1920, 1080, 30),
-        VideoEncoding(5_000_000, 30),
+        VideoEncoding(5_000_000, maxFps = 30),
     ),
 
     /**
@@ -249,6 +251,6 @@ enum class ScreenSharePresets(
      */
     ORIGINAL(
         VideoCaptureParameter(0, 0, 30, adaptOutputToDimensions = false),
-        VideoEncoding(7_000_000, 30),
+        VideoEncoding(7_000_000, maxFps = 30),
     )
 }
