@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.23.5
+
+### Patch Changes
+
+- Fix not detecting server supported video codecs correctly - [#876](https://github.com/livekit/client-sdk-android/pull/876) ([@davidliu](https://github.com/davidliu))
+
+- Remove Timber from dependencies - [#874](https://github.com/livekit/client-sdk-android/pull/874) ([@davidliu](https://github.com/davidliu))
+
 ## 2.23.4
 
 ### Patch Changes
