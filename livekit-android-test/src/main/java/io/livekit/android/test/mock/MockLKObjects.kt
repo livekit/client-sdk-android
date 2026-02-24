@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,9 @@ object MockLKObjects {
             eglBaseProvider = { MockEglBase() },
             audioDeviceModuleProvider = {
                 object : AudioDeviceModule {
-                    override fun getNativeAudioDeviceModulePointer(): Long = 1
+                    override fun getNative(webrtcEnvRef: Long): Long {
+                        return 1
+                    }
 
                     override fun release() {}
 

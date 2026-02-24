@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package io.livekit.android.test.mock
 import livekit.org.webrtc.audio.AudioDeviceModule
 
 class MockAudioDeviceModule : AudioDeviceModule {
-    override fun getNativeAudioDeviceModulePointer(): Long {
+    override fun getNative(webrtcEnvRef: Long): Long {
         return 1
     }
 
