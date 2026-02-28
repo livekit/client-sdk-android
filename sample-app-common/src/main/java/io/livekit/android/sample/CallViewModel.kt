@@ -340,7 +340,7 @@ class CallViewModel(
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // Start capturing the screen share audio.
-                audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack,getApplication()) ?: return@launch
+                audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack, getApplication()) ?: return@launch
                 audioCapturer?.gain = 0.1f // Lower the volume so that mic can still be heard clearly.
                 audioTrack.setAudioBufferCallback(audioCapturer!!)
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -179,7 +179,7 @@ constructor(
 
                 AudioFormat.ENCODING_PCM_16BIT,
                 AudioFormat.ENCODING_DEFAULT,
-                    -> {
+                -> {
                     energy = adjustShortBuffer(recordBuffer.asShortBuffer(), gain)
                 }
 
@@ -246,7 +246,6 @@ constructor(
     private fun handleNonSilenceState() {
         silentSinceTime = -1L
     }
-
 
     @SuppressLint("MissingPermission")
     fun initAudioRecord(audioFormat: Int, channelCount: Int, sampleRate: Int): Boolean {
@@ -364,7 +363,7 @@ constructor(
     ): Long {
         var energy = 0L
         for (i in 0 until buffer.capacity()) {
-            val sample = buffer[i].toInt() //Obtain PCM data
+            val sample = buffer[i].toInt() // Obtain PCM data
             // PCM Detection: Energy Calculation
             energy += sample * sample
             val adjusted = (buffer[i] * gain)
@@ -381,7 +380,7 @@ constructor(
     ): Long {
         var energy = 0L
         for (i in 0 until buffer.capacity()) {
-            val sample = buffer[i].toInt() //Obtain PCM data
+            val sample = buffer[i].toInt() // Obtain PCM data
             // PCM Detection: Energy Calculation
             energy += sample * sample
             val adjusted = (buffer[i] * gain)
@@ -398,7 +397,7 @@ constructor(
     ): Long {
         var energy = 0L
         for (i in 0 until buffer.capacity()) {
-            val sample = buffer[i].toInt() //Obtain PCM data
+            val sample = buffer[i].toInt() // Obtain PCM data
             // PCM Detection: Energy Calculation
             energy += sample * sample
             val adjusted = (buffer[i] * gain)
