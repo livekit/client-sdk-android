@@ -72,7 +72,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val audioTrack = room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack ?: return@launch
 
             // Start capturing the screen share audio.
-            audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack) ?: return@launch
+            audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack,getApplication()) ?: return@launch
             audioCapturer?.gain = 0.1f // Lower the volume so that mic can still be heard clearly.
             audioTrack.setAudioBufferCallback(audioCapturer!!)
         }
