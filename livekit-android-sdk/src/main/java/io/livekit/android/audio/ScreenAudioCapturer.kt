@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@ package io.livekit.android.audio
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
 import android.media.projection.MediaProjection
@@ -110,11 +112,18 @@ constructor(
      * types that can be captured.
      */
     private val captureConfigurator: AudioPlaybackCaptureConfigurator = DEFAULT_CONFIGURATOR,
+    private val context: Context? = null,
 ) : MixerAudioBufferCallback() {
     private var audioRecord: AudioRecord? = null
+    private var audioRecordDevice: AudioRecord? = null
 
     private var hasInitialized = false
     private var byteBuffer: ByteBuffer? = null
+
+    /**
+     * Is AudioPlaybackCapture being used?
+     */
+    private var usePlaybackCapture = true
 
     /**
      * A multiplier to adjust the volume of the captured audio data.
@@ -123,39 +132,119 @@ constructor(
      */
     var gain = DEFAULT_GAIN
 
+    /**
+     * The last time the sound was not muted (nanoseconds), -1 indicates that there is sound currently.
+     */
+    private var silentSinceTime: Long = -1L
+
+    /**
+     * 600ms delay
+     */
+    private val SILENT_DURATION_THRESHOLD_NS = 600_000_000L
+
+    /**
+     * Should I reset the recording settings
+     */
+    private var isResetConfig = false
+
+    /**
+     * Threshold for audio detection system
+     */
+    private val SILENCE_ENERGY_THRESHOLD = 50L
+
+    private val audioManager: AudioManager = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    /**
+     * The system detects whether audio is playing.
+     */
+    fun isAudioPlaying(): Boolean {
+        return audioManager.isMusicActive
+    }
+
     override fun onBufferRequest(originalBuffer: ByteBuffer, audioFormat: Int, channelCount: Int, sampleRate: Int, bytesRead: Int, captureTimeNs: Long): BufferResponse? {
         if (!hasInitialized && audioRecord == null) {
             hasInitialized = true
             initAudioRecord(audioFormat = audioFormat, channelCount = channelCount, sampleRate = sampleRate)
         }
-
         val audioRecord = this.audioRecord ?: return null
         val recordBuffer = this.byteBuffer ?: return null
         audioRecord.read(recordBuffer, recordBuffer.capacity())
-
+        var energy: Long? = null
         if (abs(gain - DEFAULT_GAIN) > MIN_GAIN_CHANGE) {
             recordBuffer.position(0)
             when (audioFormat) {
                 AudioFormat.ENCODING_PCM_8BIT -> {
-                    adjustByteBuffer(recordBuffer, gain)
+                    energy = adjustByteBuffer(recordBuffer, gain)
                 }
 
                 AudioFormat.ENCODING_PCM_16BIT,
                 AudioFormat.ENCODING_DEFAULT,
                 -> {
-                    adjustShortBuffer(recordBuffer.asShortBuffer(), gain)
+                    energy = adjustShortBuffer(recordBuffer.asShortBuffer(), gain)
                 }
 
                 AudioFormat.ENCODING_PCM_FLOAT -> {
-                    adjustFloatBuffer(recordBuffer.asFloatBuffer(), gain)
+                    energy = adjustFloatBuffer(recordBuffer.asFloatBuffer(), gain)
                 }
 
                 else -> {
                     LKLog.w { "Unsupported audio format: $audioFormat" }
                 }
             }
+
+            /**
+             * When sharing the screen, system sound is detected. This is done because some phones previously ran Android versions below 10 and were upgraded to Android 10 or higher.
+             * In Android 10 and higher, audio capture is set using `setAudioPlaybackCaptureConfig(audioCaptureConfig)`. However, some phones (e.g., Xiaomi 8 upgraded to Android 10)
+             * are not compatible, causing system sound to fail to share after screen sharing even after setting `setAudioPlaybackCaptureConfig()`. To solve this problem, system sound is detected.
+             * If system sound is present, and the recording returns a capability value <50 after a 600ms delay, it indicates a problem with the shared system audio. In this case, the recording configuration should be switched so that `setAudioPlaybackCaptureConfig(audioCaptureConfig)` is not set.
+             */
+            if (isAudioPlaying() && !isResetConfig && usePlaybackCapture) {
+                energy?.let { currentEnergy ->
+                    if (currentEnergy <= SILENCE_ENERGY_THRESHOLD) {
+                        handleSilenceState()
+                    } else {
+                        handleNonSilenceState()
+                    }
+                }
+            } else {
+                // The mute timer has been reset.
+                silentSinceTime = -1L
+            }
         }
         return BufferResponse(recordBuffer)
+    }
+
+    /**
+     * If the screen-sharing system has sound and has been silent for more than 600ms, and if recorded audio data is detected,
+     * the recording configuration will be switched.
+     */
+    private fun handleSilenceState() {
+        val now = System.nanoTime()
+        if (silentSinceTime == -1L) {
+            // Initially muted
+            silentSinceTime = now
+        } else if (now - silentSinceTime >= SILENT_DURATION_THRESHOLD_NS) {
+            // If the system has audio sound but no audio data is detected, it indicates a problem with audio sharing in the screen sharing system. Perform a switch to release recording and reset the relevant values.
+            releaseAudio()
+            silentSinceTime = -1L
+        }
+    }
+
+    /**
+     * Release recording and reset related parameter values
+     */
+    private fun releaseAudio() {
+        isResetConfig = true
+        releaseAudioResources()
+        usePlaybackCapture = false
+        hasInitialized = false
+    }
+
+    /**
+     * If no sound is detected, assign a value of -1
+     */
+    private fun handleNonSilenceState() {
+        silentSinceTime = -1L
     }
 
     @SuppressLint("MissingPermission")
@@ -164,13 +253,11 @@ constructor(
             .apply(captureConfigurator)
             .build()
         val channelMask = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
-
         val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelMask, audioFormat)
         if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
             throw IllegalStateException("minBuffer size error: $minBufferSize")
         }
         LKLog.v { "AudioRecord.getMinBufferSize: $minBufferSize" }
-
         val bytesPerFrame = channelCount * getBytesPerSample(audioFormat)
         val framesPerBuffer = sampleRate / 100
         val readBufferCapacity = bytesPerFrame * framesPerBuffer
@@ -185,7 +272,7 @@ constructor(
         this.byteBuffer = byteBuffer
         val bufferSizeInBytes: Int = max(BUFFER_SIZE_FACTOR * minBufferSize, readBufferCapacity)
 
-        val audioRecord = AudioRecord.Builder()
+        val audioRecordBuild = AudioRecord.Builder()
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(audioFormat)
@@ -194,9 +281,13 @@ constructor(
                     .build(),
             )
             .setBufferSizeInBytes(bufferSizeInBytes)
-            .setAudioPlaybackCaptureConfig(audioCaptureConfig)
-            .build()
 
+        // By default, Android 10 uses the `setAudioPlaybackCaptureConfig` setting.
+        if (usePlaybackCapture) {
+            audioRecordBuild.setAudioPlaybackCaptureConfig(audioCaptureConfig)
+        }
+
+        val audioRecord = audioRecordBuild.build()
         try {
             audioRecord.startRecording()
         } catch (e: Exception) {
@@ -204,6 +295,7 @@ constructor(
             audioRecord.release()
             return false
         }
+
         if (audioRecord.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
             LKLog.e {
                 "AudioRecord.startRecording failed - incorrect state: ${audioRecord.recordingState}"
@@ -240,7 +332,7 @@ constructor(
 
     companion object {
         @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-        fun createFromScreenShareTrack(track: Track?): ScreenAudioCapturer? {
+        fun createFromScreenShareTrack(track: Track?, context: Context): ScreenAudioCapturer? {
             val screenShareTrack = track as? LocalVideoTrack
 
             if (screenShareTrack == null) {
@@ -261,43 +353,58 @@ constructor(
                 return null
             }
 
-            return ScreenAudioCapturer(mediaProjection)
+            return ScreenAudioCapturer(mediaProjection, context = context)
         }
     }
 
     private fun adjustByteBuffer(
         buffer: ByteBuffer,
         gain: Float,
-    ) {
+    ): Long {
+        var energy = 0L
         for (i in 0 until buffer.capacity()) {
+            val sample = buffer[i].toInt() // Obtain PCM data
+            // PCM Detection: Energy Calculation
+            energy += sample * sample
             val adjusted = (buffer[i] * gain)
                 .roundToInt()
                 .coerceIn(Byte.MIN_VALUE.toInt(), Byte.MAX_VALUE.toInt())
             buffer.put(i, adjusted.toByte())
         }
+        return energy
     }
 
     private fun adjustShortBuffer(
         buffer: ShortBuffer,
         gain: Float,
-    ) {
+    ): Long {
+        var energy = 0L
         for (i in 0 until buffer.capacity()) {
+            val sample = buffer[i].toInt() // Obtain PCM data
+            // PCM Detection: Energy Calculation
+            energy += sample * sample
             val adjusted = (buffer[i] * gain)
                 .roundToInt()
                 .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
             buffer.put(i, adjusted.toShort())
         }
+        return energy
     }
 
     private fun adjustFloatBuffer(
         buffer: FloatBuffer,
         gain: Float,
-    ) {
+    ): Long {
+        var energy = 0L
         for (i in 0 until buffer.capacity()) {
+            val sample = buffer[i].toInt() // Obtain PCM data
+            // PCM Detection: Energy Calculation
+            energy += sample * sample
             val adjusted = (buffer[i] * gain)
                 .coerceIn(-1f, 1f)
             buffer.put(i, adjusted)
         }
+        return energy
     }
 }
 

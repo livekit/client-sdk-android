@@ -16,13 +16,16 @@
 
 package io.livekit.android.sample
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -34,6 +37,7 @@ import io.livekit.android.LiveKitOverrides
 import io.livekit.android.RoomOptions
 import io.livekit.android.audio.AudioProcessorOptions
 import io.livekit.android.audio.AudioSwitchHandler
+import io.livekit.android.audio.ScreenAudioCapturer
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
@@ -44,6 +48,7 @@ import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalScreencastVideoTrack
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
@@ -143,6 +148,8 @@ class CallViewModel(
     // Whether other participants are allowed to subscribe to this participant's tracks.
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
+
+    private var audioCapturer: ScreenAudioCapturer? = null
 
     init {
 
@@ -315,11 +322,28 @@ class CallViewModel(
      * [MediaProjectionManager.createScreenCaptureIntent]
      */
     fun startScreenCapture(mediaProjectionPermissionResultData: Intent) {
-        val localParticipant = room.localParticipant
         viewModelScope.launch(Dispatchers.IO) {
-            localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(mediaProjectionPermissionResultData))
-            val screencastTrack = localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalScreencastVideoTrack
-            this@CallViewModel.localScreencastTrack = screencastTrack
+            if (ActivityCompat.checkSelfPermission(getApplication(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                return@launch
+            }
+
+            room.localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(mediaProjectionPermissionResultData))
+
+            // Optionally disable the mic for screenshare audio only
+            // val javaAudioDeviceModule = (room.lkObjects.audioDeviceModule as? JavaAudioDeviceModule)
+            // javaAudioDeviceModule?.setAudioRecordEnabled(false)
+
+            // Publish the audio track.
+            room.localParticipant.setMicrophoneEnabled(true)
+            val screenCaptureTrack = room.localParticipant.getTrackPublication(Track.Source.SCREEN_SHARE)?.track as? LocalVideoTrack ?: return@launch
+            val audioTrack = room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack ?: return@launch
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Start capturing the screen share audio.
+                audioCapturer = ScreenAudioCapturer.createFromScreenShareTrack(screenCaptureTrack, getApplication()) ?: return@launch
+                audioCapturer?.gain = 0.1f // Lower the volume so that mic can still be heard clearly.
+                audioTrack.setAudioBufferCallback(audioCapturer!!)
+            }
         }
     }
 
