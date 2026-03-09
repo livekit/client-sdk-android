@@ -153,3 +153,25 @@ jobs:
           branch: dl/update_snapshot_ver
           title: Prepare snapshot version ${{ steps.update.outputs.SNAPSHOT_VERSION }}
           commit-message: Prepare snapshot version ${{ steps.update.outputs.SNAPSHOT_VERSION }}
+
+  notify-components-android:
+    needs: release
+    name: Notify Components Android
+    if: ${{ needs.release.outputs.hasPublished == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=$(./ci/get_version.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch to components-android
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.E2E_DISPATCH_TOKEN }}
+          repository: livekit/components-android
+          event-type: update-livekit-version
+          client-payload: '{"version": "${{ steps.version.outputs.VERSION }}"}'
