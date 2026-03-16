@@ -142,6 +142,10 @@ internal constructor(
             ConnectionState.DISCONNECTED -> {
                 LKLog.d { "primary ICE disconnected" }
                 if (oldVal == ConnectionState.CONNECTED) {
+                    LKLog.d { "ready call reconnect()" }
+                    reconnect()
+                } else if (oldVal == ConnectionState.RESUMING || oldVal == ConnectionState.RECONNECTING) {
+                    LKLog.d { "ICE disconnected during reconnect, retrying reconnect()" }
                     reconnect()
                 }
             }
@@ -307,7 +311,14 @@ internal constructor(
                     if (newState.isConnected()) {
                         connectionState = ConnectionState.CONNECTED
                     } else if (newState.isDisconnected()) {
-                        connectionState = ConnectionState.DISCONNECTED
+                        // Only transition to DISCONNECTED when not already in a reconnection
+                        // intermediate state (RESUMING/RECONNECTING). In those states the
+                        // reconnect flow owns connectionState; overwriting it here would
+                        // silently swallow the disconnect and prevent the app from being notified.
+                        val current = connectionState
+                        if (current != ConnectionState.RESUMING && current != ConnectionState.RECONNECTING) {
+                            connectionState = ConnectionState.DISCONNECTED
+                        }
                     }
                 }
 
