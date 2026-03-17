@@ -17,6 +17,7 @@
 package io.livekit.android.e2ee
 
 import livekit.LivekitModels.Encryption
+import livekit.org.webrtc.FrameCryptorKeyDerivationAlgorithm
 
 internal const val defaultRatchetSalt = "LKFrameEncryptionKey"
 internal const val defaultMagicBytes = "LK-ROCKS"
@@ -24,6 +25,7 @@ internal const val defaultRatchetWindowSize = 16
 internal const val defaultFailureTolerance = -1
 internal const val defaultKeyRingSize = 16
 internal const val defaultDiscardFrameWhenCryptorNotReady = false
+internal val defaultKeyDerivationAlgorithm = FrameCryptorKeyDerivationAlgorithm.PBKDF2
 
 class E2EEOptions(
     var keyProvider: KeyProvider = BaseKeyProvider(
@@ -34,6 +36,7 @@ class E2EEOptions(
         defaultFailureTolerance,
         defaultKeyRingSize,
         defaultDiscardFrameWhenCryptorNotReady,
+        defaultKeyDerivationAlgorithm,
     ),
     encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
