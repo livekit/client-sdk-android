@@ -17,6 +17,7 @@
 package io.livekit.android.room.types
 
 import androidx.annotation.VisibleForTesting
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -35,6 +36,8 @@ internal fun AgentAttributes.Companion.fromJsonObject(jsonObject: JsonObject) =
     jsonSerializer.decodeFromJsonElement<AgentAttributes>(jsonObject)
 
 /**
+ * @throws [SerializationException] if the given JSON element is not a valid JSON input
+ * @throws [IllegalArgumentException] if the decoded input cannot be represented as a valid instance
  * @suppress
  */
 fun AgentAttributes.Companion.fromMap(map: Map<String, JsonElement>): AgentAttributes {
@@ -46,6 +49,8 @@ fun AgentAttributes.Companion.fromMap(map: Map<String, JsonElement>): AgentAttri
 }
 
 /**
+ * @throws [SerializationException] if the given JSON element is not a valid JSON input
+ * @throws [IllegalArgumentException] if the decoded input cannot be represented as a valid instance
  * @suppress
  */
 fun AgentAttributes.Companion.fromStringMap(map: Map<String, String>): AgentAttributes {
@@ -75,6 +80,8 @@ internal fun TranscriptionAttributes.Companion.fromJsonObject(jsonObject: JsonOb
     jsonSerializer.decodeFromJsonElement<TranscriptionAttributes>(jsonObject)
 
 /**
+ * @throws [SerializationException] if the given JSON element is not a valid JSON input
+ * @throws [IllegalArgumentException] if the decoded input cannot be represented as a valid instance
  * @suppress
  */
 fun TranscriptionAttributes.Companion.fromMap(map: Map<String, JsonElement>): TranscriptionAttributes {
@@ -86,6 +93,8 @@ fun TranscriptionAttributes.Companion.fromMap(map: Map<String, JsonElement>): Tr
 }
 
 /**
+ * @throws [SerializationException] if the given JSON element is not a valid JSON input
+ * @throws [IllegalArgumentException] if the decoded input cannot be represented as a valid instance
  * @suppress
  */
 fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): TranscriptionAttributes {
@@ -107,5 +116,5 @@ fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): T
 val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> JsonElement?>(
     "lk.segment_id" to { json -> JsonPrimitive(json) },
     "lk.transcribed_track_id" to { json -> JsonPrimitive(json) },
-    "lk.transcription_final" to { json -> json?.let { jsonSerializer.decodeFromString<JsonArray>(json) } },
+    "lk.transcription_final" to { json -> json?.let { JsonPrimitive(json.toBooleanStrictOrNull()) } },
 )
