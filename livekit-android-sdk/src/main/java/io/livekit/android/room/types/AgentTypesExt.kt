@@ -107,5 +107,5 @@ fun TranscriptionAttributes.Companion.fromStringMap(map: Map<String, String>): T
 val TRANSCRIPTION_ATTRIBUTES_CONVERSION = mapOf<String, (String?) -> JsonElement?>(
     "lk.segment_id" to { json -> JsonPrimitive(json) },
     "lk.transcribed_track_id" to { json -> JsonPrimitive(json) },
-    "lk.transcription_final" to { json -> json?.let { jsonSerializer.decodeFromString<JsonArray>(json) } },
+    "lk.transcription_final" to { json -> json?.let { JsonPrimitive(json.toBooleanStrictOrNull()) } },
 )
