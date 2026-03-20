@@ -694,7 +694,11 @@ internal constructor(
 
     @CheckResult
     internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result<Unit> {
-        ensurePublisherConnected(dataPacket.kind)
+        try {
+            ensurePublisherConnected(dataPacket.kind)
+        } catch (e: Exception) {
+            return Result.failure(e)
+        }
 
         fun sendDataImpl(dataPacket: LivekitModels.DataPacket): Result<Unit> {
             try {
