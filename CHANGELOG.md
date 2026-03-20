@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.23.6
+
+### Patch Changes
+
+- Fix transcription attributes not converting correctly - [#889](https://github.com/livekit/client-sdk-android/pull/889) ([@davidliu](https://github.com/davidliu))
+
 ## 2.23.5
 
 ### Patch Changes
