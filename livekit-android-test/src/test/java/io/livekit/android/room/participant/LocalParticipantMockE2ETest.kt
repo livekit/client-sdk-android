@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.RoomException
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.ScreenSharePresets
@@ -878,5 +879,20 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertTrue(headerPacket.hasUser())
 
         assertTrue(headerPacket.user.payload.toByteArray().contentEquals(data))
+    }
+
+    @Test
+    fun publishDataReturnsFailureWhenPublisherChannelIsMissing() = runTest {
+        connect()
+
+        val rtcEngine = component.rtcEngine()
+        val reliableDataChannelField = RTCEngine::class.java.getDeclaredField("reliableDataChannel")
+        reliableDataChannelField.isAccessible = true
+        reliableDataChannelField.set(rtcEngine, null)
+
+        val result = room.localParticipant.publishData("hello".toByteArray())
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is RoomException.ConnectException)
     }
 }
