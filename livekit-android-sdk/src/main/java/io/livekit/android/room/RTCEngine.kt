@@ -29,6 +29,9 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.network.DefaultReconnectPolicy
+import io.livekit.android.room.network.ReconnectContext
+import io.livekit.android.room.network.ReconnectPolicy
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.TrackException
@@ -99,6 +102,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -157,6 +161,8 @@ internal constructor(
 
     @Volatile
     private var fullReconnectOnNext = false
+
+    internal var reconnectPolicy: ReconnectPolicy = DefaultReconnectPolicy()
 
     private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
         mutableMapOf()
@@ -526,6 +532,8 @@ internal constructor(
             var hasReconnectedOnce = false
 
             val reconnectStartTime = SystemClock.elapsedRealtime()
+            val reconnectPolicy = this@RTCEngine.reconnectPolicy
+
             for (retries in 0 until MAX_RECONNECT_RETRIES) {
                 // First try use previously valid url.
                 if (retries != 0) {
@@ -546,9 +554,14 @@ internal constructor(
                     break
                 }
 
-                var startDelay = 100 + retries.toLong() * retries * 500
-                if (startDelay > 5000) {
-                    startDelay = 5000
+                val reconnectContext = ReconnectContext(
+                    retryCount = retries,
+                    elapsedTime = (SystemClock.elapsedRealtime() - reconnectStartTime).milliseconds,
+                )
+                val startDelay = reconnectPolicy.getNextRetryDelay(reconnectContext)
+                if (startDelay == null) {
+                    LKLog.i { "cancelling reconnection due to policy." }
+                    break
                 }
 
                 LKLog.i { "Reconnecting to signal, attempt ${retries + 1}" }
@@ -979,7 +992,7 @@ internal constructor(
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
         internal const val MAX_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
-        private const val MAX_RECONNECT_RETRIES = 10
+        private const val MAX_RECONNECT_RETRIES = 30
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000
 

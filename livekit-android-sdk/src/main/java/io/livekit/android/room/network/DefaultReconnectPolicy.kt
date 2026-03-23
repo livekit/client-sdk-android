@@ -41,9 +41,11 @@ class DefaultReconnectPolicy(
 
         val DEFAULT_RETRY_DELAYS = listOf(
             0.milliseconds,
-            300.milliseconds,
-            300.milliseconds,
             300.milliseconds, // Aggressively try to reconnect a couple of times. Wifi -> LTE handoff can randomly take a while.
+            300.milliseconds,
+            500.milliseconds,
+            500.milliseconds,
+            500.milliseconds,
             (2 * 2 * 300).milliseconds,
             (3 * 3 * 300).milliseconds,
             (4 * 4 * 300).milliseconds,
