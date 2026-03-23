@@ -1,5 +1,25 @@
 # client-sdk-android
 
+## 2.24.0
+
+### Minor Changes
+
+- Add setting custom reconnect policy - [#894](https://github.com/livekit/client-sdk-android/pull/894) ([@davidliu](https://github.com/davidliu))
+
+- Update libwebrtc to m144 - [#886](https://github.com/livekit/client-sdk-android/pull/886) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix resume not working sometimes after connection loss/gain - [#894](https://github.com/livekit/client-sdk-android/pull/894) ([@davidliu](https://github.com/davidliu))
+
+- Fix transcription attributes not converting correctly - [#889](https://github.com/livekit/client-sdk-android/pull/889) ([@davidliu](https://github.com/davidliu))
+
+- Specifically keep native libwebrtc methods from being obfuscated - [#893](https://github.com/livekit/client-sdk-android/pull/893) ([@davidliu](https://github.com/davidliu))
+
+- Properly cancel jobs awaiting on DataChannel low buffer instead of completing on dispose - [#897](https://github.com/livekit/client-sdk-android/pull/897) ([@davidliu](https://github.com/davidliu))
+
+- Fix exception not being caught when using LocalParticipant.publishData - [#897](https://github.com/livekit/client-sdk-android/pull/897) ([@davidliu](https://github.com/davidliu))
+
 ## 2.23.5
 
 ### Patch Changes
