@@ -20,7 +20,12 @@
 
 # WebRTC
 #########################################
-# Ensure java methods called from Native are preserved.
+# Ensure JNI native method names and descriptors are preserved (Java -> native).
+-keepclasseswithmembernames,includedescriptorclasses class livekit.org.webrtc.** {
+    native <methods>;
+}
+
+# Ensure java methods called from Native are preserved (native -> Java).
 -keepclasseswithmembers,includedescriptorclasses class * {
     @livekit.**.CalledByNative <methods>;
 }
