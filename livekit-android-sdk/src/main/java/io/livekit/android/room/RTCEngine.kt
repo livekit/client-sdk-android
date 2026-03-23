@@ -804,17 +804,7 @@ internal constructor(
         } catch (e: Exception) {
             return
         }
-        val manager = when (kind) {
-            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
-            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannelManager
-            LivekitModels.DataPacket.Kind.UNRECOGNIZED -> {
-                throw IllegalArgumentException()
-            }
-        }
-
-        if (manager == null) {
-            return
-        }
+        val manager = dataChannelManagerForKind(kind) ?: return
         manager.waitForBufferedAmountLow(DATA_CHANNEL_LOW_THRESHOLD.toLong())
     }
 
@@ -825,7 +815,7 @@ internal constructor(
         }
 
         if (publisher == null) {
-            throw RoomException.ConnectException("Publisher isn't setup yet! Is room not connected?!")
+            throw RoomException.ConnectException("Publisher isn't setup yet! Is the room connected?")
         }
 
         if (publisher?.isConnected() != true &&
@@ -835,22 +825,37 @@ internal constructor(
             this.negotiatePublisher()
         }
 
-        val targetChannel = dataChannelForKind(kind) ?: throw RoomException.ConnectException("Publisher isn't setup yet! Is room not connected?!")
-        if (targetChannel.state() == DataChannel.State.OPEN) {
+        // Ensure data channel exists
+        dataChannelForKind(kind) ?: throw RoomException.ConnectException("Publisher data channel not established for ${kind.name}; is the room connected?")
+
+        val channelManager = dataChannelManagerForKind(kind)
+            ?: throw RoomException.ConnectException("Publisher data channel manager not established for ${kind.name}; is the room connected?")
+        if (channelManager.state == DataChannel.State.OPEN) {
             return
         }
 
         // wait until publisher ICE connected
         val endTime = SystemClock.elapsedRealtime() + MAX_ICE_CONNECT_TIMEOUT_MS
         while (SystemClock.elapsedRealtime() < endTime) {
-            if (publisher?.isConnected() == true && targetChannel.state() == DataChannel.State.OPEN) {
+            if (publisher?.isConnected() == true &&
+                channelManager.state == DataChannel.State.OPEN
+            ) {
                 return
             }
             delay(50)
         }
 
-        throw RoomException.ConnectException("could not establish publisher connection")
+        throw RoomException.ConnectException(
+            "could not establish publisher connection: publisher state: ${publisherObserver.connectionState}, channel state: ${channelManager.state}",
+        )
     }
+
+    private fun dataChannelManagerForKind(kind: LivekitModels.DataPacket.Kind): DataChannelManager? =
+        when (kind) {
+            LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
+            LivekitModels.DataPacket.Kind.LOSSY -> lossyDataChannelManager
+            LivekitModels.DataPacket.Kind.UNRECOGNIZED -> throw IllegalArgumentException("Unknown data packet kind!")
+        }
 
     private fun dataChannelForKind(kind: LivekitModels.DataPacket.Kind) =
         when (kind) {
