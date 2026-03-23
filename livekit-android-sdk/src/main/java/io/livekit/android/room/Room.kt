@@ -50,6 +50,7 @@ import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
+import io.livekit.android.room.network.ReconnectPolicy
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.LocalParticipant
@@ -316,6 +317,11 @@ constructor(
      * Default options to use when publishing a screen share track.
      */
     var screenShareTrackPublishDefaults: VideoTrackPublishDefaults by defaultsManager::screenShareTrackPublishDefaults
+
+    /**
+     * [ReconnectPolicy] to use when reconnecting to the server.
+     */
+    var reconnectPolicy: ReconnectPolicy by engine::reconnectPolicy
 
     val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
@@ -612,6 +618,9 @@ constructor(
         }
         options.screenShareTrackPublishDefaults?.let {
             screenShareTrackPublishDefaults = it
+        }
+        options.reconnectPolicy?.let {
+            reconnectPolicy = it
         }
         adaptiveStream = options.adaptiveStream
         dynacast = options.dynacast
