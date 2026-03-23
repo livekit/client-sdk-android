@@ -657,9 +657,15 @@ internal constructor(
                     break
                 }
 
-                if (connectionState == ConnectionState.CONNECTED &&
-                    (!hasPublished || publisher?.isConnected() == true)
+                val subscriberConnected = subscriber?.isConnected() == true
+                val publisherConnected = !hasPublished || publisher?.isConnected() == true
+                if ((connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.RESUMING) &&
+                    subscriberConnected &&
+                    publisherConnected
                 ) {
+                    if (connectionState == ConnectionState.RESUMING) {
+                        connectionState = ConnectionState.CONNECTED
+                    }
                     if (lastMessageSeq != null) {
                         resendReliableMessagesForResume(lastMessageSeq)
                     }
