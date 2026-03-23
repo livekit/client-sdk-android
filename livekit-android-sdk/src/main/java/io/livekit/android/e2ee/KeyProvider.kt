@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.livekit.android.e2ee
 
 import io.livekit.android.util.LKLog
 import livekit.org.webrtc.FrameCryptorFactory
+import livekit.org.webrtc.FrameCryptorKeyDerivationAlgorithm
 import livekit.org.webrtc.FrameCryptorKeyProvider
 
 internal class KeyInfo(var participantId: String, var keyIndex: Int, var key: String) {
@@ -49,6 +50,7 @@ class BaseKeyProvider(
     failureTolerance: Int = defaultFailureTolerance,
     keyRingSize: Int = defaultKeyRingSize,
     discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady,
+    keyDerivationAlgorithm: FrameCryptorKeyDerivationAlgorithm = defaultKeyDerivationAlgorithm,
 ) : KeyProvider {
 
     private val latestSetIndex = mutableMapOf<String, Int>()
@@ -61,6 +63,7 @@ class BaseKeyProvider(
         failureTolerance,
         keyRingSize,
         discardFrameWhenCryptorNotReady,
+        keyDerivationAlgorithm,
     )
 
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
