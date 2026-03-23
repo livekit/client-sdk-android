@@ -52,7 +52,6 @@ fun RTCConfiguration.copy(): RTCConfiguration {
 }
 
 fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
-    // activeResetSrtpParams = config.activeResetSrtpParams
     audioJitterBufferFastAccelerate = config.audioJitterBufferFastAccelerate
     audioJitterBufferMaxPackets = config.audioJitterBufferMaxPackets
     bundlePolicy = config.bundlePolicy
