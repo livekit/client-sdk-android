@@ -2,6 +2,12 @@ name: Generate dependency diff
 
 on:
   pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.gitignore'
 
 permissions:
   contents: read
