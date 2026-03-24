@@ -146,10 +146,6 @@ internal constructor(
             ConnectionState.DISCONNECTED -> {
                 LKLog.d { "primary ICE disconnected" }
                 if (oldVal == ConnectionState.CONNECTED) {
-                    LKLog.d { "ready call reconnect()" }
-                    reconnect()
-                } else if (oldVal == ConnectionState.RESUMING || oldVal == ConnectionState.RECONNECTING) {
-                    LKLog.d { "ICE disconnected during reconnect, retrying reconnect()" }
                     reconnect()
                 }
             }
