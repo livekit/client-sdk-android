@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.24.1
+
+### Patch Changes
+
+- Fix LocalParticipant.publishData throwing exception for packets over 15KB - [#902](https://github.com/livekit/client-sdk-android/pull/902) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
 ## 2.24.0
 
 ### Minor Changes
