@@ -28,18 +28,18 @@ jobs:
         working-directory: ./client-sdk-android
     steps:
     - name: checkout client-sdk-android
-      uses: actions/checkout@v4.0.0
+      uses: actions/checkout@v6
       with:
         path: ./client-sdk-android
         submodules: recursive
 
     - name: set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'adopt'
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           ~/.gradle/caches
@@ -62,7 +62,7 @@ jobs:
       run: ./gradlew assembleRelease livekit-android-test:testRelease
 
     - name: Upload AAR
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: livekit-android-sdk-release.aar
         path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
@@ -187,7 +187,7 @@ jobs:
       # Setting up diffuse artifacts
     - name: Setup cache for base source file for diffuse
       if: github.event_name == 'push'
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: client-sdk-android/diffuse-source-file
         key: diffuse-${{ github.sha }}
@@ -213,7 +213,7 @@ jobs:
     name: Diffuse checker
     needs: build
     steps:
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'adopt'
