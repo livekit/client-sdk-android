@@ -506,6 +506,21 @@ internal constructor(
     }
 
     /**
+     * Cancel any in-progress reconnection and start a fresh one.
+     * Used when network availability changes, since the existing reconnect
+     * loop may be stuck in blocking calls to an unreachable server.
+     * Forces a full reconnect since the cancelled job may have already
+     * destroyed peer connections via closeResources().
+     */
+    @Synchronized
+    internal fun forceReconnect() {
+        reconnectingJob?.cancel()
+        reconnectingJob = null
+        fullReconnectOnNext = true
+        reconnect()
+    }
+
+    /**
      * reconnect Signal and PeerConnections
      */
     @Synchronized
