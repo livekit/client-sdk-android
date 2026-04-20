@@ -97,6 +97,9 @@ constructor(private val context: Context) : AudioHandler {
         }
     }
 
+    @Volatile
+    private var preferredDeviceListBacking: List<Class<out AudioDevice>>? = null
+
     /**
      * The preferred priority of audio devices to use. The first available audio device will be used.
      *
@@ -105,8 +108,27 @@ constructor(private val context: Context) : AudioHandler {
      * 2. WiredHeadset
      * 3. Speakerphone
      * 4. Earpiece
+     *
+     * Changes to this value after [start] has been called will still be applied
+     * to the underlying [AbstractAudioSwitch] instance.
      */
-    var preferredDeviceList: List<Class<out AudioDevice>>? = null
+    var preferredDeviceList: List<Class<out AudioDevice>>?
+        get() = preferredDeviceListBacking
+        set(value) {
+            preferredDeviceListBacking = value
+            val list = value ?: defaultPreferredDeviceList
+            val h = handler
+            val sw = audioSwitch
+            if (h != null && sw != null) {
+                if (Looper.myLooper() == h.looper) {
+                    sw.setPreferredDeviceList(list)
+                } else {
+                    h.post {
+                        audioSwitch?.setPreferredDeviceList(list)
+                    }
+                }
+            }
+        }
 
     /**
      * When true, AudioSwitchHandler will request audio focus on start and abandon on stop.
