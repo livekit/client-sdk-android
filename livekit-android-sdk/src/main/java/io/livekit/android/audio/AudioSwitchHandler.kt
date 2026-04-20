@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import com.twilio.audioswitch.AbstractAudioSwitch
 import com.twilio.audioswitch.AudioDevice
 import com.twilio.audioswitch.AudioDeviceChangeListener
 import com.twilio.audioswitch.AudioSwitch
+import com.twilio.audioswitch.CommDeviceAudioSwitch
 import com.twilio.audioswitch.LegacyAudioSwitch
 import io.livekit.android.room.Room
 import io.livekit.android.util.LKLog
@@ -48,7 +49,7 @@ constructor(private val context: Context) : AudioHandler {
     /**
      * Toggle whether logging is enabled for [AudioSwitch]. By default, this is set to false.
      */
-    var loggingEnabled = false
+    var loggingEnabled = true
 
     /**
      * Listen to changes in the available and active audio devices.
@@ -96,6 +97,9 @@ constructor(private val context: Context) : AudioHandler {
         }
     }
 
+    @Volatile
+    private var preferredDeviceListBacking: List<Class<out AudioDevice>>? = null
+
     /**
      * The preferred priority of audio devices to use. The first available audio device will be used.
      *
@@ -104,8 +108,27 @@ constructor(private val context: Context) : AudioHandler {
      * 2. WiredHeadset
      * 3. Speakerphone
      * 4. Earpiece
+     *
+     * Changes to this value after [start] has been called will still be applied
+     * to the underlying [AbstractAudioSwitch] instance.
      */
-    var preferredDeviceList: List<Class<out AudioDevice>>? = null
+    var preferredDeviceList: List<Class<out AudioDevice>>?
+        get() = preferredDeviceListBacking
+        set(value) {
+            preferredDeviceListBacking = value
+            val list = value ?: defaultPreferredDeviceList
+            val h = handler
+            val sw = audioSwitch
+            if (h != null && sw != null) {
+                if (Looper.myLooper() == h.looper) {
+                    sw.setPreferredDeviceList(list)
+                } else {
+                    h.post {
+                        audioSwitch?.setPreferredDeviceList(list)
+                    }
+                }
+            }
+        }
 
     /**
      * When true, AudioSwitchHandler will request audio focus on start and abandon on stop.
@@ -199,7 +222,14 @@ constructor(private val context: Context) : AudioHandler {
             handler?.removeCallbacksAndMessages(null)
             handler?.postAtFrontOfQueue {
                 val switch =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        CommDeviceAudioSwitch(
+                            context = context,
+                            loggingEnabled = loggingEnabled,
+                            audioFocusChangeListener = onAudioFocusChangeDispatcher,
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
+                        )
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         AudioSwitch(
                             context = context,
                             loggingEnabled = loggingEnabled,
