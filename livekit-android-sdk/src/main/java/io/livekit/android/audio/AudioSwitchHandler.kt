@@ -27,6 +27,7 @@ import com.twilio.audioswitch.AbstractAudioSwitch
 import com.twilio.audioswitch.AudioDevice
 import com.twilio.audioswitch.AudioDeviceChangeListener
 import com.twilio.audioswitch.AudioSwitch
+import com.twilio.audioswitch.CommDeviceAudioSwitch
 import com.twilio.audioswitch.LegacyAudioSwitch
 import io.livekit.android.room.Room
 import io.livekit.android.util.LKLog
@@ -48,7 +49,7 @@ constructor(private val context: Context) : AudioHandler {
     /**
      * Toggle whether logging is enabled for [AudioSwitch]. By default, this is set to false.
      */
-    var loggingEnabled = false
+    var loggingEnabled = true
 
     /**
      * Listen to changes in the available and active audio devices.
@@ -199,7 +200,14 @@ constructor(private val context: Context) : AudioHandler {
             handler?.removeCallbacksAndMessages(null)
             handler?.postAtFrontOfQueue {
                 val switch =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        CommDeviceAudioSwitch(
+                            context = context,
+                            loggingEnabled = loggingEnabled,
+                            audioFocusChangeListener = onAudioFocusChangeDispatcher,
+                            preferredDeviceList = preferredDeviceList ?: defaultPreferredDeviceList,
+                        )
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         AudioSwitch(
                             context = context,
                             loggingEnabled = loggingEnabled,

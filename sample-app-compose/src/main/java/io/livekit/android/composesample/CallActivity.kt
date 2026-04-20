@@ -21,6 +21,7 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
@@ -107,6 +109,7 @@ class CallActivity : AppCompatActivity() {
 
     @OptIn(ExperimentalMaterialApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -198,6 +201,7 @@ class CallActivity : AppCompatActivity() {
             ConstraintLayout(
                 modifier = Modifier
                     .fillMaxSize()
+                    .safeDrawingPadding()
                     .background(MaterialTheme.colors.background),
             ) {
                 val (speakerView, audienceRow, buttonBar) = createRefs()

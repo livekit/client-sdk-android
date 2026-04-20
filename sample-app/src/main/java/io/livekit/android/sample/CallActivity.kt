@@ -22,9 +22,12 @@ import android.os.Parcelable
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -70,11 +73,19 @@ class CallActivity : AppCompatActivity() {
 
     @androidx.camera.camera2.interop.ExperimentalCamera2Interop
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding = CallActivityBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, windowInsets ->
+            val bars = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            windowInsets
+        }
 
         // Audience row setup
         val audienceAdapter = GroupieAdapter()
