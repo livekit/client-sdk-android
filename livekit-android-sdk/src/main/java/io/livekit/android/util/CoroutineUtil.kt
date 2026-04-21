@@ -41,7 +41,7 @@ internal fun <R> ((Unit) -> R).invoke() {
     this.invoke(Unit)
 }
 
-internal fun Throwable.rethrowIfCancellationSignal() {
+fun Throwable.rethrowIfCancellationSignal() {
     if (this is CancellationException) {
         throw this
     }

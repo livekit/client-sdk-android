@@ -18,6 +18,10 @@ package io.livekit.android.room.datastream.outgoing
 
 import androidx.annotation.CheckResult
 import io.livekit.android.room.datastream.StreamException
+import io.livekit.android.util.LKLog
+import io.livekit.android.util.rethrowIfCancellationSignal
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 abstract class BaseStreamSender<T>(
     internal val destination: StreamDestination<T>,
@@ -61,3 +65,36 @@ interface StreamDestination<T> {
  * @suppress
  */
 typealias DataChunker<T> = (data: T, chunkSize: Int) -> List<ByteArray>
+
+/**
+ * Runs [block] with [sender], then ensures [sender] is closed afterwards if it is still open.
+ *
+ * On success, [block] should still attempt to close [sender] when the stream is
+ * finished normally. If it is left open, any exceptions thrown by [sender.close]
+ * will be ignored.
+ */
+@CheckResult
+suspend inline fun <S : BaseStreamSender<*>, R> useStreamSender(
+    sender: S,
+    block: suspend S.() -> R,
+): Result<R> {
+    var abnormalCloseReason: String? = null
+    try {
+        return Result.success(sender.block())
+    } catch (e: Exception) {
+        abnormalCloseReason = e.localizedMessage
+        e.rethrowIfCancellationSignal()
+        return Result.failure(e)
+    } finally {
+        if (sender.isOpen) {
+            try {
+                withContext(NonCancellable) {
+                    sender.close(abnormalCloseReason)
+                }
+            } catch (closeException: Exception) {
+                // Best-effort cleanup; must not mask pending cancellation or errors.
+                LKLog.w(closeException) { "Error when closing sender:" }
+            }
+        }
+    }
+}

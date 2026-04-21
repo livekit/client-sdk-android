@@ -24,6 +24,7 @@ import io.livekit.android.events.collect
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.Room
 import io.livekit.android.room.datastream.StreamBytesOptions
+import io.livekit.android.room.datastream.outgoing.useStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
@@ -151,14 +152,15 @@ internal constructor(timeout: Duration) : AudioTrackSink {
             ),
         )
 
-        try {
-            val result = sender.write(audioData)
+        val sendResult = useStreamSender(sender) {
+            val result = write(audioData)
             if (result.isFailure) {
                 result.exceptionOrNull()?.let { throw it }
             }
-            sender.close()
-        } catch (e: Exception) {
-            sender.close(e.localizedMessage)
+            close()
+        }
+        if (sendResult.isFailure) {
+            return
         }
 
         val samples = audioData.size / (numberOfChannels * bitsPerSample / 8)

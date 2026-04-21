@@ -109,6 +109,7 @@ suspend fun ByteStreamSender.write(source: Source): Result<Unit> {
             Result.success(Unit)
         }
     } catch (e: Exception) {
+        e.rethrowIfCancellationSignal()
         Result.failure(e)
     }
 }
