@@ -55,6 +55,7 @@ object InjectionNames {
     const val OVERRIDE_AUDIO_DEVICE_MODULE = "override_audio_device_module"
     const val OVERRIDE_AUDIO_PROCESSOR_OPTIONS = "override_audio_processor_options"
     const val OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER = "override_java_audio_device_module_customizer"
+    const val OVERRIDE_DISABLE_AUDIO_PREWARM = "override_disable_audio_prewarm"
     const val OVERRIDE_VIDEO_ENCODER_FACTORY = "override_video_encoder_factory"
     const val OVERRIDE_VIDEO_DECODER_FACTORY = "override_video_decoder_factory"
     const val OVERRIDE_AUDIO_HANDLER = "override_audio_handler"

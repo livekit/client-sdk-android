@@ -70,6 +70,10 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
 
     @Provides
+    @Named(InjectionNames.OVERRIDE_DISABLE_AUDIO_PREWARM)
+    fun disableAudioPrewarm() = overrides.audioOptions?.disableAudioPrewarming ?: false
+
+    @Provides
     @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)
     fun peerConnectionFactoryOptions() = overrides.peerConnectionFactoryOptions
 
