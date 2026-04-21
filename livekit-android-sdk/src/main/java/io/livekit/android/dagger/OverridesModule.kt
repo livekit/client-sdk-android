@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,10 @@ class OverridesModule(private val overrides: LiveKitOverrides) {
     @Provides
     @Named(InjectionNames.OVERRIDE_AUDIO_OUTPUT_TYPE)
     fun audioOutputType() = overrides.audioOptions?.audioOutputType
+
+    @Provides
+    @Named(InjectionNames.OVERRIDE_DISABLE_AUDIO_PREWARM)
+    fun disableAudioPrewarm() = overrides.audioOptions?.disableAudioPrewarming ?: false
 
     @Provides
     @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS)

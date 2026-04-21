@@ -250,10 +250,17 @@ internal object RTCModule {
     }
 
     @Provides
-    fun audioPrewarmer(audioDeviceModule: AudioDeviceModule): AudioRecordPrewarmer {
-        return if (audioDeviceModule is JavaAudioDeviceModule) {
+    fun audioPrewarmer(
+        @Named(InjectionNames.OVERRIDE_DISABLE_AUDIO_PREWARM)
+        disableAudioPrewarm: Boolean,
+        audioDeviceModule: AudioDeviceModule,
+    ): AudioRecordPrewarmer {
+        return if (disableAudioPrewarm) {
+            NoAudioRecordPrewarmer()
+        } else if (audioDeviceModule is JavaAudioDeviceModule) {
             JavaAudioRecordPrewarmer(audioDeviceModule)
         } else {
+            LKLog.w { "Custom audio device module detected. Audio record prewarming is not available." }
             NoAudioRecordPrewarmer()
         }
     }

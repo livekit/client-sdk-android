@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,17 @@ class AudioOptions(
      * Options for processing the mic and incoming audio.
      */
     val audioProcessorOptions: AudioProcessorOptions? = null,
+
+    /**
+     * Devices may take some time initializing the audio stack for recording.
+     * Prewarming allows starting up the underlying audio recording prior to publish, letting
+     * the audio device be ready immediately when the track is fully published.
+     *
+     * If set to true, disables audio recording prewarming (and the related
+     * [LocalAudioTrack.prewarm] function), and audio resources are only used while the
+     * track is connected and published. Defaults to false.
+     */
+    val disableAudioPrewarming: Boolean = false,
 )
 
 /**
