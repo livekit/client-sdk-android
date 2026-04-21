@@ -1,0 +1,19 @@
+# Detekt: smell-oriented checks only. Formatting and naming conventions are handled by Spotless/ktlint.
+config:
+  validation: true
+  warningsAsErrors: true
+  excludes: ''
+
+style:
+  active: false
+
+naming:
+  active: false
+
+coroutines:
+  SuspendFunSwallowedCancellation:
+    active: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
