@@ -47,6 +47,7 @@ import io.livekit.android.util.TTLMap
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.util.withCheckLock
 import io.livekit.android.webrtc.DataChannelManager
 import io.livekit.android.webrtc.DataPacketBuffer
@@ -540,6 +541,7 @@ internal constructor(
                     try {
                         url = regionUrlProvider?.getNextBestRegionUrl() ?: url
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.d(e) { "Exception while getting next best region url while reconnecting." }
                     }
                 }
@@ -589,6 +591,7 @@ internal constructor(
                         listener?.onFullReconnecting()
                         joinImpl(url!!, token, connectOptions, lastRoomOptions ?: RoomOptions())
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error during reconnection." }
                         // reconnect failed, retry.
                         continue
@@ -612,6 +615,7 @@ internal constructor(
                         }
                         client.onReadyForResponses()
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error during reconnection." }
                         // ws reconnect failed, retry.
                         continue
@@ -716,6 +720,7 @@ internal constructor(
         try {
             ensurePublisherConnected(dataPacket.kind)
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             return Result.failure(e)
         }
 
@@ -769,6 +774,7 @@ internal constructor(
 
                 channel.send(buf)
             } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
                 return Result.failure(e)
             }
             return Result.success(Unit)
@@ -802,6 +808,7 @@ internal constructor(
         try {
             ensurePublisherConnected(kind)
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             return
         }
         val manager = dataChannelManagerForKind(kind) ?: return

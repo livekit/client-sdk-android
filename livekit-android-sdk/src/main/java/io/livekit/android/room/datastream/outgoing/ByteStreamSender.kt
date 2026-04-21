@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.livekit.android.room.datastream.outgoing
 
 import androidx.annotation.CheckResult
 import io.livekit.android.room.datastream.ByteStreamInfo
+import io.livekit.android.util.rethrowIfCancellationSignal
 import okio.Buffer
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath

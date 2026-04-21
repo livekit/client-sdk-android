@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.livekit.android.room.datastream.StreamBytesOptions
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -257,6 +258,7 @@ suspend fun <T> Room.withPreconnectAudio(
                         )
                         sentIdentities.add(identity)
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error occurred while sending the audio preconnect data." }
                         onError?.invoke(e)
                     }
@@ -295,6 +297,7 @@ suspend fun <T> Room.withPreconnectAudio(
     try {
         retValue = operation.invoke()
     } catch (e: Exception) {
+        e.rethrowIfCancellationSignal()
         cancel()
         throw e
     }
@@ -361,6 +364,7 @@ internal suspend fun Room.startPreconnectAudioJob(
                         )
                         sentIdentities.add(identity)
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error occurred while sending the audio preconnect data." }
                     }
                 }

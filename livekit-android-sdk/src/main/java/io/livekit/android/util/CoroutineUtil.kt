@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 
 package io.livekit.android.util
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 
 internal fun <T, R> debounce(
     waitMs: Long = 300L,
@@ -35,4 +39,10 @@ internal fun <T, R> debounce(
 
 internal fun <R> ((Unit) -> R).invoke() {
     this.invoke(Unit)
+}
+
+internal fun Throwable.rethrowIfCancellationSignal() {
+    if (this is CancellationException) {
+        throw this
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 package io.livekit.android.token
 
+import io.livekit.android.util.rethrowIfCancellationSignal
+
 internal class CustomTokenSource(val block: suspend (options: TokenRequestOptions) -> Result<TokenSourceResponse>) : ConfigurableTokenSource {
     override suspend fun fetch(options: TokenRequestOptions): Result<TokenSourceResponse> {
         return try {
             block(options)
         } catch (e: Throwable) {
+            e.rethrowIfCancellationSignal()
             Result.failure(e)
         }
     }

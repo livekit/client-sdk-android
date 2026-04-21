@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -73,6 +74,7 @@ private suspend fun collectPublisherMetrics(room: Room, rtcEngine: RTCEngine) {
                 throw it
             }
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.i(e) { "Error sending metrics: " }
         }
     }
@@ -106,6 +108,7 @@ private suspend fun collectSubscriberMetrics(room: Room, rtcEngine: RTCEngine) {
                 throw it
             }
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.i(e) { "Error sending metrics: " }
         }
     }

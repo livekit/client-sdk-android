@@ -58,6 +58,7 @@ import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.byteLength
 import io.livekit.android.util.flow
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -734,6 +735,7 @@ internal constructor(
                     builder = addTrackRequestBuilder,
                 )
             } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
                 onPublishFailure(TrackException.PublishException("Failed to publish track", e))
                 null
             }
@@ -1364,6 +1366,7 @@ internal constructor(
                 responsePayload = response
             }
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             if (e is RpcError) {
                 responseError = e
             } else {
@@ -1553,6 +1556,7 @@ internal constructor(
                 val trackInfo = publishJob.await()
                 LKLog.d { "published $codec for track ${track.sid}, $trackInfo" }
             } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
                 LKLog.w(e) { "exception when publishing $codec for track ${track.sid}" }
             }
         }
