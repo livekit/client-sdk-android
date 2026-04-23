@@ -49,6 +49,7 @@ import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.nullSafe
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.util.withCheckLock
+import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.DataChannelManager
 import io.livekit.android.webrtc.DataPacketBuffer
 import io.livekit.android.webrtc.DataPacketItem
@@ -72,7 +73,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import livekit.LivekitModels
@@ -398,7 +398,7 @@ internal constructor(
         }
 
         // Suspend until signal client receives message confirming track publication.
-        return withTimeout(20.seconds) {
+        return withDeadline(20.seconds) {
             suspendCancellableCoroutine { cont ->
                 synchronized(pendingTrackResolvers) {
                     pendingTrackResolvers[cid] = cont

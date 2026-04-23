@@ -19,8 +19,14 @@ package io.livekit.android.util
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlin.time.Duration
 
 internal fun <T, R> debounce(
     waitMs: Long = 300L,
@@ -39,6 +45,32 @@ internal fun <T, R> debounce(
 
 internal fun <R> ((Unit) -> R).invoke() {
     this.invoke(Unit)
+}
+class TimeoutException(cause: Exception) : Exception(cause)
+
+/**
+ * A replacement for [withTimeout], as it throws a [TimeoutCancellationException], which is
+ * a subclass of [CancellationException], and will cancel a coroutine entirely.
+ *
+ * This catches the [TimeoutCancellationException], and rethrows a [TimeoutException].
+ *
+ * See the following for context:
+ * * [https://github.com/Kotlin/kotlinx.coroutines/issues/1374](https://github.com/Kotlin/kotlinx.coroutines/issues/1374)
+ * * [https://github.com/Kotlin/kotlinx.coroutines/pull/4356](https://github.com/Kotlin/kotlinx.coroutines/pull/4356)
+ * @throws TimeoutException if the [timeout] is exceeded.
+ */
+
+@Throws(TimeoutException::class)
+@OptIn(ExperimentalContracts::class)
+internal suspend fun <T> withDeadline(timeout: Duration, block: suspend () -> T): T {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    try {
+        return withTimeout(timeout) { block() }
+    } catch (e: TimeoutCancellationException) {
+        throw TimeoutException(e)
+    }
 }
 
 fun Throwable.rethrowIfCancellationSignal() {
