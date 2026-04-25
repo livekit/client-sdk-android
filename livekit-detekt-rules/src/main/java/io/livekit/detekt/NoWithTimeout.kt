@@ -25,7 +25,6 @@ import io.gitlab.arturbosch.detekt.api.Rule
 import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 /**
@@ -38,7 +37,6 @@ class NoWithTimeout(config: Config) : Rule(config) {
         "withTimeout cancels the whole coroutine on timeout; use withDeadline or withTimeoutOrNull instead.",
         Debt.FIVE_MINS,
     )
-
 
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)

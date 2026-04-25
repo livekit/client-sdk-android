@@ -57,8 +57,8 @@ import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.byteLength
-import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.util.flow
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
