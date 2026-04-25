@@ -24,7 +24,7 @@ buildscript {
 
 plugins {
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-    id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
+    alias(libs.plugins.detekt) apply false
 }
 
 subprojects {
@@ -32,6 +32,8 @@ subprojects {
     if (project.name == "examples") {
         return
     }
+
+    def isDetektRulesModule = project.name == "livekit-detekt-rules"
 
     apply plugin: "com.diffplug.spotless"
     spotless {
@@ -76,15 +78,25 @@ subprojects {
         }
     }
 
-    apply plugin: "io.gitlab.arturbosch.detekt"
-    detekt {
-        parallel = true
-        buildUponDefaultConfig = true
-        allRules = false
-        config.from(files("$rootDir/config/detekt/detekt.yml"))
-        reports {
-            html.required.set(true)
-            md.required.set(true)
+    if (!isDetektRulesModule) {
+        apply plugin: "io.gitlab.arturbosch.detekt"
+        detekt {
+            parallel = true
+            buildUponDefaultConfig = true
+            allRules = false
+            config.from(files("$rootDir/config/detekt/detekt.yml"))
+            reports {
+                html.required.set(true)
+                md.required.set(true)
+            }
+        }
+
+        dependencies {
+            detektPlugins project(":livekit-detekt-rules")
+        }
+
+        tasks.withType(io.gitlab.arturbosch.detekt.Detekt).configureEach {
+            pluginClasspath.setFrom(configurations.detektPlugins)
         }
     }
 

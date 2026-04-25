@@ -62,6 +62,7 @@ class TimeoutException(cause: Exception) : Exception(cause)
 
 @Throws(TimeoutException::class)
 @OptIn(ExperimentalContracts::class)
+@Suppress("NoWithTimeout") // Only allowed call site: maps TimeoutCancellationException to TimeoutException (see KDoc).
 internal suspend fun <T> withDeadline(timeout: Duration, block: suspend () -> T): T {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)

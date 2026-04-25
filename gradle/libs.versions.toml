@@ -10,6 +10,7 @@ androidx-lifecycle = "2.8.0"
 audioswitch = "70efa204dda4f468f989b4b3e1b5ecb6ffe56ceb"
 autoService = '1.0.1'
 coroutines = "1.6.0"
+detekt = "1.23.8"
 dagger = "2.46"
 groupie = "2.9.0"
 junit-lib = "4.13.2"
@@ -29,6 +30,8 @@ material = "1.12.0"
 viewpager2 = "1.0.0"
 noise = "2.0.0"
 lifecycleProcess = "2.8.7"
+agp = "8.7.2"
+kotlin = "1.9.25"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
@@ -109,5 +112,11 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
 
+detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
+detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }
+
 [plugins]
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 

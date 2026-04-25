@@ -49,9 +49,6 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Gradle clean
-      run: ./gradlew clean
-
     - name: Spotless check
       if: github.event_name == 'pull_request'
       run: |

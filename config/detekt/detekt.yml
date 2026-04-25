@@ -14,6 +14,10 @@ coroutines:
   SuspendFunSwallowedCancellation:
     active: true
 
+livekit-rules:
+  NoWithTimeout:
+    active: true
+
 exceptions:
   TooGenericExceptionCaught:
     active: false
