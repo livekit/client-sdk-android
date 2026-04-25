@@ -108,7 +108,7 @@ class NoWithTimeoutTest {
     }
 
     @Test
-    fun `reports unqualified withTimeout without imports`() {
+    fun `ignores unqualified withTimeout without imports`() {
         val code = """
             class C {
                 fun f() {
@@ -117,6 +117,6 @@ class NoWithTimeoutTest {
             }
         """.trimIndent()
         val findings = subject.lint(code)
-        assertEquals(1, findings.size)
+        assertEquals(0, findings.size)
     }
 }

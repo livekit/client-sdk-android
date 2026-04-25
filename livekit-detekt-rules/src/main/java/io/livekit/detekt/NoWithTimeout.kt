@@ -25,6 +25,8 @@ import io.gitlab.arturbosch.detekt.api.Rule
 import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 /**
@@ -53,10 +55,38 @@ class NoWithTimeout(config: Config) : Rule(config) {
     private fun isKotlinxWithTimeout(expression: KtCallExpression): Boolean {
         val callee = expression.calleeExpression ?: return false
         return when (callee) {
-            is KtNameReferenceExpression -> callee.getReferencedName() == "withTimeout"
+            is KtNameReferenceExpression -> {
+                if (callee.getReferencedName() != "withTimeout") return false
+                expression.containingKtFile.importsKotlinxWithTimeout()
+            }
             is KtDotQualifiedExpression -> callee.isKotlinxCoroutinesWithTimeout()
             else -> false
         }
+    }
+
+    private fun KtFile.importsKotlinxWithTimeout(): Boolean {
+        if (importDirectives.any { it.importsKotlinxWithTimeout() }) {
+            return true
+        }
+        // Fallback for environments where import PSI is incomplete.
+        return text.lineSequence()
+            .map { it.substringBefore("//").trim() }
+            .any { line ->
+                line == "import kotlinx.coroutines.withTimeout" ||
+                    line.startsWith("import kotlinx.coroutines.withTimeout as ") ||
+                    line == "import kotlinx.coroutines.*"
+            }
+    }
+
+    private fun KtImportDirective.importsKotlinxWithTimeout(): Boolean {
+        if (isAllUnder && importedFqName?.asString() == "kotlinx.coroutines") {
+            return true
+        }
+        if (!isAllUnder && importedFqName?.asString() == "kotlinx.coroutines.withTimeout") {
+            return true
+        }
+        val path = importPath?.pathStr
+        return path == "kotlinx.coroutines.withTimeout" || path == "kotlinx.coroutines.*"
     }
 
     private fun KtDotQualifiedExpression.isKotlinxCoroutinesWithTimeout(): Boolean {
