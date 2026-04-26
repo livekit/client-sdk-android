@@ -75,6 +75,7 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.getFilteredStats
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -414,6 +415,7 @@ constructor(
                 connectionWarmer.fetch(url)
             }
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.e(e) { "Error while preparing connection:" }
         }
     }
@@ -498,6 +500,7 @@ constructor(
                     try {
                         regionUrlProvider?.fetchRegionSettings()
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "could not fetch region settings" }
                     }
                 }
@@ -513,9 +516,7 @@ constructor(
                     engine.regionUrlProvider = regionUrlProvider
                     engine.join(connectUrl, token, options, roomOptions)
                 } catch (e: Exception) {
-                    if (e is CancellationException) {
-                        throw e // rethrow to properly cancel.
-                    }
+                    e.rethrowIfCancellationSignal()
 
                     nextUrl = regionUrlProvider?.getNextBestRegionUrl()
                     if (nextUrl != null) {

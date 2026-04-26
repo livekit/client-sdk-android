@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2026 LiveKit, Inc.
+ * Copyright 2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-package io.livekit.android.token
+package io.livekit.detekt
 
-import io.livekit.android.util.rethrowIfCancellationSignal
+import io.gitlab.arturbosch.detekt.api.Config
+import io.gitlab.arturbosch.detekt.api.RuleSet
+import io.gitlab.arturbosch.detekt.api.RuleSetProvider
 
-internal class CustomTokenSource(val block: suspend (options: TokenRequestOptions) -> Result<TokenSourceResponse>) : ConfigurableTokenSource {
-    override suspend fun fetch(options: TokenRequestOptions): Result<TokenSourceResponse> {
-        return try {
-            block(options)
-        } catch (e: Throwable) {
-            e.rethrowIfCancellationSignal()
-            Result.failure(e)
-        }
+class LivekitRuleSetProvider : RuleSetProvider {
+    override val ruleSetId: String = "livekit-rules"
+
+    override fun instance(config: Config): RuleSet {
+        return RuleSet(
+            ruleSetId,
+            listOf(
+                NoWithTimeout(config),
+            ),
+        )
     }
 }

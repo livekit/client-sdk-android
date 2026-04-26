@@ -1,0 +1,25 @@
+plugins {
+    id 'java-library'
+    id 'kotlin'
+}
+
+java {
+    sourceCompatibility = java_version
+    targetCompatibility = java_version
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = java_version
+    }
+}
+
+dependencies {
+    compileOnly libs.detekt.api
+    testImplementation libs.detekt.test
+    testImplementation libs.junit
+}
+
+test {
+    useJUnit()
+}

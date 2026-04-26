@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,20 +62,13 @@ interface OutgoingDataStreamManager {
      */
     @CheckResult
     suspend fun sendText(text: String, options: StreamTextOptions = StreamTextOptions()): Result<TextStreamInfo> {
-        try {
-            val sender = streamText(options)
-            val result = sender.write(text)
-
+        return useStreamSender(streamText(options)) {
+            val result = write(text)
             if (result.isFailure) {
-                val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
-                sender.close(exception.message)
-                return Result.failure(exception)
-            } else {
-                sender.close()
-                return Result.success(sender.info)
+                throw (result.exceptionOrNull() ?: Exception("Unknown error."))
             }
-        } catch (e: Exception) {
-            return Result.failure(e)
+            close()
+            return@useStreamSender info
         }
     }
 
@@ -84,20 +77,13 @@ interface OutgoingDataStreamManager {
      */
     @CheckResult
     suspend fun sendFile(file: File, options: StreamBytesOptions = StreamBytesOptions()): Result<ByteStreamInfo> {
-        try {
-            val sender = streamBytes(options)
-            val result = sender.writeFile(file)
-
+        return useStreamSender(streamBytes(options)) {
+            val result = writeFile(file)
             if (result.isFailure) {
-                val exception = result.exceptionOrNull() ?: Exception("Unknown error.")
-                sender.close(exception.message)
-                return Result.failure(exception)
-            } else {
-                sender.close()
-                return Result.success(sender.info)
+                throw (result.exceptionOrNull() ?: Exception("Unknown error."))
             }
-        } catch (e: Exception) {
-            return Result.failure(e)
+            close()
+            return@useStreamSender info
         }
     }
 }

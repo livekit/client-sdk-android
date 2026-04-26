@@ -821,11 +821,15 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
                 success = room.localParticipant.publishVideoTrack(createLocalTrack())
             } catch (e: TrackException.PublishException) {
                 didThrow = true
+            } catch (e: Exception) {
+                didThrow = true
             }
         }
 
         coroutineRule.dispatcher.scheduler.advanceUntilIdle()
-        assertTrue(!didThrow && success == false)
+        assertTrue(!didThrow)
+        assertTrue(success != null)
+        assertFalse(success!!)
     }
 
     @Test

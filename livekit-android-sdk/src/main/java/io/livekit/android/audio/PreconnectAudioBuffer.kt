@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,11 @@ import io.livekit.android.events.collect
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.Room
 import io.livekit.android.room.datastream.StreamBytesOptions
+import io.livekit.android.room.datastream.outgoing.useStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
+import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -150,14 +152,15 @@ internal constructor(timeout: Duration) : AudioTrackSink {
             ),
         )
 
-        try {
-            val result = sender.write(audioData)
+        val sendResult = useStreamSender(sender) {
+            val result = write(audioData)
             if (result.isFailure) {
                 result.exceptionOrNull()?.let { throw it }
             }
-            sender.close()
-        } catch (e: Exception) {
-            sender.close(e.localizedMessage)
+            close()
+        }
+        if (sendResult.isFailure) {
+            return
         }
 
         val samples = audioData.size / (numberOfChannels * bitsPerSample / 8)
@@ -257,6 +260,7 @@ suspend fun <T> Room.withPreconnectAudio(
                         )
                         sentIdentities.add(identity)
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error occurred while sending the audio preconnect data." }
                         onError?.invoke(e)
                     }
@@ -295,6 +299,7 @@ suspend fun <T> Room.withPreconnectAudio(
     try {
         retValue = operation.invoke()
     } catch (e: Exception) {
+        e.rethrowIfCancellationSignal()
         cancel()
         throw e
     }
@@ -361,6 +366,7 @@ internal suspend fun Room.startPreconnectAudioJob(
                         )
                         sentIdentities.add(identity)
                     } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
                         LKLog.w(e) { "Error occurred while sending the audio preconnect data." }
                     }
                 }

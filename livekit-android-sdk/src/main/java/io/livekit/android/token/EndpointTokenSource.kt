@@ -17,6 +17,7 @@
 package io.livekit.android.token
 
 import io.livekit.android.dagger.globalOkHttpClient
+import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromString
@@ -130,6 +131,7 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
                 },
             )
         } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             continuation.resume(Result.failure(e))
         }
     }
