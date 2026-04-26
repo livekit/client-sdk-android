@@ -1,5 +1,21 @@
 # client-sdk-android
 
+## 2.25.0
+
+### Minor Changes
+
+- AudioOptions: Added disableAudioPrewarming flag - [#912](https://github.com/livekit/client-sdk-android/pull/912) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix potential leak for StreamSender caused by exceptions - [#913](https://github.com/livekit/client-sdk-android/pull/913) ([@davidliu](https://github.com/davidliu))
+
+- Update audio handling to use AudioManager communication device APIs on S and above - [#910](https://github.com/livekit/client-sdk-android/pull/910) ([@davidliu](https://github.com/davidliu))
+
+- Rethrow cancellation exceptions for coroutines - [#913](https://github.com/livekit/client-sdk-android/pull/913) ([@davidliu](https://github.com/davidliu))
+
+- Implement changing preferred audio device list on AudioSwitchHandler mid-call - [#910](https://github.com/livekit/client-sdk-android/pull/910) ([@davidliu](https://github.com/davidliu))
+
 ## 2.24.1
 
 ### Patch Changes
