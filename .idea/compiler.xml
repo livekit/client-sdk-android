@@ -4,6 +4,7 @@
     <bytecodeTargetLevel target="1.8">
       <module name="livekit-android.examples.screenshareaudio" target="17" />
       <module name="livekit-android.examples.selfie-segmentation" target="17" />
+      <module name="livekit-android.NoTimeoutTestmodule" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
