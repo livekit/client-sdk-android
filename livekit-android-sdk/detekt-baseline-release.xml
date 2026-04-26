@@ -1,0 +1,166 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:LocalParticipant.kt$LocalParticipant$(originalEncoding == null &amp;&amp; !simulcast) || width == 0 || height == 0</ID>
+    <ID>ComplexCondition:PeerConnectionTransport.kt$PeerConnectionTransport$sd.type == SessionDescription.Type.ANSWER &amp;&amp; currentOfferId > 0 &amp;&amp; offerId > 0 &amp;&amp; currentOfferId > offerId</ID>
+    <ID>ComplexCondition:PreconnectAudioBuffer.kt$sentIdentities.contains(identity) || kind != Participant.Kind.AGENT || state != Participant.State.ACTIVE || identity == null</ID>
+    <ID>ComplexCondition:RTCEngine.kt$RTCEngine$(connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.RESUMING) &amp;&amp; subscriberConnected &amp;&amp; publisherConnected</ID>
+    <ID>ComplexCondition:RemoteTrackPublication.kt$RemoteTrackPublication$isAutoManaged || !subscribed || quality == videoQuality || track !is VideoTrack</ID>
+    <ID>ComplexCondition:RemoteTrackPublication.kt$RemoteTrackPublication$isAutoManaged || !subscribed || this.fps == fps || track !is VideoTrack</ID>
+    <ID>ComplexCondition:RemoteTrackPublication.kt$RemoteTrackPublication$isAutoManaged || !subscribed || videoDimensions == dimensions || track !is VideoTrack</ID>
+    <ID>ComplexCondition:TextureViewRenderer.kt$TextureViewRenderer$enableFixedSize &amp;&amp; rotatedFrameWidth != 0 &amp;&amp; rotatedFrameHeight != 0 &amp;&amp; width != 0 &amp;&amp; height != 0</ID>
+    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): LocalTrackPublication?</ID>
+    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$private fun computeVideoEncodings( isScreenShare: Boolean, dimensions: Track.Dimensions, options: VideoTrackPublishOptions, ): List&lt;RtpParameters.Encoding></ID>
+    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$private suspend fun setTrackEnabled( source: Track.Source, enabled: Boolean, screenCaptureParams: ScreenCaptureParams? = null, ): Boolean</ID>
+    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$suspend fun publishVideoTrack( track: LocalVideoTrack, options: VideoTrackPublishOptions = VideoTrackPublishOptions( null, if (track.options.isScreencast) screenShareTrackPublishDefaults else videoTrackPublishDefaults, ), publishListener: PublishListener? = null, ): Boolean</ID>
+    <ID>CyclomaticComplexMethod:LocalVideoTrack.kt$LocalVideoTrack$private fun setPublishingLayersForSender( sender: RtpSender, qualities: List&lt;LivekitRtc.SubscribedQuality>, )</ID>
+    <ID>CyclomaticComplexMethod:NetworkInfo.kt$AndroidNetworkInfo$override fun getNetworkType(): NetworkType</ID>
+    <ID>CyclomaticComplexMethod:PeerConnectionTransport.kt$@VisibleForTesting fun ensureCodecBitrates( media: MediaDescription, trackBitrates: Map&lt;TrackBitrateInfoKey, TrackBitrateInfo>, )</ID>
+    <ID>CyclomaticComplexMethod:PeerConnectionTransport.kt$PeerConnectionTransport$private suspend fun createAndSendOffer(constraints: MediaConstraints = MediaConstraints())</ID>
+    <ID>CyclomaticComplexMethod:PreconnectAudioBuffer.kt$@Deprecated("Set AudioTrackPublishDefaults.preconnect = true on the RoomOptions instead.") suspend fun &lt;T> Room.withPreconnectAudio( timeout: Duration = TIMEOUT, topic: String = DEFAULT_TOPIC, onError: ((e: Exception) -> Unit)? = null, operation: suspend () -> T, )</ID>
+    <ID>CyclomaticComplexMethod:PreconnectAudioBuffer.kt$internal suspend fun Room.startPreconnectAudioJob( roomScope: CoroutineScope, timeout: Duration = TIMEOUT, topic: String = DEFAULT_TOPIC ): () -> Unit</ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@CheckResult internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result&lt;Unit></ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?)</ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
+    <ID>CyclomaticComplexMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
+    <ID>CyclomaticComplexMethod:RoomEvent.kt$fun LivekitModels.DisconnectReason?.convert(): DisconnectReason</ID>
+    <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
+    <ID>DoubleMutabilityForCollection:CoroutineSdpObserver.kt$CoroutineSdpObserver$private var pendingCreate = mutableListOf&lt;Continuation&lt;Either&lt;SessionDescription, String?>>>()</ID>
+    <ID>DoubleMutabilityForCollection:CoroutineSdpObserver.kt$CoroutineSdpObserver$private var pendingSets = mutableListOf&lt;Continuation&lt;Either&lt;Unit, String?>>>()</ID>
+    <ID>DoubleMutabilityForCollection:E2EEManager.kt$E2EEManager$private var frameCryptors = mutableMapOf&lt;Pair&lt;String, Participant.Identity>, FrameCryptor>()</ID>
+    <ID>DoubleMutabilityForCollection:PeerConnectionTransport.kt$PeerConnectionTransport$private var trackBitrates = mutableMapOf&lt;TrackBitrateInfoKey, TrackBitrateInfo>()</ID>
+    <ID>DoubleMutabilityForCollection:RegionUrlProvider.kt$RegionUrlProvider$private var attemptedRegions = mutableSetOf&lt;RegionInfo>()</ID>
+    <ID>DoubleMutabilityForCollection:Room.kt$Room$private var sidToIdentity = mutableMapOf&lt;Participant.Sid, Participant.Identity>()</ID>
+    <ID>DoubleMutabilityForCollection:Room.kt$Room$private var transcriptionReceivedTimes = mutableMapOf&lt;String, Long>()</ID>
+    <ID>EmptyCatchBlock:EndpointTokenSource.kt$EndpointTokenSource.&lt;no name provided>${ }</ID>
+    <ID>EmptyDefaultConstructor:CachingTokenSource.kt$InMemoryTokenStore$()</ID>
+    <ID>EmptyDefaultConstructor:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.MediaProjectionCallback$()</ID>
+    <ID>EmptyFunctionBlock:CommunicationWorkaround.kt$NoopCommunicationWorkaround${ }</ID>
+    <ID>EmptyFunctionBlock:LocalVideoTrack.kt$LocalVideoTrack.&lt;no name provided>.&lt;no name provided>${ }</ID>
+    <ID>EmptyFunctionBlock:NoAudioHandler.kt$NoAudioHandler${ }</ID>
+    <ID>EmptyFunctionBlock:PublisherTransportObserver.kt$PublisherTransportObserver${ }</ID>
+    <ID>EmptyFunctionBlock:RTCEngine.kt$RTCEngine${ }</ID>
+    <ID>EmptyFunctionBlock:Room.kt$Room${ }</ID>
+    <ID>EmptyFunctionBlock:SubscriberTransportObserver.kt$SubscriberTransportObserver${ }</ID>
+    <ID>EmptyFunctionBlock:TextureViewRenderer.kt$TextureViewRenderer${}</ID>
+    <ID>EmptyFunctionBlock:VideoFrameCapturer.kt$VideoFrameCapturer${ }</ID>
+    <ID>HasPlatformType:DataChannelManager.kt$DataChannelManager$@get:FlowObservable var state by flowDelegate(dataChannel.state()) private set</ID>
+    <ID>HasPlatformType:RTCModule.kt$RTCModule$@Provides fun sdpFactory()</ID>
+    <ID>IgnoredReturnValue:BaseStreamReceiver.kt$BaseStreamReceiver$catch { }</ID>
+    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$Default</ID>
+    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$IO</ID>
+    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$Unconfined</ID>
+    <ID>InjectDispatcher:NetworkMonitor.kt$NetworkMonitor$IO</ID>
+    <ID>InstanceOfCheckForException:LocalParticipant.kt$LocalParticipant$e is RpcError</ID>
+    <ID>LargeClass:LocalParticipant.kt$LocalParticipant : ParticipantOutgoingDataStreamManagerRpcManager</ID>
+    <ID>LargeClass:RTCEngine.kt$RTCEngine : Listener</ID>
+    <ID>LargeClass:Room.kt$Room : ListenerParticipantListenerRpcManagerIncomingDataStreamManager</ID>
+    <ID>LargeClass:SignalClient.kt$SignalClient : WebSocketListener</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): LocalTrackPublication?</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$override suspend fun performRpc( destinationIdentity: Identity, method: String, payload: String, responseTimeout: Duration, ): String</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$private fun publishAdditionalCodecForTrack(track: LocalVideoTrack, codec: VideoCodec, options: VideoTrackPublishOptions)</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$private suspend fun handleIncomingRpcRequest( callerIdentity: Identity, requestId: String, method: String, payload: String, responseTimeout: Duration, version: Int, )</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$private suspend fun setTrackEnabled( source: Track.Source, enabled: Boolean, screenCaptureParams: ScreenCaptureParams? = null, ): Boolean</ID>
+    <ID>LongMethod:LocalParticipant.kt$LocalParticipant$suspend fun publishVideoTrack( track: LocalVideoTrack, options: VideoTrackPublishOptions = VideoTrackPublishOptions( null, if (track.options.isScreencast) screenShareTrackPublishDefaults else videoTrackPublishDefaults, ), publishListener: PublishListener? = null, ): Boolean</ID>
+    <ID>LongMethod:PeerConnectionTransport.kt$PeerConnectionTransport$private suspend fun createAndSendOffer(constraints: MediaConstraints = MediaConstraints())</ID>
+    <ID>LongMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
+    <ID>LongMethod:RTCEngine.kt$RTCEngine$fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?)</ID>
+    <ID>LongMethod:RTCEngine.kt$RTCEngine$private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions)</ID>
+    <ID>LongMethod:Room.kt$Room$@Synchronized private fun getOrCreateRemoteParticipant( identity: Participant.Identity, info: LivekitModels.ParticipantInfo, ): RemoteParticipant</ID>
+    <ID>LongMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
+    <ID>LongMethod:Room.kt$Room$private fun setupLocalParticipantEventHandling()</ID>
+    <ID>LongMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
+    <ID>LongParameterList:AudioBufferCallbackDispatcher.kt$AudioBufferCallback$(buffer: ByteBuffer, audioFormat: Int, channelCount: Int, sampleRate: Int, bytesRead: Int, captureTimeNs: Long)</ID>
+    <ID>LongParameterList:KeyProvider.kt$BaseKeyProvider$( ratchetSalt: String = defaultRatchetSalt, uncryptedMagicBytes: String = defaultMagicBytes, ratchetWindowSize: Int = defaultRatchetWindowSize, override var enableSharedKey: Boolean = true, failureTolerance: Int = defaultFailureTolerance, keyRingSize: Int = defaultKeyRingSize, discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady, keyDerivationAlgorithm: FrameCryptorKeyDerivationAlgorithm = defaultKeyDerivationAlgorithm, )</ID>
+    <ID>LongParameterList:LiveKitOverrides.kt$AudioOptions$( /** * Override the default output [AudioType]. * * This affects the audio routing and how the audio is handled. Default is [AudioType.CallAudioType]. * * Note: if [audioHandler] is also passed, the values from [audioOutputType] will not be reflected in it, * and must be set yourself. */ val audioOutputType: AudioType? = null, /** * Override the default [AudioHandler]. * * Default is [AudioSwitchHandler]. * * Use [NoAudioHandler] to turn off automatic audio handling or * [AudioFocusHandler] to get simple audio focus handling. */ val audioHandler: AudioHandler? = null, /** * Override the default [AudioDeviceModule]. * * If a non-null value is passed, the library does not * take ownership of the object and will not release it upon [Room.release]. * It is the responsibility of the owner to call [AudioDeviceModule.release] when finished * with it to prevent memory leaks. */ val audioDeviceModule: AudioDeviceModule? = null, /** * Called after default setup to allow for customizations on the [JavaAudioDeviceModule]. * * Not used if [audioDeviceModule] is provided. * * Note: We require setting the [JavaAudioDeviceModule.Builder.setSamplesReadyCallback] to provide * support for [LocalAudioTrack.addSink]. If you wish to grab the audio samples * from the local microphone track, use [LocalAudioTrack.addSink] instead of setting your own * callback. */ val javaAudioDeviceModuleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)? = null, /** * On Android 11+, the audio mode will reset itself from [AudioManager.MODE_IN_COMMUNICATION] if * there is no audio playback or capture for 6 seconds (for example when joining a room with * no speakers and the local mic is muted.) This mode reset will cause unexpected * behavior when trying to change the volume, causing it to not properly change the volume. * * We use a workaround by playing a silent audio track to keep the communication mode from * resetting. * * Setting this flag to true will disable the workaround. * * This flag is a no-op when the audio mode is set to anything other than * [AudioManager.MODE_IN_COMMUNICATION]. */ val disableCommunicationModeWorkaround: Boolean = false, /** * Options for processing the mic and incoming audio. */ val audioProcessorOptions: AudioProcessorOptions? = null, /** * Devices may take some time initializing the audio stack for recording. * Prewarming allows starting up the underlying audio recording prior to publish, letting * the audio device be ready immediately when the track is fully published. * * If set to true, disables audio recording prewarming (and the related * [LocalAudioTrack.prewarm] function), and audio resources are only used while the * track is connected and published. Defaults to false. */ val disableAudioPrewarming: Boolean = false, )</ID>
+    <ID>LongParameterList:LocalAudioTrack.kt$LocalAudioTrack$( @Assisted name: String, @Assisted mediaTrack: livekit.org.webrtc.AudioTrack, @Assisted private val options: LocalAudioTrackOptions, private val audioProcessingController: AudioProcessingController, @Named(InjectionNames.DISPATCHER_DEFAULT) private val dispatcher: CoroutineDispatcher, @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER) private val audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher, @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER) private val audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher, private val audioRecordPrewarmer: AudioRecordPrewarmer, rtcThreadToken: RTCThreadToken, )</ID>
+    <ID>LongParameterList:LocalParticipant.kt$LocalParticipant$( @Assisted internal var dynacast: Boolean, internal val engine: RTCEngine, private val peerConnectionFactory: PeerConnectionFactory, private val context: Context, private val eglBase: EglBase, private val screencastVideoTrackFactory: LocalScreencastVideoTrack.Factory, private val videoTrackFactory: LocalVideoTrack.Factory, private val audioTrackFactory: LocalAudioTrack.Factory, private val defaultsManager: DefaultsManager, @Named(InjectionNames.DISPATCHER_DEFAULT) coroutineDispatcher: CoroutineDispatcher, @Named(InjectionNames.SENDER) private val capabilitiesGetter: CapabilitiesGetter, private val outgoingDataStreamManager: OutgoingDataStreamManager, )</ID>
+    <ID>LongParameterList:LocalParticipant.kt$LocalParticipant$( callerIdentity: Identity, requestId: String, method: String, payload: String, responseTimeout: Duration, version: Int, )</ID>
+    <ID>LongParameterList:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack$( @Assisted capturer: VideoCapturer, @Assisted source: VideoSource, @Assisted name: String, @Assisted options: LocalVideoTrackOptions, @Assisted rtcTrack: livekit.org.webrtc.VideoTrack, @Assisted mediaProjectionCallback: MediaProjectionCallback, peerConnectionFactory: PeerConnectionFactory, context: Context, eglBase: EglBase, defaultsManager: DefaultsManager, videoTrackFactory: LocalVideoTrack.Factory, rtcThreadToken: RTCThreadToken, )</ID>
+    <ID>LongParameterList:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.Companion$( mediaProjectionPermissionResultData: Intent, peerConnectionFactory: PeerConnectionFactory, context: Context, name: String, options: LocalVideoTrackOptions, rootEglBase: EglBase, screencastVideoTrackFactory: Factory, videoProcessor: VideoProcessor?, onStop: (Track) -> Unit, )</ID>
+    <ID>LongParameterList:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.Factory$( capturer: VideoCapturer, source: VideoSource, name: String, options: LocalVideoTrackOptions, rtcTrack: livekit.org.webrtc.VideoTrack, mediaProjectionCallback: MediaProjectionCallback, )</ID>
+    <ID>LongParameterList:LocalVideoTrack.kt$LocalVideoTrack$( @Assisted capturer: VideoCapturer, @Assisted private var source: VideoSource, @Assisted name: String, @Assisted options: LocalVideoTrackOptions, @Assisted rtcTrack: livekit.org.webrtc.VideoTrack, private val peerConnectionFactory: PeerConnectionFactory, private val context: Context, private val eglBase: EglBase, private val defaultsManager: DefaultsManager, private val trackFactory: Factory, /** * If this is assigned, you must ensure that this observer is associated with the [capturer], * as this will be used to receive frames in [addRenderer]. **/ @Assisted private var dispatchObserver: CaptureDispatchObserver? = null, rtcThreadToken: RTCThreadToken, )</ID>
+    <ID>LongParameterList:LocalVideoTrack.kt$LocalVideoTrack.Companion$( peerConnectionFactory: PeerConnectionFactory, context: Context, name: String, capturer: VideoCapturer, options: LocalVideoTrackOptions = LocalVideoTrackOptions(), rootEglBase: EglBase, trackFactory: Factory, videoProcessor: VideoProcessor? = null, )</ID>
+    <ID>LongParameterList:LocalVideoTrack.kt$LocalVideoTrack.Companion$( peerConnectionFactory: PeerConnectionFactory, context: Context, name: String, options: LocalVideoTrackOptions, rootEglBase: EglBase, trackFactory: Factory, videoProcessor: VideoProcessor? = null, )</ID>
+    <ID>LongParameterList:LocalVideoTrack.kt$LocalVideoTrack.Factory$( capturer: VideoCapturer, source: VideoSource, name: String, options: LocalVideoTrackOptions, rtcTrack: livekit.org.webrtc.VideoTrack, dispatchObserver: CaptureDispatchObserver?, )</ID>
+    <ID>LongParameterList:MixerAudioBufferCallback.kt$MixerAudioBufferCallback$(originalBuffer: ByteBuffer, audioFormat: Int, channelCount: Int, sampleRate: Int, bytesRead: Int, captureTimeNs: Long)</ID>
+    <ID>LongParameterList:PeerConnectionTransport.kt$PeerConnectionTransport$( @Assisted config: RTCConfiguration, @Assisted pcObserver: PeerConnection.Observer, @Assisted private val listener: Listener?, @Named(InjectionNames.DISPATCHER_IO) private val ioDispatcher: CoroutineDispatcher, connectionFactory: PeerConnectionFactory, private val sdpFactory: SdpFactory, private val rtcThreadToken: RTCThreadToken, )</ID>
+    <ID>LongParameterList:RTCMetricsManager.kt$( label: MetricLabel, strings: MutableList&lt;String>, samples: List&lt;MetricSample>, identity: Participant.Identity? = null, trackSid: String? = null, rid: String? = null, )</ID>
+    <ID>LongParameterList:RTCModule.kt$RTCModule$( @Named(InjectionNames.OVERRIDE_AUDIO_DEVICE_MODULE) audioDeviceModuleOverride: AudioDeviceModule?, @Named(InjectionNames.OVERRIDE_JAVA_AUDIO_DEVICE_MODULE_CUSTOMIZER) moduleCustomizer: ((builder: JavaAudioDeviceModule.Builder) -> Unit)?, audioOutputAttributes: AudioAttributes, appContext: Context, closeableManager: CloseableManager, communicationWorkaround: CommunicationWorkaround, @Named(InjectionNames.LOCAL_AUDIO_RECORD_SAMPLES_DISPATCHER) audioRecordSamplesDispatcher: AudioRecordSamplesDispatcher, @Named(InjectionNames.LOCAL_AUDIO_BUFFER_CALLBACK_DISPATCHER) audioBufferCallbackDispatcher: AudioBufferCallbackDispatcher, )</ID>
+    <ID>LongParameterList:RTCModule.kt$RTCModule$( @Suppress("UNUSED_PARAMETER") @Named(InjectionNames.LIB_WEBRTC_INITIALIZATION) webrtcInitialization: LibWebrtcInitialization, audioDeviceModule: AudioDeviceModule, videoEncoderFactory: VideoEncoderFactory, videoDecoderFactory: VideoDecoderFactory, @Named(InjectionNames.OVERRIDE_PEER_CONNECTION_FACTORY_OPTIONS) peerConnectionFactoryOptions: PeerConnectionFactory.Options?, memoryManager: CloseableManager, audioProcessingFactory: AudioProcessingFactory, )</ID>
+    <ID>LongParameterList:RTCStatsExt.kt$( trackIdentifier: String, ssrcs: Set&lt;Long?>, codecIds: Set&lt;String?>, localCandidateId: String?, remoteCandidateId: String?, statsMap: Map&lt;String, RTCStats>, )</ID>
+    <ID>LongParameterList:RemoteParticipant.kt$RemoteParticipant$( mediaTrack: MediaStreamTrack, sid: String, statsGetter: RTCStatsGetter, receiver: RtpReceiver, autoManageVideo: Boolean = false, triesLeft: Int = 20, )</ID>
+    <ID>LongParameterList:RemoteParticipant.kt$RemoteParticipant$( sid: Sid, identity: Identity? = null, internal val signalClient: SignalClient, private val ioDispatcher: CoroutineDispatcher, defaultDispatcher: CoroutineDispatcher, private val audioTrackFactory: RemoteAudioTrack.Factory, private val videoTrackFactory: RemoteVideoTrack.Factory, )</ID>
+    <ID>LongParameterList:Room.kt$Room$( @Assisted private val context: Context, internal val engine: RTCEngine, private val eglBase: EglBase, localParticipantFactory: LocalParticipant.Factory, private val defaultsManager: DefaultsManager, @Named(InjectionNames.DISPATCHER_DEFAULT) private val defaultDispatcher: CoroutineDispatcher, @Named(InjectionNames.DISPATCHER_IO) private val ioDispatcher: CoroutineDispatcher, /** * The [AudioHandler] for setting up the audio as need. * * By default, this is an instance of [AudioSwitchHandler]. * * This can be substituted for your own custom implementation through * [LiveKitOverrides.audioOptions] when creating the room with [LiveKit.create]. * * @see [audioSwitchHandler] * @see [AudioSwitchHandler] */ val audioHandler: AudioHandler, private val closeableManager: CloseableManager, private val e2EEManagerFactory: E2EEManager.Factory, private val communicationWorkaround: CommunicationWorkaround, val audioProcessingController: AudioProcessingController, /** * A holder for objects that are used internally within LiveKit. */ val lkObjects: LKObjects, networkCallbackManagerFactory: NetworkCallbackManagerFactory, private val audioDeviceModule: AudioDeviceModule, private val regionUrlProviderFactory: RegionUrlProvider.Factory, private val connectionWarmer: ConnectionWarmer, private val audioRecordPrewarmer: AudioRecordPrewarmer, private val incomingDataStreamManager: IncomingDataStreamManager, private val remoteParticipantFactory: RemoteParticipant.Factory, )</ID>
+    <ID>MapGetWithNotNullAssertionOperator:LocalParticipant.kt$LocalParticipant$sourcePubLocks[source]!!</ID>
+    <ID>NestedBlockDepth:ByteStreamSender.kt$@CheckResult suspend fun ByteStreamSender.write(source: Source): Result&lt;Unit></ID>
+    <ID>NestedBlockDepth:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): LocalTrackPublication?</ID>
+    <ID>NestedBlockDepth:LocalParticipant.kt$LocalParticipant$fun cleanup()</ID>
+    <ID>NestedBlockDepth:LocalVideoTrack.kt$LocalVideoTrack$internal fun setPublishingCodecs(codecs: List&lt;SubscribedCodec>): List&lt;VideoCodec></ID>
+    <ID>NestedBlockDepth:LocalVideoTrack.kt$LocalVideoTrack$private fun setPublishingLayersForSender( sender: RtpSender, qualities: List&lt;LivekitRtc.SubscribedQuality>, )</ID>
+    <ID>NestedBlockDepth:OutgoingDataStreamManager.kt$OutgoingDataStreamManagerImpl$@CheckResult private suspend fun openStream( info: StreamInfo, destinationIdentities: List&lt;Participant.Identity> = emptyList(), ): Result&lt;Unit></ID>
+    <ID>NestedBlockDepth:PeerConnectionTransport.kt$@VisibleForTesting fun ensureCodecBitrates( media: MediaDescription, trackBitrates: Map&lt;TrackBitrateInfoKey, TrackBitrateInfo>, )</ID>
+    <ID>NestedBlockDepth:RTCEngine.kt$RTCEngine$@CheckResult internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result&lt;Unit></ID>
+    <ID>NestedBlockDepth:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
+    <ID>NestedBlockDepth:Room.kt$Room$override suspend fun onPostReconnect(isFullReconnect: Boolean)</ID>
+    <ID>NestedBlockDepth:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>
+    <ID>SwallowedException:EndpointTokenSource.kt$EndpointTokenSource.&lt;no name provided>$e: Exception</ID>
+    <ID>SwallowedException:FlowExt.kt$e: CancellationException</ID>
+    <ID>SwallowedException:LocalVideoTrack.kt$LocalVideoTrack$e: Exception</ID>
+    <ID>SwallowedException:NetworkCallbackManager.kt$NetworkCallbackManagerImpl$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:RemoteParticipant.kt$RemoteParticipant$e: Exception</ID>
+    <ID>SwallowedException:TextureViewRenderer.kt$TextureViewRenderer$e: NotFoundException</ID>
+    <ID>ThrowingExceptionsWithoutMessageOrCause:LKDebugTree.kt$LKDebugTree$Throwable()</ID>
+    <ID>ThrowingExceptionsWithoutMessageOrCause:SignalClient.kt$SignalClient$Exception()</ID>
+    <ID>TooManyFunctions:CommunicationWorkaround.kt$CommunicationWorkaroundImpl : CommunicationWorkaround</ID>
+    <ID>TooManyFunctions:E2EEManager.kt$E2EEManager</ID>
+    <ID>TooManyFunctions:IncomingDataStreamManager.kt$IncomingDataStreamManagerImpl : IncomingDataStreamManager</ID>
+    <ID>TooManyFunctions:LKLog.kt$LKLog$Companion</ID>
+    <ID>TooManyFunctions:LocalParticipant.kt$LocalParticipant : ParticipantOutgoingDataStreamManagerRpcManager</ID>
+    <ID>TooManyFunctions:LocalVideoTrack.kt$LocalVideoTrack : VideoTrack</ID>
+    <ID>TooManyFunctions:OverridesModule.kt$OverridesModule</ID>
+    <ID>TooManyFunctions:Participant.kt$Participant</ID>
+    <ID>TooManyFunctions:Participant.kt$ParticipantListener</ID>
+    <ID>TooManyFunctions:PeerConnectionTransport.kt$PeerConnectionTransport</ID>
+    <ID>TooManyFunctions:PublisherTransportObserver.kt$PublisherTransportObserver : ObserverListenerPeerConnectionStateObservable</ID>
+    <ID>TooManyFunctions:RTCEngine.kt$RTCEngine : Listener</ID>
+    <ID>TooManyFunctions:RTCEngine.kt$RTCEngine$Listener</ID>
+    <ID>TooManyFunctions:RTCMetricsManager.kt$io.livekit.android.room.metrics.RTCMetricsManager.kt</ID>
+    <ID>TooManyFunctions:RTCModule.kt$RTCModule</ID>
+    <ID>TooManyFunctions:Room.kt$Room : ListenerParticipantListenerRpcManagerIncomingDataStreamManager</ID>
+    <ID>TooManyFunctions:SignalClient.kt$SignalClient : WebSocketListener</ID>
+    <ID>TooManyFunctions:SignalClient.kt$SignalClient$Listener</ID>
+    <ID>TooManyFunctions:SimulcastVideoEncoderFactoryWrapper.kt$SimulcastVideoEncoderFactoryWrapper$StreamEncoderWrapper : VideoEncoder</ID>
+    <ID>TooManyFunctions:SubscriberTransportObserver.kt$SubscriberTransportObserver : ObserverPeerConnectionStateObservable</ID>
+    <ID>TooManyFunctions:TextureViewRenderer.kt$TextureViewRenderer : TextureViewCallbackSurfaceTextureListenerVideoSinkRendererEventsNotifier</ID>
+    <ID>UnnecessaryNotNullOperator:E2EEManager.kt$E2EEManager$room!!</ID>
+    <ID>UnnecessaryNotNullOperator:Room.kt$Room$e2eeManager!!</ID>
+    <ID>UnnecessarySafeCall:E2EEManager.kt$E2EEManager$(publication.track!! as LocalAudioTrack)?.sender</ID>
+    <ID>UnnecessarySafeCall:E2EEManager.kt$E2EEManager$(publication.track!! as LocalVideoTrack)?.sender</ID>
+    <ID>UnsafeCallOnNullableType:AudioSwitchHandler.kt$AudioSwitchHandler$thread!!</ID>
+    <ID>UnsafeCallOnNullableType:CustomAudioProcessingFactory.kt$CustomAudioProcessingFactory.AudioProcessingBridge$buffer!!</ID>
+    <ID>UnsafeCallOnNullableType:DataPacketBuffer.kt$DataPacketBuffer$item!!</ID>
+    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$participant.identity!!</ID>
+    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$publication.track!!</ID>
+    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$rtpReceiver!!</ID>
+    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$rtpSender!!</ID>
+    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$this.room!!</ID>
+    <ID>UnsafeCallOnNullableType:EncodingUtils.kt$EncodingUtils$encodings.first().scalabilityMode!!</ID>
+    <ID>UnsafeCallOnNullableType:LocalParticipant.kt$LocalParticipant$options.backupCodec!!</ID>
+    <ID>UnsafeCallOnNullableType:LocalParticipant.kt$LocalParticipant$sourcePubLocks[source]!!</ID>
+    <ID>UnsafeCallOnNullableType:LocalParticipant.kt$VideoTrackPublishOptions$backupCodec!!</ID>
+    <ID>UnsafeCallOnNullableType:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.MediaProjectionCallback$track!!</ID>
+    <ID>UnsafeCallOnNullableType:LocalVideoTrack.kt$LocalVideoTrack$simulcastInfo.sender!!</ID>
+    <ID>UnsafeCallOnNullableType:PeerConnectionTransport.kt$PeerConnectionTransport$executeBlockingOnRTCThread(rtcThreadToken) { connectionFactory.createPeerConnection( config, pcObserver, ) ?: throw IllegalStateException("peer connection creation failed?") }!!</ID>
+    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$publisher!!</ID>
+    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$subscriber!!</ID>
+    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$url!!</ID>
+    <ID>UnsafeCallOnNullableType:RTCModule.kt$RTCModule$executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) { val peerConnectionFactory = PeerConnectionFactory.builder() .setAudioDeviceModule(audioDeviceModule) .setAudioProcessingFactory(audioProcessingFactory) .setVideoEncoderFactory(videoEncoderFactory) .setVideoDecoderFactory(videoDecoderFactory) .apply { if (peerConnectionFactoryOptions != null) { setOptions(peerConnectionFactoryOptions) } } .createPeerConnectionFactory() return@executeBlockingOnRTCThread PeerConnectionFactoryManager(peerConnectionFactory) .apply { memoryManager.registerClosable { executeOnRTCThread(RTCThreadTokenImpl(this)) { dispose() } } } }!!</ID>
+    <ID>UnsafeCallOnNullableType:Room.kt$Room$e2eeManager!!</ID>
+    <ID>UnsafeCallOnNullableType:Room.kt$Room$publication.track!!</ID>
+    <ID>UnsafeCallOnNullableType:SimulcastVideoEncoderFactoryWrapper.kt$SimulcastVideoEncoderFactoryWrapper.StreamEncoderWrapper$streamSettings!!</ID>
+    <ID>UnsafeCallOnNullableType:TextureViewRenderer.kt$TextureViewRenderer$rendererEvents!!</ID>
+  </CurrentIssues>
+</SmellBaseline>
