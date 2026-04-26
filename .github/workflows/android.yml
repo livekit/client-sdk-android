@@ -59,7 +59,7 @@ jobs:
       run: ./gradlew assembleRelease livekit-android-test:testRelease
 
     - name: Run Detekt
-      run: ./gradlew livekit-android-sdk:detektMain
+      run: ./gradlew livekit-android-sdk:detektRelease
 
     - name: Upload AAR
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
