@@ -27,7 +27,7 @@ internal const val defaultKeyRingSize = 16
 internal const val defaultDiscardFrameWhenCryptorNotReady = false
 internal val defaultKeyDerivationAlgorithm = FrameCryptorKeyDerivationAlgorithm.PBKDF2
 
-class E2EEOptions(
+data class E2EEOptions(
     var keyProvider: KeyProvider = BaseKeyProvider(
         defaultRatchetSalt,
         defaultMagicBytes,
@@ -38,11 +38,18 @@ class E2EEOptions(
         defaultDiscardFrameWhenCryptorNotReady,
         defaultKeyDerivationAlgorithm,
     ),
-    encryptionType: Encryption.Type = Encryption.Type.GCM,
+    var encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
-    var encryptionType: Encryption.Type = Encryption.Type.NONE
-
-    init {
-        this.encryptionType = encryptionType
+    constructor(
+        /**
+         * The shared encryption key for the room.
+         */
+        sharedKey: String,
+        /**
+         * The encryption type to use. Defaults to GCM.
+         */
+        encryptionType: Encryption.Type = Encryption.Type.GCM,
+    ) : this(encryptionType = encryptionType) {
+        this.keyProvider.setSharedKey(sharedKey)
     }
 }
