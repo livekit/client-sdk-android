@@ -77,11 +77,11 @@ class CallViewModel(
 ) : AndroidViewModel(application) {
 
     private fun getE2EEOptions(): E2EEOptions? {
-        var e2eeOptions: E2EEOptions? = null
-        if (e2ee && e2eeKey != null) {
-            e2eeOptions = E2EEOptions()
+        var e2eeOptions = if (e2ee && e2eeKey != null) {
+            E2EEOptions(sharedKey = e2eeKey)
+        } else {
+            null
         }
-        e2eeOptions?.keyProvider?.setSharedKey(e2eeKey!!)
         return e2eeOptions
     }
 
