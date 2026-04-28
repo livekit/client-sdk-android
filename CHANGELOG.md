@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.25.1
+
+### Patch Changes
+
+- Add convenience constructor to E2EEOptions for shared key encryption - [#917](https://github.com/livekit/client-sdk-android/pull/917) ([@davidliu](https://github.com/davidliu))
+
 ## 2.25.0
 
 ### Minor Changes
