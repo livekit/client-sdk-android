@@ -403,6 +403,13 @@ internal constructor(
                 synchronized(pendingTrackResolvers) {
                     pendingTrackResolvers[cid] = cont
                 }
+                cont.invokeOnCancellation {
+                    synchronized(pendingTrackResolvers) {
+                        if (pendingTrackResolvers[cid] === cont) {
+                            pendingTrackResolvers.remove(cid)
+                        }
+                    }
+                }
                 client.sendAddTrack(
                     cid = cid,
                     name = name,
