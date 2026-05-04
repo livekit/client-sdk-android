@@ -346,7 +346,7 @@ constructor(
     val serverInfo: ServerInfo?
         get() = engine.serverInfo
 
-    private var sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
+    private val sidToIdentity = mutableMapOf<Participant.Sid, Participant.Identity>()
 
     private var mutableActiveSpeakers by flowDelegate(emptyList<Participant>())
 
@@ -364,7 +364,7 @@ constructor(
     private var regionUrlProvider: RegionUrlProvider? = null
     private var regionUrl: String? = null
 
-    private var transcriptionReceivedTimes = mutableMapOf<String, Long>()
+    private val transcriptionReceivedTimes = mutableMapOf<String, Long>()
 
     internal var isPrerecording by defaultsManager::isPrerecording
 
@@ -1521,9 +1521,7 @@ constructor(
      * @suppress
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        e2eeManager?.let { e2eeManager ->
-            e2eeManager!!.removePublishedTrack(publication.track!!, publication, participant, this)
-        }
+        e2eeManager?.removePublishedTrack(publication.track!!, publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
@@ -1556,9 +1554,7 @@ constructor(
         publication: RemoteTrackPublication,
         participant: RemoteParticipant,
     ) {
-        e2eeManager?.let { e2eeManager ->
-            e2eeManager!!.removeSubscribedTrack(track, publication, participant, this)
-        }
+        e2eeManager?.removeSubscribedTrack(track, publication, participant, this)
         eventBus.postEvent(RoomEvent.TrackUnsubscribed(this, track, publication, participant), coroutineScope)
     }
 

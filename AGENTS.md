@@ -6,6 +6,8 @@ Supported platforms: Android (minimum API level 21)
 
 - Assemble: `./gradlew assemble`
 - Run tests: `./gradlew test`
+- Run detekt (static analysis): `./gradlew detektDebug`
+- Run detekt with baseline: `./gradlew detektRelease`
 - Install example app: `./gradlew sample-app-compose:installDebug`
 
 ## Architecture

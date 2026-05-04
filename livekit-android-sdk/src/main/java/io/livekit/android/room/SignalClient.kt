@@ -866,6 +866,7 @@ constructor(
      * Can be reused afterwards.
      */
     fun close(code: Int = CLOSE_REASON_NORMAL_CLOSURE, reason: String = "Normal Closure", shouldClearQueuedRequests: Boolean = true) {
+        @Suppress("ThrowingExceptionsWithoutMessageOrCause")
         LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
