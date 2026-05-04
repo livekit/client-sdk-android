@@ -48,7 +48,7 @@ constructor(
     dataPacketCryptorManagerFactory: DataPacketCryptorManager.Factory,
 ) {
     private var room: Room? = null
-    private var frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
+    private val frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
 
@@ -116,7 +116,7 @@ constructor(
             LKLog.i { "Receiver::onFrameCryptionStateChanged: $trackId, state:  $state" }
             emitEvent(
                 RoomEvent.TrackE2EEStateEvent(
-                    room!!,
+                    room,
                     publication.track!!,
                     publication,
                     participant,
@@ -138,15 +138,15 @@ constructor(
     }
 
     fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
-        val rtpSender: RtpSender? = when (publication.track!!) {
-            is LocalAudioTrack -> (publication.track!! as LocalAudioTrack)?.sender
-            is LocalVideoTrack -> (publication.track!! as LocalVideoTrack)?.sender
+        val rtpSender: RtpSender = when (publication.track!!) {
+            is LocalAudioTrack -> (publication.track!! as LocalAudioTrack).sender
+            is LocalVideoTrack -> (publication.track!! as LocalVideoTrack).sender
             else -> {
                 throw IllegalArgumentException("unsupported track type")
             }
         } ?: throw IllegalArgumentException("rtpSender is null")
 
-        val frameCryptor = addRtpSender(rtpSender!!, participant.identity!!, publication.sid, publication.track!!.kind.name.lowercase())
+        val frameCryptor = addRtpSender(rtpSender, participant.identity!!, publication.sid, publication.track!!.kind.name.lowercase())
         frameCryptor.setObserver { trackId, state ->
             LKLog.i { "Sender::onFrameCryptionStateChanged: $trackId, state:  $state" }
             emitEvent(

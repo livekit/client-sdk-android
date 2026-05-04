@@ -88,6 +88,7 @@ class NetworkCallbackManagerImpl(
     @Synchronized
     override fun unregisterCallback() {
         if (!isClosed.get() && isRegistered.compareAndSet(true, false)) {
+            @Suppress("SwallowedException")
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback)
             } catch (e: IllegalArgumentException) {

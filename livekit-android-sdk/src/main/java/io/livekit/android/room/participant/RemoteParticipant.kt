@@ -206,8 +206,10 @@ class RemoteParticipant(
 
         val track = publication.track
         if (track != null) {
+            @Suppress("SwallowedException")
             try {
                 track.stop()
+
             } catch (e: Exception) {
                 // track may already be disposed, ignore.
             }

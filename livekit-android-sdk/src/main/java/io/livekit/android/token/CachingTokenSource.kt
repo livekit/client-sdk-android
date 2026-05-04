@@ -127,7 +127,7 @@ interface TokenStore {
     )
 }
 
-internal class InMemoryTokenStore() : TokenStore {
+internal class InMemoryTokenStore : TokenStore {
     var item: TokenStore.Item? = null
     override suspend fun retrieve(): TokenStore.Item? = item
 

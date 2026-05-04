@@ -210,7 +210,7 @@ constructor(
     /**
      * Needed to deal with circular dependency.
      */
-    class MediaProjectionCallback() : MediaProjection.Callback() {
+    class MediaProjectionCallback : MediaProjection.Callback() {
 
         var track: Track? = null
 

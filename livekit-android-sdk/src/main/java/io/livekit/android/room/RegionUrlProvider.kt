@@ -47,7 +47,7 @@ constructor(
     private var regionSettings: RegionSettings? = null
     private var lastUpdateAt: Long = 0L
     private var settingsCacheTimeMs = 30000
-    private var attemptedRegions = mutableSetOf<RegionInfo>()
+    private val attemptedRegions = mutableSetOf<RegionInfo>()
 
     fun isLKCloud() = serverUrl.isLKCloud()
 

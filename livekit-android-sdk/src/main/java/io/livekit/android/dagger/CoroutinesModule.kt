@@ -25,6 +25,7 @@ import javax.inject.Named
  * @suppress
  */
 @Module
+@Suppress("InjectDispatcher")
 internal object CoroutinesModule {
     @Provides
     @Named(InjectionNames.DISPATCHER_DEFAULT)

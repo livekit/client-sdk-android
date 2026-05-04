@@ -4,6 +4,10 @@ config:
   warningsAsErrors: true
   excludes: ''
 
+empty-blocks:
+  EmptyFunctionBlock:
+    ignoreOverridden: true
+
 style:
   active: false
 
