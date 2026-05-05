@@ -150,7 +150,7 @@ class SignalClientTest : BaseTest() {
             }
         }
 
-        client.onFailure(wsFactory.ws, Exception(), null)
+        wsFactory.ws.cancel()
         job.await()
 
         assertTrue(failed)
@@ -199,7 +199,7 @@ class SignalClientTest : BaseTest() {
         connectWebsocketAndJoin()
         job.await()
 
-        client.onFailure(wsFactory.ws, Exception(), null)
+        wsFactory.ws.cancel()
 
         Mockito.verify(listener)
             .onClose(any(), any())
@@ -218,7 +218,7 @@ class SignalClientTest : BaseTest() {
             }
             yield()
             client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            client.onFailure(wsFactory.ws, Exception("handshake failure"), null)
+            wsFactory.ws.cancel()
 
             runCatching { job.await() }
         }
@@ -240,7 +240,7 @@ class SignalClientTest : BaseTest() {
         joinJob.await()
 
         val connectedWs = wsFactory.ws
-        client.onFailure(connectedWs, Exception("initial connection lost"), null)
+        connectedWs.cancel()
         Mockito.verify(listener).onClose(any(), any())
 
         supervisorScope {
@@ -251,13 +251,13 @@ class SignalClientTest : BaseTest() {
             clearInvocations(listener)
 
             client.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-            client.onFailure(wsFactory.ws, Exception("reconnect handshake failure"), null)
+            wsFactory.ws.cancel()
 
             runCatching { reconnectJob.await() }
         }
 
         Mockito.verify(listener).onClose(
-            argThat { reason: String -> reason.contains("reconnect handshake failure") },
+            argThat { reason: String -> reason.contains("cancelled") },
             any(),
         )
     }

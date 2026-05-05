@@ -33,6 +33,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import livekit.LivekitModels
@@ -79,6 +81,38 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val subPeerConnection = getSubscriberPeerConnection()
 
         assertEquals(sentIceServers, subPeerConnection.rtcConfig.iceServers)
+    }
+
+    @Test
+    fun roomConnectDoesNotHangOnWebSocketFailure() = runTest {
+        val connectJob = async {
+            try {
+                room.connect(
+                    url = TestData.EXAMPLE_URL,
+                    token = "token",
+                )
+                null
+            } catch (e: Throwable) {
+                e
+            }
+        }
+
+        room::state.flow
+            .takeWhile { it != Room.State.CONNECTING }
+            .collect()
+        runCurrent()
+
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        // simulate websocket failure
+        wsFactory.ws.cancel()
+        advanceUntilIdle()
+
+        val connectResult = connectJob.await()
+        assertTrue("connect job should fail on websocket cancel", connectResult != null)
+        assertTrue(
+            "Expected RoomException.ConnectException, got $connectResult",
+            connectResult is RoomException.ConnectException,
+        )
     }
 
     @Test
