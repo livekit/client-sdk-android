@@ -1,5 +1,17 @@
 # client-sdk-android
 
+## 2.25.2
+
+### Patch Changes
+
+- Fix Room.connect not properly throwing ConnectException for websocket connection failures during Room.join() - [#926](https://github.com/livekit/client-sdk-android/pull/926) ([@davidliu](https://github.com/davidliu))
+
+- Fix reconnect potentially getting cancelled by websocket failure - [#926](https://github.com/livekit/client-sdk-android/pull/926) ([@davidliu](https://github.com/davidliu))
+
+- Fixed RTCEngine.addTrack leaking pendingTrackResolvers entries on timeout or caller cancellation, which previously caused subsequent publishes of the same track to fail with DuplicateTrackException until the connection was torn down. - [#920](https://github.com/livekit/client-sdk-android/pull/920) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix exception when resending data channel messages after a resume - [#923](https://github.com/livekit/client-sdk-android/pull/923) ([@davidliu](https://github.com/davidliu))
+
 ## 2.25.1
 
 ### Patch Changes
