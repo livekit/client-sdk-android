@@ -349,6 +349,9 @@ constructor(
             LKLog.e(e) { "failed to validate connection" }
         }
 
+        val wasConnected = isConnected
+        val wasConnecting = joinContinuation != null
+
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
             val error = Exception(reason)
@@ -361,11 +364,11 @@ constructor(
         }
         joinContinuation = null
 
-        val wasConnected = isConnected
-
-        if (wasConnected) {
+        if (wasConnected || wasConnecting) {
             // onClosing/onClosed will not be called after onFailure.
             // Handle websocket closure here.
+            // Also handle the case where failure occurs during a reconnect attempt (wasConnecting),
+            // where isConnected is already false but the upper layer still needs to be notified.
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE,
