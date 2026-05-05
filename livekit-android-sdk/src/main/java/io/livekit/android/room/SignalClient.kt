@@ -62,6 +62,7 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlin.coroutines.resumeWithException
 
 /**
  * SignalClient to LiveKit WS servers
@@ -192,8 +193,8 @@ constructor(
                 // If the coroutine is cancelled, websocket needs to be cancelled.
                 // onFailure will handle cleanup.
                 LKLog.v { "connect cancelled, abort websocket" }
-                currentWs?.cancel()
                 joinContinuation = null
+                currentWs?.cancel()
             }
             currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
         }
@@ -350,25 +351,39 @@ constructor(
         }
 
         val wasConnected = isConnected
-        val wasConnecting = joinContinuation != null
+        val wasReconnectHandshake = joinContinuation != null && isReconnecting
+
+        // Clear joinContinuation before cont.cancel() so a synchronous nested onFailure (e.g. from
+        // WebSocket.cancel) does not treat this as an in-flight join/reconnect handshake.
+        val joinCont = joinContinuation
+        joinContinuation = null
 
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
-            val error = Exception(reason)
+            val error = if (joinCont != null) {
+                RoomException.ConnectException(reason, t)
+            } else {
+                Exception(reason)
+            }
             listener?.onError(error)
-            joinContinuation?.cancel(error)
+            joinCont?.resumeWithException(error)
         } else {
             LKLog.e(t) { "websocket failure: $response" }
-            listener?.onError(t)
-            joinContinuation?.cancel(t)
+            val error = if (joinCont != null) {
+                RoomException.ConnectException(t.localizedMessage, t)
+            } else {
+                t
+            }
+            listener?.onError(error)
+            joinCont?.resumeWithException(error)
         }
-        joinContinuation = null
 
-        if (wasConnected || wasConnecting) {
+        if (wasConnected || wasReconnectHandshake) {
             // onClosing/onClosed will not be called after onFailure.
             // Handle websocket closure here.
-            // Also handle the case where failure occurs during a reconnect attempt (wasConnecting),
-            // where isConnected is already false but the upper layer still needs to be notified.
+            // Also handle failure during a soft reconnect handshake (reconnect query): isConnected is
+            // still false but the upper layer should be notified like a close. Initial join handshake
+            // failures do not call onClose so RTCEngine can surface them via onError / onFailToConnect.
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE,
@@ -886,8 +901,10 @@ constructor(
         pongJob = null
         currentWs?.close(code, reason)
         currentWs = null
-        joinContinuation?.cancel()
+        // Same ordering as [onFailure]: clear the field before cancel() for synchronous listener callbacks.
+        val joinCont = joinContinuation
         joinContinuation = null
+        joinCont?.cancel()
         if (shouldClearQueuedRequests) {
             requestFlow.resetReplayCache()
         }
