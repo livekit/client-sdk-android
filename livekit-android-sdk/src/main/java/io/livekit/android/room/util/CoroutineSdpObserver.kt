@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ internal open class CoroutineSdpObserver : SdpObserver {
             }
         }
 
-    private var pendingCreate = mutableListOf<Continuation<Either<SessionDescription, String?>>>()
+    private val pendingCreate = mutableListOf<Continuation<Either<SessionDescription, String?>>>()
 
     private var setOutcome: Either<Unit, String?>? = null
         set(value) {
@@ -75,7 +75,7 @@ internal open class CoroutineSdpObserver : SdpObserver {
                 }
             }
         }
-    private var pendingSets = mutableListOf<Continuation<Either<Unit, String?>>>()
+    private val pendingSets = mutableListOf<Continuation<Either<Unit, String?>>>()
 
     override fun onCreateSuccess(sdp: SessionDescription?) {
         createOutcome = if (sdp == null) {

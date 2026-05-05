@@ -41,6 +41,7 @@ open class LKDebugTree {
 
     val tag: String?
         get() =
+            @Suppress("ThrowingExceptionsWithoutMessageOrCause")
             Throwable()
                 .stackTrace
                 .first { it.className !in fqcnIgnore }

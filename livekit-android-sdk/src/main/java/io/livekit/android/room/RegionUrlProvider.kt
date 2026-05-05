@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ constructor(
     private var regionSettings: RegionSettings? = null
     private var lastUpdateAt: Long = 0L
     private var settingsCacheTimeMs = 30000
-    private var attemptedRegions = mutableSetOf<RegionInfo>()
+    private val attemptedRegions = mutableSetOf<RegionInfo>()
 
     fun isLKCloud() = serverUrl.isLKCloud()
 

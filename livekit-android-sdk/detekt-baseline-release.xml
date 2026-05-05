@@ -27,32 +27,9 @@
     <ID>CyclomaticComplexMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
     <ID>CyclomaticComplexMethod:RoomEvent.kt$fun LivekitModels.DisconnectReason?.convert(): DisconnectReason</ID>
     <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
-    <ID>DoubleMutabilityForCollection:CoroutineSdpObserver.kt$CoroutineSdpObserver$private var pendingCreate = mutableListOf&lt;Continuation&lt;Either&lt;SessionDescription, String?>>>()</ID>
-    <ID>DoubleMutabilityForCollection:CoroutineSdpObserver.kt$CoroutineSdpObserver$private var pendingSets = mutableListOf&lt;Continuation&lt;Either&lt;Unit, String?>>>()</ID>
-    <ID>DoubleMutabilityForCollection:E2EEManager.kt$E2EEManager$private var frameCryptors = mutableMapOf&lt;Pair&lt;String, Participant.Identity>, FrameCryptor>()</ID>
-    <ID>DoubleMutabilityForCollection:PeerConnectionTransport.kt$PeerConnectionTransport$private var trackBitrates = mutableMapOf&lt;TrackBitrateInfoKey, TrackBitrateInfo>()</ID>
-    <ID>DoubleMutabilityForCollection:RegionUrlProvider.kt$RegionUrlProvider$private var attemptedRegions = mutableSetOf&lt;RegionInfo>()</ID>
-    <ID>DoubleMutabilityForCollection:Room.kt$Room$private var sidToIdentity = mutableMapOf&lt;Participant.Sid, Participant.Identity>()</ID>
-    <ID>DoubleMutabilityForCollection:Room.kt$Room$private var transcriptionReceivedTimes = mutableMapOf&lt;String, Long>()</ID>
-    <ID>EmptyCatchBlock:EndpointTokenSource.kt$EndpointTokenSource.&lt;no name provided>${ }</ID>
-    <ID>EmptyDefaultConstructor:CachingTokenSource.kt$InMemoryTokenStore$()</ID>
-    <ID>EmptyDefaultConstructor:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.MediaProjectionCallback$()</ID>
-    <ID>EmptyFunctionBlock:CommunicationWorkaround.kt$NoopCommunicationWorkaround${ }</ID>
-    <ID>EmptyFunctionBlock:LocalVideoTrack.kt$LocalVideoTrack.&lt;no name provided>.&lt;no name provided>${ }</ID>
-    <ID>EmptyFunctionBlock:NoAudioHandler.kt$NoAudioHandler${ }</ID>
-    <ID>EmptyFunctionBlock:PublisherTransportObserver.kt$PublisherTransportObserver${ }</ID>
     <ID>EmptyFunctionBlock:RTCEngine.kt$RTCEngine${ }</ID>
-    <ID>EmptyFunctionBlock:Room.kt$Room${ }</ID>
-    <ID>EmptyFunctionBlock:SubscriberTransportObserver.kt$SubscriberTransportObserver${ }</ID>
-    <ID>EmptyFunctionBlock:TextureViewRenderer.kt$TextureViewRenderer${}</ID>
-    <ID>EmptyFunctionBlock:VideoFrameCapturer.kt$VideoFrameCapturer${ }</ID>
     <ID>HasPlatformType:DataChannelManager.kt$DataChannelManager$@get:FlowObservable var state by flowDelegate(dataChannel.state()) private set</ID>
-    <ID>HasPlatformType:RTCModule.kt$RTCModule$@Provides fun sdpFactory()</ID>
     <ID>IgnoredReturnValue:BaseStreamReceiver.kt$BaseStreamReceiver$catch { }</ID>
-    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$Default</ID>
-    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$IO</ID>
-    <ID>InjectDispatcher:CoroutinesModule.kt$CoroutinesModule$Unconfined</ID>
-    <ID>InjectDispatcher:NetworkMonitor.kt$NetworkMonitor$IO</ID>
     <ID>InstanceOfCheckForException:LocalParticipant.kt$LocalParticipant$e is RpcError</ID>
     <ID>LargeClass:LocalParticipant.kt$LocalParticipant : ParticipantOutgoingDataStreamManagerRpcManager</ID>
     <ID>LargeClass:RTCEngine.kt$RTCEngine : Listener</ID>
@@ -106,14 +83,9 @@
     <ID>NestedBlockDepth:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
     <ID>NestedBlockDepth:Room.kt$Room$override suspend fun onPostReconnect(isFullReconnect: Boolean)</ID>
     <ID>NestedBlockDepth:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>
-    <ID>SwallowedException:EndpointTokenSource.kt$EndpointTokenSource.&lt;no name provided>$e: Exception</ID>
     <ID>SwallowedException:FlowExt.kt$e: CancellationException</ID>
     <ID>SwallowedException:LocalVideoTrack.kt$LocalVideoTrack$e: Exception</ID>
-    <ID>SwallowedException:NetworkCallbackManager.kt$NetworkCallbackManagerImpl$e: IllegalArgumentException</ID>
-    <ID>SwallowedException:RemoteParticipant.kt$RemoteParticipant$e: Exception</ID>
     <ID>SwallowedException:TextureViewRenderer.kt$TextureViewRenderer$e: NotFoundException</ID>
-    <ID>ThrowingExceptionsWithoutMessageOrCause:LKDebugTree.kt$LKDebugTree$Throwable()</ID>
-    <ID>ThrowingExceptionsWithoutMessageOrCause:SignalClient.kt$SignalClient$Exception()</ID>
     <ID>TooManyFunctions:CommunicationWorkaround.kt$CommunicationWorkaroundImpl : CommunicationWorkaround</ID>
     <ID>TooManyFunctions:E2EEManager.kt$E2EEManager</ID>
     <ID>TooManyFunctions:IncomingDataStreamManager.kt$IncomingDataStreamManagerImpl : IncomingDataStreamManager</ID>
@@ -135,17 +107,12 @@
     <ID>TooManyFunctions:SimulcastVideoEncoderFactoryWrapper.kt$SimulcastVideoEncoderFactoryWrapper$StreamEncoderWrapper : VideoEncoder</ID>
     <ID>TooManyFunctions:SubscriberTransportObserver.kt$SubscriberTransportObserver : ObserverPeerConnectionStateObservable</ID>
     <ID>TooManyFunctions:TextureViewRenderer.kt$TextureViewRenderer : TextureViewCallbackSurfaceTextureListenerVideoSinkRendererEventsNotifier</ID>
-    <ID>UnnecessaryNotNullOperator:E2EEManager.kt$E2EEManager$room!!</ID>
-    <ID>UnnecessaryNotNullOperator:Room.kt$Room$e2eeManager!!</ID>
-    <ID>UnnecessarySafeCall:E2EEManager.kt$E2EEManager$(publication.track!! as LocalAudioTrack)?.sender</ID>
-    <ID>UnnecessarySafeCall:E2EEManager.kt$E2EEManager$(publication.track!! as LocalVideoTrack)?.sender</ID>
     <ID>UnsafeCallOnNullableType:AudioSwitchHandler.kt$AudioSwitchHandler$thread!!</ID>
     <ID>UnsafeCallOnNullableType:CustomAudioProcessingFactory.kt$CustomAudioProcessingFactory.AudioProcessingBridge$buffer!!</ID>
     <ID>UnsafeCallOnNullableType:DataPacketBuffer.kt$DataPacketBuffer$item!!</ID>
     <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$participant.identity!!</ID>
     <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$publication.track!!</ID>
     <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$rtpReceiver!!</ID>
-    <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$rtpSender!!</ID>
     <ID>UnsafeCallOnNullableType:E2EEManager.kt$E2EEManager$this.room!!</ID>
     <ID>UnsafeCallOnNullableType:EncodingUtils.kt$EncodingUtils$encodings.first().scalabilityMode!!</ID>
     <ID>UnsafeCallOnNullableType:LocalParticipant.kt$LocalParticipant$options.backupCodec!!</ID>

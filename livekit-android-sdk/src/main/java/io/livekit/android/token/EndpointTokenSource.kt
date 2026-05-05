@@ -17,6 +17,7 @@
 package io.livekit.android.token
 
 import io.livekit.android.dagger.globalOkHttpClient
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -110,6 +111,7 @@ internal interface EndpointTokenSource : ConfigurableTokenSource {
                         try {
                             tokenResponse = snakeCaseJson.decodeFromString<TokenSourceResponse>(bodyStr)
                         } catch (e: Exception) {
+                            LKLog.d(e) { "Unable to decode token source json with snake_case, trying camelCase." }
                         }
 
                         if (tokenResponse == null) {

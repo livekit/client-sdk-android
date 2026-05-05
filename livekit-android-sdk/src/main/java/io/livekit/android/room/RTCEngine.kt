@@ -797,7 +797,12 @@ internal constructor(
     }
 
     internal suspend fun resendReliableMessagesForResume(lastMessageSeq: Int): Result<Unit> {
-        ensurePublisherConnected(LivekitModels.DataPacket.Kind.RELIABLE)
+        try {
+            ensurePublisherConnected(LivekitModels.DataPacket.Kind.RELIABLE)
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            return Result.failure(e)
+        }
         val channel = dataChannelForKind(LivekitModels.DataPacket.Kind.RELIABLE)
             ?: return Result.failure(NullPointerException("reliable channel not established!"))
 

@@ -413,7 +413,7 @@ internal object RTCModule {
     fun videoHwAccel() = true
 
     @Provides
-    fun sdpFactory() = SdpFactory.getInstance()
+    fun sdpFactory(): SdpFactory = SdpFactory.getInstance()
 }
 
 /**
