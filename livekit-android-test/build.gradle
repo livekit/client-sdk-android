@@ -41,6 +41,28 @@ android {
     }
 }
 
+// Allow this module's Kotlin compilations to resolve `internal` APIs from :livekit-android-sdk
+// https://kotlinlang.org/docs/visibility-modifiers.html#modules
+//
+// Use projectsEvaluated so :livekit-android-sdk Kotlin compile tasks exist before friendPaths
+// references them.
+gradle.projectsEvaluated {
+    def sdk = rootProject.project(':livekit-android-sdk')
+    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { task ->
+        def variant
+        if (task.name.startsWith('compileDebug')) {
+            variant = 'Debug'
+        } else if (task.name.startsWith('compileRelease')) {
+            variant = 'Release'
+        } else {
+            return
+        }
+        // Point at the same `classes.jar` AGP puts on the compile classpath (not only `tmp/kotlin-classes`),
+        // or Kotlin will not treat the SDK as a friend module for `internal` visibility.
+        task.friendPaths.from(sdk.tasks.named("bundleLibCompileToJar${variant}"))
+    }
+}
+
 dokkaHtml {
     moduleName.set("livekit-android-test")
     dokkaSourceSets {
