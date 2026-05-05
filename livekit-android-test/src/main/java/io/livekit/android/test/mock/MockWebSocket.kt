@@ -36,6 +36,9 @@ class MockWebSocket(
         get() = mutableSentRequests
 
     override fun cancel() {
+        if (isClosed) {
+            return
+        }
         isClosed = true
         listener.onFailure(this, IOException("cancelled"), null)
     }
