@@ -62,6 +62,7 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlin.coroutines.resumeWithException
 
 /**
  * SignalClient to LiveKit WS servers
@@ -352,17 +353,30 @@ constructor(
         val wasConnected = isConnected
         val wasReconnectHandshake = joinContinuation != null && isReconnecting
 
+        // Clear joinContinuation before cont.cancel() so a synchronous nested onFailure (e.g. from
+        // WebSocket.cancel) does not treat this as an in-flight join/reconnect handshake.
+        val joinCont = joinContinuation
+        joinContinuation = null
+
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
-            val error = Exception(reason)
+            val error = if (joinCont != null) {
+                RoomException.ConnectException(reason, t)
+            } else {
+                Exception(reason)
+            }
             listener?.onError(error)
-            joinContinuation?.cancel(error)
+            joinCont?.resumeWithException(error)
         } else {
             LKLog.e(t) { "websocket failure: $response" }
-            listener?.onError(t)
-            joinContinuation?.cancel(t)
+            val error = if (joinCont != null) {
+                RoomException.ConnectException(t.localizedMessage, t)
+            } else {
+                t
+            }
+            listener?.onError(error)
+            joinCont?.resumeWithException(error)
         }
-        joinContinuation = null
 
         if (wasConnected || wasReconnectHandshake) {
             // onClosing/onClosed will not be called after onFailure.
@@ -887,8 +901,10 @@ constructor(
         pongJob = null
         currentWs?.close(code, reason)
         currentWs = null
-        joinContinuation?.cancel()
+        // Same ordering as [onFailure]: clear the field before cancel() for synchronous listener callbacks.
+        val joinCont = joinContinuation
         joinContinuation = null
+        joinCont?.cancel()
         if (shouldClearQueuedRequests) {
             requestFlow.resetReplayCache()
         }
