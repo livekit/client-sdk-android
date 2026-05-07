@@ -30,7 +30,18 @@ jobs:
       - name: Run pinact (update workflow files)
         uses: suzuki-shunsuke/pinact-action@cf51507d80d4d6522a07348e3d58790290eaf0b6 # v2.0.0
         with:
-          # Requires repo and workflow:write access to modify workflow files.
           github_token: ${{ secrets.PINACT_GITHUB_TOKEN }}
           update: "true"
           min_age: "30"
+          skip_push: "true"
+
+      - name: Create PR (if changes)
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PINACT_GITHUB_TOKEN }}
+          commit-message: "chore(pinact): pin GitHub Actions"
+          title: "chore(pinact): pin GitHub Actions"
+          body: |
+            Automated update by pinact.
+          branch: "dl/pinact_action"
+          delete-branch: true
