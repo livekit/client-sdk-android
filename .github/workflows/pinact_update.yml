@@ -2,6 +2,13 @@ name: Pinact update
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    branches:
+      - main
     paths:
       - ".github/workflows/**"
   schedule:
@@ -18,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@6.0.2
+        uses: actions/checkout@v6.0.2
 
       - name: Run pinact (update workflow files)
         uses: suzuki-shunsuke/pinact-action@cf51507d80d4d6522a07348e3d58790290eaf0b6 # v2.0.0
