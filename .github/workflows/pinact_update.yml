@@ -40,8 +40,7 @@ jobs:
             --diff \
             --fix \
             --update \
-            --min-age "30" \
-            ".github/workflows"
+            --min-age "30"
           exit_code="$?"
           set -e
 
