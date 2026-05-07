@@ -48,12 +48,12 @@ jobs:
           echo "pinact exit code: ${exit_code}"
 
       - name: Create PR (if changes)
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.PINACT_GITHUB_TOKEN }}
-          commit-message: "chore(pinact): pin GitHub Actions"
-          title: "chore(pinact): pin GitHub Actions"
+          commit-message: "chore(pinact): pin/update GitHub Actions"
+          title: "chore(pinact): pin/update GitHub Actions"
           body: |
             Automated update by pinact.
-          branch: "dl/pinact_action"
+          branch: "ci/pinact_action"
           delete-branch: true
