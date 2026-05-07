@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Install aqua (installs pinact)
-        uses: aquaproj/aqua-installer@v3
+        uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.56.1
           aqua_opts: "-c aqua.yaml"
