@@ -1,0 +1,4 @@
+# CODEOWNERS for client-sdk-android
+# These owners will be requested for review on all PRs
+
+* @davidliu @MaxHeimbrock @xianshijing-lk
