@@ -6,11 +6,6 @@ on:
       - main
     paths:
       - ".github/workflows/**"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/**"
   schedule:
     # Weekly on Monday at 00:00 UTC
     - cron: "0 0 * * 1"
@@ -27,13 +22,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Run pinact (update workflow files)
-        uses: suzuki-shunsuke/pinact-action@cf51507d80d4d6522a07348e3d58790290eaf0b6 # v2.0.0
+      - name: Install aqua (installs pinact)
+        uses: aquaproj/aqua-installer@v3
         with:
-          github_token: ${{ secrets.PINACT_GITHUB_TOKEN }}
-          update: "true"
-          min_age: "30"
-          skip_push: "true"
+          aqua_version: v2.56.1
+          aqua_opts: "-c aqua.yaml"
+
+      - name: Run pinact (fix workflow files)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep the job going even if pinact exits non-zero due to changes.
+          set +e
+          aqua exec -- pinact run \
+            --check \
+            --diff \
+            --fix \
+            --update \
+            --min-age "30" \
+            ".github/workflows"
+          exit_code="$?"
+          set -e
+
+          echo "pinact exit code: ${exit_code}"
 
       - name: Create PR (if changes)
         uses: peter-evans/create-pull-request@v6
