@@ -691,6 +691,11 @@ constructor(
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
                 handleSignalResponseImpl(ws, response)
+                val cont = joinContinuation
+                joinContinuation = null
+                cont?.resumeWithException(
+                    RoomException.ConnectException("Received leave during reconnect: ${response.leave.reason}"),
+                )
             } else if (isReconnecting) {
                 // When reconnecting, any message received means signal reconnected.
                 // Newer servers will send a reconnect response first
