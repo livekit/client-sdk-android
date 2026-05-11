@@ -40,7 +40,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
+import io.livekit.android.util.withDeadline
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -187,7 +188,7 @@ constructor(
             .addHeader("Authorization", "Bearer $token")
             .build()
 
-        return withTimeout(SIGNAL_CONNECT_TIMEOUT.toLong()) {
+        return withDeadline(SIGNAL_CONNECT_TIMEOUT.milliseconds) {
             suspendCancellableCoroutine { cont ->
                 // Wait for join response through WebSocketListener
                 joinContinuation = cont
