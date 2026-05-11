@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel
-import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.MockMediaStream
 import io.livekit.android.test.mock.MockRtpReceiver
 import io.livekit.android.test.mock.MockVideoStreamTrack
+import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
