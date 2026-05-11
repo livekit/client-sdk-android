@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -186,17 +187,19 @@ constructor(
             .addHeader("Authorization", "Bearer $token")
             .build()
 
-        return suspendCancellableCoroutine { cont ->
-            // Wait for join response through WebSocketListener
-            joinContinuation = cont
-            cont.invokeOnCancellation {
-                // If the coroutine is cancelled, websocket needs to be cancelled.
-                // onFailure will handle cleanup.
-                LKLog.v { "connect cancelled, abort websocket" }
-                joinContinuation = null
-                currentWs?.cancel()
+        return withTimeout(SIGNAL_CONNECT_TIMEOUT.toLong()) {
+            suspendCancellableCoroutine { cont ->
+                // Wait for join response through WebSocketListener
+                joinContinuation = cont
+                cont.invokeOnCancellation {
+                    // If the coroutine is cancelled, websocket needs to be cancelled.
+                    // onFailure will handle cleanup.
+                    LKLog.v { "connect cancelled, abort websocket" }
+                    joinContinuation = null
+                    currentWs?.cancel()
+                }
+                currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
             }
-            currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
         }
     }
 
@@ -982,6 +985,7 @@ constructor(
 //            iceServer("stun:stun3.l.google.com:19302"),
 //            iceServer("stun:stun4.l.google.com:19302"),
         )
+        private const val SIGNAL_CONNECT_TIMEOUT = 10000
         const val CLOSE_REASON_NORMAL_CLOSURE = 1000
         const val CLOSE_REASON_PING_TIMEOUT = 3000
         const val CLOSE_REASON_WEBSOCKET_FAILURE = 3500
