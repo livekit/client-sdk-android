@@ -407,7 +407,10 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         connect()
         wsFactory.listener.onFailure(wsFactory.ws, Exception(), null)
 
-        testScheduler.advanceUntilIdle()
+        testScheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+
         val sid = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_PARTICIPANT_SID)
         assertEquals(TestData.JOIN.join.participant.sid, sid)
     }

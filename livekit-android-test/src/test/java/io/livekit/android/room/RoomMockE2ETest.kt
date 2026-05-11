@@ -345,13 +345,17 @@ class RoomMockE2ETest : MockE2ETest() {
             callback.onAvailable(network)
         }
 
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+
         val events = eventCollector.stopCollecting()
 
         assertEquals(
             listOf(
                 ConnectionState.CONNECTED,
                 ConnectionState.RESUMING,
+                ConnectionState.CONNECTED,
             ),
             events,
         )
