@@ -30,6 +30,7 @@ import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
+import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineDispatcher
@@ -40,8 +41,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import io.livekit.android.util.withDeadline
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -65,6 +64,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * SignalClient to LiveKit WS servers
