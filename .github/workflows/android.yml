@@ -62,7 +62,7 @@ jobs:
       run: ./gradlew livekit-android-sdk:detektRelease
 
     - name: Upload AAR
-      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: livekit-android-sdk-release.aar
         path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
@@ -296,7 +296,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: diffuse-output
           path: ${{ steps.diffuse.outputs.diff-file }}
