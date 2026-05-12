@@ -133,7 +133,9 @@ constructor(
                     is ByteStreamInfo -> {
                         this.mimeType = info.mimeType
                         this.byteHeader = with(DataStream.ByteHeader.newBuilder()) {
-                            this.name = name
+                            if (info.name != null) {
+                                this.name = info.name
+                            }
                             build()
                         }
                     }
