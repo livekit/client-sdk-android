@@ -286,51 +286,20 @@ constructor(private val context: Context) : AudioHandler {
 
     /**
      * Select a specific audio device, overriding the automatic selection driven by
-     * [preferredDeviceList].
+     * [preferredDeviceList]. The selection is sticky: the chosen device stays selected
+     * whenever it is available, even as other devices are connected or disconnected,
+     * and AudioSwitch will resume it automatically if it temporarily disappears and
+     * later reconnects.
      *
-     * The selection is sticky: once you call this, the chosen device stays active even
-     * when the set of [availableAudioDevices] changes (for example, plugging or unplugging
-     * a wired headset, or connecting a Bluetooth headset). If you want to keep following
-     * the priority defined by [preferredDeviceList] across such hot-plug events, do not
-     * call [selectDevice] — leave the automatic selection in place.
+     * If your goal is only to change the priority order — for example, prefer
+     * Speakerphone over Earpiece as the fallback when no headset is present —
+     * set [preferredDeviceList] instead. Calling [selectDevice] is not required
+     * for that. In particular, calling `selectDevice(Speakerphone)` at the start
+     * of every call will silently override any wired or Bluetooth headset the
+     * user has connected.
      *
-     * A common pitfall is to unconditionally call `selectDevice(Speakerphone)` (or
-     * `Earpiece`) at the start of a call to implement a "speakerphone on/off" toggle.
-     * On devices where the user has a wired or Bluetooth headset connected, this will
-     * silently override the headset and route audio to the speaker/earpiece instead.
-     *
-     * Recommended pattern for a "speakerphone toggle" while still respecting headsets:
-     *
-     * ```kotlin
-     * // Treat the user toggle only as a fallback when no headset is present.
-     * private var preferSpeakerWhenNoHeadset: Boolean = true
-     *
-     * fun onUserToggleSpeakerphone(on: Boolean) {
-     *     preferSpeakerWhenNoHeadset = on
-     *     selectBestAudioDevice()
-     * }
-     *
-     * private fun installAudioRouting(handler: AudioSwitchHandler) {
-     *     handler.audioDeviceChangeListener = { _, _ -> selectBestAudioDevice() }
-     *     selectBestAudioDevice()
-     * }
-     *
-     * private fun selectBestAudioDevice() {
-     *     val handler = audioHandler ?: return
-     *     val devices = handler.availableAudioDevices
-     *     val target = devices.firstOrNull { it is AudioDevice.BluetoothHeadset }
-     *         ?: devices.firstOrNull { it is AudioDevice.WiredHeadset }
-     *         ?: if (preferSpeakerWhenNoHeadset)
-     *             devices.firstOrNull { it is AudioDevice.Speakerphone }
-     *         else
-     *             devices.firstOrNull { it is AudioDevice.Earpiece }
-     *     target?.let { handler.selectDevice(it) }
-     * }
-     * ```
-     *
-     * Note: on Android 12 (API 31) and above, the `BLUETOOTH_CONNECT` runtime
-     * permission must be granted before [availableAudioDevices] will report any
-     * Bluetooth headset, even if the OS shows the headset as connected.
+     * To return to fully automatic selection after a previous sticky call, pass
+     * `null`: `selectDevice(null)`.
      */
     @Synchronized
     fun selectDevice(audioDevice: AudioDevice?) {
