@@ -285,21 +285,13 @@ constructor(private val context: Context) : AudioHandler {
         get() = audioSwitch?.availableAudioDevices ?: listOf()
 
     /**
-     * Select a specific audio device, overriding the automatic selection driven by
-     * [preferredDeviceList]. The selection is sticky: the chosen device stays selected
-     * whenever it is available, even as other devices are connected or disconnected,
-     * and AudioSwitch will resume it automatically if it temporarily disappears and
-     * later reconnects.
+     * Select a specific audio device. The selection is sticky: it overrides
+     * [preferredDeviceList], persists across device hot-plug, and is restored
+     * automatically if the device temporarily disappears and later reconnects.
+     * Pass `null` to clear a sticky selection.
      *
-     * If your goal is only to change the priority order — for example, prefer
-     * Speakerphone over Earpiece as the fallback when no headset is present —
-     * set [preferredDeviceList] instead. Calling [selectDevice] is not required
-     * for that. In particular, calling `selectDevice(Speakerphone)` at the start
-     * of every call will silently override any wired or Bluetooth headset the
-     * user has connected.
-     *
-     * To return to fully automatic selection after a previous sticky call, pass
-     * `null`: `selectDevice(null)`.
+     * If you only need to change which device is preferred when several are
+     * available, set [preferredDeviceList] instead.
      */
     @Synchronized
     fun selectDevice(audioDevice: AudioDevice?) {
