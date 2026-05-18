@@ -42,6 +42,7 @@ import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -410,6 +411,49 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         testScheduler.advanceUntilIdle()
         val sid = wsFactory.request.url.queryParameter(SignalClient.CONNECT_QUERY_PARTICIPANT_SID)
         assertEquals(TestData.JOIN.join.participant.sid, sid)
+    }
+
+    @Test
+    fun resendReliableMessagesReplaysFullPayloadAcrossMultipleResumes() = runTest {
+        connect()
+        val pubPeerConnection = getPublisherPeerConnection()
+        val pubDataChannel = pubPeerConnection
+            .dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+        pubDataChannel.consumeSentBuffer = true
+
+        val payload = "hello-resume".toByteArray()
+        val publishResult = room.localParticipant.publishData(payload)
+        assertTrue(publishResult.isSuccess)
+
+        // Two consecutive resumes without server progress (lastMessageSeq=0 pops nothing).
+        rtcEngine.resendReliableMessagesForResume(0)
+        rtcEngine.resendReliableMessagesForResume(0)
+
+        // 1 initial publish + 2 replays.
+        assertEquals(3, pubDataChannel.sentPayloads.size)
+
+        // Both replays must carry the original payload, not an empty buffer.
+        val replay1 = DataPacket.parseFrom(pubDataChannel.sentPayloads[1])
+        val replay2 = DataPacket.parseFrom(pubDataChannel.sentPayloads[2])
+        assertArrayEquals(payload, replay1.user.payload.toByteArray())
+        assertArrayEquals(payload, replay2.user.payload.toByteArray())
+    }
+
+    @Test
+    fun resendReliableMessagesReturnsFailureWhenReplaySendFails() = runTest {
+        connect()
+        val pubPeerConnection = getPublisherPeerConnection()
+        val pubDataChannel = pubPeerConnection
+            .dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+
+        val publishResult = room.localParticipant.publishData("queued".toByteArray())
+        assertTrue(publishResult.isSuccess)
+
+        pubDataChannel.sendResult = false
+
+        val resendResult = rtcEngine.resendReliableMessagesForResume(0)
+        assertTrue(resendResult.isFailure)
+        assertTrue(resendResult.exceptionOrNull() is RoomException.ConnectException)
     }
 
     /**

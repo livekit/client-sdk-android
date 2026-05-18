@@ -678,7 +678,12 @@ internal constructor(
                         connectionState = ConnectionState.CONNECTED
                     }
                     if (lastMessageSeq != null) {
-                        resendReliableMessagesForResume(lastMessageSeq)
+                        resendReliableMessagesForResume(lastMessageSeq).onFailure { e ->
+                            LKLog.w(e) {
+                                "Reliable data replay did not complete on resume; " +
+                                    "buffered items remain queued for the next resume."
+                            }
+                        }
                     }
                     // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
@@ -757,29 +762,39 @@ internal constructor(
                     }
                 }
 
-                if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
+                val isReliable = dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE
+                if (isReliable) {
                     dataPacket = dataPacket.toBuilder()
                         .setSequence(reliableDataSequence)
                         .build()
-                    reliableDataSequence++
                 }
 
-                val byteBuffer = ByteBuffer.wrap(dataPacket.toByteArray())
+                val packetBytes = dataPacket.toByteArray()
 
-                if (dataPacket.kind == LivekitModels.DataPacket.Kind.RELIABLE) {
-                    reliableMessageBuffer.queue(DataPacketItem(byteBuffer, dataPacket.sequence))
-                    if (this.connectionState == ConnectionState.RECONNECTING) {
-                        return Result.success(Unit)
-                    }
+                if (isReliable && this.connectionState == ConnectionState.RECONNECTING) {
+                    reliableMessageBuffer.queue(DataPacketItem(ByteBuffer.wrap(packetBytes), dataPacket.sequence))
+                    reliableDataSequence++
+                    return Result.success(Unit)
                 }
                 val buf = DataChannel.Buffer(
-                    byteBuffer,
+                    ByteBuffer.wrap(packetBytes),
                     true,
                 )
                 val channel = dataChannelForKind(dataPacket.kind)
                     ?: throw RoomException.ConnectException("channel not established for ${dataPacket.kind.name}")
 
-                channel.send(buf)
+                if (!channel.send(buf)) {
+                    return Result.failure(
+                        RoomException.ConnectException("failed to send data packet for ${dataPacket.kind.name}"),
+                    )
+                }
+
+                if (isReliable) {
+                    // Wrap a fresh ByteBuffer so the queued item's position stays at 0; the
+                    // ByteBuffer just sent has been drained by DataChannel.send.
+                    reliableMessageBuffer.queue(DataPacketItem(ByteBuffer.wrap(packetBytes), dataPacket.sequence))
+                    reliableDataSequence++
+                }
             } catch (e: Exception) {
                 e.rethrowIfCancellationSignal()
                 return Result.failure(e)
@@ -808,8 +823,17 @@ internal constructor(
 
         synchronized(reliableStateLock) {
             reliableMessageBuffer.popToSequence(lastMessageSeq)
-            reliableMessageBuffer.getAll().forEach { item ->
-                channel.send(DataChannel.Buffer(item.data, true))
+            for (item in reliableMessageBuffer.getAll()) {
+                // Send a duplicate so the underlying buffer keeps position=0 and survives
+                // multiple resume attempts. DataChannel.send drains the buffer's position to
+                // its limit; without duplicate(), the second replay would send empty bytes.
+                if (!channel.send(DataChannel.Buffer(item.data.duplicate(), true))) {
+                    return Result.failure(
+                        RoomException.ConnectException(
+                            "failed to replay reliable data packet at sequence ${item.sequence}",
+                        ),
+                    )
+                }
             }
         }
 

@@ -899,4 +899,26 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is RoomException.ConnectException)
     }
+
+    @Test
+    fun publishDataReturnsFailureWhenDataChannelSendFails() = runTest {
+        connect()
+        val pubPeerConnection = getPublisherPeerConnection()
+        val pubDataChannel = pubPeerConnection.dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+        pubDataChannel.sendResult = false
+
+        val result = room.localParticipant.publishData("hello".toByteArray())
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is RoomException.ConnectException)
+
+        pubDataChannel.sendResult = true
+        val retryResult = room.localParticipant.publishData("hello".toByteArray())
+
+        assertTrue(retryResult.isSuccess)
+        assertEquals(2, pubDataChannel.sentBuffers.size)
+
+        val retriedPacket = DataPacket.parseFrom(ByteString.copyFrom(pubDataChannel.sentBuffers[1].data))
+        assertEquals(1, retriedPacket.sequence)
+    }
 }
