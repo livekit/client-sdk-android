@@ -1,5 +1,21 @@
 # client-sdk-android
 
+## 2.25.3
+
+### Patch Changes
+
+- docs(audio): clarify that `AudioSwitchHandler.selectDevice()` is sticky and overrides `preferredDeviceList`. Document that callers who only need a different priority order should set `preferredDeviceList` instead, and that `selectDevice(null)` clears a sticky selection. - [#941](https://github.com/livekit/client-sdk-android/pull/941) ([@daxiondi](https://github.com/daxiondi))
+
+- Update libwebrtc to 144.7559.05 - [#936](https://github.com/livekit/client-sdk-android/pull/936) ([@davidliu](https://github.com/davidliu))
+
+- fix: resume joinContinuation when LEAVE received during reconnect handshake to avoid reconnection loop hanging issue - [#934](https://github.com/livekit/client-sdk-android/pull/934) ([@YashJainSC](https://github.com/YashJainSC))
+
+- Fixed silent loss of reliable data when DataChannel.send returned false and when buffered items were replayed across multiple resumes. - [#921](https://github.com/livekit/client-sdk-android/pull/921) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix byte streams not sending the name of the bytestream - [#939](https://github.com/livekit/client-sdk-android/pull/939) ([@davidliu](https://github.com/davidliu))
+
+- Update AudioSwitch to handle potential exception when unregistering audio device listeners - [#944](https://github.com/livekit/client-sdk-android/pull/944) ([@davidliu](https://github.com/davidliu))
+
 ## 2.25.2
 
 ### Patch Changes
