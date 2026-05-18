@@ -30,6 +30,7 @@ import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
+import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineDispatcher
@@ -63,6 +64,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * SignalClient to LiveKit WS servers
@@ -186,17 +188,19 @@ constructor(
             .addHeader("Authorization", "Bearer $token")
             .build()
 
-        return suspendCancellableCoroutine { cont ->
-            // Wait for join response through WebSocketListener
-            joinContinuation = cont
-            cont.invokeOnCancellation {
-                // If the coroutine is cancelled, websocket needs to be cancelled.
-                // onFailure will handle cleanup.
-                LKLog.v { "connect cancelled, abort websocket" }
-                joinContinuation = null
-                currentWs?.cancel()
+        return withDeadline(SIGNAL_CONNECT_TIMEOUT.milliseconds) {
+            suspendCancellableCoroutine { cont ->
+                // Wait for join response through WebSocketListener
+                joinContinuation = cont
+                cont.invokeOnCancellation {
+                    // If the coroutine is cancelled, websocket needs to be cancelled.
+                    // onFailure will handle cleanup.
+                    LKLog.v { "connect cancelled, abort websocket" }
+                    joinContinuation = null
+                    currentWs?.cancel()
+                }
+                currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
             }
-            currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
         }
     }
 
@@ -691,6 +695,11 @@ constructor(
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
                 handleSignalResponseImpl(ws, response)
+                val cont = joinContinuation
+                joinContinuation = null
+                cont?.resumeWithException(
+                    RoomException.ConnectException("Received leave during reconnect: ${response.leave.reason}"),
+                )
             } else if (isReconnecting) {
                 // When reconnecting, any message received means signal reconnected.
                 // Newer servers will send a reconnect response first
@@ -977,6 +986,7 @@ constructor(
 //            iceServer("stun:stun3.l.google.com:19302"),
 //            iceServer("stun:stun4.l.google.com:19302"),
         )
+        private const val SIGNAL_CONNECT_TIMEOUT = 10000
         const val CLOSE_REASON_NORMAL_CLOSURE = 1000
         const val CLOSE_REASON_PING_TIMEOUT = 3000
         const val CLOSE_REASON_WEBSOCKET_FAILURE = 3500

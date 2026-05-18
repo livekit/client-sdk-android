@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -345,13 +345,17 @@ class RoomMockE2ETest : MockE2ETest() {
             callback.onAvailable(network)
         }
 
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+
         val events = eventCollector.stopCollecting()
 
         assertEquals(
             listOf(
                 ConnectionState.CONNECTED,
                 ConnectionState.RESUMING,
+                ConnectionState.CONNECTED,
             ),
             events,
         )

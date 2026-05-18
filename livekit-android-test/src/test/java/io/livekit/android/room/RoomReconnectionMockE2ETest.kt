@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockMediaStream
 import io.livekit.android.test.mock.MockRtpReceiver
 import io.livekit.android.test.mock.MockVideoStreamTrack
+import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
@@ -197,7 +198,27 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
     fun softReconnectResendsPackets() = runTest {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
 
+        val publisherOfferHandler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            } else {
+                false
+            }
+        }
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
         connect()
+
+        val lastMessageSeq = TestData.RECONNECT.reconnect.lastMessageSeq
 
         for (i in 1..5) {
             assertTrue(room.localParticipant.publishData(ByteArray(i), reliability = DataPublishReliability.RELIABLE).isSuccess)
@@ -212,7 +233,8 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
         val pubPeerConnection = getPublisherPeerConnection()
         val pubDataChannel = pubPeerConnection.dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
 
-        assertEquals(5, pubDataChannel.sentBuffers.size)
+        val expectedResentCount = (1..5).count { it > lastMessageSeq }
+        assertEquals(5 + expectedResentCount, pubDataChannel.sentBuffers.size)
     }
 
     @Test
