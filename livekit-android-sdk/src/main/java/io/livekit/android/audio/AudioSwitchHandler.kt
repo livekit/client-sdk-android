@@ -285,7 +285,13 @@ constructor(private val context: Context) : AudioHandler {
         get() = audioSwitch?.availableAudioDevices ?: listOf()
 
     /**
-     * Select a specific audio device.
+     * Select a specific audio device. The selection is sticky: it overrides
+     * [preferredDeviceList], persists across device hot-plug, and is restored
+     * automatically if the device temporarily disappears and later reconnects.
+     * Pass `null` to clear a sticky selection.
+     *
+     * If you only need to change which device is preferred when several are
+     * available, set [preferredDeviceList] instead.
      */
     @Synchronized
     fun selectDevice(audioDevice: AudioDevice?) {
