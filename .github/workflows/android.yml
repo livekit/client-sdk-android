@@ -39,7 +39,7 @@ jobs:
         java-version: '17'
         distribution: 'adopt'
 
-    - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
           ~/.gradle/caches
@@ -187,7 +187,7 @@ jobs:
     # Setting up diffuse artifacts
     - name: Setup cache for base source file for diffuse
       if: github.event_name == 'push'
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: client-sdk-android/diffuse-source-file
         key: diffuse-${{ github.sha }}
@@ -214,7 +214,7 @@ jobs:
     outputs:
       base_aar_cache_hit: ${{ steps.diffuse_base_lookup.outputs.cache-hit }}
     steps:
-      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: diffuse_base_lookup
         with:
           path: client-sdk-android/diffuse-source-file
@@ -252,7 +252,7 @@ jobs:
           distribution: 'adopt'
 
       # Diffuse checking for pull requests
-      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         name: Download base source AAR for diffuse
         with:
           path: client-sdk-android/diffuse-source-file
