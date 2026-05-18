@@ -200,6 +200,7 @@ constructor(private val context: Context) : AudioHandler {
     var forceHandleAudioRouting = false
 
     private var audioSwitch: AbstractAudioSwitch? = null
+    private var isAudioSwitchStarted = false
 
     // AudioSwitch is not threadsafe, so all calls should be done through a single thread.
     private var handler: Handler? = null
@@ -254,6 +255,7 @@ constructor(private val context: Context) : AudioHandler {
 
                 audioSwitch = switch
                 switch.start(audioDeviceChangeDispatcher)
+                isAudioSwitchStarted = true
                 switch.activate()
             }
         }
@@ -263,8 +265,11 @@ constructor(private val context: Context) : AudioHandler {
     override fun stop() {
         handler?.removeCallbacksAndMessages(null)
         handler?.postAtFrontOfQueue {
-            audioSwitch?.stop()
+            if (isAudioSwitchStarted) {
+                audioSwitch?.stop()
+            }
             audioSwitch = null
+            isAudioSwitchStarted = false
         }
         thread?.quitSafely()
 
