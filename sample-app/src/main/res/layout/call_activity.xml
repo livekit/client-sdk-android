@@ -139,5 +139,15 @@
             android:padding="@dimen/control_padding"
             android:src="@drawable/dots_horizontal_circle_outline"
             app:tint="@android:color/white" />
+
+        <ImageView
+            android:id="@+id/rpc_test"
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="@dimen/control_padding"
+            android:src="@drawable/baseline_swap_horiz_24"
+            app:tint="@android:color/white" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

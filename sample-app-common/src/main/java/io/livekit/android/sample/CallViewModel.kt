@@ -49,6 +49,7 @@ import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.track.video.CameraCapturerUtils
+import io.livekit.android.rpc.RpcError
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.util.LKLog
@@ -143,6 +144,10 @@ class CallViewModel(
     // Whether other participants are allowed to subscribe to this participant's tracks.
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
+
+    // RPC tester state. Lives on the ViewModel so it survives dialog dismiss/reopen.
+    private val mutableHandlers = MutableStateFlow<List<RpcHandlerState>>(emptyList())
+    val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
 
     init {
 
@@ -335,6 +340,12 @@ class CallViewModel(
     override fun onCleared() {
         super.onCleared()
 
+        // Tear down any RPC handlers before releasing the room.
+        mutableHandlers.value.forEach { handler ->
+            runCatching { room.localParticipant.unregisterRpcMethod(handler.method) }
+        }
+        mutableHandlers.value = emptyList()
+
         // Make sure to release any resources associated with LiveKit
         room.disconnect()
         room.release()
@@ -381,6 +392,51 @@ class CallViewModel(
     fun sendData(message: String) {
         viewModelScope.launch(Dispatchers.IO) {
             room.localParticipant.sendText(message, StreamTextOptions(topic = "lk.chat"))
+        }
+    }
+
+    fun registerRpcHandler(method: String, initialResponse: String) {
+        if (method.isBlank()) return
+        val state = RpcHandlerState(
+            method = method,
+            staticResponse = MutableStateFlow(initialResponse),
+            invocations = MutableStateFlow(emptyList()),
+        )
+        room.localParticipant.registerRpcMethod(method) { invocation ->
+            val record = RpcInvocationRecord(
+                timestamp = System.currentTimeMillis(),
+                caller = invocation.callerIdentity,
+                payload = invocation.payload,
+            )
+            state.invocations.value = state.invocations.value + record
+            state.staticResponse.value
+        }
+        // Replace any prior entry for the same method (SDK overwrites anyway).
+        mutableHandlers.value = mutableHandlers.value.filterNot { it.method == method } + state
+    }
+
+    fun unregisterRpcHandler(method: String) {
+        room.localParticipant.unregisterRpcMethod(method)
+        mutableHandlers.value = mutableHandlers.value.filterNot { it.method == method }
+    }
+
+    fun updateStaticResponse(method: String, response: String) {
+        mutableHandlers.value.firstOrNull { it.method == method }
+            ?.staticResponse?.let { it.value = response }
+    }
+
+    suspend fun performRpc(
+        destination: Participant.Identity,
+        method: String,
+        payload: String,
+    ): RpcRequestResult {
+        return try {
+            val response = room.localParticipant.performRpc(destination, method, payload)
+            RpcRequestResult.Success(response)
+        } catch (e: RpcError) {
+            RpcRequestResult.Error(e.code, e.message)
+        } catch (e: Throwable) {
+            RpcRequestResult.Error(null, e.message ?: e.toString())
         }
     }
 
@@ -465,3 +521,20 @@ class CallViewModel(
 
 private fun <T> LiveData<T>.hide(): LiveData<T> = this
 private fun <T> MutableStateFlow<T>.hide(): StateFlow<T> = this
+
+data class RpcInvocationRecord(
+    val timestamp: Long,
+    val caller: Participant.Identity,
+    val payload: String,
+)
+
+class RpcHandlerState(
+    val method: String,
+    val staticResponse: MutableStateFlow<String>,
+    val invocations: MutableStateFlow<List<RpcInvocationRecord>>,
+)
+
+sealed class RpcRequestResult {
+    data class Success(val response: String) : RpcRequestResult()
+    data class Error(val code: Int?, val message: String) : RpcRequestResult()
+}
