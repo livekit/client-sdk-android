@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.livekit.android
 
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.ProtocolVersion
 import io.livekit.android.room.Room
 import livekit.org.webrtc.PeerConnection
@@ -53,6 +54,13 @@ data class ConnectOptions(
      * the protocol version to use with the server.
      */
     val protocolVersion: ProtocolVersion = ProtocolVersion.v13,
+
+    /**
+     * The client protocol version to advertise to other participants in the room
+     * for peer-to-peer feature negotiation (RPC v2, etc.). Defaults to the latest
+     * version supported by this SDK build.
+     */
+    val clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_RPC,
 ) {
     internal var reconnect: Boolean = false
     internal var participantSid: String? = null

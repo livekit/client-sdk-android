@@ -269,12 +269,11 @@ open class Participant(
 
     /**
      * The protocol version this participant's client advertises for peer-to-peer features
-     * (RPC v2, etc.). See [io.livekit.android.room.rpc.CLIENT_PROTOCOL_DEFAULT] and
-     * [io.livekit.android.room.rpc.CLIENT_PROTOCOL_DATA_STREAM_RPC].
+     * (RPC v2, etc.). See [io.livekit.android.room.ClientProtocolVersion] for known values.
      */
     @FlowObservable
     @get:FlowObservable
-    var clientProtocol: Int by flowDelegate(io.livekit.android.room.rpc.CLIENT_PROTOCOL_DEFAULT)
+    var clientProtocol: Int by flowDelegate(io.livekit.android.room.ClientProtocolVersion.DEFAULT.value)
         internal set
 
     /**

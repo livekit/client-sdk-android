@@ -16,19 +16,6 @@
 
 package io.livekit.android.room.rpc
 
-/**
- * The client protocol version indicates what level of support that the client has for
- * client <-> client api interactions (RPC v2, etc.). It is independent of the signaling
- * protocol version.
- */
-const val CLIENT_PROTOCOL_DEFAULT = 0
-
-/**
- * RPC v2 — payloads carried over data streams instead of inline packets, lifting the
- * 15 KB request/response payload limit.
- */
-const val CLIENT_PROTOCOL_DATA_STREAM_RPC = 1
-
 /** Version of RPC backed by inline `RpcRequest` / `RpcResponse` packets. */
 internal const val RPC_VERSION_V1 = 1
 

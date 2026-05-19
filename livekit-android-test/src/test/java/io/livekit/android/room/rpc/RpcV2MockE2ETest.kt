@@ -17,6 +17,7 @@
 package io.livekit.android.room.rpc
 
 import com.google.protobuf.ByteString
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.rpc.RpcError
@@ -64,7 +65,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val participantUpdate = with(LivekitRtc.SignalResponse.newBuilder()) {
             update = with(LivekitRtc.ParticipantUpdate.newBuilder()) {
                 val v2Remote = REMOTE_PARTICIPANT.toBuilder()
-                    .setClientProtocol(CLIENT_PROTOCOL_DATA_STREAM_RPC)
+                    .setClientProtocol(ClientProtocolVersion.DATA_STREAM_RPC.value)
                     .build()
                 addParticipants(v2Remote)
                 build()

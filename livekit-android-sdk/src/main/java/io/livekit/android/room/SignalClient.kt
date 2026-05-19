@@ -173,7 +173,7 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(), options, roomOptions)}"
+        val wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(options.clientProtocol), options, roomOptions)}"
         isReconnecting = options.reconnect
 
         LKLog.i { "connecting to $wsUrlString" }
@@ -240,7 +240,7 @@ constructor(
         addParam(CONNECT_QUERY_OS, clientInfo.os)
         addParam(CONNECT_QUERY_OS_VERSION, clientInfo.osVersion)
         addParam(CONNECT_QUERY_NETWORK_TYPE, networkInfo.getNetworkType().protoName)
-        addParam(CONNECT_QUERY_CLIENT_PROTOCOL, clientInfo.clientProtocol.toString())
+        addParam(CONNECT_QUERY_CLIENT_PROTOCOL, options.clientProtocol.value.toString())
 
         return queryBuilder.toString()
     }
@@ -1012,6 +1012,27 @@ enum class ProtocolVersion(val value: Int) {
 
     // new leave request handling
     v13(13),
+}
+
+/**
+ * The protocol version this SDK advertises to **peers** (other participants) for
+ * client-to-client feature negotiation (RPC v2, etc.). Distinct from [ProtocolVersion],
+ * which tracks the signaling protocol between client and server.
+ *
+ * Sent to the server during the join handshake via the `client_protocol` connection
+ * query parameter and `ClientInfo.client_protocol`; the server then populates
+ * `ParticipantInfo.client_protocol` for other peers in the room to read.
+ */
+@Suppress("unused")
+enum class ClientProtocolVersion(val value: Int) {
+    /** Initial client protocol. RPC v1 only (15 KB packet payload limit). */
+    DEFAULT(0),
+
+    /**
+     * RPC v2: request and success-response payloads are carried over text data streams
+     * instead of inline packets, lifting the 15 KB payload limit.
+     */
+    DATA_STREAM_RPC(1),
 }
 
 class ServerInfo(

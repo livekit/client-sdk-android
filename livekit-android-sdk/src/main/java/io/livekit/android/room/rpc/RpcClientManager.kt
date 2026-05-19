@@ -18,6 +18,7 @@ package io.livekit.android.room.rpc
 
 import androidx.annotation.CheckResult
 import com.vdurmont.semver4j.Semver
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.datastream.StreamTextOptions
 import io.livekit.android.room.datastream.incoming.TextStreamReceiver
@@ -59,10 +60,10 @@ class RpcClientManager @Inject constructor(
 
     /**
      * Late-bound: returns the advertised `clientProtocol` of the remote participant with the
-     * given identity, or [CLIENT_PROTOCOL_DEFAULT] if unknown. Set by `Room` once the
+     * given identity, or [ClientProtocolVersion.DEFAULT] if unknown. Set by `Room` once the
      * participant store is available.
      */
-    var getRemoteClientProtocol: (Identity) -> Int = { CLIENT_PROTOCOL_DEFAULT }
+    var getRemoteClientProtocol: (Identity) -> Int = { ClientProtocolVersion.DEFAULT.value }
 
     private val pendingAcks = Collections.synchronizedMap(mutableMapOf<String, PendingRpcAck>())
     private val pendingResponses = Collections.synchronizedMap(mutableMapOf<String, PendingRpcResponse>())
@@ -82,7 +83,7 @@ class RpcClientManager @Inject constructor(
         val remoteClientProtocol = getRemoteClientProtocol(destinationIdentity)
 
         // The 15 KB packet limit only applies to v1; v2 streams chunk transparently.
-        if (remoteClientProtocol < CLIENT_PROTOCOL_DATA_STREAM_RPC &&
+        if (remoteClientProtocol < ClientProtocolVersion.DATA_STREAM_RPC.value &&
             payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE
         ) {
             throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
@@ -136,7 +137,7 @@ class RpcClientManager @Inject constructor(
             }
         }
 
-        val publishResult = if (remoteClientProtocol >= CLIENT_PROTOCOL_DATA_STREAM_RPC) {
+        val publishResult = if (remoteClientProtocol >= ClientProtocolVersion.DATA_STREAM_RPC.value) {
             publishRpcRequestV2(destinationIdentity, requestId, method, payload, effectiveTimeout.inWholeMilliseconds)
         } else {
             publishRpcRequestV1(destinationIdentity, requestId, method, payload, effectiveTimeout)
