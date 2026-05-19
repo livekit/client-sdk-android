@@ -268,6 +268,16 @@ open class Participant(
         internal set
 
     /**
+     * The protocol version this participant's client advertises for peer-to-peer features
+     * (RPC v2, etc.). See [io.livekit.android.room.rpc.CLIENT_PROTOCOL_DEFAULT] and
+     * [io.livekit.android.room.rpc.CLIENT_PROTOCOL_DATA_STREAM_RPC].
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var clientProtocol: Int by flowDelegate(io.livekit.android.room.rpc.CLIENT_PROTOCOL_DEFAULT)
+        internal set
+
+    /**
      * @suppress
      */
     @Deprecated("Use events instead")
@@ -438,6 +448,7 @@ open class Participant(
         attributes = info.attributesMap
         agentAttributes = AgentAttributes.fromStringMap(info.attributesMap)
         state = State.fromProto(info.state)
+        clientProtocol = info.clientProtocol
     }
 
     override fun equals(other: Any?): Boolean {

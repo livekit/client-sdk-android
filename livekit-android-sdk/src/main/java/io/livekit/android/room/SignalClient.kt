@@ -240,6 +240,7 @@ constructor(
         addParam(CONNECT_QUERY_OS, clientInfo.os)
         addParam(CONNECT_QUERY_OS_VERSION, clientInfo.osVersion)
         addParam(CONNECT_QUERY_NETWORK_TYPE, networkInfo.getNetworkType().protoName)
+        addParam(CONNECT_QUERY_CLIENT_PROTOCOL, clientInfo.clientProtocol.toString())
 
         return queryBuilder.toString()
     }
@@ -959,6 +960,7 @@ constructor(
         const val CONNECT_QUERY_OS_VERSION = "os_version"
         const val CONNECT_QUERY_NETWORK_TYPE = "network"
         const val CONNECT_QUERY_PARTICIPANT_SID = "sid"
+        const val CONNECT_QUERY_CLIENT_PROTOCOL = "client_protocol"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
