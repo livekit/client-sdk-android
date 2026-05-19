@@ -481,6 +481,136 @@ class RpcV2MockE2ETest : MockE2ETest() {
         )
     }
 
+    /**
+     * Spec #11. The response arrives with no scheduler advancement between publish and reply.
+     * A follow-up `performRpc` then succeeds, proving no `pendingAcks` / `pendingResponses`
+     * entries were orphaned by the fast path.
+     */
+    @Test
+    fun caller_fast_response_immediately_after_publish() = runTest {
+        connect()
+        simulateRemoteJoinAsV2()
+
+        val rpcJob1 = async {
+            room.localParticipant.performRpc(
+                destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                method = "fast",
+                payload = "p1",
+            )
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+
+        val firstHeader = pubDataChannel.sentBuffers
+            .map { parsePacket(it) }
+            .first { it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC }
+        val requestId1 = firstHeader.streamHeader.attributesMap[RpcRequestAttrs.REQUEST_ID]!!
+
+        // No advanceTimeBy / no scheduler tick between publish and reply.
+        subDataChannel.simulateBufferReceived(createAck(requestId1))
+        simulateIncomingResponseStream(requestId1, "r1", streamId = "resp-1")
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("r1", rpcJob1.await())
+
+        // A second back-to-back call works — proves no orphaned pending entries.
+        pubDataChannel.clearSentBuffers()
+        val rpcJob2 = async {
+            room.localParticipant.performRpc(
+                destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                method = "fast",
+                payload = "p2",
+            )
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+        val secondHeader = pubDataChannel.sentBuffers
+            .map { parsePacket(it) }
+            .first { it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC }
+        val requestId2 = secondHeader.streamHeader.attributesMap[RpcRequestAttrs.REQUEST_ID]!!
+        assertTrue("second call must get a fresh request id", requestId2 != requestId1)
+        subDataChannel.simulateBufferReceived(createAck(requestId2))
+        simulateIncomingResponseStream(requestId2, "r2", streamId = "resp-2")
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("r2", rpcJob2.await())
+    }
+
+    /**
+     * Spec #12. The ack and response are delivered synchronously from inside the publish path,
+     * before `performRpc` finishes the suspending publish. Verifies that pending-response state
+     * is registered *before* publish, so a response that arrives mid-publish still matches.
+     */
+    @Test
+    fun caller_response_arrives_during_publish() = runTest {
+        connect()
+        simulateRemoteJoinAsV2()
+
+        var injected = false
+        pubDataChannel.onSend = { buffer ->
+            if (!injected) {
+                val packet = DataPacket.parseFrom(ByteString.copyFrom(buffer.data.duplicate()))
+                if (packet.hasStreamHeader() &&
+                    packet.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC
+                ) {
+                    injected = true
+                    val requestId = packet.streamHeader.attributesMap[RpcRequestAttrs.REQUEST_ID]!!
+                    // Inject ack + response stream synchronously, while the publishing coroutine
+                    // is mid-flight (it hasn't returned from this `send` call yet).
+                    subDataChannel.simulateBufferReceived(createAck(requestId))
+                    simulateIncomingResponseStream(requestId, "during", streamId = "resp-during")
+                }
+            }
+        }
+
+        val rpcJob = async {
+            room.localParticipant.performRpc(
+                destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                method = "midflight",
+                payload = "p",
+            )
+        }
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("during", rpcJob.await())
+    }
+
+    /**
+     * Spec #13. After CONNECTION_TIMEOUT fires, a delayed ack + response stream MUST NOT
+     * resolve the promise a second time or otherwise crash.
+     */
+    @Test
+    fun caller_late_ack_after_connection_timeout() = runTest {
+        connect()
+        simulateRemoteJoinAsV2()
+
+        val rpcJob = async {
+            var thrown: Throwable? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "late",
+                    payload = "p",
+                )
+            } catch (e: Throwable) {
+                thrown = e
+            }
+            thrown
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+
+        val outgoing = collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC)!!
+        val requestId = outgoing.first[RpcRequestAttrs.REQUEST_ID]!!
+
+        // No ack within the 7s round-trip window → CONNECTION_TIMEOUT.
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(8_000)
+        assertEquals(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create(), rpcJob.await())
+
+        // Now deliver a late ack + response. Must not throw or double-resolve.
+        subDataChannel.simulateBufferReceived(createAck(requestId))
+        simulateIncomingResponseStream(requestId, "too-late", streamId = "resp-late")
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        // The original completion stays at CONNECTION_TIMEOUT; the rpcJob doesn't change.
+        assertEquals(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create(), rpcJob.await())
+    }
+
     @Test
     fun caller_response_from_wrong_sender_ignored() = runTest {
         connect()
@@ -647,5 +777,166 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         assertFalse(packets.any { it.hasRpcRequest() })
         assertNull(collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC))
+    }
+
+    /** Build a v1 `RpcRequest` packet from a v1 caller. */
+    private fun v1RequestPacket(
+        requestId: String,
+        method: String,
+        payload: String,
+        responseTimeoutMs: Int = 10_000,
+    ) = with(DataPacket.newBuilder()) {
+        participantIdentity = REMOTE_PARTICIPANT.identity
+        rpcRequest = with(LivekitModels.RpcRequest.newBuilder()) {
+            this.id = requestId
+            this.method = method
+            this.payload = payload
+            this.responseTimeoutMs = responseTimeoutMs
+            this.version = RPC_VERSION_V1
+            build()
+        }
+        build()
+    }.toDataChannelBuffer()
+
+    /**
+     * Spec #18. Handler receives a v1 packet, handler throws a non-RpcError exception → v1
+     * `RpcResponse` packet with `APPLICATION_ERROR`.
+     */
+    @Test
+    fun v1_caller_handler_uncaught_exception_application_error_packet() = runTest {
+        connect()
+        simulateRemoteJoinAsV1()
+
+        room.localParticipant.registerRpcMethod("boom") {
+            throw RuntimeException("oops")
+        }
+        subDataChannel.simulateBufferReceived(v1RequestPacket("req-v1-app", "boom", ""))
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
+        val errorResponse = packets.firstOrNull {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-v1-app" && it.rpcResponse.hasError()
+        }
+        assertNotNull(errorResponse)
+        assertEquals(
+            RpcError.BuiltinRpcError.APPLICATION_ERROR.create(),
+            RpcError.fromProto(errorResponse!!.rpcResponse.error),
+        )
+    }
+
+    /**
+     * Spec #19. Handler receives a v1 packet, handler throws an `RpcError` → v1 `RpcResponse`
+     * packet preserving the original code + message.
+     */
+    @Test
+    fun v1_caller_handler_rpcerror_passthrough_packet() = runTest {
+        connect()
+        simulateRemoteJoinAsV1()
+
+        val custom = RpcError(101, "custom v1 err")
+        room.localParticipant.registerRpcMethod("err") { throw custom }
+        subDataChannel.simulateBufferReceived(v1RequestPacket("req-v1-cust", "err", ""))
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
+        val errorResponse = packets.firstOrNull {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-v1-cust" && it.rpcResponse.hasError()
+        }
+        assertNotNull(errorResponse)
+        assertEquals(custom, RpcError.fromProto(errorResponse!!.rpcResponse.error))
+    }
+
+    /**
+     * Spec #21. Caller targets a v1 remote (so it sends v1 `RpcRequest` packets) and the
+     * response never arrives → `RESPONSE_TIMEOUT`.
+     */
+    @Test
+    fun v1_caller_response_timeout() = runTest {
+        connect()
+        simulateRemoteJoinAsV1()
+
+        val rpcJob = async {
+            var thrown: Throwable? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "hello",
+                    payload = "hi",
+                )
+            } catch (e: Throwable) {
+                thrown = e
+            }
+            thrown
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+
+        // Ack so we get past the connection-timeout window.
+        val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
+        val rpcRequest = packets.first { it.hasRpcRequest() }.rpcRequest
+        subDataChannel.simulateBufferReceived(createAck(rpcRequest.id))
+
+        coroutineRule.dispatcher.scheduler.advanceTimeBy(20_000)
+        assertEquals(RpcError.BuiltinRpcError.RESPONSE_TIMEOUT.create(), rpcJob.await())
+    }
+
+    /** Spec #22. v1 caller receives an error `RpcResponse` packet → rejects with the error. */
+    @Test
+    fun v1_caller_error_response_via_packet() = runTest {
+        connect()
+        simulateRemoteJoinAsV1()
+
+        val customError = RpcError(101, "v1 boom")
+        val rpcJob = async {
+            var thrown: Throwable? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "x",
+                    payload = "p",
+                )
+            } catch (e: Throwable) {
+                thrown = e
+            }
+            thrown
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+
+        val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
+        val rpcRequest = packets.first { it.hasRpcRequest() }.rpcRequest
+        subDataChannel.simulateBufferReceived(createAck(rpcRequest.id))
+        subDataChannel.simulateBufferReceived(createV1Response(rpcRequest.id, error = customError))
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(customError, rpcJob.await())
+    }
+
+    /** Spec #23. v1 caller, remote disconnects mid-call → `RECIPIENT_DISCONNECTED`. */
+    @Test
+    fun v1_caller_participant_disconnect() = runTest {
+        connect()
+        simulateRemoteJoinAsV1()
+
+        val rpcJob = async {
+            var thrown: Throwable? = null
+            try {
+                room.localParticipant.performRpc(
+                    destinationIdentity = Participant.Identity(REMOTE_PARTICIPANT.identity),
+                    method = "x",
+                    payload = "p",
+                )
+            } catch (e: Throwable) {
+                thrown = e
+            }
+            thrown
+        }
+        coroutineRule.dispatcher.scheduler.runCurrent()
+
+        simulateMessageFromServer(TestData.PARTICIPANT_DISCONNECT)
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create(),
+            rpcJob.await(),
+        )
     }
 }

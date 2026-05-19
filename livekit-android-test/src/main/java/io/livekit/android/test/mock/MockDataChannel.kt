@@ -28,6 +28,13 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
     var sendResult = true
 
     /**
+     * Optional synchronous callback invoked from inside [send] for every outgoing buffer.
+     * Useful for tests that need to inject incoming traffic while the sending coroutine is
+     * mid-flight (e.g. RPC v2 "response arrives during publish" scenarios).
+     */
+    var onSend: ((Buffer) -> Unit)? = null
+
+    /**
      * When true, [send] advances the buffer's position to its limit, mirroring
      * the real WebRTC wrapper which drains the buffer via `ByteBuffer.get(byte[])`.
      * Off by default to keep existing tests that read from `sentBuffers` working.
@@ -112,6 +119,7 @@ class MockDataChannel(private val label: String?) : DataChannel(1L) {
         if (!consumeSentBuffer) {
             buffer.data.position(savedPos)
         }
+        onSend?.invoke(buffer)
         return sendResult
     }
 
