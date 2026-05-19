@@ -66,6 +66,8 @@ import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.rpc.RpcClientManager
+import io.livekit.android.room.rpc.RpcServerManager
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.toSDKType
@@ -146,6 +148,8 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val rpcClientManager: RpcClientManager,
+    private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
 ) : RTCEngine.Listener, ParticipantListener, RpcManager, IncomingDataStreamManager by incomingDataStreamManager {
 
@@ -155,6 +159,31 @@ constructor(
 
     init {
         engine.listener = this
+
+        // Register SDK-internal text-stream handlers for the RPC v2 transport. These reserve
+        // the topics `lk.rpc_request` and `lk.rpc_response` from user-level handler registration.
+        incomingDataStreamManager.registerTextStreamHandler(
+            io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC,
+        ) { receiver, fromIdentity ->
+            coroutineScope.launch {
+                rpcServerManager.handleIncomingDataStream(receiver, fromIdentity)
+            }
+        }
+        incomingDataStreamManager.registerTextStreamHandler(
+            io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC,
+        ) { receiver, fromIdentity ->
+            coroutineScope.launch {
+                rpcClientManager.handleIncomingDataStream(receiver, fromIdentity)
+            }
+        }
+
+        // Wire each manager's clientProtocol lookup via the remote-participants store.
+        val getRemoteClientProtocol: (Participant.Identity) -> Int = { id ->
+            remoteParticipants[id]?.clientProtocol
+                ?: io.livekit.android.room.rpc.CLIENT_PROTOCOL_DEFAULT
+        }
+        rpcClientManager.getRemoteClientProtocol = getRemoteClientProtocol
+        rpcServerManager.getRemoteClientProtocol = getRemoteClientProtocol
     }
 
     enum class State {
