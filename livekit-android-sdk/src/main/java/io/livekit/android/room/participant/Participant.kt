@@ -538,7 +538,10 @@ open class Participant(
                     LivekitModels.ParticipantInfo.Kind.INGRESS -> INGRESS
                     LivekitModels.ParticipantInfo.Kind.EGRESS -> EGRESS
                     LivekitModels.ParticipantInfo.Kind.SIP -> SIP
-                    LivekitModels.ParticipantInfo.Kind.UNRECOGNIZED -> UNKNOWN
+                    LivekitModels.ParticipantInfo.Kind.CONNECTOR,
+                    LivekitModels.ParticipantInfo.Kind.BRIDGE,
+                    LivekitModels.ParticipantInfo.Kind.UNRECOGNIZED,
+                    -> UNKNOWN
                 }
             }
         }

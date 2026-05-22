@@ -328,6 +328,7 @@ fun LivekitModels.DisconnectReason?.convert(): DisconnectReason {
         LivekitModels.DisconnectReason.SIP_TRUNK_FAILURE -> DisconnectReason.SIP_TRUNK_FAILURE
         LivekitModels.DisconnectReason.CONNECTION_TIMEOUT -> DisconnectReason.CONNECTION_TIMEOUT
         LivekitModels.DisconnectReason.MEDIA_FAILURE -> DisconnectReason.MEDIA_FAILURE
+        LivekitModels.DisconnectReason.AGENT_ERROR,
         LivekitModels.DisconnectReason.UNKNOWN_REASON,
         LivekitModels.DisconnectReason.UNRECOGNIZED,
         null,

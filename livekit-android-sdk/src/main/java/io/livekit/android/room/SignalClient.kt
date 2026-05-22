@@ -857,6 +857,18 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_AUDIO_CODEC_UPDATE -> {
                 // TODO
             }
+
+            LivekitRtc.SignalResponse.MessageCase.PUBLISH_DATA_TRACK_RESPONSE -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.UNPUBLISH_DATA_TRACK_RESPONSE -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
+                // TODO
+            }
         }
     }
 
