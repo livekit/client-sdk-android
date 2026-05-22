@@ -66,7 +66,7 @@ class ProtoConverterTest(
             ProtoConverterTestCase(
                 LivekitModels.ParticipantPermission::class.java,
                 ParticipantPermission::class.java,
-                whitelist = listOf("agent"),
+                whitelist = listOf("agent", "canManageAgentSession"),
             ),
             ProtoConverterTestCase(
                 LivekitRtc.RegionSettings::class.java,
@@ -80,7 +80,7 @@ class ProtoConverterTest(
                 LivekitRtc.SessionDescription::class.java,
                 SessionDescription::class.java,
                 mapping = mapOf("sdp" to "description"),
-                whitelist = listOf("id"),
+                whitelist = listOf("id", "midToTrackId"),
             ),
             ProtoConverterTestCase(
                 LivekitTokenSource.TokenSourceRequest::class.java,
@@ -93,11 +93,12 @@ class ProtoConverterTest(
             ProtoConverterTestCase(
                 LivekitRoom.RoomConfiguration::class.java,
                 RoomConfiguration::class.java,
-                whitelist = listOf("egress"),
+                whitelist = listOf("egress", "tags"),
             ),
             ProtoConverterTestCase(
                 LivekitAgentDispatch.RoomAgentDispatch::class.java,
                 RoomAgentDispatch::class.java,
+                whitelist = listOf("restartPolicy", "deployment"),
             ),
         )
 
