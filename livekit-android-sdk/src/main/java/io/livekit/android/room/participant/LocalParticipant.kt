@@ -981,7 +981,6 @@ internal constructor(
         topic: String? = null,
         identities: List<Identity>? = null,
     ): Result<Unit> {
-
         val kind = when (reliability) {
             DataPublishReliability.RELIABLE -> DataPacket.Kind.RELIABLE
             DataPublishReliability.LOSSY -> DataPacket.Kind.LOSSY
