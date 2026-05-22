@@ -981,9 +981,6 @@ internal constructor(
         topic: String? = null,
         identities: List<Identity>? = null,
     ): Result<Unit> {
-        if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
-            return Result.failure(IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE))
-        }
 
         val kind = when (reliability) {
             DataPublishReliability.RELIABLE -> DataPacket.Kind.RELIABLE
