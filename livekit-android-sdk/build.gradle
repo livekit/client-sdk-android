@@ -34,7 +34,12 @@ android {
         main {
             proto {
                 srcDir generated.protoSrc
-                exclude '*/*.proto' // only use top-level protos.
+                // Compile top-level protos plus logger/ (imported by livekit_models et al.).
+                // Skip server-only subdirs and top-level files that depend on them.
+                exclude 'agent/**', 'infra/**', 'rpc/**'
+                exclude 'livekit_agent_simulation.proto' // imports agent/livekit_agent_session.proto
+                // descriptor.proto extracted from protobuf-java at build time (see below).
+                srcDir layout.buildDirectory.dir("extracted-descriptor-proto")
             }
             java {
                 srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
@@ -72,6 +77,27 @@ android {
         }
     }
 
+}
+
+// Build-time only: resolve protobuf-java just so we can extract
+// google/protobuf/descriptor.proto, needed because logger/options.proto extends
+// google.protobuf.FieldOptions. protobuf-javalite does not bundle descriptor.proto.
+// Keep this jar OFF compileClasspath / runtimeClasspath so its other .proto files
+// don't collide with protobuf-javalite at packaging time.
+configurations {
+    descriptorProtoSource
+}
+dependencies {
+    descriptorProtoSource "com.google.protobuf:protobuf-java:${libs.versions.protobuf.get()}"
+}
+def extractDescriptorProto = tasks.register("extractDescriptorProto", Copy) {
+    from { zipTree(configurations.descriptorProtoSource.singleFile) }
+    include "google/protobuf/descriptor.proto"
+    into layout.buildDirectory.dir("extracted-descriptor-proto")
+}
+afterEvaluate {
+    tasks.matching { it.name.startsWith("generate") && it.name.endsWith("Proto") }
+        .configureEach { dependsOn extractDescriptorProto }
 }
 
 protobuf {
