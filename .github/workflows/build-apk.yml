@@ -1,0 +1,31 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch: # This allows you to trigger the build manually with a button click
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew :sample-app:assembleDebug
+
+      - name: Upload Compiled APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: livekit-sample-debug-apk
+          path: sample-app/build/outputs/apk/debug/sample-app-debug.apk
