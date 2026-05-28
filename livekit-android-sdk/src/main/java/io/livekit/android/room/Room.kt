@@ -1142,8 +1142,8 @@ constructor(
         localParticipant.unregisterRpcMethod(method)
     }
 
-    override suspend fun performRpc(destinationIdentity: Participant.Identity, method: String, payload: String, responseTimeout: Duration): String {
-        return localParticipant.performRpc(destinationIdentity, method, payload, responseTimeout)
+    override suspend fun performRpc(destinationIdentity: Participant.Identity, method: String, payload: String, responseTimeout: Duration, maxRoundTripLatency: Duration): String {
+        return localParticipant.performRpc(destinationIdentity, method, payload, responseTimeout, maxRoundTripLatency)
     }
 
     // ----------------------------------- RTCEngine.Listener ------------------------------------//

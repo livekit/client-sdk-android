@@ -82,6 +82,10 @@ interface RpcManager {
      *      If a value less than 8s is provided, it will be automatically clamped to 8s
      *      to ensure sufficient time for round-trip latency buffering.
      *      Defaults to 15 seconds.
+     * @param maxRoundTripLatency The maximum amount of time it should ever take for an RPC request to
+     *      reach the destination and for the ACK to come back. Defaults to 7 seconds to account
+     *      for various relay timeouts and retries in LiveKit Cloud that occur in rare cases.
+     *      Most callers should not need to change this.
      * @return The response payload.
      * @throws RpcError on failure. Details in [RpcError.message].
      */
@@ -90,5 +94,6 @@ interface RpcManager {
         method: String,
         payload: String,
         responseTimeout: Duration = 15.seconds,
+        maxRoundTripLatency: Duration = 7.seconds,
     ): String
 }
