@@ -969,9 +969,6 @@ constructor(
     }
 
     private fun reconnect() {
-        if (state == State.RECONNECTING) {
-            return
-        }
         engine.reconnect()
     }
 
@@ -1117,8 +1114,11 @@ constructor(
     private val networkCallbackManager = networkCallbackManagerFactory.invoke(
         object : NetworkCallback() {
             override fun onLost(network: Network) {
-                // lost connection, flip to reconnecting
                 hasLostConnectivity = true
+                if (state == State.CONNECTED) {
+                    state = State.RECONNECTING
+                    eventBus.postEvent(RoomEvent.Reconnecting(this@Room), coroutineScope)
+                }
             }
 
             override fun onAvailable(network: Network) {
@@ -1126,9 +1126,13 @@ constructor(
                 if (!hasLostConnectivity) {
                     return
                 }
-                LKLog.i { "network connection available, reconnecting" }
-                reconnect()
                 hasLostConnectivity = false
+                LKLog.i { "network connection available, reconnecting" }
+                // Force-restart reconnection. The engine likely already started
+                // its own reconnect loop (via ICE state detection) while offline,
+                // but that loop may be stuck in blocking calls to unreachable
+                // servers. Cancel it and start fresh now that network is back.
+                engine.forceReconnect()
             }
         },
     )
