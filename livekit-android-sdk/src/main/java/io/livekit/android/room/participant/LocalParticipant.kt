@@ -1096,10 +1096,8 @@ internal constructor(
         method: String,
         payload: String,
         responseTimeout: Duration,
+        maxRoundTripLatency: Duration,
     ): String = coroutineScope {
-        // Maximum amount of time it should ever take for an RPC request to reach the destination, and the ACK to come back
-        // This is set to 7 seconds to account for various relay timeouts and retries in LiveKit Cloud that occur in rare cases
-        val maxRoundTripLatency = 7.seconds
         // Minimum allowed effective timeout to ensure the RPC lifecycle always has at least
         // one second to complete, even after accounting for round-trip latency.
         val minEffectiveTimeout = 1.seconds
