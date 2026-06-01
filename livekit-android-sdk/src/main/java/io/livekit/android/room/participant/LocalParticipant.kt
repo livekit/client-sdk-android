@@ -1104,7 +1104,7 @@ internal constructor(
         // one second to complete, even after accounting for round-trip latency.
         val minEffectiveTimeout = 1.seconds
 
-        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+        if (payload.byteLength() > RpcError.MAX_V1_PAYLOAD_BYTES) {
             throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
         }
 
@@ -1205,8 +1205,8 @@ internal constructor(
         payload: String,
         responseTimeout: Duration = 10.seconds,
     ): Result<Unit> {
-        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
-            throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
+        if (payload.byteLength() > RpcError.MAX_V1_PAYLOAD_BYTES) {
+            return Result.failure(RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create())
         }
 
         val dataPacket = with(DataPacket.newBuilder()) {
@@ -1233,8 +1233,8 @@ internal constructor(
         payload: String?,
         error: RpcError?,
     ): Result<Unit> {
-        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
-            throw IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE)
+        if (payload.byteLength() > RpcError.MAX_V1_PAYLOAD_BYTES) {
+            return Result.failure(RpcError.BuiltinRpcError.RESPONSE_PAYLOAD_TOO_LARGE.create())
         }
 
         val dataPacket = with(DataPacket.newBuilder()) {
@@ -1355,7 +1355,7 @@ internal constructor(
                 ),
             )
 
-            if (response.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+            if (response.byteLength() > RpcError.MAX_V1_PAYLOAD_BYTES) {
                 responseError = RpcError.BuiltinRpcError.RESPONSE_PAYLOAD_TOO_LARGE.create()
                 LKLog.w { "RPC Response payload too large for $method" }
             } else {
@@ -1976,7 +1976,8 @@ private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
 
 /**
  * A handler that processes an RPC request and returns a string
- * that will be sent back to the requester.
+ * that will be sent back to the requester. The payload must
+ * be less than 15KB in size.
  *
  * Throwing an [RpcError] will send the error back to the requester.
  *
