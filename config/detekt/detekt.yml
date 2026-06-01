@@ -25,8 +25,8 @@ livekit-rules:
 exceptions:
   TooGenericExceptionCaught:
     active: false
-    
+
 complexity:
   LongMethod:
     active: true
-    allowedLines: 120
+    threshold: 120
