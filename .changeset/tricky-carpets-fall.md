@@ -2,4 +2,4 @@
 "client-sdk-android": patch
 ---
 
-Remove data packet size check in localParticipant.publishData to match other sdks
+Increased max data packet size for `LocalParticipant.publishData` to 65535 bytes (64KB - 1)

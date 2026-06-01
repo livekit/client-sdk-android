@@ -964,7 +964,7 @@ internal constructor(
 
     /**
      * Publish a new data payload to the room. Data will be forwarded to each participant in the room.
-     * Each payload must not exceed 15k in size
+     * Each payload must not exceed 65535 bytes (64KB - 1) in size.
      *
      * @param data payload to send
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
