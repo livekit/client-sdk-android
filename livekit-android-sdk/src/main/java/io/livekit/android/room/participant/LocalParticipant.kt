@@ -954,7 +954,7 @@ internal constructor(
 
     /**
      * Publish a new data payload to the room. Data will be forwarded to each participant in the room.
-     * Each payload must not exceed 15k in size
+     * Each payload must not exceed 65535 bytes (64KB - 1) in size.
      *
      * @param data payload to send
      * @param reliability for delivery guarantee, use RELIABLE. for fastest delivery without guarantee, use LOSSY
@@ -971,10 +971,6 @@ internal constructor(
         topic: String? = null,
         identities: List<Identity>? = null,
     ): Result<Unit> {
-        if (data.size > RTCEngine.MAX_DATA_PACKET_SIZE) {
-            return Result.failure(IllegalArgumentException("cannot publish data larger than " + RTCEngine.MAX_DATA_PACKET_SIZE))
-        }
-
         val kind = when (reliability) {
             DataPublishReliability.RELIABLE -> DataPacket.Kind.RELIABLE
             DataPublishReliability.LOSSY -> DataPacket.Kind.LOSSY
@@ -1078,6 +1074,7 @@ internal constructor(
         method: String,
         payload: String,
         responseTimeout: Duration,
+        maxRoundTripLatency: Duration,
     ): String = rpcClientManager.performRpc(destinationIdentity, method, payload, responseTimeout)
 
     internal fun handleParticipantDisconnect(identity: Identity) {
@@ -1654,7 +1651,8 @@ private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
 
 /**
  * A handler that processes an RPC request and returns a string
- * that will be sent back to the requester.
+ * that will be sent back to the requester. The payload must
+ * be less than 15KB in size.
  *
  * Throwing an [RpcError] will send the error back to the requester.
  *

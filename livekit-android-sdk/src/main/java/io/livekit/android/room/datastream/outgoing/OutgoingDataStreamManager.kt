@@ -289,7 +289,7 @@ constructor(
             if (!isOpen) {
                 return Result.failure(StreamException.TerminatedException("Stream is closed!"))
             }
-            val chunks = chunker.invoke(data, RTCEngine.MAX_DATA_PACKET_SIZE)
+            val chunks = chunker.invoke(data, RTCEngine.TARGET_DATA_PACKET_SIZE)
 
             for (chunk in chunks) {
                 val result = sendChunk(streamId, chunk)

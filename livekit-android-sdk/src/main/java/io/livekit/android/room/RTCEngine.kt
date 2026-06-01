@@ -771,6 +771,10 @@ internal constructor(
 
                 val packetBytes = dataPacket.toByteArray()
 
+                if (packetBytes.size > MAX_DATA_PACKET_SIZE) {
+                    return Result.failure(IllegalArgumentException("packet size (${packetBytes.size}) exceeds the max size (${MAX_DATA_PACKET_SIZE})"))
+                }
+
                 if (isReliable && this.connectionState == ConnectionState.RECONNECTING) {
                     reliableMessageBuffer.queue(DataPacketItem(ByteBuffer.wrap(packetBytes), dataPacket.sequence))
                     reliableDataSequence++
@@ -1049,7 +1053,17 @@ internal constructor(
          */
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
-        internal const val MAX_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
+        internal const val TARGET_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
+
+        /**
+         * Corresponds to the max-message-size in SDP. Attempting to send packets
+         * over this size will cause the data channel to close, so this must be enforced
+         * within the SDK. Note that [DataChannel.send] will still report true
+         * even if a huge packet is sent, so it's not a usable signal.
+         *
+         * TODO: get max-message-size from SDP or equivalent from libwebrtc.
+         */
+        internal const val MAX_DATA_PACKET_SIZE = 64 * 1024 - 1 // 64 KB
         private const val MAX_RECONNECT_RETRIES = 30
         private const val MAX_RECONNECT_TIMEOUT = 60 * 1000
         private const val MAX_ICE_CONNECT_TIMEOUT_MS = 20000

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.livekit.android.rpc
 
-import io.livekit.android.room.RTCEngine
+import io.livekit.android.rpc.RpcError.Companion.MAX_V1_PAYLOAD_BYTES
 import io.livekit.android.util.truncateBytes
 import livekit.LivekitModels
 
@@ -57,11 +57,19 @@ data class RpcError(
         CONNECTION_TIMEOUT(1501, "Connection timeout"),
         RESPONSE_TIMEOUT(1502, "Response timeout"),
         RECIPIENT_DISCONNECTED(1503, "Recipient disconnected"),
+
+        /**
+         * @see [MAX_V1_PAYLOAD_BYTES]
+         */
         RESPONSE_PAYLOAD_TOO_LARGE(1504, "Response payload too large"),
         SEND_FAILED(1505, "Failed to send"),
 
         UNSUPPORTED_METHOD(1400, "Method not supported at destination"),
         RECIPIENT_NOT_FOUND(1401, "Recipient not found"),
+
+        /**
+         * @see [MAX_V1_PAYLOAD_BYTES]
+         */
         REQUEST_PAYLOAD_TOO_LARGE(1402, "Request payload too large"),
         UNSUPPORTED_SERVER(1403, "RPC not supported by server"),
         UNSUPPORTED_VERSION(1404, "Unsupported RPC version"),
@@ -75,11 +83,16 @@ data class RpcError(
     companion object {
         const val MAX_MESSAGE_BYTES = 256
 
+        /**
+         * The maximum payload size for v1 RPC requests and responses in bytes.
+         */
+        const val MAX_V1_PAYLOAD_BYTES = 15 * 1024 // 15KB
+
         fun fromProto(proto: LivekitModels.RpcError): RpcError {
             return RpcError(
                 code = proto.code,
                 message = (proto.message ?: "").truncateBytes(MAX_MESSAGE_BYTES),
-                data = proto.data.truncateBytes(RTCEngine.MAX_DATA_PACKET_SIZE),
+                data = proto.data.truncateBytes(MAX_V1_PAYLOAD_BYTES),
             )
         }
     }

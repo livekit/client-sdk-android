@@ -417,6 +417,23 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publishDataRejectsLargePacket() = runTest {
+        connect()
+        val pubDataChannel = getPublisherPeerConnection()
+            .dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+
+        val oversizedPayload = ByteArray(65 * 1024) // See RTCEngine.MAX_DATA_PACKET_SIZE
+        val result = room.localParticipant.publishData(oversizedPayload)
+
+        assertTrue(result.isFailure)
+        assertTrue(
+            "Expected IllegalArgumentException, got ${result.exceptionOrNull()}",
+            result.exceptionOrNull() is IllegalArgumentException,
+        )
+        assertEquals(0, pubDataChannel.sentBuffers.size)
+    }
+
+    @Test
     fun resendReliableMessagesReplaysFullPayloadAcrossMultipleResumes() = runTest {
         connect()
         val pubPeerConnection = getPublisherPeerConnection()
