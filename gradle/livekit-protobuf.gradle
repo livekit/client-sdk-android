@@ -1,0 +1,72 @@
+// Shared protobuf setup for LiveKit client protos.
+//
+// Configure before applying:
+//   ext.livekitProtoIncludes = ['livekit_models.proto', ...]
+// Optional (for modules that compile a subset but import others):
+//   ext.livekitProtoImportSrc = true
+
+if (!project.ext.has('livekitProtoIncludes')) {
+    throw new GradleException("ext.livekitProtoIncludes must be set before applying livekit-protobuf.gradle")
+}
+
+def stagedProtoSrcDir = layout.buildDirectory.dir("staged-proto-src")
+def stageProtoSources = tasks.register("stageProtoSources", Copy) {
+    from(generated.protoSrc) {
+        include project.ext.livekitProtoIncludes as String[]
+    }
+    into stagedProtoSrcDir
+}
+
+android.sourceSets.main.proto {
+    srcDir stagedProtoSrcDir
+}
+
+android.sourceSets.main.java {
+    srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
+}
+
+configurations {
+    descriptorProtoSource
+}
+
+dependencies {
+    descriptorProtoSource "com.google.protobuf:protobuf-java:${libs.versions.protobuf.get()}"
+}
+
+def extractedImportProtosDir = layout.buildDirectory.dir("extracted-import-protos")
+def extractProtoImports = tasks.register("extractProtoImports", Copy) {
+    into extractedImportProtosDir
+    from { zipTree(configurations.descriptorProtoSource.singleFile) } {
+        include "google/protobuf/descriptor.proto"
+    }
+    from(generated.protoSrc) {
+        include "logger/**"
+    }
+}
+
+protobuf {
+    protoc {
+        // for apple m1, please add protoc_platform=osx-x86_64 in $HOME/.gradle/gradle.properties
+        if (project.hasProperty('protoc_platform')) {
+            artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}:${protoc_platform}"
+        } else {
+            artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+        }
+    }
+
+    generateProtoTasks {
+        all().each { task ->
+            task.dependsOn stageProtoSources
+            task.dependsOn extractProtoImports
+            task.addIncludeDir files(extractedImportProtosDir)
+            if (project.ext.has('livekitProtoImportSrc') && project.ext.livekitProtoImportSrc) {
+                task.addIncludeDir files(generated.protoSrc)
+            }
+            task.builtins {
+                java {
+                    option "lite"
+                }
+            }
+        }
+    }
+}

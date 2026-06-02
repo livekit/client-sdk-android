@@ -3,6 +3,7 @@ plugins {
     id 'com.android.library'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id 'com.google.protobuf'
 }
 
 android {
@@ -40,6 +41,16 @@ android {
         disable 'VisibleForTests'
     }
 }
+
+ext.livekitProtoIncludes = [
+        'livekit_token_source.proto',
+        'livekit_room.proto',
+        'livekit_agent_dispatch.proto',
+        'livekit_agent.proto',
+        'livekit_egress.proto',
+]
+ext.livekitProtoImportSrc = true
+apply from: rootProject.file('gradle/livekit-protobuf.gradle')
 
 // Allow this module's Kotlin compilations to resolve `internal` APIs from :livekit-android-sdk
 // https://kotlinlang.org/docs/visibility-modifiers.html#modules
