@@ -139,6 +139,11 @@ internal constructor(
     private var defaultAudioTrack: LocalAudioTrack? = null
     private var defaultVideoTrack: LocalVideoTrack? = null
 
+    internal fun reinitialize(connectOptions: ConnectOptions) {
+        reinitialize()
+        clientProtocol = connectOptions.clientProtocol.value
+    }
+
     /**
      * Returns the default audio track, or creates one if it doesn't exist.
      * @exception SecurityException will be thrown if [Manifest.permission.RECORD_AUDIO] permission is missing.

@@ -481,7 +481,7 @@ constructor(
             roomOptions = getCurrentRoomOptions()
 
             // Setup local participant.
-            localParticipant.reinitialize()
+            localParticipant.reinitialize(options)
             setupLocalParticipantEventHandling()
 
             if (roomOptions.e2eeOptions != null) {
