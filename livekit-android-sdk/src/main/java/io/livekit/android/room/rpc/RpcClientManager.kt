@@ -73,18 +73,15 @@ class RpcClientManager @Inject constructor(
         method: String,
         payload: String,
         responseTimeout: Duration,
+        maxRoundTripLatency: Duration,
     ): String = coroutineScope {
-        // Maximum amount of time it should ever take for an RPC request to reach the destination,
-        // and the ACK to come back. Set to 7s to cover Cloud relay retries.
-        val maxRoundTripLatency = 7.seconds
-        // Minimum allowed effective response timeout after subtracting round-trip latency.
         val minEffectiveTimeout = 1.seconds
 
         val remoteClientProtocol = getRemoteClientProtocol(destinationIdentity)
 
         // The 15 KB packet limit only applies to v1; v2 streams chunk transparently.
         if (remoteClientProtocol < ClientProtocolVersion.DATA_STREAM_RPC.value &&
-            payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE
+            payload.byteLength() > MAX_V1_PAYLOAD_BYTES
         ) {
             throw RpcError.BuiltinRpcError.REQUEST_PAYLOAD_TOO_LARGE.create()
         }

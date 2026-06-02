@@ -61,6 +61,8 @@ import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.participant.publishTracksInfo
 import io.livekit.android.room.provisions.LKObjects
+import io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC
+import io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
@@ -162,16 +164,12 @@ constructor(
 
         // Register SDK-internal text-stream handlers for the RPC v2 transport. These reserve
         // the topics `lk.rpc_request` and `lk.rpc_response` from user-level handler registration.
-        incomingDataStreamManager.registerTextStreamHandler(
-            io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC,
-        ) { receiver, fromIdentity ->
+        incomingDataStreamManager.registerTextStreamHandler(RPC_REQUEST_DATA_STREAM_TOPIC) { receiver, fromIdentity ->
             coroutineScope.launch {
                 rpcServerManager.handleIncomingDataStream(receiver, fromIdentity)
             }
         }
-        incomingDataStreamManager.registerTextStreamHandler(
-            io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC,
-        ) { receiver, fromIdentity ->
+        incomingDataStreamManager.registerTextStreamHandler(RPC_RESPONSE_DATA_STREAM_TOPIC) { receiver, fromIdentity ->
             coroutineScope.launch {
                 rpcClientManager.handleIncomingDataStream(receiver, fromIdentity)
             }

@@ -16,6 +16,9 @@
 
 package io.livekit.android.room.rpc
 
+/** The maximum payload size for v1 RPC requests and responses in bytes. */
+internal const val MAX_V1_PAYLOAD_BYTES = 15 * 1024 // 15KB
+
 /** Version of RPC backed by inline `RpcRequest` / `RpcResponse` packets. */
 internal const val RPC_VERSION_V1 = 1
 

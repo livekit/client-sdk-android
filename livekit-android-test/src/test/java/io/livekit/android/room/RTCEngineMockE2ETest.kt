@@ -422,7 +422,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val pubDataChannel = getPublisherPeerConnection()
             .dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
 
-        val oversizedPayload = ByteArray(65 * 1024) // See RTCEngine.MAX_DATA_PACKET_SIZE
+        val oversizedPayload = ByteArray(RTCEngine.MAX_DATA_PACKET_SIZE + 1)
         val result = room.localParticipant.publishData(oversizedPayload)
 
         assertTrue(result.isFailure)

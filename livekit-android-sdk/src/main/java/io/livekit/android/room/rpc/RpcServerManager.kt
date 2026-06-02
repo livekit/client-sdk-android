@@ -26,6 +26,7 @@ import io.livekit.android.room.datastream.outgoing.useStreamSender
 import io.livekit.android.room.participant.Participant.Identity
 import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.RpcInvocationData
+import io.livekit.android.room.rpc.MAX_V1_PAYLOAD_BYTES
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.byteLength
@@ -233,7 +234,7 @@ class RpcServerManager @Inject constructor(
         }
 
         // v1 caller: payload-size guard required (no chunking).
-        if (payload.byteLength() > RTCEngine.MAX_DATA_PACKET_SIZE) {
+        if (payload.byteLength() > MAX_V1_PAYLOAD_BYTES) {
             LKLog.w { "RPC v1 response payload too large for request $requestId." }
             sendErrorResponse(
                 callerIdentity,

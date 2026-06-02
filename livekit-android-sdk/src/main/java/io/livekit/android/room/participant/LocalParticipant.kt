@@ -25,6 +25,7 @@ import com.google.protobuf.ByteString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.ConnectOptions
 import io.livekit.android.audio.ScreenAudioCapturer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
@@ -36,7 +37,9 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.isSVCCodec
+import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
+import io.livekit.android.room.rpc.RpcServerManager
 import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
@@ -105,8 +108,8 @@ internal constructor(
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
     private val outgoingDataStreamManager: OutgoingDataStreamManager,
-    private val rpcClientManager: io.livekit.android.room.rpc.RpcClientManager,
-    private val rpcServerManager: io.livekit.android.room.rpc.RpcServerManager,
+    private val rpcClientManager: RpcClientManager,
+    private val rpcServerManager: RpcServerManager,
 ) : Participant(Sid(""), null, coroutineDispatcher),
     OutgoingDataStreamManager by outgoingDataStreamManager,
     RpcManager {
@@ -1075,7 +1078,7 @@ internal constructor(
         payload: String,
         responseTimeout: Duration,
         maxRoundTripLatency: Duration,
-    ): String = rpcClientManager.performRpc(destinationIdentity, method, payload, responseTimeout)
+    ): String = rpcClientManager.performRpc(destinationIdentity, method, payload, responseTimeout, maxRoundTripLatency)
 
     internal fun handleParticipantDisconnect(identity: Identity) {
         rpcClientManager.handleParticipantDisconnect(identity)

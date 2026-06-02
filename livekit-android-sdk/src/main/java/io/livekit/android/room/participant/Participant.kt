@@ -22,6 +22,7 @@ import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
@@ -269,11 +270,11 @@ open class Participant(
 
     /**
      * The protocol version this participant's client advertises for peer-to-peer features
-     * (RPC v2, etc.). See [io.livekit.android.room.ClientProtocolVersion] for known values.
+     * (RPC v2, etc.). See [ClientProtocolVersion] for known values.
      */
     @FlowObservable
     @get:FlowObservable
-    var clientProtocol: Int by flowDelegate(io.livekit.android.room.ClientProtocolVersion.DEFAULT.value)
+    var clientProtocol: Int by flowDelegate(ClientProtocolVersion.DEFAULT.value)
         internal set
 
     /**
@@ -524,6 +525,8 @@ open class Participant(
         INGRESS,
         EGRESS,
         SIP,
+        CONNECTOR,
+        BRIDGE,
         UNKNOWN,
         ;
 
@@ -538,8 +541,8 @@ open class Participant(
                     LivekitModels.ParticipantInfo.Kind.INGRESS -> INGRESS
                     LivekitModels.ParticipantInfo.Kind.EGRESS -> EGRESS
                     LivekitModels.ParticipantInfo.Kind.SIP -> SIP
-                    LivekitModels.ParticipantInfo.Kind.CONNECTOR,
-                    LivekitModels.ParticipantInfo.Kind.BRIDGE,
+                    LivekitModels.ParticipantInfo.Kind.CONNECTOR -> CONNECTOR
+                    LivekitModels.ParticipantInfo.Kind.BRIDGE -> BRIDGE
                     LivekitModels.ParticipantInfo.Kind.UNRECOGNIZED,
                     -> UNKNOWN
                 }
