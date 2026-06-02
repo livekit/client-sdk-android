@@ -1,5 +1,19 @@
 # client-sdk-android
 
+## 2.26.0
+
+### Minor Changes
+
+- Allow customizing `maxRoundTripLatency` on `LocalParticipant.performRpc` for high-latency networks - [#953](https://github.com/livekit/client-sdk-android/pull/953) ([@1egoman](https://github.com/1egoman))
+
+- Add support for RPC V2 - [#946](https://github.com/livekit/client-sdk-android/pull/946) ([@1egoman](https://github.com/1egoman))
+
+### Patch Changes
+
+- Change proguard rule for protobufs to official recommended rule, allowing unused protobuf classes to be removed with minification - [#946](https://github.com/livekit/client-sdk-android/pull/946) ([@1egoman](https://github.com/1egoman))
+
+- Increased max data packet size for `LocalParticipant.publishData` to 65535 bytes (64KB - 1) - [#948](https://github.com/livekit/client-sdk-android/pull/948) ([@1egoman](https://github.com/1egoman))
+
 ## 2.25.3
 
 ### Patch Changes
