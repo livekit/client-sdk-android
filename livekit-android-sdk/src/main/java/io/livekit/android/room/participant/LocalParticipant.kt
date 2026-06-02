@@ -30,6 +30,7 @@ import io.livekit.android.audio.ScreenAudioCapturer
 import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
@@ -1378,6 +1379,7 @@ internal constructor(
     override fun dispose() {
         cleanup()
         enabledPublishVideoCodecs.clear()
+        clientProtocol = ClientProtocolVersion.DEFAULT.value
         super.dispose()
     }
 
