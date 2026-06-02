@@ -34,12 +34,9 @@ android {
         main {
             proto {
                 srcDir generated.protoSrc
-                // Compile top-level protos plus logger/ (imported by livekit_models et al.).
-                // Skip server-only subdirs and top-level files that depend on them.
-                exclude 'agent/**', 'infra/**', 'rpc/**'
+                // Top-level protos only. logger/, agent/, infra/, and rpc/ are import-only (see below).
+                exclude 'agent/**', 'infra/**', 'rpc/**', 'logger/**'
                 exclude 'livekit_agent_simulation.proto' // imports agent/livekit_agent_session.proto
-                // descriptor.proto extracted from protobuf-java at build time (see below).
-                srcDir layout.buildDirectory.dir("extracted-descriptor-proto")
             }
             java {
                 srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
@@ -90,14 +87,15 @@ configurations {
 dependencies {
     descriptorProtoSource "com.google.protobuf:protobuf-java:${libs.versions.protobuf.get()}"
 }
-def extractDescriptorProto = tasks.register("extractDescriptorProto", Copy) {
-    from { zipTree(configurations.descriptorProtoSource.singleFile) }
-    include "google/protobuf/descriptor.proto"
-    into layout.buildDirectory.dir("extracted-descriptor-proto")
-}
-afterEvaluate {
-    tasks.matching { it.name.startsWith("generate") && it.name.endsWith("Proto") }
-        .configureEach { dependsOn extractDescriptorProto }
+def extractedImportProtosDir = layout.buildDirectory.dir("extracted-import-protos")
+def extractProtoImports = tasks.register("extractProtoImports", Copy) {
+    into extractedImportProtosDir
+    from { zipTree(configurations.descriptorProtoSource.singleFile) } {
+        include "google/protobuf/descriptor.proto"
+    }
+    from(generated.protoSrc) {
+        include "logger/**"
+    }
 }
 
 protobuf {
@@ -112,6 +110,8 @@ protobuf {
 
     generateProtoTasks {
         all().each { task ->
+            task.dependsOn extractProtoImports
+            task.addIncludeDir files(extractedImportProtosDir)
             task.builtins {
                 java {
                     option "lite"
