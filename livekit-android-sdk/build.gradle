@@ -30,18 +30,6 @@ android {
         }
     }
 
-    sourceSets {
-        main {
-            proto {
-                srcDir generated.protoSrc
-                exclude '*/*.proto' // only use top-level protos.
-            }
-            java {
-                srcDir "${protobuf.generatedFilesBaseDir}/main/javalite"
-            }
-        }
-    }
-
     testOptions {
         unitTests {
             includeAndroidResources = true
@@ -74,26 +62,12 @@ android {
 
 }
 
-protobuf {
-    protoc {
-        // for apple m1, please add protoc_platform=osx-x86_64 in $HOME/.gradle/gradle.properties
-        if (project.hasProperty('protoc_platform')) {
-            artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}:${protoc_platform}"
-        } else {
-            artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
-        }
-    }
-
-    generateProtoTasks {
-        all().each { task ->
-            task.builtins {
-                java {
-                    option "lite"
-                }
-            }
-        }
-    }
-}
+ext.livekitProtoIncludes = [
+        'livekit_models.proto',
+        'livekit_rtc.proto',
+        'livekit_metrics.proto',
+]
+apply from: rootProject.file('gradle/livekit-protobuf.gradle')
 
 jacoco {
     toolVersion = "0.8.14"

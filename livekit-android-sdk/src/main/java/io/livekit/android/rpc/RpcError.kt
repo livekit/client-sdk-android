@@ -16,7 +16,7 @@
 
 package io.livekit.android.rpc
 
-import io.livekit.android.rpc.RpcError.Companion.MAX_V1_PAYLOAD_BYTES
+import io.livekit.android.room.rpc.MAX_V1_PAYLOAD_BYTES
 import io.livekit.android.util.truncateBytes
 import livekit.LivekitModels
 
@@ -82,11 +82,6 @@ data class RpcError(
 
     companion object {
         const val MAX_MESSAGE_BYTES = 256
-
-        /**
-         * The maximum payload size for v1 RPC requests and responses in bytes.
-         */
-        const val MAX_V1_PAYLOAD_BYTES = 15 * 1024 // 15KB
 
         fun fromProto(proto: LivekitModels.RpcError): RpcError {
             return RpcError(

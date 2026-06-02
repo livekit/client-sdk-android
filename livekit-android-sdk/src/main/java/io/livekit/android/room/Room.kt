@@ -61,7 +61,11 @@ import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.participant.publishTracksInfo
 import io.livekit.android.room.provisions.LKObjects
+import io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC
+import io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC
+import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
+import io.livekit.android.room.rpc.RpcServerManager
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.LocalVideoTrackOptions
@@ -146,6 +150,8 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val rpcClientManager: RpcClientManager,
+    private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
 ) : RTCEngine.Listener, ParticipantListener, RpcManager, IncomingDataStreamManager by incomingDataStreamManager {
 
@@ -155,6 +161,27 @@ constructor(
 
     init {
         engine.listener = this
+
+        // Register SDK-internal text-stream handlers for the RPC v2 transport. These reserve
+        // the topics `lk.rpc_request` and `lk.rpc_response` from user-level handler registration.
+        incomingDataStreamManager.registerTextStreamHandler(RPC_REQUEST_DATA_STREAM_TOPIC) { receiver, fromIdentity ->
+            coroutineScope.launch {
+                rpcServerManager.handleIncomingDataStream(receiver, fromIdentity)
+            }
+        }
+        incomingDataStreamManager.registerTextStreamHandler(RPC_RESPONSE_DATA_STREAM_TOPIC) { receiver, fromIdentity ->
+            coroutineScope.launch {
+                rpcClientManager.handleIncomingDataStreamResponse(receiver, fromIdentity)
+            }
+        }
+
+        // Wire each manager's clientProtocol lookup via the remote-participants store.
+        val getRemoteClientProtocol: (Participant.Identity) -> Int = { id ->
+            remoteParticipants[id]?.clientProtocol
+                ?: ClientProtocolVersion.DEFAULT.value
+        }
+        rpcClientManager.getRemoteClientProtocol = getRemoteClientProtocol
+        rpcServerManager.getRemoteClientProtocol = getRemoteClientProtocol
     }
 
     enum class State {
@@ -454,7 +481,7 @@ constructor(
             roomOptions = getCurrentRoomOptions()
 
             // Setup local participant.
-            localParticipant.reinitialize()
+            localParticipant.reinitialize(options)
             setupLocalParticipantEventHandling()
 
             if (roomOptions.e2eeOptions != null) {

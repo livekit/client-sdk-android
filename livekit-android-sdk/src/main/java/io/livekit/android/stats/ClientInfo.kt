@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,13 @@ package io.livekit.android.stats
 
 import android.os.Build
 import io.livekit.android.BuildConfig
+import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.SignalClient
 import livekit.LivekitModels
 
-internal fun getClientInfo() = with(LivekitModels.ClientInfo.newBuilder()) {
+internal fun getClientInfo(
+    clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_RPC,
+) = with(LivekitModels.ClientInfo.newBuilder()) {
     sdk = LivekitModels.ClientInfo.SDK.ANDROID
     version = BuildConfig.VERSION_NAME
     os = SignalClient.SDK_TYPE
@@ -30,5 +33,6 @@ internal fun getClientInfo() = with(LivekitModels.ClientInfo.newBuilder()) {
     val vendor = Build.MANUFACTURER ?: ""
     val model = Build.MODEL ?: ""
     deviceModel = ("$vendor $model").trim()
+    this.clientProtocol = clientProtocol.value
     build()
 }
