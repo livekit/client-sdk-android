@@ -68,6 +68,9 @@ class RpcClientManager @Inject constructor(
     private val pendingAcks = Collections.synchronizedMap(mutableMapOf<String, PendingRpcAck>())
     private val pendingResponses = Collections.synchronizedMap(mutableMapOf<String, PendingRpcResponse>())
 
+    /**
+     * @throws RpcError
+     */
     suspend fun performRpc(
         destinationIdentity: Identity,
         method: String,
@@ -135,7 +138,7 @@ class RpcClientManager @Inject constructor(
         }
 
         val publishResult = if (remoteClientProtocol >= ClientProtocolVersion.DATA_STREAM_RPC.value) {
-            publishRpcRequestV2(destinationIdentity, requestId, method, payload, effectiveTimeout.inWholeMilliseconds)
+            publishRpcRequestV2(destinationIdentity, requestId, method, payload, effectiveTimeout)
         } else {
             publishRpcRequestV1(destinationIdentity, requestId, method, payload, effectiveTimeout)
         }
@@ -194,7 +197,7 @@ class RpcClientManager @Inject constructor(
         requestId: String,
         method: String,
         payload: String,
-        effectiveTimeoutMs: Long,
+        responseTimeout: Duration,
     ): Result<Unit> {
         val sender = try {
             outgoingDataStreamManager.streamText(
@@ -204,7 +207,7 @@ class RpcClientManager @Inject constructor(
                     attributes = mapOf(
                         RpcRequestAttrs.REQUEST_ID to requestId,
                         RpcRequestAttrs.METHOD to method,
-                        RpcRequestAttrs.RESPONSE_TIMEOUT_MS to effectiveTimeoutMs.toString(),
+                        RpcRequestAttrs.RESPONSE_TIMEOUT_MS to responseTimeout.inWholeMilliseconds.toString(),
                         RpcRequestAttrs.VERSION to RPC_VERSION_V2.toString(),
                     ),
                 ),
@@ -260,7 +263,7 @@ class RpcClientManager @Inject constructor(
     /**
      * Handle an incoming v2 RPC response data stream on topic `lk.rpc_response`.
      */
-    suspend fun handleIncomingDataStream(receiver: TextStreamReceiver, fromIdentity: Identity) {
+    suspend fun handleIncomingDataStreamResponse(receiver: TextStreamReceiver, fromIdentity: Identity) {
         val requestId = receiver.info.attributes[RpcRequestAttrs.REQUEST_ID]
         if (requestId.isNullOrEmpty()) {
             LKLog.w { "RPC response stream malformed: ${RpcRequestAttrs.REQUEST_ID} not set." }

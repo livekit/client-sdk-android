@@ -1047,6 +1047,7 @@ internal constructor(
 
     internal fun handleDataPacket(packet: DataPacket) {
         when {
+            // v1 RPC request
             packet.hasRpcRequest() -> {
                 val rpcRequest = packet.rpcRequest
                 scope.launch {
@@ -1065,6 +1066,7 @@ internal constructor(
                         RpcError.fromProto(rpcResponse.error),
                     )
                 } else {
+                    // v1 RPC response
                     rpcClientManager.handleIncomingRpcResponseSuccess(
                         rpcResponse.requestId,
                         if (rpcResponse.hasPayload()) rpcResponse.payload else "",

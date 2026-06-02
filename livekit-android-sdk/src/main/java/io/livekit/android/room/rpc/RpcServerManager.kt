@@ -26,7 +26,6 @@ import io.livekit.android.room.datastream.outgoing.useStreamSender
 import io.livekit.android.room.participant.Participant.Identity
 import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.RpcInvocationData
-import io.livekit.android.room.rpc.MAX_V1_PAYLOAD_BYTES
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.byteLength

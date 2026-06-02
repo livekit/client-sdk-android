@@ -72,6 +72,11 @@ typealias DataChunker<T> = (data: T, chunkSize: Int) -> List<ByteArray>
  * On success, [block] should still attempt to close [sender] when the stream is
  * finished normally. If it is left open, any exceptions thrown by [sender.close]
  * will be ignored.
+ *
+ * Any exceptions thrown within [block] will be caught and returned in the result.
+ *
+ * @return A successful [Result] object containing the return value of [block], or
+ * a failure if any exceptions were thrown.
  */
 @CheckResult
 suspend inline fun <S : BaseStreamSender<*>, R> useStreamSender(

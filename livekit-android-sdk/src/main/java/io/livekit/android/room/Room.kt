@@ -171,7 +171,7 @@ constructor(
         }
         incomingDataStreamManager.registerTextStreamHandler(RPC_RESPONSE_DATA_STREAM_TOPIC) { receiver, fromIdentity ->
             coroutineScope.launch {
-                rpcClientManager.handleIncomingDataStream(receiver, fromIdentity)
+                rpcClientManager.handleIncomingDataStreamResponse(receiver, fromIdentity)
             }
         }
 
