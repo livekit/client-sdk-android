@@ -1030,6 +1030,7 @@ internal constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
+        fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
         fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
@@ -1264,6 +1265,10 @@ internal constructor(
 
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
         listener?.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
+    }
+
+    override fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse) {
+        listener?.onSubscriptionError(subscriptionResponse)
     }
 
     override fun onRefreshToken(token: String) {

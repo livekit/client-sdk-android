@@ -235,6 +235,27 @@ class RemoteParticipant(
         }
     }
 
+    internal fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse) {
+        val trackSid = subscriptionResponse.trackSid
+        if (trackPublications[trackSid] !is RemoteTrackPublication) {
+            return
+        }
+
+        val exception = subscriptionErrorException(subscriptionResponse.err)
+        internalListener?.onTrackSubscriptionFailed(trackSid, exception, this)
+        eventBus.postEvent(ParticipantEvent.TrackSubscriptionFailed(this, trackSid, exception), scope)
+    }
+
+    private fun subscriptionErrorException(error: LivekitModels.SubscriptionError): TrackException {
+        return when (error) {
+            LivekitModels.SubscriptionError.SE_CODEC_UNSUPPORTED -> TrackException.MediaException("Codec not supported")
+            LivekitModels.SubscriptionError.SE_TRACK_NOTFOUND -> TrackException.InvalidTrackStateException("Track not found")
+            LivekitModels.SubscriptionError.SE_UNKNOWN,
+            LivekitModels.SubscriptionError.UNRECOGNIZED,
+            -> TrackException.InvalidTrackStateException("Subscription failed")
+        }
+    }
+
     // Internal methods just for posting events.
     internal fun onDataReceived(event: RoomEvent.DataReceived) {
         eventBus.postEvent(ParticipantEvent.DataReceived(this, event.data, event.topic, event.encryptionType), scope)
