@@ -711,6 +711,17 @@ constructor(
                 startPingJob()
 
                 if (response.hasReconnect()) {
+                    if (response.reconnect.hasServerInfo()) {
+                        try {
+                            serverVersion = Semver(response.reconnect.serverInfo.version)
+                        } catch (t: Throwable) {
+                            LKLog.w(t) { "Thrown while trying to parse server version from reconnect." }
+                        }
+                        serverInfo = ServerInfo(
+                            edition = ServerInfo.Edition.fromProto(response.reconnect.serverInfo.edition),
+                            version = serverVersion,
+                        )
+                    }
                     joinContinuation?.resumeWith(Result.success(Either.Right(Either.Left(response.reconnect))))
                     joinContinuation = null
                 } else {
@@ -829,7 +840,8 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
-                // TODO
+                // Handshake-only message; handled in handleSignalResponse() before connection.
+                LKLog.d { "ignoring reconnect response received after connected" }
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
