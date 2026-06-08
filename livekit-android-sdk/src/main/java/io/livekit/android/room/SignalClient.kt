@@ -833,17 +833,11 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
-                // TODO
+                listener?.onSubscriptionError(response.subscriptionResponse)
             }
 
             LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
                 // TODO
-            }
-
-            LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
-            null,
-            -> {
-                LKLog.v { "empty messageCase!" }
             }
 
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
@@ -868,6 +862,12 @@ constructor(
 
             LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
                 // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
+            null,
+            -> {
+                LKLog.v { "empty messageCase!" }
             }
         }
     }
@@ -954,6 +954,7 @@ constructor(
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
+        fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)

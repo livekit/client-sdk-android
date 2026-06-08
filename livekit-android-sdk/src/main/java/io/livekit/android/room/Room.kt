@@ -1433,6 +1433,16 @@ constructor(
     /**
      * @suppress
      */
+    override fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse) {
+        val participant = remoteParticipants.values
+            .firstOrNull { it.trackPublications.containsKey(subscriptionResponse.trackSid) } as? RemoteParticipant
+            ?: return
+        participant.onSubscriptionError(subscriptionResponse)
+    }
+
+    /**
+     * @suppress
+     */
     override fun onEngineDisconnected(reason: DisconnectReason) {
         LKLog.v { "engine did disconnect: $reason" }
         handleDisconnect(reason)

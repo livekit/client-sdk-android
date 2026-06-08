@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,16 @@ package io.livekit.android.room
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.participant.AudioTrackPublishOptions
+import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.TrackException
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.LivekitRtc.ParticipantUpdate
 import livekit.LivekitRtc.SignalResponse
@@ -113,6 +116,56 @@ class RoomParticipantEventMockE2ETest : MockE2ETest() {
         run {
             assertEquals(1, participantEvents.size)
             assertIsClass(ParticipantEvent.LocalTrackSubscribed::class.java, participantEvents[0])
+        }
+    }
+
+    @Test
+    fun trackSubscriptionFailed() = runTest {
+        connect()
+
+        wsFactory.receiveMessage(TestData.PARTICIPANT_JOIN)
+
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantCollector = EventCollector(remoteParticipant.events, coroutineRule.scope)
+
+        wsFactory.receiveMessage(
+            with(SignalResponse.newBuilder()) {
+                subscriptionResponse = with(LivekitRtc.SubscriptionResponse.newBuilder()) {
+                    trackSid = TestData.REMOTE_AUDIO_TRACK.sid
+                    err = LivekitModels.SubscriptionError.SE_CODEC_UNSUPPORTED
+                    build()
+                }
+                build()
+            },
+        )
+
+        val roomEvents = roomCollector.stopCollecting()
+        val participantEvents = participantCollector.stopCollecting()
+
+        // Verify room events
+        run {
+            assertEquals(1, roomEvents.size)
+            assertIsClass(RoomEvent.TrackSubscriptionFailed::class.java, roomEvents[0])
+
+            val event = roomEvents.first() as RoomEvent.TrackSubscriptionFailed
+            assertEquals(room, event.room)
+            assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.sid)
+            assertEquals(remoteParticipant, event.participant)
+            assertIsClass(TrackException.MediaException::class.java, event.exception)
+            assertEquals("Codec not supported", event.exception.message)
+        }
+
+        // Verify participant events
+        run {
+            assertEquals(1, participantEvents.size)
+            assertIsClass(ParticipantEvent.TrackSubscriptionFailed::class.java, participantEvents[0])
+
+            val event = participantEvents.first() as ParticipantEvent.TrackSubscriptionFailed
+            assertEquals(remoteParticipant, event.participant)
+            assertEquals(TestData.REMOTE_AUDIO_TRACK.sid, event.sid)
+            assertIsClass(TrackException.MediaException::class.java, event.exception)
+            assertEquals("Codec not supported", event.exception.message)
         }
     }
 }
