@@ -1,32 +1,18 @@
 ---
 name: android-coroutines
-description: Authoritative rules and patterns for production-quality Kotlin Coroutines onto Android. Covers structured concurrency, lifecycle integration, and reactive streams.
+description: "Implement and review Kotlin Coroutines on Android: configure CoroutineScopes, manage Dispatchers, expose StateFlow/SharedFlow from ViewModels, collect with repeatOnLifecycle, and convert callback APIs to callbackFlow. Use when writing suspend functions, wiring up Flow or StateFlow, fixing async bugs, replacing GlobalScope, or integrating coroutines with Android lifecycle components."
 ---
 
 # Android Coroutines Expert Skill
 
-This skill provides authoritative rules and patterns for writing production-quality Kotlin Coroutines code on Android. It enforces structured concurrency, lifecycle safety, and modern best practices (2025 standards).
+## Workflow
 
-## Responsibilities
+1. **Identify scope** — Determine the correct CoroutineScope (`viewModelScope`, `lifecycleScope`, or injected `applicationScope`).
+2. **Wire data layer** — Expose data as `suspend` functions (one-shot) or `Flow` (streams) with injected Dispatchers.
+3. **Connect UI** — Collect flows using `repeatOnLifecycle(Lifecycle.State.STARTED)` and expose read-only `StateFlow`.
+4. **Verify** — Run `./gradlew test` and confirm coroutine behavior. If tests fail, check: uncaught `CancellationException` in generic `catch` blocks, `GlobalScope` usage causing leaked coroutines, missing `awaitClose` in `callbackFlow`, or hardcoded Dispatchers breaking test determinism. Run `./gradlew detektDebug` to catch structural issues.
 
-*   **Asynchronous Logic**: Implementing suspend functions, Dispatcher management, and parallel execution.
-*   **Reactive Streams**: Implementing `Flow`, `StateFlow`, `SharedFlow`, and `callbackFlow`.
-*   **Lifecycle Integration**: Managing scopes (`viewModelScope`, `lifecycleScope`) and safe collection (`repeatOnLifecycle`).
-*   **Error Handling**: Implementing `CoroutineExceptionHandler`, `SupervisorJob`, and proper `try-catch` hierarchies.
-*   **Cancellability**: Ensuring long-running operations are cooperative using `ensureActive()`.
-*   **Testing**: Setting up `TestDispatcher` and `runTest`.
-
-## Applicability
-
-Activate this skill when the user asks to:
-*   "Fetch data from an API/Database."
-*   "Perform background processing."
-*   "Fix a memory leak" related to threads/tasks.
-*   "Convert a listener/callback to Coroutines."
-*   "Implement a ViewModel."
-*   "Handle UI state updates."
-
-## Critical Rules & Constraints
+## Critical Rules
 
 ### 1. Dispatcher Injection (Testability)
 *   **NEVER** hardcode Dispatchers (e.g., `Dispatchers.IO`, `Dispatchers.Default`) inside classes.
@@ -46,11 +32,8 @@ class UserRepository {
 ```
 
 ### 2. Main-Safety
-*   All suspend functions defined in the Data or Domain layer must be **main-safe**.
-*   **One-shot calls** should be exposed as `suspend` functions.
-*   **Data changes** should be exposed as `Flow`.
-*   The caller (ViewModel) should be able to call them from `Dispatchers.Main` without blocking the UI.
-*   Use `withContext(dispatcher)` inside the repository implementation to move execution to the background.
+*   All suspend functions in Data/Domain layers must be **main-safe** — use `withContext(dispatcher)` internally.
+*   **One-shot calls**: expose as `suspend` functions. **Data streams**: expose as `Flow`.
 
 ### 3. Lifecycle-Aware Collection
 *   **NEVER** collect a flow directly in `lifecycleScope.launch` or `launchWhenStarted` (deprecated/unsafe).
@@ -83,9 +66,8 @@ viewLifecycleOwner.lifecycleScope.launch {
 *   Use `CoroutineExceptionHandler` only for top-level coroutines (inside `launch`). It has no effect inside `async` or child coroutines.
 
 ### 8. Cancellability
-*   Coroutines feature **cooperative cancellation**. They don't stop immediately unless they check for cancellation.
-*   **ALWAYS** call `ensureActive()` or `yield()` in tight loops (e.g., processing a large list, reading files) to check for cancellation.
-*   Standard functions like `delay()` and `withContext()` are already cancellable.
+*   **ALWAYS** call `ensureActive()` or `yield()` in tight loops (e.g., processing a large list, reading files).
+*   `delay()` and `withContext()` are already cancellable — no extra checks needed there.
 
 ### 9. Callback Conversion
 *   Use `callbackFlow` to convert callback-based APIs to Flow.
