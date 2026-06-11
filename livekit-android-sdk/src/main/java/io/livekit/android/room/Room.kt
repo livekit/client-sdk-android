@@ -1425,6 +1425,13 @@ constructor(
     /**
      * @suppress
      */
+    override fun onRequestResponse(response: LivekitRtc.RequestResponse) {
+        localParticipant.handleRequestResponse(response)
+    }
+
+    /**
+     * @suppress
+     */
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
         val participant = getParticipantBySid(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
         participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)
