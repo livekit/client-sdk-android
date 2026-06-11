@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.26.1
+
+### Patch Changes
+
+- Emit `TrackSubscriptionFailed` events through `Room` and `RemoteParticipant` when the server detects a subscription failure - [#959](https://github.com/livekit/client-sdk-android/pull/959) ([@davidliu](https://github.com/davidliu))
+
 ## 2.26.0
 
 ### Minor Changes
