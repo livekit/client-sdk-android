@@ -17,7 +17,6 @@
 package io.livekit.android.room.datastream.incoming
 
 import io.livekit.android.room.datastream.StreamException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -32,34 +31,6 @@ import kotlinx.coroutines.flow.fold
  * @see [readAll]
  */
 abstract class BaseStreamReceiver<T>(private val source: Channel<ByteArray>) {
-
-    private var closeCause: Throwable? = null
-
-    init {
-        @OptIn(ExperimentalCoroutinesApi::class)
-        source.invokeOnClose { cause ->
-            closeCause = cause
-        }
-    }
-
-    /**
-     * The [StreamException] this stream was closed with, or `null` if it closed normally or is still open.
-     *
-     * Note: Buffered data may still be available even if this is set.
-     *
-     * @see [isClosed]
-     */
-    val closeException: StreamException?
-        get() = closeCause as? StreamException
-
-    /**
-     * True if the stream is closed and all buffered data has been drained.
-     *
-     * @see [closeException]
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val isClosed: Boolean
-        get() = source.isClosedForReceive
 
     /**
      * A [Flow] of stream data as it arrives.
@@ -102,10 +73,11 @@ abstract class BaseStreamReceiver<T>(private val source: Channel<ByteArray>) {
      * Suspends and waits for all available data until the stream is closed.
      *
      * [StreamException]s are swallowed; this returns all data received before the stream closed,
-     * whether normally or abnormally. Use [closeException] to check the cause of the stream closure.
+     * whether normally or abnormally.
      */
     suspend fun readAll(): List<T> {
-        return flow.catch { }.fold(mutableListOf()) { acc, value ->
+        flow.catch { }
+        return flow.fold(mutableListOf()) { acc, value ->
             acc.add(value)
             return@fold acc
         }
