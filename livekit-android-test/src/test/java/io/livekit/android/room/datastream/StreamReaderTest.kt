@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datastream
 
+import io.livekit.android.room.datastream.StreamException
 import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.test.BaseTest
@@ -81,6 +82,36 @@ class StreamReaderTest : BaseTest() {
     fun readAll() = runTest {
         runBlocking {
             val data = reader.readAll()
+            assertEquals(3, data.size)
+            for (i in 0..2) {
+                assertEquals(i, data[i][0].toInt())
+            }
+        }
+    }
+
+    @Test
+    fun readAllSwallowsStreamException() = runTest {
+        val errorChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
+        errorChannel.trySend(ByteArray(1) { 0 })
+        errorChannel.trySend(ByteArray(1) { 1 })
+        errorChannel.trySend(ByteArray(1) { 2 })
+        errorChannel.close(StreamException.AbnormalEndException("reason"))
+        val errorReader = ByteStreamReceiver(
+            ByteStreamInfo(
+                id = "id",
+                topic = "topic",
+                timestampMs = 3,
+                totalSize = null,
+                attributes = mapOf(),
+                mimeType = "mime",
+                name = null,
+                encryptionType = LivekitModels.Encryption.Type.NONE,
+            ),
+            errorChannel,
+        )
+
+        runBlocking {
+            val data = errorReader.readAll()
             assertEquals(3, data.size)
             for (i in 0..2) {
                 assertEquals(i, data[i][0].toInt())

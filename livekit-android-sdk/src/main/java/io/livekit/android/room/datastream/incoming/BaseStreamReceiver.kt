@@ -72,12 +72,13 @@ abstract class BaseStreamReceiver<T>(private val source: Channel<ByteArray>) {
     /**
      * Suspends and waits for all available data until the stream is closed.
      *
-     * [StreamException]s are swallowed; this returns all data received before the stream closed,
+     * Exceptions are swallowed; this returns all data received before the stream closed,
      * whether normally or abnormally.
+     *
+     * @return A list of all data received before the stream closed.
      */
     suspend fun readAll(): List<T> {
-        flow.catch { }
-        return flow.fold(mutableListOf()) { acc, value ->
+        return flow.catch { }.fold(mutableListOf()) { acc, value ->
             acc.add(value)
             return@fold acc
         }
