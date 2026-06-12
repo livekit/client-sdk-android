@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ sealed class StreamException(message: String? = null) : Exception(message) {
     class FileInfoUnavailableException : StreamException()
 
     /**
-     *
+     * Encryption of the data chunks did not match the declared encryption type.
      */
     class EncryptionTypeMismatch(message: String? = null) : StreamException(message)
 }

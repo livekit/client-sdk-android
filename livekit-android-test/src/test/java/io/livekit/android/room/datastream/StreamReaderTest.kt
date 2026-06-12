@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,6 +81,36 @@ class StreamReaderTest : BaseTest() {
     fun readAll() = runTest {
         runBlocking {
             val data = reader.readAll()
+            assertEquals(3, data.size)
+            for (i in 0..2) {
+                assertEquals(i, data[i][0].toInt())
+            }
+        }
+    }
+
+    @Test
+    fun readAllSwallowsStreamException() = runTest {
+        val errorChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
+        errorChannel.trySend(ByteArray(1) { 0 })
+        errorChannel.trySend(ByteArray(1) { 1 })
+        errorChannel.trySend(ByteArray(1) { 2 })
+        errorChannel.close(StreamException.AbnormalEndException("reason"))
+        val errorReader = ByteStreamReceiver(
+            ByteStreamInfo(
+                id = "id",
+                topic = "topic",
+                timestampMs = 3,
+                totalSize = null,
+                attributes = mapOf(),
+                mimeType = "mime",
+                name = null,
+                encryptionType = LivekitModels.Encryption.Type.NONE,
+            ),
+            errorChannel,
+        )
+
+        runBlocking {
+            val data = errorReader.readAll()
             assertEquals(3, data.size)
             for (i in 0..2) {
                 assertEquals(i, data[i][0].toInt())
