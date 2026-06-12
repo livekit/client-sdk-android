@@ -619,6 +619,8 @@ internal constructor(
                             subscriber?.updateRTCConfig(rtcConfig)
                             publisher?.updateRTCConfig(rtcConfig)
                             lastMessageSeq = reconnectResponse.lastMessageSeq
+                        } else {
+                            LKLog.w { "Did not receive reconnect response" }
                         }
                         client.onReadyForResponses()
                     } catch (e: Exception) {
