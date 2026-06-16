@@ -199,6 +199,9 @@ constructor(private val context: Context) : AudioHandler {
      */
     var forceHandleAudioRouting = false
 
+    // Volatile and nulled synchronously in stop() (rather than only inside the posted
+    // teardown runnable) so that a subsequent start() reliably observes the teardown.
+    @Volatile
     private var audioSwitch: AbstractAudioSwitch? = null
 
     // AudioSwitch is not threadsafe, so all calls should be done through a single thread.
@@ -261,10 +264,17 @@ constructor(private val context: Context) : AudioHandler {
 
     @Synchronized
     override fun stop() {
+        // Null audioSwitch synchronously (under the lock) so a subsequent start() reliably
+        // observes the teardown and re-creates the switch. Previously it was nulled inside the
+        // posted runnable on the handler thread; with handler/thread torn down synchronously
+        // below, a fast start() could read a stale, already-stopped switch and skip re-creation,
+        // leaving audio routing broken (e.g. stuck on the earpiece) until the next connect.
+        // The switch's stop() is still posted, since AbstractAudioSwitch is not threadsafe.
+        val switchToStop = audioSwitch
+        audioSwitch = null
         handler?.removeCallbacksAndMessages(null)
         handler?.postAtFrontOfQueue {
-            audioSwitch?.stop()
-            audioSwitch = null
+            switchToStop?.stop()
         }
         thread?.quitSafely()
 
