@@ -16,7 +16,6 @@
 
 package io.livekit.android.room.datastream
 
-import io.livekit.android.room.datastream.StreamException
 import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.test.BaseTest
