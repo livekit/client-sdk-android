@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datastream
 
+import io.livekit.android.room.datastream.StreamException
 import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.test.BaseTest
@@ -89,7 +90,31 @@ class StreamReaderTest : BaseTest() {
     }
 
     @Test
-    fun readAllSwallowsStreamException() = runTest {
+    fun readAllEmptyStream() = runTest {
+        val emptyChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
+        emptyChannel.close()
+        val emptyReader = ByteStreamReceiver(
+            ByteStreamInfo(
+                id = "id",
+                topic = "topic",
+                timestampMs = 3,
+                totalSize = null,
+                attributes = mapOf(),
+                mimeType = "mime",
+                name = null,
+                encryptionType = LivekitModels.Encryption.Type.NONE,
+            ),
+            emptyChannel,
+        )
+
+        runBlocking {
+            val data = emptyReader.readAll()
+            assertEquals(0, data.size)
+        }
+    }
+
+    @Test
+    fun readAllThrowsStreamException() = runTest {
         val errorChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
         errorChannel.trySend(ByteArray(1) { 0 })
         errorChannel.trySend(ByteArray(1) { 1 })
@@ -109,13 +134,16 @@ class StreamReaderTest : BaseTest() {
             errorChannel,
         )
 
+        var threwOnce = false
         runBlocking {
-            val data = errorReader.readAll()
-            assertEquals(3, data.size)
-            for (i in 0..2) {
-                assertEquals(i, data[i][0].toInt())
+            try {
+                errorReader.readAll()
+            } catch (e: StreamException.AbnormalEndException) {
+                threwOnce = true
             }
         }
+
+        assertTrue(threwOnce)
     }
 
     @Test

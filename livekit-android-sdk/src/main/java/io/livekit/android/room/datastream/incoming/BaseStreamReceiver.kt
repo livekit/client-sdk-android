@@ -19,7 +19,6 @@ package io.livekit.android.room.datastream.incoming
 import io.livekit.android.room.datastream.StreamException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.fold
 
@@ -72,13 +71,11 @@ abstract class BaseStreamReceiver<T>(private val source: Channel<ByteArray>) {
     /**
      * Suspends and waits for all available data until the stream is closed.
      *
-     * Exceptions are swallowed; this returns all data received before the stream closed,
-     * whether normally or abnormally.
-     *
-     * @return A list of all data received before the stream closed.
+     * @return A list of all data received if the stream is closed normally.
+     * @throws StreamException when the stream is closed abnormally.
      */
     suspend fun readAll(): List<T> {
-        return flow.catch { }.fold(mutableListOf()) { acc, value ->
+        return flow.fold(mutableListOf()) { acc, value ->
             acc.add(value)
             return@fold acc
         }
