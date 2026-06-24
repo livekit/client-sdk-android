@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,21 @@
 
 package io.livekit.android.room.datastream.incoming
 
+import io.livekit.android.room.Room
 import io.livekit.android.room.datastream.ByteStreamInfo
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
+/**
+ * Receiver for an incoming byte stream.
+ *
+ * Provided to [ByteStreamHandler] callbacks registered through [Room].
+ *
+ * @see Room.registerByteStreamHandler
+ */
 class ByteStreamReceiver(
+    /** Metadata for this stream. */
     val info: ByteStreamInfo,
     channel: Channel<ByteArray>,
 ) : BaseStreamReceiver<ByteArray>(channel) {

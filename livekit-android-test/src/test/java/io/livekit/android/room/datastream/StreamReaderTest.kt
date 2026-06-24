@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,63 @@ class StreamReaderTest : BaseTest() {
                 assertEquals(i, data[i][0].toInt())
             }
         }
+    }
+
+    @Test
+    fun readAllEmptyStream() = runTest {
+        val emptyChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
+        emptyChannel.close()
+        val emptyReader = ByteStreamReceiver(
+            ByteStreamInfo(
+                id = "id",
+                topic = "topic",
+                timestampMs = 3,
+                totalSize = null,
+                attributes = mapOf(),
+                mimeType = "mime",
+                name = null,
+                encryptionType = LivekitModels.Encryption.Type.NONE,
+            ),
+            emptyChannel,
+        )
+
+        runBlocking {
+            val data = emptyReader.readAll()
+            assertEquals(0, data.size)
+        }
+    }
+
+    @Test
+    fun readAllThrowsStreamException() = runTest {
+        val errorChannel = IncomingDataStreamManagerImpl.createChannelForStreamReceiver()
+        errorChannel.trySend(ByteArray(1) { 0 })
+        errorChannel.trySend(ByteArray(1) { 1 })
+        errorChannel.trySend(ByteArray(1) { 2 })
+        errorChannel.close(StreamException.AbnormalEndException("reason"))
+        val errorReader = ByteStreamReceiver(
+            ByteStreamInfo(
+                id = "id",
+                topic = "topic",
+                timestampMs = 3,
+                totalSize = null,
+                attributes = mapOf(),
+                mimeType = "mime",
+                name = null,
+                encryptionType = LivekitModels.Encryption.Type.NONE,
+            ),
+            errorChannel,
+        )
+
+        var threwOnce = false
+        runBlocking {
+            try {
+                errorReader.readAll()
+            } catch (e: StreamException.AbnormalEndException) {
+                threwOnce = true
+            }
+        }
+
+        assertTrue(threwOnce)
     }
 
     @Test
