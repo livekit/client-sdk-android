@@ -1,5 +1,15 @@
 # client-sdk-android
 
+## 2.26.1
+
+### Patch Changes
+
+- Fix audio output getting stuck on the earpiece after reconnecting on a reused `Room` (Android 12+). `AudioSwitchHandler.stop()` now clears its `audioSwitch` reference synchronously (and the field is `@Volatile`) so a subsequent `start()` reliably observes the teardown and re-creates the switch, instead of racing the posted teardown runnable and reusing a stale, already-stopped switch. - [#967](https://github.com/livekit/client-sdk-android/pull/967) ([@YashJainSC](https://github.com/YashJainSC))
+
+- Emit `TrackSubscriptionFailed` events through `Room` and `RemoteParticipant` when the server detects a subscription failure - [#959](https://github.com/livekit/client-sdk-android/pull/959) ([@davidliu](https://github.com/davidliu))
+
+- Clarified documentation regarding data stream receivers and errors - [#965](https://github.com/livekit/client-sdk-android/pull/965) ([@davidliu](https://github.com/davidliu))
+
 ## 2.26.0
 
 ### Minor Changes
