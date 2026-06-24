@@ -1498,6 +1498,21 @@ internal constructor(
         }
     }
 
+    internal fun stopTransceivers(transceivers: List<RtpTransceiver>) {
+        if (transceivers.isEmpty()) {
+            return
+        }
+        runBlocking {
+            publisher?.withPeerConnection {
+                for (transceiver in transceivers) {
+                    if (!transceiver.isStopped) {
+                        transceiver.stopInternal()
+                    }
+                }
+            }
+        }
+    }
+
     @VisibleForTesting
     fun getPublisherPeerConnection() =
         publisher!!.peerConnection

@@ -660,6 +660,10 @@ internal constructor(
             return null
         }
 
+        if (track is LocalVideoTrack) {
+            track.clearSimulcastCodecs()
+        }
+
         val cid = try {
             track.rtcTrack.id()
         } catch (e: Exception) {
@@ -953,6 +957,16 @@ internal constructor(
 
         if (engine.connectionState == ConnectionState.CONNECTED) {
             engine.removeTrack(track.rtcTrack)
+
+            // Each publish creates a new transceiver, plus one per backup codec. Removing the
+            // track from its sender doesn't release them, so they would otherwise be retained
+            // until the connection closes. Stopping them releases the native resources and frees
+            // the SDP m-sections for reuse. Limited to video, where this leak is significant.
+            if (track is LocalVideoTrack) {
+                engine.stopTransceivers(listOfNotNull(track.transceiver) + track.simulcastTransceivers)
+                track.transceiver = null
+                track.clearSimulcastCodecs()
+            }
         }
         if (stopOnUnpublish) {
             track.stop()
@@ -1198,6 +1212,7 @@ internal constructor(
                 LKLog.w { "couldn't create new transceiver! $codec" }
                 return@launch
             }
+            simulcastTrack.transceiver = transceiver
             val trackRequest = AddTrackRequest.newBuilder().apply {
                 sid = existingPublication.sid
                 muted = !track.enabled
