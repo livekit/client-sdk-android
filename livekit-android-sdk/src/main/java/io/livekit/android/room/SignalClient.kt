@@ -98,15 +98,8 @@ constructor(
     internal var lastOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
 
-    // join will always return a JoinResponse.
-    // reconnect will return a ReconnectResponse or a Unit if a different response was received.
     @Volatile
-    private var joinContinuation: CancellableContinuation<
-        Either<
-            JoinResponse,
-            Either<ReconnectResponse, Unit>,
-            >,
-        >? = null
+    private var joinContinuation: CancellableContinuation<ConnectResult>? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
     /**
@@ -141,8 +134,10 @@ constructor(
         options: ConnectOptions = ConnectOptions(),
         roomOptions: RoomOptions = RoomOptions(),
     ): JoinResponse {
-        val joinResponse = connect(url, token, options, roomOptions)
-        return (joinResponse as Either.Left).value
+        return when (val result = connect(url, token, options, roomOptions)) {
+            is ConnectResult.Join -> result.response
+            else -> throw IllegalStateException("Unexpected response during join: $result")
+        }
     }
 
     /**
@@ -151,17 +146,22 @@ constructor(
     @Throws(Exception::class)
     @VisibleForTesting
     suspend fun reconnect(url: String, token: String, participantSid: String?): Either<ReconnectResponse, Unit> {
-        val reconnectResponse = connect(
-            url,
-            token,
-            (lastOptions ?: ConnectOptions()).copy()
-                .apply {
-                    reconnect = true
-                    this.participantSid = participantSid
-                },
-            lastRoomOptions ?: RoomOptions(),
-        )
-        return (reconnectResponse as Either.Right).value
+        return when (
+            val result = connect(
+                url,
+                token,
+                (lastOptions ?: ConnectOptions()).copy()
+                    .apply {
+                        reconnect = true
+                        this.participantSid = participantSid
+                    },
+                lastRoomOptions ?: RoomOptions(),
+            )
+        ) {
+            is ConnectResult.Reconnect -> Either.Left(result.response)
+            is ConnectResult.OtherResponse -> Either.Right(Unit)
+            is ConnectResult.Join -> throw IllegalStateException("Unexpected join response during reconnect")
+        }
     }
 
     private suspend fun connect(
@@ -169,7 +169,7 @@ constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
-    ): Either<JoinResponse, Either<ReconnectResponse, Unit>> {
+    ): ConnectResult {
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
@@ -691,7 +691,7 @@ constructor(
                     edition = ServerInfo.Edition.fromProto(response.join.serverInfo.edition),
                     version = serverVersion
                 )
-                joinContinuation?.resumeWith(Result.success(Either.Left(response.join)))
+                joinContinuation?.resumeWith(Result.success(ConnectResult.Join(response.join)))
                 joinContinuation = null
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
@@ -711,10 +711,21 @@ constructor(
                 startPingJob()
 
                 if (response.hasReconnect()) {
-                    joinContinuation?.resumeWith(Result.success(Either.Right(Either.Left(response.reconnect))))
+                    if (response.reconnect.hasServerInfo()) {
+                        try {
+                            serverVersion = Semver(response.reconnect.serverInfo.version)
+                        } catch (t: Throwable) {
+                            LKLog.w(t) { "Thrown while trying to parse server version from reconnect." }
+                        }
+                        serverInfo = ServerInfo(
+                            edition = ServerInfo.Edition.fromProto(response.reconnect.serverInfo.edition),
+                            version = serverVersion,
+                        )
+                    }
+                    joinContinuation?.resumeWith(Result.success(ConnectResult.Reconnect(response.reconnect)))
                     joinContinuation = null
                 } else {
-                    joinContinuation?.resumeWith(Result.success(Either.Right(Either.Right(Unit))))
+                    joinContinuation?.resumeWith(Result.success(ConnectResult.OtherResponse))
                     joinContinuation = null
                     // Non-reconnect response, handle normally
                     shouldProcessMessage = true
@@ -829,7 +840,8 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.RECONNECT -> {
-                // TODO
+                // Handshake-only message; handled in handleSignalResponse() before connection.
+                LKLog.d { "ignoring reconnect response received after connected" }
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIPTION_RESPONSE -> {
@@ -958,6 +970,16 @@ constructor(
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+    }
+
+    /**
+     * Result of waiting for the initial signal response after opening the WebSocket.
+     * Join always yields [Join]; reconnect yields [Reconnect] or [OtherResponse].
+     */
+    private sealed class ConnectResult {
+        data class Join(val response: JoinResponse) : ConnectResult()
+        data class Reconnect(val response: ReconnectResponse) : ConnectResult()
+        data object OtherResponse : ConnectResult()
     }
 
     companion object {
