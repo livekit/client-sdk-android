@@ -220,6 +220,72 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun unpublishStopsVideoTransceiver() = runTest {
+        connect()
+        val videoTrack = createLocalTrack()
+        room.localParticipant.publishVideoTrack(videoTrack)
+
+        val transceiver = getPublisherPeerConnection().transceivers.first()
+        room.localParticipant.unpublishTrack(videoTrack)
+
+        Mockito.verify(transceiver).stopInternal()
+    }
+
+    @Test
+    fun unpublishStopsBackupCodecTransceivers() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            scalabilityMode = "L3T3",
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        val videoTrack = createLocalTrack()
+        room.localParticipant.publishVideoTrack(videoTrack)
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        val transceivers = getPublisherPeerConnection().transceivers
+        assertEquals(2, transceivers.size)
+
+        room.localParticipant.unpublishTrack(videoTrack)
+
+        transceivers.forEach { Mockito.verify(it).stopInternal() }
+    }
+
+    @Test
+    fun republishAfterBackupCodecUnpublishCreatesNewBackupTransceiver() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            scalabilityMode = "L3T3",
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        val videoTrack = createLocalTrack()
+        room.localParticipant.publishVideoTrack(videoTrack)
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+        assertEquals(2, getPublisherPeerConnection().transceivers.size)
+
+        room.localParticipant.unpublishTrack(videoTrack, stopOnUnpublish = false)
+        room.localParticipant.publishVideoTrack(videoTrack)
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        assertEquals(4, getPublisherPeerConnection().transceivers.size)
+    }
+
+    @Test
+    fun disposeDisposesVideoSource() {
+        val source = mock(VideoSource::class.java)
+        val videoTrack = createLocalTrack(source = source)
+
+        videoTrack.dispose()
+
+        Mockito.verify(source).dispose()
+    }
+
+    @Test
     fun updateMetadata() = runTest {
         connect()
         val newMetadata = "new_metadata"
@@ -292,9 +358,40 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         )
     }
 
-    private fun createLocalTrack(width: Int = 1280, height: Int = 720, isScreencast: Boolean = false) = LocalVideoTrack(
+    private fun receiveSubscribedQualityUpdate(trackSid: String) {
+        wsFactory.receiveMessage(
+            with(LivekitRtc.SignalResponse.newBuilder()) {
+                subscribedQualityUpdate = with(LivekitRtc.SubscribedQualityUpdate.newBuilder()) {
+                    this.trackSid = trackSid
+                    addAllSubscribedCodecs(
+                        listOf("vp9", "vp8").map { codecName ->
+                            with(SubscribedCodec.newBuilder()) {
+                                codec = codecName
+                                addQualities(
+                                    SubscribedQuality.newBuilder()
+                                        .setQuality(LivekitModels.VideoQuality.HIGH)
+                                        .setEnabled(true)
+                                        .build(),
+                                )
+                                build()
+                            }
+                        },
+                    )
+                    build()
+                }
+                build().toOkioByteString()
+            },
+        )
+    }
+
+    private fun createLocalTrack(
+        width: Int = 1280,
+        height: Int = 720,
+        isScreencast: Boolean = false,
+        source: VideoSource = mock(VideoSource::class.java),
+    ) = LocalVideoTrack(
         capturer = MockVideoCapturer(),
-        source = mock(VideoSource::class.java),
+        source = source,
         name = "",
         options = LocalVideoTrackOptions(
             isScreencast = isScreencast,
