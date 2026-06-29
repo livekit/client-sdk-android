@@ -38,6 +38,7 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.isSVCCodec
+import io.livekit.android.room.isVideoCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
@@ -697,9 +698,9 @@ internal constructor(
             track.statsGetter = engine.createStatsGetter(transceiver.sender)
 
             val finalOptions = options
-            // Handle trackBitrates
+            // Handle trackBitrates - apply start bitrate for all video codecs to prevent initial blurriness
             if (encodings.isNotEmpty()) {
-                if (finalOptions is VideoTrackPublishOptions && isSVCCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
+                if (finalOptions is VideoTrackPublishOptions && isVideoCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
                     engine.registerTrackBitrateInfo(
                         cid = cid,
                         TrackBitrateInfo(
@@ -1481,7 +1482,8 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
-    override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    // Default to MAINTAIN_RESOLUTION to prevent initial video blurriness
+    override val degradationPreference: RtpParameters.DegradationPreference? = RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions()
 
@@ -1494,7 +1496,8 @@ data class VideoTrackPublishOptions(
     override val backupCodec: BackupVideoCodec? = null,
     override val source: Track.Source? = null,
     override val stream: String? = null,
-    override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    // Default to MAINTAIN_RESOLUTION to prevent initial video blurriness
+    override val degradationPreference: RtpParameters.DegradationPreference? = RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
