@@ -697,7 +697,11 @@ internal constructor(
             track.statsGetter = engine.createStatsGetter(transceiver.sender)
 
             val finalOptions = options
-            // Handle trackBitrates
+            // Handle trackBitrates - apply start bitrate for SVC codecs to prevent initial blurriness.
+            // Only SVC codecs (VP9, AV1) are supported here because they have a single encoding with
+            // the full bitrate. Simulcast codecs (VP8, H264) have multiple encodings ordered
+            // smallest-to-largest, so encodings.first() would incorrectly return the lowest layer's
+            // bitrate, which would cap all layers at that low value.
             if (encodings.isNotEmpty()) {
                 if (finalOptions is VideoTrackPublishOptions && isSVCCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
                     engine.registerTrackBitrateInfo(
@@ -1481,7 +1485,8 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
-    override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    // Default to MAINTAIN_RESOLUTION to prevent initial video blurriness
+    override val degradationPreference: RtpParameters.DegradationPreference? = RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions()
 
@@ -1494,7 +1499,8 @@ data class VideoTrackPublishOptions(
     override val backupCodec: BackupVideoCodec? = null,
     override val source: Track.Source? = null,
     override val stream: String? = null,
-    override val degradationPreference: RtpParameters.DegradationPreference? = null,
+    // Default to MAINTAIN_RESOLUTION to prevent initial video blurriness
+    override val degradationPreference: RtpParameters.DegradationPreference? = RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(

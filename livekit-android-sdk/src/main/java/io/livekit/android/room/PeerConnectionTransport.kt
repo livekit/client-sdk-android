@@ -437,13 +437,17 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     }
 }
 
-/* The svc codec (av1/vp9) would use a very low bitrate at the beginning and
-increase slowly by the bandwidth estimator until it reach the target bitrate. The
-process commonly cost more than 10 seconds cause subscriber will get blur video at
-the first few seconds. So we use a 70% of target bitrate here as the start bitrate to
-eliminate this issue.
-*/
-private const val startBitrateForSVC = 0.7
+/*
+ * Video codecs use a very low bitrate at the beginning and increase slowly by
+ * the bandwidth estimator until they reach the target bitrate. The process commonly
+ * costs more than 10 seconds causing subscribers to get blurry video at the first
+ * few seconds. We use x-google-start-bitrate to hint the BWE to start higher.
+ *
+ * Why 90%: Gives ~10% headroom for bandwidth estimation while starting close to target.
+ * Why same for all codecs: Target bitrate already accounts for codec efficiency
+ * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
+ */
+private const val startBitrateMultiplier = 0.9
 
 /**
  * @suppress
@@ -476,7 +480,7 @@ fun ensureCodecBitrates(
                 fmtpFound = true
                 var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
+                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateMultiplier).roundToLong()}"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
                     newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
@@ -492,7 +496,7 @@ fun ensureCodecBitrates(
             media.addAttribute(
                 SdpFmtp(
                     payload = codecPayload,
-                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC};" +
+                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateMultiplier};" +
                         "x-google-max-bitrate=${trackBr.maxBitrate}",
                 ).toAttributeField(),
             )
