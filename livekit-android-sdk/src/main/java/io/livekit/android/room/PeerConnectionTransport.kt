@@ -510,15 +510,6 @@ internal fun isSVCCodec(codec: String?): Boolean {
             "vp9".equals(codec, ignoreCase = true))
 }
 
-internal fun isVideoCodec(codec: String?): Boolean {
-    return codec != null &&
-        ("vp8".equals(codec, ignoreCase = true) ||
-            "vp9".equals(codec, ignoreCase = true) ||
-            "av1".equals(codec, ignoreCase = true) ||
-            "h264".equals(codec, ignoreCase = true) ||
-            "h265".equals(codec, ignoreCase = true))
-}
-
 /**
  * @suppress
  */
