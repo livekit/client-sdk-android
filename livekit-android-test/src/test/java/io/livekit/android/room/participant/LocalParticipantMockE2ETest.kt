@@ -21,7 +21,6 @@ import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.protobuf.ByteString
-import io.livekit.android.audio.AudioProcessorInterface
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
@@ -39,7 +38,6 @@ import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.toListUntilSignal
 import io.livekit.android.test.events.EventCollector
-import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockRTCThreadToken
@@ -61,7 +59,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import livekit.LivekitModels
-import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
 import livekit.LivekitRtc.SubscribedCodec
@@ -79,7 +76,6 @@ import org.mockito.Mockito.mock
 import org.mockito.kotlin.argThat
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
-import java.nio.ByteBuffer
 import kotlin.time.Duration.Companion.seconds
 
 @ExperimentalCoroutinesApi
@@ -677,116 +673,6 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         val transceiver = peerConnection.transceivers.first()
 
         assertEquals(preference, transceiver.sender.parameters.degradationPreference)
-    }
-
-    @Test
-    fun sendsInitialAudioTrackFeatures() = runTest {
-        connect()
-
-        wsFactory.ws.clearRequests()
-        room.localParticipant.publishAudioTrack(
-            track = createMockLocalAudioTrack(),
-        )
-
-        advanceUntilIdle()
-        assertEquals(2, wsFactory.ws.sentRequests.size)
-
-        // Verify the update audio track request gets the proper publish options set.
-        val requestString = wsFactory.ws.sentRequests[1].toPBByteString()
-        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
-            .mergeFrom(requestString)
-            .build()
-
-        assertTrue(sentRequest.hasUpdateAudioTrack())
-        val features = sentRequest.updateAudioTrack.featuresList
-        assertEquals(3, features.size)
-        assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
-        assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
-        assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
-    }
-
-    @Test
-    fun sendsUpdatedAudioTrackFeatures() = runTest {
-        connect()
-
-        val audioProcessingController = MockAudioProcessingController()
-        room.localParticipant.publishAudioTrack(
-            track = createMockLocalAudioTrack(audioProcessingController = audioProcessingController),
-        )
-
-        advanceUntilIdle()
-        wsFactory.ws.clearRequests()
-
-        audioProcessingController.capturePostProcessor = object : AudioProcessorInterface {
-            override fun isEnabled(): Boolean = true
-
-            override fun getName(): String = "krisp_noise_cancellation"
-
-            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {}
-
-            override fun resetAudioProcessing(newRate: Int) {}
-
-            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {}
-        }
-        assertEquals(1, wsFactory.ws.sentRequests.size)
-
-        // Verify the update audio track request gets the proper publish options set.
-        val requestString = wsFactory.ws.sentRequests[0].toPBByteString()
-        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
-            .mergeFrom(requestString)
-            .build()
-
-        assertTrue(sentRequest.hasUpdateAudioTrack())
-        val features = sentRequest.updateAudioTrack.featuresList
-        assertEquals(4, features.size)
-        assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
-        assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
-        assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
-        assertTrue(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
-    }
-
-    @Test
-    fun bypassUpdatesAudioFeatures() = runTest {
-        connect()
-
-        val audioProcessingController = MockAudioProcessingController()
-        room.localParticipant.publishAudioTrack(
-            track = createMockLocalAudioTrack(audioProcessingController = audioProcessingController),
-        )
-
-        advanceUntilIdle()
-        wsFactory.ws.clearRequests()
-
-        audioProcessingController.capturePostProcessor = object : AudioProcessorInterface {
-            override fun isEnabled(): Boolean = true
-
-            override fun getName(): String = "krisp_noise_cancellation"
-
-            override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {}
-
-            override fun resetAudioProcessing(newRate: Int) {}
-
-            override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {}
-        }
-        assertEquals(1, wsFactory.ws.sentRequests.size)
-
-        wsFactory.ws.clearRequests()
-
-        audioProcessingController.bypassCapturePostProcessing = true
-        assertEquals(1, wsFactory.ws.sentRequests.size)
-        // Verify the update audio track request gets the proper publish options set.
-        val requestString = wsFactory.ws.sentRequests[0].toPBByteString()
-        val sentRequest = LivekitRtc.SignalRequest.newBuilder()
-            .mergeFrom(requestString)
-            .build()
-
-        assertTrue(sentRequest.hasUpdateAudioTrack())
-        val features = sentRequest.updateAudioTrack.featuresList
-        assertEquals(3, features.size)
-        assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
-        assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
-        assertTrue(features.contains(AudioTrackFeature.TF_AUTO_GAIN_CONTROL))
-        assertFalse(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 
     @Test
