@@ -38,7 +38,6 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.isSVCCodec
-import io.livekit.android.room.isVideoCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
@@ -698,9 +697,13 @@ internal constructor(
             track.statsGetter = engine.createStatsGetter(transceiver.sender)
 
             val finalOptions = options
-            // Handle trackBitrates - apply start bitrate for all video codecs to prevent initial blurriness
+            // Handle trackBitrates - apply start bitrate for SVC codecs to prevent initial blurriness.
+            // Only SVC codecs (VP9, AV1) are supported here because they have a single encoding with
+            // the full bitrate. Simulcast codecs (VP8, H264) have multiple encodings ordered
+            // smallest-to-largest, so encodings.first() would incorrectly return the lowest layer's
+            // bitrate, which would cap all layers at that low value.
             if (encodings.isNotEmpty()) {
-                if (finalOptions is VideoTrackPublishOptions && isVideoCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
+                if (finalOptions is VideoTrackPublishOptions && isSVCCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
                     engine.registerTrackBitrateInfo(
                         cid = cid,
                         TrackBitrateInfo(
