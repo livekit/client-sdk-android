@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package io.livekit.android.room.track
 
+import livekit.org.webrtc.audio.AudioProcessingOptions
+
 data class LocalAudioTrackOptions(
     val noiseSuppression: Boolean = true,
     val echoCancellation: Boolean = true,
@@ -23,3 +25,12 @@ data class LocalAudioTrackOptions(
     val highPassFilter: Boolean = true,
     val typingNoiseDetection: Boolean = true,
 )
+
+internal fun LocalAudioTrackOptions.toAudioProcessingOptions(): AudioProcessingOptions {
+    return AudioProcessingOptions(
+        echoCancellation,
+        noiseSuppression,
+        autoGainControl,
+        highPassFilter,
+    )
+}

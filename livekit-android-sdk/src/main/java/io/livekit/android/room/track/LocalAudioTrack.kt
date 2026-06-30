@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import livekit.LivekitModels.AudioTrackFeature
 import livekit.org.webrtc.AudioTrackSink
@@ -50,6 +49,7 @@ import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.audio.AudioDeviceModule
+import livekit.org.webrtc.audio.AudioProcessingOptionsResult
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import java.util.UUID
 import javax.inject.Named
@@ -64,7 +64,7 @@ class LocalAudioTrack
 constructor(
     @Assisted name: String,
     @Assisted mediaTrack: livekit.org.webrtc.AudioTrack,
-    @Assisted private val options: LocalAudioTrackOptions,
+    @Assisted options: LocalAudioTrackOptions,
     private val audioProcessingController: AudioProcessingController,
     @Named(InjectionNames.DISPATCHER_DEFAULT)
     private val dispatcher: CoroutineDispatcher,
@@ -87,10 +87,21 @@ constructor(
     private val trackSinks = mutableSetOf<AudioTrackSink>()
 
     /**
+     * The current capture processing options for this track.
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var options: LocalAudioTrackOptions by flowDelegate(options)
+
+    /**
      * Prewarms the audio stack if needed by starting the recording regardless of whether it's being published.
+     *
+     * Platform AEC/NS are configured from [LocalAudioTrackOptions] before the audio session starts.
      */
     fun prewarm() {
-        audioRecordPrewarmer.prewarm()
+        audioRecordPrewarmer.prewarm(options)
     }
 
     fun stopPrewarm() {
@@ -130,29 +141,57 @@ constructor(
     }
 
     /**
+     * Updates the capture processing options on this track.
+     *
+     * Note: [LocalAudioTrackOptions.typingNoiseDetection] is only applied at track creation time.
+     *
+     * Example:
+     * ```
+     * val track = localParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track as? LocalAudioTrack
+     * track?.applyOptions(LocalAudioTrackOptions(echoCancellation = false))
+     * ```
+     */
+    fun applyOptions(options: LocalAudioTrackOptions): Result<Unit> {
+        val result = withRTCTrack(null as AudioProcessingOptionsResult?) {
+            (this as livekit.org.webrtc.AudioTrack).setAudioProcessingOptions(options.toAudioProcessingOptions())
+        } ?: return Result.failure(
+            TrackException.InvalidTrackStateException("Cannot apply options to a disposed track"),
+        )
+
+        if (!result.isSuccess) {
+            return Result.failure(
+                TrackException.MediaException(
+                    result.message?.takeIf { it.isNotEmpty() }
+                        ?: "Failed to apply audio processing options (${result.code})",
+                ),
+            )
+        }
+
+        this.options = options
+        return Result.success(Unit)
+    }
+
+    /**
      * Changes can be observed by using [io.livekit.android.util.flow]
      */
     @FlowObservable
     @get:FlowObservable
     val features by flowDelegate(
         stateFlow = combine(
+            ::options.flow,
             audioProcessingController::capturePostProcessor.flow,
             audioProcessingController::bypassCapturePostProcessing.flow,
-        ) { processor, bypass ->
-            processor to bypass
-        }
-            .map {
-                val features = getConstantFeatures()
-                val (processor, bypass) = it
-                if (!bypass && processor?.getName() == "krisp_noise_cancellation") {
-                    features.add(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION)
-                }
-                return@map features
+        ) { opts, processor, bypass ->
+            val features = getConstantFeatures(opts)
+            if (!bypass && processor?.getName() == "krisp_noise_cancellation") {
+                features.add(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION)
             }
+            features
+        }
             .stateIn(delegateScope, SharingStarted.Eagerly, emptySet()),
     )
 
-    private fun getConstantFeatures(): MutableSet<AudioTrackFeature> {
+    private fun getConstantFeatures(options: LocalAudioTrackOptions): MutableSet<AudioTrackFeature> {
         val features = mutableSetOf<AudioTrackFeature>()
 
         if (options.echoCancellation) {

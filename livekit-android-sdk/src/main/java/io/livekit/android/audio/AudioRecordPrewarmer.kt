@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,15 @@
 
 package io.livekit.android.audio
 
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import livekit.org.webrtc.audio.AudioProcessingOptions
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 
 /**
  * @suppress
  */
 interface AudioRecordPrewarmer {
-    fun prewarm()
+    fun prewarm(options: LocalAudioTrackOptions)
     fun stop()
 }
 
@@ -30,7 +32,7 @@ interface AudioRecordPrewarmer {
  * @suppress
  */
 class NoAudioRecordPrewarmer : AudioRecordPrewarmer {
-    override fun prewarm() {
+    override fun prewarm(options: LocalAudioTrackOptions) {
         // nothing to do.
     }
 
@@ -43,8 +45,15 @@ class NoAudioRecordPrewarmer : AudioRecordPrewarmer {
  * @suppress
  */
 class JavaAudioRecordPrewarmer(private val audioDeviceModule: JavaAudioDeviceModule) : AudioRecordPrewarmer {
-    override fun prewarm() {
-        audioDeviceModule.prewarmRecording()
+    override fun prewarm(options: LocalAudioTrackOptions) {
+        audioDeviceModule.prewarmRecording(
+            AudioProcessingOptions(
+                options.echoCancellation,
+                options.noiseSuppression,
+                options.autoGainControl,
+                options.highPassFilter,
+            ),
+        )
     }
 
     override fun stop() {
