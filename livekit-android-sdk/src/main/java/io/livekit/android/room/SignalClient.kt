@@ -60,6 +60,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -97,6 +98,7 @@ constructor(
     private var lastUrl: String? = null
     internal var lastOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
+    private val nextRequestId = AtomicInteger(0)
 
     @Volatile
     private var joinContinuation: CancellableContinuation<ConnectResult>? = null
@@ -563,8 +565,16 @@ constructor(
         sendRequest(request)
     }
 
-    fun sendUpdateLocalMetadata(metadata: String?, name: String?, attributes: Map<String, String>? = emptyMap()) {
+    internal fun allocateRequestId(): Int = nextRequestId.incrementAndGet()
+
+    fun sendUpdateLocalMetadata(
+        metadata: String?,
+        name: String?,
+        attributes: Map<String, String> = emptyMap(),
+        requestId: Int = allocateRequestId(),
+    ): Int {
         val update = LivekitRtc.UpdateParticipantMetadata.newBuilder()
+            .setRequestId(requestId)
             .setMetadata(metadata ?: "")
             .setName(name ?: "")
             .putAllAttributes(attributes)
@@ -574,6 +584,7 @@ constructor(
             .build()
 
         sendRequest(request)
+        return requestId
     }
 
     fun sendSyncState(syncState: LivekitRtc.SyncState) {
@@ -849,7 +860,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
-                // TODO
+                listener?.onRequestResponse(response.requestResponse)
             }
 
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
@@ -970,6 +981,7 @@ constructor(
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+        fun onRequestResponse(response: LivekitRtc.RequestResponse)
     }
 
     /**
@@ -1047,6 +1059,9 @@ enum class ProtocolVersion(val value: Int) {
 
     // new leave request handling
     v13(13),
+
+    // signal request response handling
+    v15(15),
 }
 
 /**

@@ -41,6 +41,7 @@ import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
+import io.livekit.android.room.signal.SignalRequestException
 import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
@@ -59,13 +60,19 @@ import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.TimeoutException
 import io.livekit.android.util.flow
 import io.livekit.android.util.rethrowIfCancellationSignal
+import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.sortVideoCodecPreferences
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -90,6 +97,7 @@ import javax.inject.Named
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalParticipant
 @AssistedInject
@@ -129,6 +137,8 @@ internal constructor(
             .toList()
 
     private val jobs = mutableMapOf<LocalTrackPublication, Job>()
+
+    private val pendingSignalRequests = Collections.synchronizedMap(mutableMapOf<Int, CompletableDeferred<Unit>>())
 
     // For ensuring that only one caller can execute setTrackEnabled at a time.
     // Without it, there's a potential to create multiple of the same source,
@@ -1124,11 +1134,58 @@ internal constructor(
     }
 
     /**
+     * Sets and updates the metadata of the local participant.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     *
+     * @param metadata the metadata to set
+     * @return a [Result] that succeeds when the server confirms the update, or fails with
+     * [SignalRequestException] if the server rejects the request or
+     * [TimeoutException] if it times out
+     */
+    @CheckResult
+    suspend fun setMetadata(metadata: String): Result<Unit> {
+        return requestMetadataUpdate(metadata = metadata)
+    }
+
+    /**
+     * Sets and updates the name of the local participant.
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     *
+     * @param name the name to set
+     * @return a [Result] that succeeds when the server confirms the update, or fails with
+     * [SignalRequestException] if the server rejects the request or
+     * [TimeoutException] if it times out
+     */
+    @CheckResult
+    suspend fun setName(name: String): Result<Unit> {
+        return requestMetadataUpdate(name = name)
+    }
+
+    /**
+     * Set or update participant attributes. It will make updates only to keys that
+     * are present in [attributes], and will not override others.
+     *
+     * To delete a value, set the value to an empty string.
+     *
+     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     *
+     * @param attributes attributes to update
+     * @return a [Result] that succeeds when the server confirms the update, or fails with
+     * [SignalRequestException] if the server rejects the request or
+     * [TimeoutException] if it times out
+     */
+    @CheckResult
+    suspend fun setAttributes(attributes: Map<String, String>): Result<Unit> {
+        return requestMetadataUpdate(attributes = attributes)
+    }
+
+    /**
      * Updates the metadata of the local participant.  Changes will not be reflected until the
      * server responds confirming the update.
      * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
      * @param metadata
      */
+    @Deprecated(message = "Use the suspend function setMetadata instead.")
     fun updateMetadata(metadata: String) {
         this.engine.client.sendUpdateLocalMetadata(metadata, name)
     }
@@ -1139,6 +1196,7 @@ internal constructor(
      * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
      * @param name
      */
+    @Deprecated(message = "Use the suspend function setName instead.")
     fun updateName(name: String) {
         this.engine.client.sendUpdateLocalMetadata(metadata, name)
     }
@@ -1152,6 +1210,7 @@ internal constructor(
      * Note: this requires `canUpdateOwnMetadata` permission.
      * @param attributes attributes to update
      */
+    @Deprecated(message = "Use the suspend function setAttributes instead.")
     fun updateAttributes(attributes: Map<String, String>) {
         this.engine.client.sendUpdateLocalMetadata(metadata, name, attributes)
     }
@@ -1159,6 +1218,88 @@ internal constructor(
     internal fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
         val pub = trackPublications[trackSid]
         pub?.muted = muted
+    }
+
+    internal fun handleRequestResponse(response: LivekitRtc.RequestResponse) {
+        val deferred = pendingSignalRequests[response.requestId] ?: return
+        if (response.reason != LivekitRtc.RequestResponse.Reason.OK) {
+            pendingSignalRequests.remove(response.requestId)
+            deferred.completeExceptionally(SignalRequestException.fromResponse(response))
+            return
+        }
+        pendingSignalRequests.remove(response.requestId)
+    }
+
+    private suspend fun requestMetadataUpdate(
+        metadata: String? = null,
+        name: String? = null,
+        attributes: Map<String, String>? = null,
+    ): Result<Unit> {
+        val requestId = engine.client.allocateRequestId()
+        val deferred = CompletableDeferred<Unit>()
+        pendingSignalRequests[requestId] = deferred
+
+        return try {
+            engine.client.sendUpdateLocalMetadata(
+                metadata = metadata ?: this.metadata,
+                name = name ?: this.name,
+                attributes = attributes ?: emptyMap(),
+                requestId = requestId,
+            )
+            withDeadline(METADATA_UPDATE_TIMEOUT) {
+                coroutineScope {
+                    val confirmationJob = launch {
+                        combine(
+                            ::name.flow,
+                            ::metadata.flow,
+                            ::attributes.flow,
+                        ) { _, _, _ -> }
+                            .first { isMetadataUpdateConfirmed(metadata, name, attributes) }
+                        if (!deferred.isCompleted) {
+                            deferred.complete(Unit)
+                        }
+                    }
+                    try {
+                        deferred.await()
+                    } finally {
+                        confirmationJob.cancel()
+                    }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: TimeoutException) {
+            deferred.completeExceptionally(e)
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            deferred.cancel()
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            pendingSignalRequests.remove(requestId)
+        }
+    }
+
+    private fun isMetadataUpdateConfirmed(
+        metadata: String?,
+        name: String?,
+        attributes: Map<String, String>?,
+    ): Boolean {
+        if (name != null && this.name != name) {
+            return false
+        }
+        if (metadata != null && this.metadata != metadata) {
+            return false
+        }
+        if (attributes != null &&
+            !attributes.all { (key, value) ->
+                val current = this.attributes[key]
+                current == value || (value.isEmpty() && current.isNullOrEmpty())
+            }
+        ) {
+            return false
+        }
+        return true
     }
 
     internal fun handleSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
@@ -1334,6 +1475,9 @@ internal constructor(
      * @suppress
      */
     fun cleanup() {
+        pendingSignalRequests.values.forEach { it.cancel() }
+        pendingSignalRequests.clear()
+
         for (pub in trackPublications.values) {
             val track = pub.track
 
@@ -1408,6 +1552,10 @@ internal constructor(
     @AssistedFactory
     interface Factory {
         fun create(dynacast: Boolean): LocalParticipant
+    }
+
+    companion object {
+        private val METADATA_UPDATE_TIMEOUT = 5_000.milliseconds
     }
 }
 

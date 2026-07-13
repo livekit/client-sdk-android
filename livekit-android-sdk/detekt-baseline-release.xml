@@ -3,6 +3,7 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>ComplexCondition:LocalParticipant.kt$LocalParticipant$(originalEncoding == null &amp;&amp; !simulcast) || width == 0 || height == 0</ID>
+    <ID>ComplexCondition:LocalParticipant.kt$LocalParticipant$attributes != null &amp;&amp; !attributes.all { (key, value) -> val current = this.attributes[key] current == value || (value.isEmpty() &amp;&amp; current.isNullOrEmpty()) }</ID>
     <ID>ComplexCondition:PeerConnectionTransport.kt$PeerConnectionTransport$sd.type == SessionDescription.Type.ANSWER &amp;&amp; currentOfferId > 0 &amp;&amp; offerId > 0 &amp;&amp; currentOfferId > offerId</ID>
     <ID>ComplexCondition:PreconnectAudioBuffer.kt$sentIdentities.contains(identity) || kind != Participant.Kind.AGENT || state != Participant.State.ACTIVE || identity == null</ID>
     <ID>ComplexCondition:RTCEngine.kt$RTCEngine$(connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.RESUMING) &amp;&amp; subscriberConnected &amp;&amp; publisherConnected</ID>
