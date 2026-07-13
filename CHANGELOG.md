@@ -1,5 +1,21 @@
 # client-sdk-android
 
+## 2.27.0
+
+### Minor Changes
+
+- Add `LocalAudioTrack.applyOptions`, which allows updating the audio track options on the fly. - [#974](https://github.com/livekit/client-sdk-android/pull/974) ([@davidliu](https://github.com/davidliu))
+
+### Patch Changes
+
+- Fix custom LocalAudioTrackOptions not applying correctly - [#974](https://github.com/livekit/client-sdk-android/pull/974) ([@davidliu](https://github.com/davidliu))
+
+- Properly update the server info after reconnect - [#962](https://github.com/livekit/client-sdk-android/pull/962) ([@davidliu](https://github.com/davidliu))
+
+- Scoped the protobuf consumer keep rule to the SDK's generated messages and the well-known types they embed, instead of every GeneratedMessageLite subclass in the consuming app. - [#975](https://github.com/livekit/client-sdk-android/pull/975) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix native memory leaks on video track publish/unpublish cycles (#521). `LocalVideoTrack.dispose()` now disposes its backing `VideoSource`, which was previously left undisposed and leaked for the lifetime of the process (only the track and capturer were released). Unpublishing a video track now also stops its `RtpTransceiver`, along with any extra transceivers added for backup codecs; since a new transceiver is created on every publish, removing the track from its sender alone left them retained until the connection closed. - [#971](https://github.com/livekit/client-sdk-android/pull/971) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
 ## 2.26.1
 
 ### Patch Changes
