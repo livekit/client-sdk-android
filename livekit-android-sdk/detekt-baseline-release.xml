@@ -71,6 +71,7 @@
     <ID>NestedBlockDepth:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
     <ID>NestedBlockDepth:Room.kt$Room$override suspend fun onPostReconnect(isFullReconnect: Boolean)</ID>
     <ID>NestedBlockDepth:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>
+    <ID>NestedBlockDepth:SignalClient.kt$SignalClient$private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
     <ID>SwallowedException:FlowExt.kt$e: CancellationException</ID>
     <ID>SwallowedException:LocalVideoTrack.kt$LocalVideoTrack$e: Exception</ID>
     <ID>SwallowedException:TextureViewRenderer.kt$TextureViewRenderer$e: NotFoundException</ID>
