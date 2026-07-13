@@ -200,6 +200,11 @@ abstract class Track(
         withRTCTrack(Unit, action)
     }
 
+    /**
+     * Ensures the track is valid before attempting to run [action].
+     *
+     * @return the return value of [action], or [defaultValue] if the track is disposed.
+     */
     @OptIn(ExperimentalContracts::class)
     internal inline fun <T> withRTCTrack(defaultValue: T, crossinline action: MediaStreamTrack.() -> T): T {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }

@@ -183,7 +183,7 @@ constructor(
             audioProcessingController::capturePostProcessor.flow,
             audioProcessingController::bypassCapturePostProcessing.flow,
         ) { opts, processor, bypass ->
-            val features = getConstantFeatures(opts)
+            val features = getOptionsFeatures(opts)
             if (!bypass && processor?.getName() == "krisp_noise_cancellation") {
                 features.add(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION)
             }
@@ -192,7 +192,7 @@ constructor(
             .stateIn(delegateScope, SharingStarted.Eagerly, emptySet()),
     )
 
-    private fun getConstantFeatures(options: LocalAudioTrackOptions): MutableSet<AudioTrackFeature> {
+    private fun getOptionsFeatures(options: LocalAudioTrackOptions): MutableSet<AudioTrackFeature> {
         val features = mutableSetOf<AudioTrackFeature>()
 
         if (options.echoCancellation) {

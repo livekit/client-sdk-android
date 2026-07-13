@@ -49,7 +49,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         val track = createMockLocalAudioTrack()
         advanceUntilIdle()
 
-        assertConstantFeatures(track.features)
+        assertDefaultOptionsFeatures(track.features)
     }
 
     @Test
@@ -110,7 +110,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         val audioProcessingController = MockAudioProcessingController()
         val track = createMockLocalAudioTrack(audioProcessingController = audioProcessingController)
         advanceUntilIdle()
-        assertConstantFeatures(track.features)
+        assertDefaultOptionsFeatures(track.features)
 
         audioProcessingController.capturePostProcessor = krispProcessor()
         advanceUntilIdle()
@@ -131,7 +131,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         audioProcessingController.capturePostProcessor = otherProcessor()
         advanceUntilIdle()
 
-        assertConstantFeatures(track.features)
+        assertDefaultOptionsFeatures(track.features)
         assertFalse(track.features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 
@@ -151,7 +151,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         val collectedList = job.await()
 
         assertEquals(2, collectedList.size)
-        assertConstantFeatures(collectedList[0])
+        assertDefaultOptionsFeatures(collectedList[0])
         assertEquals(
             setOf(
                 AudioTrackFeature.TF_NOISE_SUPPRESSION,
@@ -178,7 +178,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         val collectedList = job.await()
 
         assertEquals(2, collectedList.size)
-        assertConstantFeatures(collectedList[0])
+        assertDefaultOptionsFeatures(collectedList[0])
         assertTrue(collectedList[1].contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 
@@ -201,9 +201,9 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         val collectedList = job.await()
 
         assertEquals(3, collectedList.size)
-        assertConstantFeatures(collectedList[0])
+        assertDefaultOptionsFeatures(collectedList[0])
         assertTrue(collectedList[1].contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
-        assertConstantFeatures(collectedList[2])
+        assertDefaultOptionsFeatures(collectedList[2])
         assertFalse(collectedList[2].contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 
@@ -211,7 +211,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
     fun applyOptionsUpdatesFeatures() = runTest {
         val track = createMockLocalAudioTrack()
         advanceUntilIdle()
-        assertConstantFeatures(track.features)
+        assertDefaultOptionsFeatures(track.features)
 
         val updatedOptions = LocalAudioTrackOptions(echoCancellation = false)
         assertTrue(track.applyOptions(updatedOptions).isSuccess)
@@ -312,7 +312,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         assertEquals(2, wsFactory.ws.sentRequests.size)
 
         val features = lastUpdateAudioTrackFeatures()
-        assertConstantFeatures(features)
+        assertDefaultOptionsFeatures(features)
     }
 
     @Test
@@ -359,7 +359,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         assertEquals(1, wsFactory.ws.sentRequests.size)
 
         val features = lastUpdateAudioTrackFeatures()
-        assertConstantFeatures(features)
+        assertDefaultOptionsFeatures(features)
         assertFalse(features.contains(AudioTrackFeature.TF_ENHANCED_NOISE_CANCELLATION))
     }
 
@@ -397,7 +397,7 @@ class LocalAudioTrackMockE2ETest : MockE2ETest() {
         return sentRequest.updateAudioTrack.featuresList.toSet()
     }
 
-    private fun assertConstantFeatures(features: Collection<AudioTrackFeature>) {
+    private fun assertDefaultOptionsFeatures(features: Collection<AudioTrackFeature>) {
         assertEquals(3, features.size)
         assertTrue(features.contains(AudioTrackFeature.TF_ECHO_CANCELLATION))
         assertTrue(features.contains(AudioTrackFeature.TF_NOISE_SUPPRESSION))
