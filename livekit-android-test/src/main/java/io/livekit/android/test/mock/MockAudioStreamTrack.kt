@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package io.livekit.android.test.mock
 
 import livekit.org.webrtc.AudioTrack
+import livekit.org.webrtc.audio.AudioProcessingOptions
+import livekit.org.webrtc.audio.AudioProcessingOptionsResult
 
 class MockAudioStreamTrack(
     val id: String = "id",
@@ -26,6 +28,13 @@ class MockAudioStreamTrack(
 ) : AudioTrack(1L) {
 
     var disposed = false
+    var lastAudioProcessingOptions: AudioProcessingOptions? = null
+    var audioProcessingOptionsResult: AudioProcessingOptionsResult = AudioProcessingOptionsResult.stored()
+
+    override fun setAudioProcessingOptions(options: AudioProcessingOptions): AudioProcessingOptionsResult {
+        lastAudioProcessingOptions = options
+        return audioProcessingOptionsResult
+    }
 
     override fun id(): String = id
 
@@ -48,6 +57,8 @@ class MockAudioStreamTrack(
         }
         disposed = true
     }
+
+    override fun isDisposed(): Boolean = disposed
 
     override fun setVolume(volume: Double) {
     }

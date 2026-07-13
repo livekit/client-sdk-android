@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,6 +200,11 @@ abstract class Track(
         withRTCTrack(Unit, action)
     }
 
+    /**
+     * Ensures the track is valid before attempting to run [action].
+     *
+     * @return the return value of [action], or [defaultValue] if the track is disposed.
+     */
     @OptIn(ExperimentalContracts::class)
     internal inline fun <T> withRTCTrack(defaultValue: T, crossinline action: MediaStreamTrack.() -> T): T {
         contract { callsInPlace(action, InvocationKind.AT_MOST_ONCE) }
