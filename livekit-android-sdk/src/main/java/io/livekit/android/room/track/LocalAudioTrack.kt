@@ -94,6 +94,7 @@ constructor(
     @FlowObservable
     @get:FlowObservable
     var options: LocalAudioTrackOptions by flowDelegate(options)
+        private set
 
     /**
      * Prewarms the audio stack if needed by starting the recording regardless of whether it's being published.
