@@ -446,8 +446,12 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
  * Why 90%: Gives ~10% headroom for bandwidth estimation while starting close to target.
  * Why same for all codecs: Target bitrate already accounts for codec efficiency
  * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
+ * Why cap at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
  */
 private const val startBitrateMultiplier = 0.9
+
+/** Maximum x-google-start-bitrate in kbps. 1 Mbps prevents BWE from starting too aggressively. */
+private const val maxStartBitrateKbps = 1000L
 
 /**
  * @suppress
@@ -480,7 +484,9 @@ fun ensureCodecBitrates(
                 fmtpFound = true
                 var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateMultiplier).roundToLong()}"
+                    // Use 90% of target bitrate, capped at 1 Mbps to prevent BWE from starting too aggressively
+                    val startBitrate = minOf((trackBr.maxBitrate * startBitrateMultiplier).roundToLong(), maxStartBitrateKbps)
+                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=$startBitrate"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
                     newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
@@ -493,10 +499,12 @@ fun ensureCodecBitrates(
         }
 
         if (!fmtpFound) {
+            // Use 90% of target bitrate, capped at 1 Mbps to prevent BWE from starting too aggressively
+            val startBitrate = minOf((trackBr.maxBitrate * startBitrateMultiplier).roundToLong(), maxStartBitrateKbps)
             media.addAttribute(
                 SdpFmtp(
                     payload = codecPayload,
-                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateMultiplier};" +
+                    config = "x-google-start-bitrate=$startBitrate;" +
                         "x-google-max-bitrate=${trackBr.maxBitrate}",
                 ).toAttributeField(),
             )
