@@ -698,15 +698,21 @@ internal constructor(
 
             val finalOptions = options
             // Handle trackBitrates - apply start bitrate for all video codecs to prevent initial blurriness.
-            // Sum all encoding bitrates for simulcast (BWE needs to handle all layers combined).
+            // - SVC codecs: use first encoding's bitrate (single stream with built-in layers)
+            // - Simulcast: sum all encoding bitrates (independent streams, BWE needs total)
             if (encodings.isNotEmpty() && finalOptions is VideoTrackPublishOptions) {
-                val totalBitrateBps = encodings.sumOf { it.maxBitrateBps ?: 0 }
-                if (totalBitrateBps > 0) {
+                val targetBitrateBps = if (isSVCCodec(finalOptions.videoCodec)) {
+                    encodings.firstOrNull()?.maxBitrateBps ?: 0
+                } else {
+                    encodings.sumOf { it.maxBitrateBps ?: 0 }
+                }
+                if (targetBitrateBps > 0) {
                     engine.registerTrackBitrateInfo(
                         cid = cid,
                         TrackBitrateInfo(
                             codec = finalOptions.videoCodec,
-                            maxBitrate = totalBitrateBps / 1000,
+                            maxBitrate = targetBitrateBps / 1000,
+                            isScreenShare = trackSource == Track.Source.SCREEN_SHARE,
                         ),
                     )
                 }
