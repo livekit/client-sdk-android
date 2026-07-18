@@ -701,10 +701,10 @@ internal constructor(
             // - SVC codecs: use first encoding's bitrate (single stream with built-in layers)
             // - Simulcast: sum all encoding bitrates (independent streams, BWE needs total)
             if (encodings.isNotEmpty() && finalOptions is VideoTrackPublishOptions) {
-                val targetBitrateBps = if (isSVCCodec(finalOptions.videoCodec)) {
-                    encodings.firstOrNull()?.maxBitrateBps ?: 0
+                val targetBitrateBps: Long = if (isSVCCodec(finalOptions.videoCodec)) {
+                    (encodings.firstOrNull()?.maxBitrateBps ?: 0).toLong()
                 } else {
-                    encodings.sumOf { it.maxBitrateBps ?: 0 }
+                    encodings.sumOf { (it.maxBitrateBps ?: 0).toLong() }
                 }
                 if (targetBitrateBps > 0) {
                     engine.registerTrackBitrateInfo(

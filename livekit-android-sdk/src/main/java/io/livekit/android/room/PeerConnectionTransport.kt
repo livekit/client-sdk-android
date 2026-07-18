@@ -453,6 +453,9 @@ private const val startBitrateMultiplier = 0.9
 /** Maximum x-google-start-bitrate in kbps. 1 Mbps prevents BWE from starting too aggressively. */
 private const val maxStartBitrateKbps = 1000L
 
+/** Minimum target bitrate in kbps to apply start bitrate hint. Below this, the hint hurts more than it helps. */
+private const val minTargetBitrateKbps = 300L
+
 /**
  * @suppress
  */
@@ -476,6 +479,11 @@ fun ensureCodecBitrates(
             .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
             ?: continue
         val codecPayload = rtp.payload
+
+        // Skip start bitrate hint for very low bitrate tracks - the hint hurts more than it helps
+        if (trackBr.maxBitrate < minTargetBitrateKbps) {
+            continue
+        }
 
         val fmtps = media.getFmtps()
         // Use 90% of target bitrate, capped at 1 Mbps for camera to prevent BWE from starting too aggressively
