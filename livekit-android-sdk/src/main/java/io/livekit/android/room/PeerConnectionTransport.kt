@@ -478,14 +478,22 @@ fun ensureCodecBitrates(
         val codecPayload = rtp.payload
 
         val fmtps = media.getFmtps()
+        // Use 90% of target bitrate, capped at 1 Mbps for camera to prevent BWE from starting too aggressively
+        // Screen share is not capped since text/UI clarity requires high bitrate from the start
+        // TODO: dynamically adjust start bitrate based on network conditions (e.g., use previous BWE estimate)
+        val calculatedStartBitrate = (trackBr.maxBitrate * startBitrateMultiplier).roundToLong()
+        val startBitrate = if (trackBr.isScreenShare) {
+            calculatedStartBitrate
+        } else {
+            minOf(calculatedStartBitrate, maxStartBitrateKbps)
+        }
+
         var fmtpFound = false
         for ((attribute, fmtp) in fmtps) {
             if (fmtp.payload == codecPayload) {
                 fmtpFound = true
                 var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    // Use 90% of target bitrate, capped at 1 Mbps to prevent BWE from starting too aggressively
-                    val startBitrate = minOf((trackBr.maxBitrate * startBitrateMultiplier).roundToLong(), maxStartBitrateKbps)
                     newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=$startBitrate"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
@@ -499,8 +507,6 @@ fun ensureCodecBitrates(
         }
 
         if (!fmtpFound) {
-            // Use 90% of target bitrate, capped at 1 Mbps to prevent BWE from starting too aggressively
-            val startBitrate = minOf((trackBr.maxBitrate * startBitrateMultiplier).roundToLong(), maxStartBitrateKbps)
             media.addAttribute(
                 SdpFmtp(
                     payload = codecPayload,
@@ -524,6 +530,7 @@ internal fun isSVCCodec(codec: String?): Boolean {
 data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
+    val isScreenShare: Boolean = false,
 )
 
 /**
