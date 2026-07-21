@@ -56,13 +56,15 @@ class SdpMungingTest {
         val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
         val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
 
+        // Use realistic bitrate: 1000 kbps (1 Mbps)
+        // With 0.9 multiplier: startBitrate = 900 kbps (below 1 Mbps cap)
         ensureCodecBitrates(
             mediaDescription,
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
                         "VP9",
-                        1000000L,
+                        1000L,
                     ),
             ),
         )
@@ -71,7 +73,7 @@ class SdpMungingTest {
             .filter { (_, fmtp) -> fmtp.payload == 98L }
             .first()
 
-        assertEquals("profile-id=0;x-google-start-bitrate=700000;x-google-max-bitrate=1000000", vp9fmtp.config)
+        assertEquals("profile-id=0;x-google-start-bitrate=900;x-google-max-bitrate=1000", vp9fmtp.config)
     }
 
     companion object {
