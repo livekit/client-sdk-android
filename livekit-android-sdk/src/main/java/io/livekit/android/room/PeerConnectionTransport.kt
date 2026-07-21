@@ -437,13 +437,24 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     }
 }
 
-/* The svc codec (av1/vp9) would use a very low bitrate at the beginning and
-increase slowly by the bandwidth estimator until it reach the target bitrate. The
-process commonly cost more than 10 seconds cause subscriber will get blur video at
-the first few seconds. So we use a 70% of target bitrate here as the start bitrate to
-eliminate this issue.
-*/
-private const val startBitrateForSVC = 0.7
+/*
+ * Video codecs use a very low bitrate at the beginning and increase slowly by
+ * the bandwidth estimator until they reach the target bitrate. The process commonly
+ * costs more than 10 seconds causing subscribers to get blurry video at the first
+ * few seconds. We use x-google-start-bitrate to hint the BWE to start higher.
+ *
+ * Why 90%: Gives ~10% headroom for bandwidth estimation while starting close to target.
+ * Why same for all codecs: Target bitrate already accounts for codec efficiency
+ * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
+ * Why cap at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
+ */
+private const val startBitrateMultiplier = 0.9
+
+/** Maximum x-google-start-bitrate in kbps. 1 Mbps prevents BWE from starting too aggressively. */
+private const val maxStartBitrateKbps = 1000L
+
+/** Minimum target bitrate in kbps to apply start bitrate hint. Below this, the hint hurts more than it helps. */
+private const val minTargetBitrateKbps = 300L
 
 /**
  * @suppress
@@ -469,14 +480,29 @@ fun ensureCodecBitrates(
             ?: continue
         val codecPayload = rtp.payload
 
+        // Skip start bitrate hint for very low bitrate tracks - the hint hurts more than it helps
+        if (trackBr.maxBitrate < minTargetBitrateKbps) {
+            continue
+        }
+
         val fmtps = media.getFmtps()
+        // Use 90% of target bitrate, capped at 1 Mbps for camera to prevent BWE from starting too aggressively
+        // Screen share is not capped since text/UI clarity requires high bitrate from the start
+        // TODO: dynamically adjust start bitrate based on network conditions (e.g., use previous BWE estimate)
+        val calculatedStartBitrate = (trackBr.maxBitrate * startBitrateMultiplier).roundToLong()
+        val startBitrate = if (trackBr.isScreenShare) {
+            calculatedStartBitrate
+        } else {
+            minOf(calculatedStartBitrate, maxStartBitrateKbps)
+        }
+
         var fmtpFound = false
         for ((attribute, fmtp) in fmtps) {
             if (fmtp.payload == codecPayload) {
                 fmtpFound = true
                 var newFmtpConfig = fmtp.config
                 if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
+                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=$startBitrate"
                 }
                 if (!fmtp.config.contains("x-google-max-bitrate")) {
                     newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
@@ -492,7 +518,7 @@ fun ensureCodecBitrates(
             media.addAttribute(
                 SdpFmtp(
                     payload = codecPayload,
-                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC};" +
+                    config = "x-google-start-bitrate=$startBitrate;" +
                         "x-google-max-bitrate=${trackBr.maxBitrate}",
                 ).toAttributeField(),
             )
@@ -512,6 +538,7 @@ internal fun isSVCCodec(codec: String?): Boolean {
 data class TrackBitrateInfo(
     val codec: String,
     val maxBitrate: Long,
+    val isScreenShare: Boolean = false,
 )
 
 /**

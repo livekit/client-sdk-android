@@ -701,14 +701,22 @@ internal constructor(
             track.statsGetter = engine.createStatsGetter(transceiver.sender)
 
             val finalOptions = options
-            // Handle trackBitrates
-            if (encodings.isNotEmpty()) {
-                if (finalOptions is VideoTrackPublishOptions && isSVCCodec(finalOptions.videoCodec) && encodings.firstOrNull()?.maxBitrateBps != null) {
+            // Handle trackBitrates - apply start bitrate for all video codecs to prevent initial blurriness.
+            // - SVC codecs: use first encoding's bitrate (single stream with built-in layers)
+            // - Simulcast: sum all encoding bitrates (independent streams, BWE needs total)
+            if (encodings.isNotEmpty() && finalOptions is VideoTrackPublishOptions) {
+                val targetBitrateBps: Long = if (isSVCCodec(finalOptions.videoCodec)) {
+                    (encodings.firstOrNull()?.maxBitrateBps ?: 0).toLong()
+                } else {
+                    encodings.sumOf { (it.maxBitrateBps ?: 0).toLong() }
+                }
+                if (targetBitrateBps > 0) {
                     engine.registerTrackBitrateInfo(
                         cid = cid,
                         TrackBitrateInfo(
                             codec = finalOptions.videoCodec,
-                            maxBitrate = (encodings.first().maxBitrateBps?.div(1000) ?: 0).toLong(),
+                            maxBitrate = targetBitrateBps / 1000,
+                            isScreenShare = trackSource == Track.Source.SCREEN_SHARE,
                         ),
                     )
                 }
@@ -720,7 +728,12 @@ internal constructor(
                 (track as LocalVideoTrack).codec = finalOptions.videoCodec
 
                 val rtpParameters = transceiver.sender.parameters
+                // Use provided degradation preference, or default based on track source:
+                // - Camera: MAINTAIN_FRAMERATE (smoother video for real-time communication)
+                // - Screen share: MAINTAIN_RESOLUTION (clarity is critical for text/UI)
+                // - Other/unknown: BALANCED
                 rtpParameters.degradationPreference = finalOptions.degradationPreference
+                    ?: getDefaultDegradationPreference(trackSource)
                 transceiver.sender.parameters = rtpParameters
             }
 
@@ -1471,10 +1484,17 @@ abstract class BaseVideoTrackPublishOptions {
     abstract val backupCodec: BackupVideoCodec?
 
     /**
-     * When bandwidth is constrained, this preference indicates which is preferred
-     * between degrading resolution vs. framerate.
+     * Controls how the encoder trades off between resolution and framerate
+     * when bandwidth is constrained.
      *
-     * null value indicates default value (maintain framerate).
+     * - MAINTAIN_FRAMERATE: Prioritizes framerate, reduces resolution if needed
+     * - MAINTAIN_RESOLUTION: Prioritizes resolution, drops frames if needed
+     * - BALANCED: Balances between both
+     *
+     * If not set (null), the SDK uses defaults based on track source:
+     * - Camera: MAINTAIN_FRAMERATE (smoother video for real-time communication)
+     * - Screen share: MAINTAIN_RESOLUTION (clarity is critical for text/UI)
+     * - Other/unknown: BALANCED
      */
     abstract val degradationPreference: RtpParameters.DegradationPreference?
 
@@ -1496,6 +1516,8 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
+    // Default is null - SDK applies source-based defaults at runtime:
+    // Camera: MAINTAIN_FRAMERATE, Screen share: MAINTAIN_RESOLUTION, Other: BALANCED
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions()
@@ -1509,6 +1531,8 @@ data class VideoTrackPublishOptions(
     override val backupCodec: BackupVideoCodec? = null,
     override val source: Track.Source? = null,
     override val stream: String? = null,
+    // Default is null - SDK applies source-based defaults at runtime:
+    // Camera: MAINTAIN_FRAMERATE, Screen share: MAINTAIN_RESOLUTION, Other: BALANCED
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
@@ -1675,6 +1699,21 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
 
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
+
+/**
+ * Returns the appropriate degradation preference for a video track based on its source.
+ *
+ * - Camera: MAINTAIN_FRAMERATE (smoother video for real-time communication)
+ * - Screen share: MAINTAIN_RESOLUTION (clarity is critical for reading text/UI)
+ * - Other/unknown: BALANCED
+ */
+private fun getDefaultDegradationPreference(source: Track.Source): RtpParameters.DegradationPreference {
+    return when (source) {
+        Track.Source.CAMERA -> RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE
+        Track.Source.SCREEN_SHARE -> RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+        else -> RtpParameters.DegradationPreference.BALANCED
+    }
+}
 
 /**
  * A handler that processes an RPC request and returns a string
