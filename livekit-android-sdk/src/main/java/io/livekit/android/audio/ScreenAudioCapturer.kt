@@ -111,9 +111,25 @@ constructor(
      */
     private val captureConfigurator: AudioPlaybackCaptureConfigurator = DEFAULT_CONFIGURATOR,
 ) : MixerAudioBufferCallback() {
+    /**
+     * Guards publication and release of [audioRecord]. [initAudioRecord] runs on WebRTC's audio
+     * record thread, while [releaseAudioResources] is called by the app from a thread of its
+     * choosing.
+     */
+    private val audioRecordLock = Any()
+
+    @Volatile
     private var audioRecord: AudioRecord? = null
 
+    /**
+     * Terminal once set: releasing is what an app does when it is done capturing, and a capturer
+     * is tied to the single [MediaProjection] it was constructed with.
+     */
+    private var isReleased = false
+
     private var hasInitialized = false
+
+    @Volatile
     private var byteBuffer: ByteBuffer? = null
 
     /**
@@ -173,8 +189,8 @@ constructor(
      * and does not need to be called manually.
      *
      * @return true if the audio record was successfully created and started. Returns false
-     * if audio capture is unavailable (for example, if the media projection has been stopped),
-     * in which case no audio will be mixed.
+     * if audio capture is unavailable (for example, if the media projection has been stopped,
+     * or the capturer has been released), in which case no audio will be mixed.
      */
     @SuppressLint("MissingPermission")
     fun initAudioRecord(audioFormat: Int, channelCount: Int, sampleRate: Int): Boolean {
@@ -236,7 +252,14 @@ constructor(
             return false
         }
 
-        this.audioRecord = audioRecord
+        synchronized(audioRecordLock) {
+            if (isReleased) {
+                LKLog.w { "Screen share audio capturer was released while starting up. Discarding the AudioRecord." }
+                audioRecord.release()
+                return false
+            }
+            this.audioRecord = audioRecord
+        }
 
         return true
     }
@@ -245,12 +268,15 @@ constructor(
      * Release any audio resources associated with this capturer.
      * This is not managed by LiveKit, so you must call this function
      * when finished to prevent memory leaks.
+     *
+     * Safe to call from any thread, and at any point relative to [initAudioRecord]. Once released,
+     * the capturer stays released and no further audio is mixed in.
      */
     fun releaseAudioResources() {
-        val audioRecord = this.audioRecord
-        if (audioRecord != null) {
-            audioRecord.release()
-            this.audioRecord = null
+        synchronized(audioRecordLock) {
+            isReleased = true
+            audioRecord?.release()
+            audioRecord = null
         }
     }
 
