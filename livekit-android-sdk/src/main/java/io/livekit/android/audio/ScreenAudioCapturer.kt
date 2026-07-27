@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,9 +111,25 @@ constructor(
      */
     private val captureConfigurator: AudioPlaybackCaptureConfigurator = DEFAULT_CONFIGURATOR,
 ) : MixerAudioBufferCallback() {
+    /**
+     * Guards publication and release of [audioRecord]. [initAudioRecord] runs on WebRTC's audio
+     * record thread, while [releaseAudioResources] is called by the app from a thread of its
+     * choosing.
+     */
+    private val audioRecordLock = Any()
+
+    @Volatile
     private var audioRecord: AudioRecord? = null
 
+    /**
+     * Terminal once set: releasing is what an app does when it is done capturing, and a capturer
+     * is tied to the single [MediaProjection] it was constructed with.
+     */
+    private var isReleased = false
+
     private var hasInitialized = false
+
+    @Volatile
     private var byteBuffer: ByteBuffer? = null
 
     /**
@@ -131,7 +147,15 @@ constructor(
 
         val audioRecord = this.audioRecord ?: return null
         val recordBuffer = this.byteBuffer ?: return null
-        audioRecord.read(recordBuffer, recordBuffer.capacity())
+        val readResult = audioRecord.read(recordBuffer, recordBuffer.capacity())
+        if (readResult != recordBuffer.capacity()) {
+            // On a short or failed read, the buffer contents are stale; skip mixing rather than replay them.
+            if (readResult < 0) {
+                LKLog.w { "AudioRecord.read failed: $readResult. Stopping screen share audio capture." }
+                releaseAudioResources()
+            }
+            return null
+        }
 
         if (abs(gain - DEFAULT_GAIN) > MIN_GAIN_CHANGE) {
             recordBuffer.position(0)
@@ -158,44 +182,64 @@ constructor(
         return BufferResponse(recordBuffer)
     }
 
+    /**
+     * Initializes the [AudioRecord] used to capture the playback audio.
+     *
+     * This is handled automatically when used as an audio buffer callback,
+     * and does not need to be called manually.
+     *
+     * @return true if the audio record was successfully created and started. Returns false
+     * if audio capture is unavailable (for example, if the media projection has been stopped,
+     * or the capturer has been released), in which case no audio will be mixed.
+     */
     @SuppressLint("MissingPermission")
     fun initAudioRecord(audioFormat: Int, channelCount: Int, sampleRate: Int): Boolean {
-        val audioCaptureConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-            .apply(captureConfigurator)
-            .build()
-        val channelMask = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
-
-        val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelMask, audioFormat)
-        if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
-            throw IllegalStateException("minBuffer size error: $minBufferSize")
-        }
-        LKLog.v { "AudioRecord.getMinBufferSize: $minBufferSize" }
-
-        val bytesPerFrame = channelCount * getBytesPerSample(audioFormat)
-        val framesPerBuffer = sampleRate / 100
-        val readBufferCapacity = bytesPerFrame * framesPerBuffer
-        val byteBuffer = ByteBuffer.allocateDirect(readBufferCapacity)
-            .order(ByteOrder.nativeOrder())
-
-        if (!byteBuffer.hasArray()) {
-            LKLog.e { "ByteBuffer does not have backing array." }
+        if (channelCount != 1 && channelCount != 2) {
+            LKLog.e { "Unsupported channel count: $channelCount" }
             return false
         }
+        val audioRecord = try {
+            val audioCaptureConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                .apply(captureConfigurator)
+                .build()
+            val channelMask = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
 
-        this.byteBuffer = byteBuffer
-        val bufferSizeInBytes: Int = max(BUFFER_SIZE_FACTOR * minBufferSize, readBufferCapacity)
+            val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelMask, audioFormat)
+            if (minBufferSize <= 0) {
+                LKLog.e { "AudioRecord.getMinBufferSize error: $minBufferSize" }
+                return false
+            }
+            LKLog.v { "AudioRecord.getMinBufferSize: $minBufferSize" }
 
-        val audioRecord = AudioRecord.Builder()
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(audioFormat)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(channelMask)
-                    .build(),
-            )
-            .setBufferSizeInBytes(bufferSizeInBytes)
-            .setAudioPlaybackCaptureConfig(audioCaptureConfig)
-            .build()
+            val bytesPerFrame = channelCount * getBytesPerSample(audioFormat)
+            val framesPerBuffer = sampleRate / 100
+            val readBufferCapacity = bytesPerFrame * framesPerBuffer
+            val byteBuffer = ByteBuffer.allocateDirect(readBufferCapacity)
+                .order(ByteOrder.nativeOrder())
+
+            if (!byteBuffer.hasArray()) {
+                LKLog.e { "ByteBuffer does not have backing array." }
+                return false
+            }
+
+            this.byteBuffer = byteBuffer
+            val bufferSizeInBytes: Int = max(BUFFER_SIZE_FACTOR * minBufferSize, readBufferCapacity)
+
+            AudioRecord.Builder()
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(audioFormat)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(channelMask)
+                        .build(),
+                )
+                .setBufferSizeInBytes(bufferSizeInBytes)
+                .setAudioPlaybackCaptureConfig(audioCaptureConfig)
+                .build()
+        } catch (e: Exception) {
+            LKLog.e(e) { "Failed to create AudioRecord for screen share audio capture:" }
+            return false
+        }
 
         try {
             audioRecord.startRecording()
@@ -208,10 +252,18 @@ constructor(
             LKLog.e {
                 "AudioRecord.startRecording failed - incorrect state: ${audioRecord.recordingState}"
             }
+            audioRecord.release()
             return false
         }
 
-        this.audioRecord = audioRecord
+        synchronized(audioRecordLock) {
+            if (isReleased) {
+                LKLog.w { "Screen share audio capturer was released while starting up. Discarding the AudioRecord." }
+                audioRecord.release()
+                return false
+            }
+            this.audioRecord = audioRecord
+        }
 
         return true
     }
@@ -220,12 +272,15 @@ constructor(
      * Release any audio resources associated with this capturer.
      * This is not managed by LiveKit, so you must call this function
      * when finished to prevent memory leaks.
+     *
+     * Safe to call from any thread, and at any point relative to [initAudioRecord]. Once released,
+     * the capturer stays released and no further audio is mixed in.
      */
     fun releaseAudioResources() {
-        val audioRecord = this.audioRecord
-        if (audioRecord != null) {
-            audioRecord.release()
-            this.audioRecord = null
+        synchronized(audioRecordLock) {
+            isReleased = true
+            audioRecord?.release()
+            audioRecord = null
         }
     }
 
