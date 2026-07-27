@@ -194,6 +194,10 @@ constructor(
      */
     @SuppressLint("MissingPermission")
     fun initAudioRecord(audioFormat: Int, channelCount: Int, sampleRate: Int): Boolean {
+        if (channelCount != 1 && channelCount != 2) {
+            LKLog.e { "Unsupported channel count: $channelCount" }
+            return false
+        }
         val audioRecord = try {
             val audioCaptureConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
                 .apply(captureConfigurator)
@@ -201,7 +205,7 @@ constructor(
             val channelMask = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
 
             val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelMask, audioFormat)
-            if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
+            if (minBufferSize <= 0) {
                 LKLog.e { "AudioRecord.getMinBufferSize error: $minBufferSize" }
                 return false
             }
