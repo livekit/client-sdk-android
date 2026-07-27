@@ -18,6 +18,7 @@ Use this SDK to add realtime video, audio and data features to your Android/Kotl
 
 - [Docs](#docs)
 - [Installation](#installation)
+- [SDK Size](#sdk-size)
 - [Usage](#usage)
     - [Permissions](#permissions)
     - [Publishing camera and microphone](#publishing-camera-and-microphone)
@@ -79,6 +80,18 @@ dependencyResolutionManagement {
     }
 }
 ```
+
+## SDK Size
+
+The SDK includes native WebRTC libraries for multiple CPU architectures (arm64-v8a, armeabi-v7a, x86, x86_64). When inspecting the AAR or a universal APK, the combined size may appear to be dozens of megabytes.
+
+However, when distributing your app via Google Play using [App Bundles](https://developer.android.com/guide/app-bundle), only the native library for the user's specific device architecture is delivered, resulting in a significantly smaller download size.
+
+To measure the actual size impact for a specific architecture:
+- Use [bundletool](https://developer.android.com/tools/bundletool) to generate device-specific APKs from your App Bundle
+- Or open the APK in Android Studio's APK Analyzer and inspect the `/lib/<arch>/` folders individually
+
+If you have strict size requirements, such as voice-only use cases where video codecs are not needed, please contact our [support team](https://livekit.io/contact) to discuss options for further reducing the SDK footprint.
 
 ## Usage
 
