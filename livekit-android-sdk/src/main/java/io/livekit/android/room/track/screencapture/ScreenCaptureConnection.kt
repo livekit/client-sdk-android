@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,56 +24,181 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Handles connecting to a [ScreenCaptureService].
  */
 internal class ScreenCaptureConnection(private val context: Context) {
+    /**
+     * True while [ScreenCaptureService] is connected and [startForeground] can reach it.
+     */
     var isBound = false
         private set
+
+    /**
+     * True from the start of a bind attempt until its matching unbind attempt. This is a wider
+     * window than [isBound]: the binding is owed an unbind even if the service never connects.
+     */
+    private var isBindRequested = false
     private var service: ScreenCaptureService? = null
-    private val queuedConnects = mutableSetOf<Continuation<Unit>>()
+    private var hasConnectedCaller = false
+    private val queuedConnects = mutableSetOf<CancellableContinuation<Unit>>()
     private val connection: ServiceConnection = object : ServiceConnection {
         override fun onServiceDisconnected(name: ComponentName) {
             LKLog.v { "Screen capture service is disconnected" }
-            isBound = false
-            service = null
+            synchronized(this@ScreenCaptureConnection) {
+                isBound = false
+                service = null
+            }
         }
 
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             LKLog.v { "Screen capture service is connected" }
             val screenCaptureBinder = binder as ScreenCaptureService.ScreenCaptureBinder
-            service = screenCaptureBinder.service
-            handleConnect()
+            val connects = synchronized(this@ScreenCaptureConnection) {
+                if (!isBindRequested) {
+                    return
+                }
+                service = screenCaptureBinder.service
+                isBound = true
+                queuedConnects.filter { it.isActive }
+            }
+            connects.forEach { it.resume(Unit) }
+        }
+
+        override fun onBindingDied(name: ComponentName) {
+            LKLog.w { "Screen capture service binding died" }
+            failPendingConnects("ScreenCaptureService binding died.")
+        }
+
+        override fun onNullBinding(name: ComponentName) {
+            LKLog.w { "Screen capture service returned a null binding" }
+            failPendingConnects("ScreenCaptureService returned a null binding.")
         }
     }
 
+    /**
+     * Binds to [ScreenCaptureService] and suspends until it is connected.
+     *
+     * @throws IllegalStateException if the service could not be bound, or the binding died or
+     * came back null before the service connected.
+     * @throws SecurityException if the caller cannot access the service.
+     * @throws CancellationException if [stop] tears the connection down while connecting.
+     */
     suspend fun connect() {
-        if (isBound) {
-            return
-        }
-
-        val intent = Intent(context, ScreenCaptureService::class.java)
-        val bound = context.bindService(intent, connection, BIND_AUTO_CREATE)
-        if (!bound) {
-            throw IllegalStateException("Failed to bind ScreenCaptureService.")
-        }
-        return suspendCancellableCoroutine { cont ->
-            cont.invokeOnCancellation {
-                synchronized(this) {
-                    queuedConnects.remove(cont)
-                }
-            }
+        lateinit var continuation: CancellableContinuation<Unit>
+        suspendCancellableCoroutine { cont ->
+            continuation = cont
+            // Binding and enqueueing happen under one lock, so a concurrent stop() either
+            // precedes the bind or cancels the waiter, and never strands it against a
+            // connection that has already been unbound.
+            var outcome: Result<Unit>? = null
             synchronized(this) {
                 if (isBound) {
-                    cont.resume(Unit)
+                    outcome = Result.success(Unit)
                 } else {
                     queuedConnects.add(cont)
+                    val failure = runCatching { if (!isBindRequested) bind() }.exceptionOrNull()
+                    if (failure != null) {
+                        queuedConnects.remove(cont)
+                        outcome = Result.failure(failure)
+                    }
                 }
             }
+
+            val result = outcome
+            if (result == null) {
+                // Registered once the waiter is queued, so a continuation that was already
+                // cancelled still releases the binding it just requested.
+                cont.invokeOnCancellation { abandonConnect(cont) }
+            } else {
+                // Resumed outside the lock, since resuming runs the continuation inline.
+                cont.resumeWith(result)
+            }
+        }
+
+        val connected = synchronized(this) {
+            queuedConnects.remove(continuation)
+            if (isBindRequested && isBound) {
+                hasConnectedCaller = true
+                true
+            } else {
+                if (queuedConnects.isEmpty() && !hasConnectedCaller) {
+                    unbind()
+                }
+                false
+            }
+        }
+        if (!connected) {
+            throw CancellationException("ScreenCaptureService connection was stopped.")
+        }
+    }
+
+    /**
+     * Releases a binding that no longer has anyone waiting on it. Screen share setup is routinely
+     * driven from a cancellable scope, and the caller that requested the bind does not necessarily
+     * survive to call [stop].
+     */
+    private fun abandonConnect(cont: CancellableContinuation<Unit>) {
+        synchronized(this) {
+            queuedConnects.remove(cont)
+            if (queuedConnects.isEmpty() && !hasConnectedCaller) {
+                unbind()
+            }
+        }
+    }
+
+    /**
+     * Releases a binding the platform has reported will never connect, and fails every caller
+     * waiting on it. Neither report is followed by [ServiceConnection.onServiceConnected], so a
+     * queued caller would otherwise stay suspended until [stop].
+     */
+    private fun failPendingConnects(message: String) {
+        val failedConnects = synchronized(this) {
+            if (!isBindRequested) {
+                return
+            }
+            unbind()
+            queuedConnects.toList().also { queuedConnects.clear() }
+        }
+        // Resumed outside the lock, since resuming runs the continuation inline.
+        failedConnects.forEach { it.resumeWithException(IllegalStateException(message)) }
+    }
+
+    private fun bind() {
+        val intent = Intent(context, ScreenCaptureService::class.java)
+        // A connection is registered even when bindService reports failure, so the unbind is
+        // owed from the moment the call is made.
+        isBindRequested = true
+        val bound = try {
+            context.bindService(intent, connection, BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            unbind()
+            throw e
+        }
+        if (!bound) {
+            unbind()
+            throw IllegalStateException("Failed to bind ScreenCaptureService.")
+        }
+    }
+
+    private fun unbind() {
+        if (!isBindRequested) {
+            return
+        }
+        isBindRequested = false
+        isBound = false
+        service = null
+        hasConnectedCaller = false
+        try {
+            context.unbindService(connection)
+        } catch (e: IllegalArgumentException) {
+            LKLog.v(e) { "Screen capture service was not bound" }
         }
     }
 
@@ -81,19 +206,12 @@ internal class ScreenCaptureConnection(private val context: Context) {
         service?.start(notificationId, notification)
     }
 
-    private fun handleConnect() {
-        synchronized(this) {
-            isBound = true
-            queuedConnects.forEach { it.resume(Unit) }
-            queuedConnects.clear()
-        }
-    }
-
     fun stop() {
-        if (isBound) {
-            context.unbindService(connection)
+        val abandonedConnects = synchronized(this) {
+            unbind()
+            queuedConnects.toList().also { queuedConnects.clear() }
         }
-        service = null
-        isBound = false
+        // Cancelled outside the lock, since cancellation runs handlers inline.
+        abandonedConnects.forEach { it.cancel() }
     }
 }
