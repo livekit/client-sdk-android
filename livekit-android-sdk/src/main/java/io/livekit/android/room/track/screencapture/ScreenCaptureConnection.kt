@@ -28,6 +28,7 @@ import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Handles connecting to a [ScreenCaptureService].
@@ -69,12 +70,23 @@ internal class ScreenCaptureConnection(private val context: Context) {
             }
             connects.forEach { it.resume(Unit) }
         }
+
+        override fun onBindingDied(name: ComponentName) {
+            LKLog.w { "Screen capture service binding died" }
+            failPendingConnects("ScreenCaptureService binding died.")
+        }
+
+        override fun onNullBinding(name: ComponentName) {
+            LKLog.w { "Screen capture service returned a null binding" }
+            failPendingConnects("ScreenCaptureService returned a null binding.")
+        }
     }
 
     /**
      * Binds to [ScreenCaptureService] and suspends until it is connected.
      *
-     * @throws IllegalStateException if the service could not be bound.
+     * @throws IllegalStateException if the service could not be bound, or the binding died or
+     * came back null before the service connected.
      * @throws SecurityException if the caller cannot access the service.
      * @throws CancellationException if [stop] tears the connection down while connecting.
      */
@@ -139,6 +151,23 @@ internal class ScreenCaptureConnection(private val context: Context) {
                 unbind()
             }
         }
+    }
+
+    /**
+     * Releases a binding the platform has reported will never connect, and fails every caller
+     * waiting on it. Neither report is followed by [ServiceConnection.onServiceConnected], so a
+     * queued caller would otherwise stay suspended until [stop].
+     */
+    private fun failPendingConnects(message: String) {
+        val failedConnects = synchronized(this) {
+            if (!isBindRequested) {
+                return
+            }
+            unbind()
+            queuedConnects.toList().also { queuedConnects.clear() }
+        }
+        // Resumed outside the lock, since resuming runs the continuation inline.
+        failedConnects.forEach { it.resumeWithException(IllegalStateException(message)) }
     }
 
     private fun bind() {

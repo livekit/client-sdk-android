@@ -138,6 +138,47 @@ class ScreenCaptureConnectionTest : BaseTest() {
     }
 
     @Test
+    fun nullBindingFailsPendingConnect() = runTest {
+        val screenCaptureConnection = ScreenCaptureConnection(application)
+
+        var failure: Throwable? = null
+        val connectJob = launch {
+            failure = runCatching { screenCaptureConnection.connect() }.exceptionOrNull()
+        }
+        shadowOf(application).boundServiceConnections.single().onNullBinding(
+            ComponentName(application, ScreenCaptureService::class.java),
+        )
+
+        connectJob.join()
+        // A null binding is never followed by onServiceConnected, so the caller must fail
+        // rather than stay suspended.
+        assertTrue(failure is IllegalStateException)
+        assertEquals(0, shadowOf(application).boundServiceConnections.size)
+    }
+
+    @Test
+    fun deadBindingFailsPendingConnectAndReleasesTheBinding() = runTest {
+        val screenCaptureConnection = ScreenCaptureConnection(application)
+
+        var failure: Throwable? = null
+        val connectJob = launch {
+            failure = runCatching { screenCaptureConnection.connect() }.exceptionOrNull()
+        }
+        shadowOf(application).boundServiceConnections.single().onBindingDied(
+            ComponentName(application, ScreenCaptureService::class.java),
+        )
+
+        connectJob.join()
+        assertTrue(failure is IllegalStateException)
+
+        // A dead binding never reconnects, so the next caller must bind fresh instead of
+        // waiting on it.
+        val secondConnect = launch { screenCaptureConnection.connect() }
+        assertEquals(1, shadowOf(application).boundServiceConnections.size)
+        secondConnect.cancelAndJoin()
+    }
+
+    @Test
     fun stopEndsPendingConnect() = runTest {
         val screenCaptureConnection = ScreenCaptureConnection(application)
 
