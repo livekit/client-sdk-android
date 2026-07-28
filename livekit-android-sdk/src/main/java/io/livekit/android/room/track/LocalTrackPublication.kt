@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,9 @@ class LocalTrackPublication(
     /**
      * Mute or unmute the current track. Muting the track would stop audio or video from being
      * transmitted to the server, and notify other participants in the room.
+     *
+     * Muting an audio track with [LocalAudioTrackOptions.stopMicrophoneOnMute] enabled also
+     * stops the microphone capture, releasing the microphone while muted.
      */
     override var muted: Boolean
         get() = super.muted
@@ -47,6 +50,10 @@ class LocalTrackPublication(
             val participant = this.participant.get() as? LocalParticipant ?: return
 
             participant.engine.updateMuteStatus(sid, muted)
+
+            if (mediaTrack is LocalAudioTrack) {
+                participant.updateAudioRecordingState()
+            }
 
             if (muted) {
                 participant.onTrackMuted(this)

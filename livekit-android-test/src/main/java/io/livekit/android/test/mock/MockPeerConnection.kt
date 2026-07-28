@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -121,7 +121,14 @@ class MockPeerConnection(
     override fun setAudioPlayout(playout: Boolean) {
     }
 
+    var audioRecording = true
+        private set
+    var setAudioRecordingCallCount = 0
+        private set
+
     override fun setAudioRecording(recording: Boolean) {
+        setAudioRecordingCallCount++
+        audioRecording = recording
     }
 
     override fun setConfiguration(config: RTCConfiguration): Boolean {
