@@ -38,7 +38,7 @@ import javax.inject.Singleton
  * @suppress
  */
 @Singleton
-class DataTrackManager
+class OutgoingDataTrackManager
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,
