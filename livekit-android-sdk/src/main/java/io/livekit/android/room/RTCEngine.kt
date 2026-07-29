@@ -29,7 +29,7 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
-import io.livekit.android.room.datatrack.DataTrackManager
+import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
 import io.livekit.android.room.network.ReconnectPolicy
@@ -120,7 +120,7 @@ internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
-    private val dataTrackManager: DataTrackManager,
+    private val outgoingDataTrackManager: OutgoingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -465,7 +465,7 @@ internal constructor(
         regionUrlProvider = null
         abortPendingPublishTracks()
         closeResources(reason)
-        dataTrackManager.close()
+        outgoingDataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -694,7 +694,7 @@ internal constructor(
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
                     if (isFullReconnect) {
-                        dataTrackManager.republishTracks()
+                        outgoingDataTrackManager.republishTracks()
                     }
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
@@ -1289,11 +1289,11 @@ internal constructor(
     }
 
     override fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {
-        dataTrackManager.handleSfuPublishResponse(response.toByteArray())
+        outgoingDataTrackManager.handleSfuPublishResponse(response.toByteArray())
     }
 
     override fun onRequestResponse(response: LivekitRtc.SignalResponse) {
-        dataTrackManager.handleSfuRequestResponse(response.toByteArray())
+        outgoingDataTrackManager.handleSfuRequestResponse(response.toByteArray())
     }
 
     /**
