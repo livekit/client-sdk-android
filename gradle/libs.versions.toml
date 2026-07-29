@@ -32,8 +32,11 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
-
+livekit-uniffi = "0.0.1"
 [libraries]
+
+
+livekit-uniffi = { module = "io.livekit:livekit-uniffi-android", version.ref = "livekit-uniffi" }
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "androidx-camera" }

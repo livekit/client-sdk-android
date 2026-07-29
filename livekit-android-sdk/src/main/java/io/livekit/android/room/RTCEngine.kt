@@ -29,6 +29,7 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.DataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
 import io.livekit.android.room.network.ReconnectPolicy
@@ -119,6 +120,7 @@ internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
+    private val dataTrackManager: DataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -463,6 +465,7 @@ internal constructor(
         regionUrlProvider = null
         abortPendingPublishTracks()
         closeResources(reason)
+        dataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -690,6 +693,9 @@ internal constructor(
                     // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
+                    if (isFullReconnect) {
+                        dataTrackManager.republishTracks()
+                    }
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -1280,6 +1286,50 @@ internal constructor(
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
         listener?.onLocalTrackUnpublished(trackUnpublished)
+    }
+
+    override fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {
+        dataTrackManager.handleSfuPublishResponse(response.toByteArray())
+    }
+
+    override fun onRequestResponse(response: LivekitRtc.SignalResponse) {
+        dataTrackManager.handleSfuRequestResponse(response.toByteArray())
+    }
+
+    /**
+     * Forwards an encoded [LivekitRtc.SignalRequest] produced by the UniFFI data track manager.
+     */
+    internal fun sendDataTrackSignalRequest(requestBytes: ByteArray) {
+        // Publishing a data track requires the publisher PC / reliable data channel.
+        if (!hasPublished) {
+            hasPublished = true
+            negotiatePublisher()
+        }
+        client.sendEncodedRequest(requestBytes)
+    }
+
+    /**
+     * Sends serialized data-track packets on the reliable data channel.
+     *
+     * Packets belonging to one application frame are sent back-to-back; drop behavior when the
+     * channel is not open is left to the UniFFI manager / caller.
+     */
+    internal fun sendDataTrackPackets(packets: List<ByteArray>) {
+        if (packets.isEmpty()) {
+            return
+        }
+        val channel = dataChannelForKind(LivekitModels.DataPacket.Kind.RELIABLE)
+        if (channel == null || channel.state() != DataChannel.State.OPEN) {
+            LKLog.w { "reliable data channel not open; dropping ${packets.size} data-track packet(s)" }
+            return
+        }
+        for (packet in packets) {
+            val buf = DataChannel.Buffer(ByteBuffer.wrap(packet), true)
+            if (!channel.send(buf)) {
+                LKLog.w { "failed to send data track packet (${packet.size} bytes)" }
+                return
+            }
+        }
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- livekit-uniffi currently declares minSdk 24; keep tests at 21 until that is aligned. -->
+    <uses-sdk tools:overrideLibrary="io.livekit.uniffi" />
 
 </manifest>

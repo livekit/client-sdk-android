@@ -651,6 +651,13 @@ constructor(
         }
     }
 
+    /**
+     * Sends a previously encoded [LivekitRtc.SignalRequest] (e.g. from UniFFI data track manager).
+     */
+    internal fun sendEncodedRequest(requestBytes: ByteArray) {
+        sendRequest(LivekitRtc.SignalRequest.parseFrom(requestBytes))
+    }
+
     private fun sendRequestImpl(request: LivekitRtc.SignalRequest) {
         LKLog.v { "sending request: $request" }
         if (!isConnected || currentWs == null) {
@@ -849,7 +856,8 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
-                // TODO
+                // Pass the full SignalResponse — UniFFI deserializes and filters data-track related ones.
+                listener?.onRequestResponse(response)
             }
 
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
@@ -865,7 +873,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.PUBLISH_DATA_TRACK_RESPONSE -> {
-                // TODO
+                listener?.onPublishDataTrackResponse(response)
             }
 
             LivekitRtc.SignalResponse.MessageCase.UNPUBLISH_DATA_TRACK_RESPONSE -> {
@@ -970,6 +978,8 @@ constructor(
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+        fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
+        fun onRequestResponse(response: LivekitRtc.SignalResponse) {}
     }
 
     /**
