@@ -29,6 +29,7 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
@@ -121,6 +122,7 @@ internal constructor(
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
     private val outgoingDataTrackManager: OutgoingDataTrackManager,
+    private val incomingDataTrackManager: IncomingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -176,6 +178,7 @@ internal constructor(
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
     private var participantSid: String? = null
+    private var localParticipantIdentity: String? = null
 
     internal val serverVersion: Semver?
         get() = client.serverVersion
@@ -193,6 +196,8 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
+    private var dataTrackDataChannel: DataChannel? = null
+    private var dataTrackDataChannelSub: DataChannel? = null
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
@@ -261,6 +266,12 @@ internal constructor(
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
 
+        if (joinResponse.hasParticipant()) {
+            localParticipantIdentity = joinResponse.participant.identity
+        }
+        // UniFFI AAR lacks handleSfuJoinResponse; feed other participants as a ParticipantUpdate.
+        feedJoinDataTracks(joinResponse)
+
         listener?.onJoinResponse(joinResponse)
         isClosed = false
         listener?.onSignalConnected(false)
@@ -326,6 +337,7 @@ internal constructor(
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                            DATA_TRACK_DATA_CHANNEL_LABEL -> dataTrackDataChannelSub = dataChannel
                             else -> return@onDataChannel
                         }
                         dataChannel.registerObserver(DataChannelObserver(dataChannel))
@@ -377,6 +389,20 @@ internal constructor(
                     ).also { dataChannel ->
                         lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
                         dataChannel.registerObserver(lossyDataChannelManager)
+                    }
+                }
+
+                ensureActive()
+                // Lossy unordered channel for data-track packets (same Init as lossy).
+                val dataTrackInit = DataChannel.Init()
+                dataTrackInit.ordered = false
+                dataTrackInit.maxRetransmits = 0
+                dataTrackDataChannel = publisher?.withPeerConnection {
+                    createDataChannel(
+                        DATA_TRACK_DATA_CHANNEL_LABEL,
+                        dataTrackInit,
+                    ).also { dataChannel ->
+                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
                     }
                 }
             }
@@ -462,10 +488,12 @@ internal constructor(
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
+        localParticipantIdentity = null
         regionUrlProvider = null
         abortPendingPublishTracks()
         closeResources(reason)
         outgoingDataTrackManager.close()
+        incomingDataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -500,6 +528,8 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
+                    dataTrackDataChannel = null
+                    dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
                 }
             }
@@ -695,6 +725,7 @@ internal constructor(
                     client.onPCConnected()
                     if (isFullReconnect) {
                         outgoingDataTrackManager.republishTracks()
+                        incomingDataTrackManager.resendSubscriptionUpdates()
                     }
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
@@ -1062,6 +1093,15 @@ internal constructor(
          */
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+
+        /**
+         * Dedicated data channel for LiveKit data-track packets.
+         *
+         * @suppress
+         */
+        @VisibleForTesting
+        const val DATA_TRACK_DATA_CHANNEL_LABEL = "_data_track"
+
         internal const val TARGET_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
 
         /**
@@ -1200,6 +1240,18 @@ internal constructor(
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {
         listener?.onUpdateParticipants(updates)
+        val identity = localParticipantIdentity
+        if (identity != null) {
+            val responseBytes = LivekitRtc.SignalResponse.newBuilder()
+                .setUpdate(
+                    LivekitRtc.ParticipantUpdate.newBuilder()
+                        .addAllParticipants(updates)
+                        .build(),
+                )
+                .build()
+                .toByteArray()
+            incomingDataTrackManager.handleSfuParticipantUpdate(responseBytes, identity)
+        }
     }
 
     override fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
@@ -1296,11 +1348,15 @@ internal constructor(
         outgoingDataTrackManager.handleSfuRequestResponse(response.toByteArray())
     }
 
+    override fun onDataTrackSubscriberHandles(response: LivekitRtc.SignalResponse) {
+        incomingDataTrackManager.handleSubscriberHandles(response.toByteArray())
+    }
+
     /**
-     * Forwards an encoded [LivekitRtc.SignalRequest] produced by the UniFFI data track manager.
+     * Forwards an encoded [LivekitRtc.SignalRequest] produced by a UniFFI data track manager.
      */
     internal fun sendDataTrackSignalRequest(requestBytes: ByteArray) {
-        // Publishing a data track requires the publisher PC / reliable data channel.
+        // Data-track publish / subscribe signaling requires the publisher PC / `_data_track` DC.
         if (!hasPublished) {
             hasPublished = true
             negotiatePublisher()
@@ -1309,7 +1365,7 @@ internal constructor(
     }
 
     /**
-     * Sends serialized data-track packets on the reliable data channel.
+     * Sends serialized data-track packets on the dedicated `_data_track` data channel.
      *
      * Packets belonging to one application frame are sent back-to-back; drop behavior when the
      * channel is not open is left to the UniFFI manager / caller.
@@ -1318,9 +1374,9 @@ internal constructor(
         if (packets.isEmpty()) {
             return
         }
-        val channel = dataChannelForKind(LivekitModels.DataPacket.Kind.RELIABLE)
+        val channel = dataTrackDataChannel
         if (channel == null || channel.state() != DataChannel.State.OPEN) {
-            LKLog.w { "reliable data channel not open; dropping ${packets.size} data-track packet(s)" }
+            LKLog.w { "data track channel not open; dropping ${packets.size} packet(s)" }
             return
         }
         for (packet in packets) {
@@ -1330,6 +1386,26 @@ internal constructor(
                 return
             }
         }
+    }
+
+    /**
+     * Feeds remote participants from [JoinResponse] into [IncomingDataTrackManager] as a
+     * synthetic participant update (the published UniFFI AAR has no join-specific entry point).
+     */
+    private fun feedJoinDataTracks(joinResponse: JoinResponse) {
+        val identity = localParticipantIdentity ?: return
+        if (joinResponse.otherParticipantsList.isEmpty()) {
+            return
+        }
+        val responseBytes = LivekitRtc.SignalResponse.newBuilder()
+            .setUpdate(
+                LivekitRtc.ParticipantUpdate.newBuilder()
+                    .addAllParticipants(joinResponse.otherParticipantsList)
+                    .build(),
+            )
+            .build()
+            .toByteArray()
+        incomingDataTrackManager.handleSfuParticipantUpdate(responseBytes, identity)
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//
@@ -1342,6 +1418,10 @@ internal constructor(
 
     fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
         if (buffer == null) {
+            return
+        }
+        if (dataChannel.label() == DATA_TRACK_DATA_CHANNEL_LABEL) {
+            incomingDataTrackManager.handlePacketReceived(ByteString.copyFrom(buffer.data).toByteArray())
             return
         }
         var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))

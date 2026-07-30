@@ -881,7 +881,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
-                // TODO
+                listener?.onDataTrackSubscriberHandles(response)
             }
 
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
@@ -980,6 +980,7 @@ constructor(
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
         fun onRequestResponse(response: LivekitRtc.SignalResponse) {}
+        fun onDataTrackSubscriberHandles(response: LivekitRtc.SignalResponse) {}
     }
 
     /**
