@@ -557,27 +557,21 @@ constructor(
             ensureActive()
             networkCallbackManager.registerCallback()
             if (options.audio) {
-                val audioTrack = localParticipant.getOrCreateDefaultAudioTrack()
-                audioTrack.prewarm()
                 var cancelPreconnect: (() -> Unit)? = null
 
                 if (audioTrackPublishDefaults.preconnect) {
                     cancelPreconnect = startPreconnectAudioJob(roomScope = coroutineScope)
                 }
-                if (!localParticipant.publishAudioTrack(audioTrack)) {
-                    audioTrack.stop()
-                    audioTrack.stopPrewarm()
+                // Enable through setMicrophoneEnabled rather than publishing directly,
+                // so that this serializes with any concurrent enable calls from the app
+                // once the room state flips to CONNECTED.
+                if (!localParticipant.setMicrophoneEnabled(true)) {
                     cancelPreconnect?.invoke()
                 }
             }
             ensureActive()
             if (options.video) {
-                val videoTrack = localParticipant.getOrCreateDefaultVideoTrack()
-                videoTrack.startCapture()
-                if (!localParticipant.publishVideoTrack(videoTrack)) {
-                    videoTrack.stopCapture()
-                    videoTrack.stop()
-                }
+                localParticipant.setCameraEnabled(true)
             }
 
             coroutineScope.launch {
