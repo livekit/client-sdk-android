@@ -474,6 +474,7 @@ internal constructor(
         lastRoomOptions = null
         participantSid = null
         regionUrlProvider = null
+        endSignalSession()
         abortPendingPublishTracks()
         closeResources(reason)
         connectionState = ConnectionState.DISCONNECTED
@@ -517,10 +518,19 @@ internal constructor(
         client.close(reason = reason)
     }
 
-    private fun abortPendingPublishTracks() {
-        // Ordered ahead of the resumes: each one unwinds a publish into cleanup that reads this,
-        // and on some paths the reconnect is only triggered later, by the socket closing.
+    /**
+     * Marks the current signal session as finished, so publish cleanup that resumes afterwards
+     * leaves the publisher alone.
+     *
+     * Precedes [abortPendingPublishTracks]: each abort unwinds a publish into that cleanup, and
+     * on some paths the reconnect which would otherwise end the session only runs later, when
+     * the socket closes.
+     */
+    private fun endSignalSession() {
         signalSessionState = SignalSessionState(ended = true)
+    }
+
+    private fun abortPendingPublishTracks() {
         synchronized(pendingTrackResolvers) {
             pendingTrackResolvers.values.forEach {
                 it.resumeWithException(TrackException.PublishException("pending track aborted"))
@@ -551,7 +561,7 @@ internal constructor(
         }
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
-        signalSessionState = SignalSessionState(ended = true)
+        endSignalSession()
         val job = coroutineScope.launch {
             var hasResumedOnce = false
             var hasReconnectedOnce = false
@@ -1219,6 +1229,7 @@ internal constructor(
 
     override fun onClose(reason: String, code: Int) {
         LKLog.i { "received close event: $reason, code: $code" }
+        endSignalSession()
         abortPendingPublishTracks()
         reconnect()
     }
@@ -1238,6 +1249,7 @@ internal constructor(
     override fun onLeave(leave: LeaveRequest) {
         LKLog.d { "leave request received: reason = ${leave.reason.name}" }
 
+        endSignalSession()
         abortPendingPublishTracks()
 
         if (leave.hasRegions()) {
