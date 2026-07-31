@@ -21,10 +21,12 @@ import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.protobuf.ByteString
+import io.livekit.android.ConnectOptions
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.Room
 import io.livekit.android.room.RoomException
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
@@ -55,9 +57,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
@@ -67,6 +72,7 @@ import livekit.org.webrtc.RtpParameters
 import livekit.org.webrtc.VideoSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -189,6 +195,69 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         } finally {
             backgroundScope.cancel()
         }
+    }
+
+    @Test
+    fun connectWithAudioDoesNotStopConcurrentlyEnabledMic() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val shadowApplication = Shadows.shadowOf(context as Application)
+        shadowApplication.grantPermissions(Manifest.permission.RECORD_AUDIO)
+
+        // Withhold the add track response so the connect job's audio publish
+        // is still in flight when the room state flips to CONNECTED.
+        var deferredAddTrack: LivekitRtc.AddTrackRequest? = null
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasAddTrack() && deferredAddTrack == null) {
+                deferredAddTrack = request.addTrack
+                true
+            } else {
+                false
+            }
+        }
+
+        // Mirrors apps that enable the mic as soon as the room reports connected.
+        var micEnableResult: Boolean? = null
+        val micJob = launch {
+            room::state.flow
+                .takeWhile { it != Room.State.CONNECTED }
+                .collect()
+            micEnableResult = room.localParticipant.setMicrophoneEnabled(true)
+        }
+
+        val connectJob = launch {
+            room.connect(
+                url = TestData.EXAMPLE_URL,
+                token = "",
+                options = ConnectOptions(audio = true),
+            )
+        }
+        prepareSignal(TestData.JOIN)
+        runCurrent()
+        assertNotNull(deferredAddTrack)
+
+        connectPeerConnection()
+        runCurrent()
+
+        // Deliver the deferred response, letting the connect job's publish finish.
+        wsFactory.receiveMessage(
+            with(LivekitRtc.SignalResponse.newBuilder()) {
+                trackPublished = with(LivekitRtc.TrackPublishedResponse.newBuilder()) {
+                    cid = deferredAddTrack!!.cid
+                    track = TestData.LOCAL_AUDIO_TRACK
+                    build()
+                }
+                build()
+            },
+        )
+        runCurrent()
+        connectJob.join()
+        micJob.join()
+
+        assertEquals(true, micEnableResult)
+        val pub = room.localParticipant.getTrackPublication(Track.Source.MICROPHONE)
+        assertNotNull(pub)
+        assertFalse(pub!!.muted)
+        assertTrue(pub.track?.enabled == true)
     }
 
     @Test

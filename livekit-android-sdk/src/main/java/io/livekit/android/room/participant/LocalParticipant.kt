@@ -333,6 +333,10 @@ internal constructor(
         return setTrackEnabled(Track.Source.SCREEN_SHARE, enabled, screenCaptureParams)
     }
 
+    private fun isTrackPublished(track: Track): Boolean {
+        return localTrackPublications.any { it.track == track }
+    }
+
     private suspend fun setTrackEnabled(
         source: Track.Source,
         enabled: Boolean,
@@ -357,11 +361,15 @@ internal constructor(
                             val track = getOrCreateDefaultVideoTrack()
                             track.start()
                             track.startCapture()
-                            if (!publishVideoTrack(track)) {
+                            if (publishVideoTrack(track)) {
+                                success = true
+                            } else if (isTrackPublished(track)) {
+                                // A concurrent publish outside the pub lock won the race;
+                                // the track is live, so leave it alone.
+                                success = true
+                            } else {
                                 track.stopCapture()
                                 track.stop()
-                            } else {
-                                success = true
                             }
                         }
 
@@ -369,11 +377,15 @@ internal constructor(
                             val track = getOrCreateDefaultAudioTrack()
                             track.prewarm()
                             track.start()
-                            if (!publishAudioTrack(track)) {
+                            if (publishAudioTrack(track)) {
+                                success = true
+                            } else if (isTrackPublished(track)) {
+                                // A concurrent publish outside the pub lock won the race;
+                                // the track is live, so leave it alone.
+                                success = true
+                            } else {
                                 track.stop()
                                 track.stopPrewarm()
-                            } else {
-                                success = true
                             }
                         }
 
@@ -650,7 +662,8 @@ internal constructor(
 
         @Suppress("NAME_SHADOWING") var encodings = encodings
 
-        if (localTrackPublications.any { it.track == track }) {
+        if (isTrackPublished(track)) {
+            LKLog.w { "Track has already been published, not publishing again." }
             onPublishFailure(TrackException.PublishException("Track has already been published"), triggerEvent = false)
             return null
         }
