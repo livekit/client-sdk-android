@@ -28,6 +28,7 @@ import livekit.LivekitRtc
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RTCStatsCollectorCallback
 import livekit.org.webrtc.RTCStatsReport
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -54,9 +55,49 @@ abstract class Track(
     }
         internal set
 
+    // Advances on every enabled-state mutation, letting owners detect state
+    // transitions made through the public API behind their back. Mutated only on
+    // the RTC thread, which serializes it with the actual state change.
+    internal val enabledStateRevision = AtomicLong()
+
     var enabled: Boolean
         get() = withRTCTrack(defaultValue = false) { rtcTrack.enabled() }
-        set(value) = withRTCTrack { rtcTrack.setEnabled(value) }
+        set(value) {
+            withRTCTrack {
+                enabledStateRevision.incrementAndGet()
+                rtcTrack.setEnabled(value)
+            }
+        }
+
+    // Sets [enabled] and returns the revision of this mutation.
+    internal fun setEnabledReturningRevision(value: Boolean): Long {
+        return withRTCTrack(defaultValue = enabledStateRevision.get()) {
+            val revision = enabledStateRevision.incrementAndGet()
+            rtcTrack.setEnabled(value)
+            revision
+        }
+    }
+
+    // Stops the track as a single enabled-state transition and returns the
+    // revision of the mutation.
+    internal open fun stopReturningRevision(): Long {
+        return setEnabledReturningRevision(false)
+    }
+
+    // Sets [enabled] only if no enabled-state mutation happened since
+    // [expectedRevision]; returns the revision of the applied mutation, or null
+    // if the state had already moved on.
+    internal fun setEnabledIfRevisionUnchanged(expectedRevision: Long, value: Boolean): Long? {
+        return withRTCTrack<Long?>(defaultValue = null) {
+            if (enabledStateRevision.get() != expectedRevision) {
+                null
+            } else {
+                val revision = enabledStateRevision.incrementAndGet()
+                rtcTrack.setEnabled(value)
+                revision
+            }
+        }
+    }
 
     var statsGetter: RTCStatsGetter? = null
 

@@ -189,6 +189,23 @@ constructor(
         serviceConnection.startForeground(notificationId, notification)
     }
 
+    // MediaProjection stop callbacks arrive on the capture handler thread, and
+    // ScreenCapturerAndroid.stopCapture round-trips through that same handler, so
+    // hopping to the RTC thread here would deadlock the two. Screencasts take no
+    // part in the enabled-state revision scheme, making the direct call safe.
+    override fun stopCapture() {
+        if (isDisposed) {
+            return
+        }
+        try {
+            capturer.stopCapture()
+        } catch (e: IllegalStateException) {
+            // A late MediaProjection stop can race disposal; a disposed capturer
+            // has nothing left to stop.
+            LKLog.d(e) { "stopCapture on a disposed screen capturer, ignoring." }
+        }
+    }
+
     override fun stop() {
         super.stop()
         serviceConnection.stop()
@@ -239,9 +256,7 @@ constructor(
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
             source.setVideoProcessor(videoProcessor)
-            val callback = MediaProjectionCallback().apply {
-                addOnStopCallback(onStop)
-            }
+            val callback = MediaProjectionCallback()
             val capturer = createScreenCapturer(mediaProjectionPermissionResultData, callback)
             capturer.initialize(
                 SurfaceTextureHelper.create("ScreenVideoCaptureThread", rootEglBase.eglBaseContext),
@@ -250,7 +265,7 @@ constructor(
             )
             val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
-            return screencastVideoTrackFactory.create(
+            val screencastTrack = screencastVideoTrackFactory.create(
                 capturer = capturer,
                 source = source,
                 options = options,
@@ -258,6 +273,13 @@ constructor(
                 rtcTrack = track,
                 mediaProjectionCallback = callback,
             )
+
+            // The track's own stop callback is registered first (in its init block),
+            // so the track is already stopped and its ended state observable by the
+            // time this callback runs.
+            callback.addOnStopCallback(onStop)
+
+            return screencastTrack
         }
 
         private fun createScreenCapturer(

@@ -86,6 +86,7 @@ import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
 import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Named
 import kotlin.math.max
 import kotlin.math.min
@@ -130,10 +131,19 @@ internal constructor(
 
     private val jobs = mutableMapOf<LocalTrackPublication, Job>()
 
-    // For ensuring that only one caller can execute setTrackEnabled at a time.
-    // Without it, there's a potential to create multiple of the same source,
+    // Serializes all publishes and setTrackEnabled calls for a source. Without it,
+    // concurrent publishes of the same track can stop a track another path is
+    // publishing, there's a potential to create multiple of the same source, and
     // Camera has deadlock issues with multiple CameraCapturers trying to activate/stop.
     private val sourcePubLocks = Track.Source.entries.associateWith { Mutex() }
+
+    // Tracks the SDK stopped after a failed publish, keyed to the enabled-state
+    // revision of that stop. A successful publish clears only a marker that
+    // predates it, and a restart applies only while the revision is unchanged, so
+    // any consumer enabled-state transition invalidates the marker. Only marked
+    // tracks may be restarted when republishing; a track the consumer stopped
+    // stays stopped.
+    private val tracksStoppedByFailedPublish = ConcurrentHashMap<Track, Long>()
 
     internal val enabledPublishVideoCodecs = Collections.synchronizedList(mutableListOf<Codec>())
 
@@ -353,6 +363,7 @@ internal constructor(
                     if (source == Track.Source.CAMERA && pub.track is LocalVideoTrack) {
                         (pub.track as? LocalVideoTrack)?.startCapture()
                     }
+                    pub.track?.let { tracksStoppedByFailedPublish.remove(it) }
                     success = true
                 } else {
                     // Not published yet, create the default track and publish.
@@ -361,15 +372,15 @@ internal constructor(
                             val track = getOrCreateDefaultVideoTrack()
                             track.start()
                             track.startCapture()
-                            if (publishVideoTrack(track)) {
+                            tracksStoppedByFailedPublish.remove(track)
+                            if (publishVideoTrackImpl(track)) {
                                 success = true
                             } else if (isTrackPublished(track)) {
-                                // A concurrent publish outside the pub lock won the race;
+                                // A concurrent publish won the race;
                                 // the track is live, so leave it alone.
                                 success = true
                             } else {
-                                track.stopCapture()
-                                track.stop()
+                                stopTrackForFailedPublish(track)
                             }
                         }
 
@@ -377,15 +388,15 @@ internal constructor(
                             val track = getOrCreateDefaultAudioTrack()
                             track.prewarm()
                             track.start()
-                            if (publishAudioTrack(track)) {
+                            tracksStoppedByFailedPublish.remove(track)
+                            if (publishAudioTrackImpl(track)) {
                                 success = true
                             } else if (isTrackPublished(track)) {
-                                // A concurrent publish outside the pub lock won the race;
+                                // A concurrent publish won the race;
                                 // the track is live, so leave it alone.
                                 success = true
                             } else {
-                                track.stop()
-                                track.stopPrewarm()
+                                stopTrackForFailedPublish(track)
                             }
                         }
 
@@ -400,13 +411,18 @@ internal constructor(
                                 }
                             track.startForegroundService(screenCaptureParams.notificationId, screenCaptureParams.notification)
                             track.startCapture()
-                            if (!publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))) {
+                            if (!publishVideoTrackImpl(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))) {
                                 screenCaptureParams.onStop?.invoke()
                                 track.apply {
                                     stopCapture()
                                     stop()
                                     dispose()
                                 }
+                            } else if (!track.enabled) {
+                                // The MediaProjection ended while the publish was in
+                                // flight, so the onStop unpublish ran before the
+                                // publication existed. Run it now that it does.
+                                unpublishTrack(track, stopOnUnpublish = false)
                             } else {
                                 success = true
                             }
@@ -442,11 +458,30 @@ internal constructor(
     /**
      * Publishes an audio track.
      *
+     * Publishes for the same [Track.Source] are serialized: this call suspends while
+     * another publish or [setMicrophoneEnabled] call for the source is in progress.
+     * [publishListener] callbacks run while that serialization is held, so they must
+     * not block or synchronously start another publish or enable call for the source.
+     *
      * @param track The track to publish.
      * @param options The publish options to use, or [Room.audioTrackPublishDefaults] if none is passed.
      * @return true if the track published successfully
      */
     suspend fun publishAudioTrack(
+        track: LocalAudioTrack,
+        options: AudioTrackPublishOptions = AudioTrackPublishOptions(
+            null,
+            audioTrackPublishDefaults,
+        ).copy(preconnect = defaultsManager.isPrerecording),
+        publishListener: PublishListener? = null,
+    ): Boolean {
+        val source = options.source ?: Track.Source.MICROPHONE
+        return sourcePubLocks.getValue(source).withLock {
+            publishAudioTrackImpl(track, options, publishListener)
+        }
+    }
+
+    private suspend fun publishAudioTrackImpl(
         track: LocalAudioTrack,
         options: AudioTrackPublishOptions = AudioTrackPublishOptions(
             null,
@@ -499,11 +534,32 @@ internal constructor(
     /**
      * Publishes an video track.
      *
+     * Publishes for the same [Track.Source] are serialized: this call suspends while
+     * another publish or [setCameraEnabled]/[setScreenShareEnabled] call for the
+     * source is in progress. [publishListener] callbacks run while that serialization
+     * is held, so they must not block or synchronously start another publish or
+     * enable call for the source.
+     *
      * @param track The track to publish.
      * @param options The publish options to use, or [Room.videoTrackPublishDefaults] if none is passed.
      * @return true if the track published successfully
      */
     suspend fun publishVideoTrack(
+        track: LocalVideoTrack,
+        options: VideoTrackPublishOptions = VideoTrackPublishOptions(
+            null,
+            if (track.options.isScreencast) screenShareTrackPublishDefaults else videoTrackPublishDefaults,
+        ),
+        publishListener: PublishListener? = null,
+    ): Boolean {
+        val source = options.source
+            ?: if (track.options.isScreencast) Track.Source.SCREEN_SHARE else Track.Source.CAMERA
+        return sourcePubLocks.getValue(source).withLock {
+            publishVideoTrackImpl(track, options, publishListener)
+        }
+    }
+
+    private suspend fun publishVideoTrackImpl(
         track: LocalVideoTrack,
         options: VideoTrackPublishOptions = VideoTrackPublishOptions(
             null,
@@ -639,6 +695,10 @@ internal constructor(
             LKLog.w { "Attempting to publish a disposed track, ignoring." }
             return null
         }
+
+        // On success, only a failure marker that predates this publish is cleared;
+        // one added mid-flight by a newer failure survives.
+        val stopMarkerGeneration = tracksStoppedByFailedPublish[track]
 
         fun onPublishFailure(e: TrackException.PublishException, triggerEvent: Boolean = true) {
             publishListener?.onPublishFailure(e)
@@ -804,6 +864,9 @@ internal constructor(
                 options = options,
             )
             addTrackPublication(publication)
+            if (stopMarkerGeneration != null) {
+                tracksStoppedByFailedPublish.remove(track, stopMarkerGeneration)
+            }
             LKLog.v { "add track publication $publication" }
 
             publishListener?.onPublishSuccess(publication)
@@ -1286,10 +1349,9 @@ internal constructor(
     internal fun prepareForFullReconnect() {
         val pubs = localTrackPublications.toList() // creates a copy, so is safe from the following removal.
 
-        // Only set the first time we start a full reconnect.
-        if (republishes == null) {
-            republishes = pubs
-        }
+        // Accumulate across attempts: publications created between failed attempts
+        // must be restored too. Consumed by republishTracks on success.
+        republishes = republishes.orEmpty() + pubs
 
         trackPublications = trackPublications.toMutableMap().apply { clear() }
 
@@ -1301,22 +1363,122 @@ internal constructor(
 
     internal suspend fun republishTracks() {
         val publish = republishes?.toList() ?: emptyList()
-        republishes = null
 
-        for (pub in publish) {
-            val track = pub.track ?: continue
-            unpublishTrack(track, false)
+        // The accumulated snapshot can hold several publications for one track; the
+        // last entry carries the newest state (e.g. a mute during the reconnect), so
+        // it wins.
+        val latestPubs = publish.filter { it.track != null }.associateBy { it.track }.values
+        for (pub in latestPubs) {
+            try {
+                republishTrack(pub)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to republish track ${pub.sid}" }
+            }
+        }
+        republishes = null
+    }
+
+    private suspend fun republishTrack(pub: LocalTrackPublication) {
+        val track = pub.track ?: return
+        sourcePubLocks.getValue(republishLockSource(pub, track)).withLock {
+            // The snapshot publication belongs to the dead session; drop it if it
+            // survived the reconnect clear by racing a concurrent publish.
+            if (trackPublications[pub.sid] === pub) {
+                trackPublications = trackPublications.toMutableMap().apply { remove(pub.sid) }
+            }
+            // A concurrent publish (e.g. setMicrophoneEnabled during the reconnect)
+            // may have already landed this track on the new session; it is live and
+            // supersedes the snapshot, so leave it alone.
+            if (isTrackPublished(track)) {
+                return@withLock
+            }
             // Cannot publish muted tracks.
             if (!pub.muted) {
+                // A stopped screencast's MediaProjection is single-use: the share has
+                // ended and cannot be restored.
+                if (track is LocalScreencastVideoTrack && !track.enabled) {
+                    return@withLock
+                }
+                restartTrackIfStopped(track)
                 val success = when (track) {
-                    is LocalAudioTrack -> publishAudioTrack(track, pub.options as AudioTrackPublishOptions, null)
-                    is LocalVideoTrack -> publishVideoTrack(track, pub.options as VideoTrackPublishOptions, null)
+                    is LocalAudioTrack -> publishAudioTrackImpl(track, pub.options as AudioTrackPublishOptions, null)
+                    is LocalVideoTrack -> publishVideoTrackImpl(track, pub.options as VideoTrackPublishOptions, null)
                     else -> throw IllegalStateException("LocalParticipant has a non local track publish?")
                 }
-                if (!success) {
-                    track.stop()
+                handleRepublishResult(track, success)
+            }
+        }
+    }
+
+    private fun handleRepublishResult(track: Track, success: Boolean) {
+        if (!success && !isTrackPublished(track)) {
+            stopTrackForFailedPublish(track)
+        } else if (success && track is LocalScreencastVideoTrack && !track.enabled) {
+            // The MediaProjection ended while the republish was in flight, so the
+            // onStop unpublish ran before the publication existed. Run it now that
+            // it does.
+            unpublishTrack(track, stopOnUnpublish = false)
+        }
+    }
+
+    // The lock source is derived from the publish options rather than the server's
+    // TrackInfo, matching the source a concurrent publish of this track would lock.
+    private fun republishLockSource(pub: LocalTrackPublication, track: Track): Track.Source {
+        return pub.options.source
+            ?: when (track) {
+                is LocalAudioTrack -> Track.Source.MICROPHONE
+                is LocalVideoTrack -> if (track.options.isScreencast) Track.Source.SCREEN_SHARE else Track.Source.CAMERA
+                else -> pub.source
+            }
+    }
+
+    // A concurrent publish that failed during the reconnect may have stopped the
+    // track; a track republished as unmuted must be live again. Only tracks the
+    // SDK itself stopped are restarted, and only while no other enabled-state
+    // transition has happened since that stop: a track the consumer stopped stays
+    // stopped. Screencasts are never restarted: a stopped MediaProjection cannot
+    // be reused.
+    private fun restartTrackIfStopped(track: Track) {
+        if (track.isDisposed || track.enabled) {
+            return
+        }
+        val markerRevision = tracksStoppedByFailedPublish.remove(track) ?: return
+        when (track) {
+            is LocalAudioTrack -> {
+                if (track.setEnabledIfRevisionUnchanged(markerRevision, true) != null) {
+                    track.prewarm()
                 }
             }
+
+            is LocalScreencastVideoTrack -> {}
+
+            is LocalVideoTrack -> {
+                val appliedRevision = track.setEnabledIfRevisionUnchanged(markerRevision, true)
+                if (appliedRevision != null) {
+                    track.startCaptureIfRevisionUnchanged(appliedRevision)
+                }
+            }
+        }
+    }
+
+    // Stops a track after its publish failed, atomically recording the stop so
+    // republishing can distinguish it from a stop the consumer made. Screencasts
+    // are not recorded; they are never restarted.
+    private fun stopTrackForFailedPublish(track: Track) {
+        when (track) {
+            is LocalScreencastVideoTrack -> track.stop()
+
+            is LocalVideoTrack -> {
+                tracksStoppedByFailedPublish[track] = track.stopReturningRevision()
+            }
+
+            is LocalAudioTrack -> {
+                tracksStoppedByFailedPublish[track] = track.stopReturningRevision()
+                track.stopPrewarm()
+            }
+
+            else -> track.stop()
         }
     }
 
@@ -1401,6 +1563,7 @@ internal constructor(
         }
         defaultAudioTrack = null
         defaultVideoTrack = null
+        tracksStoppedByFailedPublish.clear()
     }
 
     /**

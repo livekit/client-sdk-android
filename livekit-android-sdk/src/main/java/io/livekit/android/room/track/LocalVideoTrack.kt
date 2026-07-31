@@ -125,23 +125,55 @@ constructor(
      * Starts the [capturer] with the capture params contained in [options].
      */
     open fun startCapture() {
-        capturer.startCapture(
-            options.captureParams.width,
-            options.captureParams.height,
-            options.captureParams.maxFps,
-        )
+        withRTCTrack {
+            enabledStateRevision.incrementAndGet()
+            capturer.startCapture(
+                options.captureParams.width,
+                options.captureParams.height,
+                options.captureParams.maxFps,
+            )
+        }
     }
 
     /**
      * Stops the [capturer].
      */
     open fun stopCapture() {
-        capturer.stopCapture()
+        withRTCTrack {
+            enabledStateRevision.incrementAndGet()
+            capturer.stopCapture()
+        }
+    }
+
+    // Starts capture only if no enabled-state mutation happened since
+    // [expectedRevision]; returns whether capture was started. The check and
+    // [startCapture] run as one unit on the RTC thread.
+    internal fun startCaptureIfRevisionUnchanged(expectedRevision: Long): Boolean {
+        return withRTCTrack(defaultValue = false) {
+            if (enabledStateRevision.get() != expectedRevision) {
+                false
+            } else {
+                startCapture()
+                true
+            }
+        }
     }
 
     override fun stop() {
-        capturer.stopCapture()
+        stopCapture()
         super.stop()
+    }
+
+    // Capture stop and disable run as one unit on the RTC thread so no
+    // concurrent state change can land between them; [stopCapture] is the
+    // overridable seam for subclasses.
+    internal override fun stopReturningRevision(): Long {
+        return withRTCTrack(defaultValue = enabledStateRevision.get()) {
+            stopCapture()
+            val revision = enabledStateRevision.incrementAndGet()
+            rtcTrack.setEnabled(false)
+            revision
+        }
     }
 
     override fun dispose() {
