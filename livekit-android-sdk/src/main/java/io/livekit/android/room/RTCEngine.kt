@@ -1039,6 +1039,7 @@ internal constructor(
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onTranscriptionReceived(transcription: LivekitModels.Transcription)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+        fun onRequestResponse(response: LivekitRtc.RequestResponse)
         fun onRpcPacketReceived(dp: LivekitModels.DataPacket)
         fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type)
     }
@@ -1280,6 +1281,10 @@ internal constructor(
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
         listener?.onLocalTrackUnpublished(trackUnpublished)
+    }
+
+    override fun onRequestResponse(response: LivekitRtc.RequestResponse) {
+        listener?.onRequestResponse(response)
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//

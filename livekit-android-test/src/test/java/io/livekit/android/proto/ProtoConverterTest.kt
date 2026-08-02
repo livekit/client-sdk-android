@@ -18,6 +18,7 @@ package io.livekit.android.proto
 
 import io.livekit.android.room.RegionSettings
 import io.livekit.android.room.participant.ParticipantPermission
+import io.livekit.android.room.signal.SignalResponseReason
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.token.RoomAgentDispatch
 import io.livekit.android.token.RoomConfiguration
@@ -99,6 +100,10 @@ class ProtoConverterTest(
                 LivekitAgentDispatch.RoomAgentDispatch::class.java,
                 RoomAgentDispatch::class.java,
                 whitelist = listOf("restartPolicy", "deployment"),
+            ),
+            ProtoConverterTestCase(
+                LivekitRtc.RequestResponse.Reason::class.java,
+                SignalResponseReason::class.java,
             ),
         )
 

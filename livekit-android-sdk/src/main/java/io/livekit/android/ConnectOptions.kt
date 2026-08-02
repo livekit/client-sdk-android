@@ -53,7 +53,7 @@ data class ConnectOptions(
     /**
      * the protocol version to use with the server.
      */
-    val protocolVersion: ProtocolVersion = ProtocolVersion.v13,
+    val protocolVersion: ProtocolVersion = ProtocolVersion.v15,
 
     /**
      * The client protocol version to advertise to other participants in the room
