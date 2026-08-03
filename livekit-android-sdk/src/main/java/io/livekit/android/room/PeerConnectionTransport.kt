@@ -94,6 +94,7 @@ constructor(
     private var renegotiate = false
 
     private val trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
+
     // x-google-start-bitrate is a connection-level BWE hint in libwebrtc. Keep it
     // available through data-channel/audio-only offers and consume it only after a
     // local video m-section successfully gets the hint.
