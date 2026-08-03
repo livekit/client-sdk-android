@@ -133,6 +133,7 @@ internal constructor(
         }
         when (newVal) {
             ConnectionState.CONNECTED -> {
+                signalSessionState = SignalSessionState(ended = false)
                 if (oldVal == ConnectionState.DISCONNECTED || oldVal == ConnectionState.CONNECTING) {
                     LKLog.d { "primary ICE connected" }
                     listener?.onEngineConnected()
@@ -158,7 +159,16 @@ internal constructor(
 
     @Volatile
     internal var reconnectType: ReconnectType = ReconnectType.DEFAULT
+
+    @Volatile
     private var reconnectingJob: Job? = null
+
+    /**
+     * Replaced at each signal session boundary. Sender handles retain the state that owned their
+     * transceiver, so cleanup cannot mutate a publisher after that session ends.
+     */
+    @Volatile
+    private var signalSessionState = SignalSessionState(ended = true)
 
     @Volatile
     private var fullReconnectOnNext = false
@@ -424,10 +434,13 @@ internal constructor(
     internal suspend fun createSenderTransceiver(
         rtcTrack: MediaStreamTrack,
         transInit: RtpTransceiverInit,
-    ): RtpTransceiver? {
-        return publisher?.withPeerConnection {
+    ): SenderTransceiverHandle? {
+        val sessionState = signalSessionState
+        val publisher = publisher ?: return null
+        val transceiver = publisher.withPeerConnection {
             addTransceiver(rtcTrack, transInit)
-        }
+        } ?: return null
+        return SenderTransceiverHandle(publisher, transceiver, sessionState)
     }
 
     fun updateSubscriptionPermissions(
@@ -461,6 +474,7 @@ internal constructor(
         lastRoomOptions = null
         participantSid = null
         regionUrlProvider = null
+        endSignalSession()
         abortPendingPublishTracks()
         closeResources(reason)
         connectionState = ConnectionState.DISCONNECTED
@@ -504,6 +518,18 @@ internal constructor(
         client.close(reason = reason)
     }
 
+    /**
+     * Marks the current signal session as finished, so publish cleanup that resumes afterwards
+     * leaves the publisher alone.
+     *
+     * Precedes [abortPendingPublishTracks]: each abort unwinds a publish into that cleanup, and
+     * on some paths the reconnect which would otherwise end the session only runs later, when
+     * the socket closes.
+     */
+    private fun endSignalSession() {
+        signalSessionState = SignalSessionState(ended = true)
+    }
+
     private fun abortPendingPublishTracks() {
         synchronized(pendingTrackResolvers) {
             pendingTrackResolvers.values.forEach {
@@ -535,6 +561,7 @@ internal constructor(
         }
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
+        endSignalSession()
         val job = coroutineScope.launch {
             var hasResumedOnce = false
             var hasReconnectedOnce = false
@@ -1202,6 +1229,7 @@ internal constructor(
 
     override fun onClose(reason: String, code: Int) {
         LKLog.i { "received close event: $reason, code: $code" }
+        endSignalSession()
         abortPendingPublishTracks()
         reconnect()
     }
@@ -1221,6 +1249,7 @@ internal constructor(
     override fun onLeave(leave: LeaveRequest) {
         LKLog.d { "leave request received: reason = ${leave.reason.name}" }
 
+        endSignalSession()
         abortPendingPublishTracks()
 
         if (leave.hasRegions()) {
@@ -1515,6 +1544,45 @@ internal constructor(
         }
     }
 
+    /**
+     * Detaches a sender transceiver whose publish attempt produced no publication.
+     *
+     * A publish fails most often because the signal connection died, and that same failure
+     * starts a reconnect which renegotiates this peer connection. Mutating its senders and
+     * transceivers alongside that negotiation races it, so the rollback is skipped unless the
+     * publisher is connected and idle. The sender retains its signal session state so an aborted
+     * publish cannot mutate the same publisher after a soft reconnect.
+     *
+     * @param stopTransceiver releases the transceiver and its SDP m-section for reuse. Reserved
+     * for video, matching the teardown an unpublish performs.
+     * @return whether the sender was detached, so the track can drop its reference to it.
+     */
+    internal fun rollbackSenderTransceiver(
+        senderTransceiver: SenderTransceiverHandle,
+        stopTransceiver: Boolean,
+    ): Boolean {
+        val publisher = senderTransceiver.publisher
+        return runBlocking {
+            publisher.withPeerConnection {
+                val sessionState = signalSessionState
+                val publisherIsIdle = this@RTCEngine.publisher === publisher &&
+                    connectionState == ConnectionState.CONNECTED &&
+                    reconnectingJob?.isActive != true &&
+                    senderTransceiver.signalSessionState === sessionState &&
+                    !sessionState.ended
+                if (!publisherIsIdle) {
+                    return@withPeerConnection false
+                }
+                val transceiver = senderTransceiver.transceiver
+                removeTrack(transceiver.sender)
+                if (stopTransceiver && !transceiver.isStopped) {
+                    transceiver.stopInternal()
+                }
+                true
+            } ?: false
+        }
+    }
+
     @VisibleForTesting
     fun getPublisherPeerConnection() =
         publisher!!.peerConnection
@@ -1523,6 +1591,22 @@ internal constructor(
     fun getSubscriberPeerConnection() =
         subscriber!!.peerConnection
 }
+
+/**
+ * Identity of one signal session, replaced at every session boundary.
+ *
+ * [ended] distinguishes a session that is finishing from one that is serving, for work that
+ * starts after the boundary and would otherwise match the current identity.
+ */
+internal class SignalSessionState(
+    val ended: Boolean,
+)
+
+internal class SenderTransceiverHandle(
+    internal val publisher: PeerConnectionTransport,
+    internal val transceiver: RtpTransceiver,
+    internal val signalSessionState: SignalSessionState,
+)
 
 /**
  * @suppress

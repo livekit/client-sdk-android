@@ -28,6 +28,7 @@ import android.view.WindowManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
@@ -190,7 +191,15 @@ constructor(
     }
 
     override fun stop() {
-        super.stop()
+        // The projection's onStop arrives on its own callback thread and stops this track, so
+        // it can lose a race against dispose(), after which the capturer throws when stopped.
+        if (!isDisposed) {
+            try {
+                super.stop()
+            } catch (e: Exception) {
+                LKLog.w(e) { "Exception when stopping the screen share track." }
+            }
+        }
         serviceConnection.stop()
         orientationEventListener.disable()
     }
@@ -243,21 +252,28 @@ constructor(
                 addOnStopCallback(onStop)
             }
             val capturer = createScreenCapturer(mediaProjectionPermissionResultData, callback)
+            val surfaceTextureHelper = SurfaceTextureHelper.create("ScreenVideoCaptureThread", rootEglBase.eglBaseContext)
             capturer.initialize(
-                SurfaceTextureHelper.create("ScreenVideoCaptureThread", rootEglBase.eglBaseContext),
+                surfaceTextureHelper,
                 context,
                 source.capturerObserver,
             )
-            val track = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
+            val rtcTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(), source)
 
-            return screencastVideoTrackFactory.create(
+            val track = screencastVideoTrackFactory.create(
                 capturer = capturer,
                 source = source,
                 options = options,
                 name = name,
-                rtcTrack = track,
+                rtcTrack = rtcTrack,
                 mediaProjectionCallback = callback,
             )
+            // The track owns the SurfaceTextureHelper; dispose() releases its capture thread.
+            track.closeableManager.registerResource(
+                rtcTrack,
+                SurfaceTextureHelperCloser(surfaceTextureHelper),
+            )
+            return track
         }
 
         private fun createScreenCapturer(

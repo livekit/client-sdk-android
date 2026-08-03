@@ -119,7 +119,7 @@ constructor(
     internal val simulcastTransceivers: List<RtpTransceiver>
         get() = simulcastCodecs.values.mapNotNull { it.transceiver }
 
-    private val closeableManager = CloseableManager()
+    internal val closeableManager = CloseableManager()
 
     /**
      * Starts the [capturer] with the capture params contained in [options].

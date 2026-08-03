@@ -35,6 +35,7 @@ import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
+import io.livekit.android.room.SenderTransceiverHandle
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.isSVCCodec
@@ -64,11 +65,14 @@ import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitModels.Codec
@@ -86,7 +90,9 @@ import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
+import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
@@ -316,6 +322,9 @@ internal constructor(
      *
      * For screenshare audio, a [ScreenAudioCapturer] can be used.
      *
+     * If a screen capture track is created but enabling fails or is cancelled, the capture is
+     * stopped and released, and [ScreenCaptureParams.onStop] is invoked.
+     *
      * @param screenCaptureParams When enabling the screenshare, this must be provided with
      * [ScreenCaptureParams.mediaProjectionPermissionResultData] containing resultData returned from launching
      * [MediaProjectionManager.createScreenCaptureIntent()](https://developer.android.com/reference/android/media/projection/MediaProjectionManager#createScreenCaptureIntent()).
@@ -359,33 +368,37 @@ internal constructor(
                     when (source) {
                         Track.Source.CAMERA -> {
                             val track = getOrCreateDefaultVideoTrack()
-                            track.start()
-                            track.startCapture()
-                            if (publishVideoTrack(track)) {
-                                success = true
-                            } else if (isTrackPublished(track)) {
-                                // A concurrent publish outside the pub lock won the race;
-                                // the track is live, so leave it alone.
-                                success = true
-                            } else {
-                                track.stopCapture()
-                                track.stop()
+                            try {
+                                track.start()
+                                track.startCapture()
+                                // A concurrent publish outside the pub lock may already own this
+                                // shared track, in which case it is live and the enable succeeded.
+                                success = publishVideoTrack(track) || isTrackPublished(track)
+                            } finally {
+                                // Cancellation unwinds without assigning success, so ownership is
+                                // rechecked here before tearing the track down.
+                                if (!success && !isTrackPublished(track)) {
+                                    track.stopCapture()
+                                    track.stop()
+                                }
                             }
                         }
 
                         Track.Source.MICROPHONE -> {
                             val track = getOrCreateDefaultAudioTrack()
-                            track.prewarm()
-                            track.start()
-                            if (publishAudioTrack(track)) {
-                                success = true
-                            } else if (isTrackPublished(track)) {
-                                // A concurrent publish outside the pub lock won the race;
-                                // the track is live, so leave it alone.
-                                success = true
-                            } else {
-                                track.stop()
-                                track.stopPrewarm()
+                            try {
+                                track.prewarm()
+                                track.start()
+                                // A concurrent publish outside the pub lock may already own this
+                                // shared track, in which case it is live and the enable succeeded.
+                                success = publishAudioTrack(track) || isTrackPublished(track)
+                            } finally {
+                                // Cancellation unwinds without assigning success, so ownership is
+                                // rechecked here before tearing the track down.
+                                if (!success && !isTrackPublished(track)) {
+                                    track.stop()
+                                    track.stopPrewarm()
+                                }
                             }
                         }
 
@@ -393,22 +406,32 @@ internal constructor(
                             if (screenCaptureParams == null) {
                                 throw IllegalArgumentException("Media Projection params is required to create a screen share track.")
                             }
+                            // MediaProjection termination and setup failure may race, but onStop
+                            // is a single terminal signal for each enable attempt.
+                            val stopNotified = AtomicBoolean(false)
+                            fun notifyStopped() {
+                                if (stopNotified.compareAndSet(false, true)) {
+                                    screenCaptureParams.onStop?.invoke()
+                                }
+                            }
+
                             val track =
                                 createScreencastTrack(mediaProjectionPermissionResultData = screenCaptureParams.mediaProjectionPermissionResultData) {
                                     unpublishTrack(it)
-                                    screenCaptureParams.onStop?.invoke()
+                                    notifyStopped()
                                 }
-                            track.startForegroundService(screenCaptureParams.notificationId, screenCaptureParams.notification)
-                            track.startCapture()
-                            if (!publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))) {
-                                screenCaptureParams.onStop?.invoke()
-                                track.apply {
-                                    stopCapture()
-                                    stop()
-                                    dispose()
+                            try {
+                                track.startForegroundService(screenCaptureParams.notificationId, screenCaptureParams.notification)
+                                track.startCapture()
+                                success = publishVideoTrack(track, options = VideoTrackPublishOptions(null, screenShareTrackPublishDefaults))
+                            } finally {
+                                if (!success) {
+                                    // stop() releases the screen capture service binding as well.
+                                    track.stopCapture()
+                                    track.stop()
+                                    track.dispose()
+                                    notifyStopped()
                                 }
-                            } else {
-                                success = true
                             }
                         }
 
@@ -685,6 +708,8 @@ internal constructor(
         }
 
         // For fast publish, we can negotiate PC and request add track at the same time
+        var senderTransceiver: SenderTransceiverHandle? = null
+        var previousTrackTransceiver: RtpTransceiver? = null
         suspend fun negotiate() {
             if (this.engine.publisher == null) {
                 throw IllegalStateException("publisher is not configured yet!")
@@ -695,20 +720,35 @@ internal constructor(
                 listOf(this.sid.value),
                 encodings,
             )
-            val transceiver = engine.createSenderTransceiver(track.rtcTrack, transInit)
-
-            when (track) {
-                is LocalVideoTrack -> track.transceiver = transceiver
-                is LocalAudioTrack -> track.transceiver = transceiver
-                else -> {
-                    throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
+            // Ownership must be recorded before cancellation can discard the RTC-thread result.
+            val createdTransceiver = withContext(NonCancellable) {
+                engine.createSenderTransceiver(track.rtcTrack, transInit).also {
+                    senderTransceiver = it
                 }
             }
+            coroutineContext.ensureActive()
+            val transceiver = createdTransceiver?.transceiver
 
             if (transceiver == null) {
                 val exception = TrackException.PublishException("null sender returned from peer connection")
                 onPublishFailure(exception)
                 throw exception
+            }
+
+            when (track) {
+                is LocalVideoTrack -> {
+                    previousTrackTransceiver = track.transceiver
+                    track.transceiver = transceiver
+                }
+
+                is LocalAudioTrack -> {
+                    previousTrackTransceiver = track.transceiver
+                    track.transceiver = transceiver
+                }
+
+                else -> {
+                    throw IllegalArgumentException("Trying to publish a non local track of type ${track.javaClass}")
+                }
             }
 
             track.statsGetter = engine.createStatsGetter(transceiver.sender)
@@ -757,62 +797,90 @@ internal constructor(
             }
         }
 
-        val trackInfo: TrackInfo?
-        if (enabledPublishVideoCodecs.isNotEmpty()) {
-            // Can simultaneous publish and negotiate.
-            // codec is pre-verified in publishVideoTrack
-            trackInfo = coroutineScope {
-                val negotiateJob = launch { negotiate() }
-                val publishJob = async { requestAddTrack() }
+        var publication: LocalTrackPublication? = null
+        try {
+            val trackInfo: TrackInfo?
+            if (enabledPublishVideoCodecs.isNotEmpty()) {
+                // Can simultaneous publish and negotiate.
+                // codec is pre-verified in publishVideoTrack
+                trackInfo = coroutineScope {
+                    val negotiateJob = launch { negotiate() }
+                    val publishJob = async { requestAddTrack() }
 
-                negotiateJob.join()
-                return@coroutineScope publishJob.await()
+                    negotiateJob.join()
+                    return@coroutineScope publishJob.await()
+                }
+            } else {
+                // legacy path.
+                trackInfo = requestAddTrack()
+                if (trackInfo != null) {
+                    if (options is VideoTrackPublishOptions) {
+                        // server might not support the codec the client has requested, in that case, fallback
+                        // to a supported codec
+                        val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
+
+                        if (primaryCodecMime != null) {
+                            val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
+                            if (updatedCodec != null && updatedCodec != options.videoCodec) {
+                                LKLog.d { "falling back to server selected codec: $updatedCodec" }
+                                options = options.copy(videoCodec = updatedCodec)
+
+                                // recompute encodings since bitrates/etc could have changed
+                                val videoTrack = track as LocalVideoTrack
+
+                                encodings = computeVideoEncodings(videoTrack.options.isScreencast, videoTrack.dimensions, options)
+                                encodings // encodings is used in negotiate, this suppresses unused lint
+                            }
+                        }
+                    }
+
+                    negotiate()
+                }
             }
-        } else {
-            // legacy path.
-            trackInfo = requestAddTrack()
+
             if (trackInfo != null) {
-                if (options is VideoTrackPublishOptions) {
-                    // server might not support the codec the client has requested, in that case, fallback
-                    // to a supported codec
-                    val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
+                publication = LocalTrackPublication(
+                    info = trackInfo,
+                    track = track,
+                    participant = this,
+                    options = options,
+                )
+                addTrackPublication(publication)
+                LKLog.v { "add track publication $publication" }
 
-                    if (primaryCodecMime != null) {
-                        val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
-                        if (updatedCodec != null && updatedCodec != options.videoCodec) {
-                            LKLog.d { "falling back to server selected codec: $updatedCodec" }
-                            options = options.copy(videoCodec = updatedCodec)
+                publishListener?.onPublishSuccess(publication)
+                internalListener?.onTrackPublished(publication, this)
+                eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
+            }
+        } finally {
+            if (publication == null) {
+                // Negotiation can win the race against a failed or cancelled add track request.
+                // Without a publication there is no unpublish to stop the transceiver, so it
+                // would hold its sender and SDP m-section until the connection closes.
+                senderTransceiver?.let { createdTransceiver ->
+                    val canRestorePreviousTransceiver = engine.rollbackSenderTransceiver(
+                        senderTransceiver = createdTransceiver,
+                        stopTransceiver = track is LocalVideoTrack,
+                    )
+                    val transceiver = createdTransceiver.transceiver
+                    when (track) {
+                        is LocalVideoTrack -> {
+                            if (track.transceiver === transceiver) {
+                                track.transceiver = previousTrackTransceiver.takeIf { canRestorePreviousTransceiver }
+                            }
+                        }
 
-                            // recompute encodings since bitrates/etc could have changed
-                            val videoTrack = track as LocalVideoTrack
-
-                            encodings = computeVideoEncodings(videoTrack.options.isScreencast, videoTrack.dimensions, options)
-                            encodings // encodings is used in negotiate, this suppresses unused lint
+                        is LocalAudioTrack -> {
+                            if (track.transceiver === transceiver) {
+                                track.transceiver = previousTrackTransceiver.takeIf { canRestorePreviousTransceiver }
+                            }
                         }
                     }
                 }
-
-                negotiate()
             }
         }
 
-        return if (trackInfo != null) {
-            val publication = LocalTrackPublication(
-                info = trackInfo,
-                track = track,
-                participant = this,
-                options = options,
-            )
-            addTrackPublication(publication)
-            LKLog.v { "add track publication $publication" }
-
-            publishListener?.onPublishSuccess(publication)
-            internalListener?.onTrackPublished(publication, this)
-            eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
-            publication
-        } else {
-            null
-        }
+        return publication
     }
 
     private fun computeVideoEncodings(
@@ -1220,7 +1288,7 @@ internal constructor(
         )
 
         scope.launch {
-            val transceiver = engine.createSenderTransceiver(track.rtcTrack, transceiverInit)
+            val transceiver = engine.createSenderTransceiver(track.rtcTrack, transceiverInit)?.transceiver
             if (transceiver == null) {
                 LKLog.w { "couldn't create new transceiver! $codec" }
                 return@launch
