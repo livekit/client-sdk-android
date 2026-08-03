@@ -1599,8 +1599,6 @@ data class VideoTrackPublishDefaults(
     override val videoCodec: String = VideoCodec.VP8.codecName,
     override val scalabilityMode: String? = null,
     override val backupCodec: BackupVideoCodec? = null,
-    // Default is null - SDK applies source-based defaults at runtime:
-    // Camera: MAINTAIN_FRAMERATE, Screen share: MAINTAIN_RESOLUTION, Other: BALANCED
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions()
@@ -1614,8 +1612,6 @@ data class VideoTrackPublishOptions(
     override val backupCodec: BackupVideoCodec? = null,
     override val source: Track.Source? = null,
     override val stream: String? = null,
-    // Default is null - SDK applies source-based defaults at runtime:
-    // Camera: MAINTAIN_FRAMERATE, Screen share: MAINTAIN_RESOLUTION, Other: BALANCED
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
