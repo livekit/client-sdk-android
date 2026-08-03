@@ -591,13 +591,13 @@ private fun findTrackCodecBitrateInfo(
 }
 
 private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo): Long? {
-    if (trackBr.maxBitrate < minTargetBitrateKbps) {
+    if (trackBr.targetBitrateKbps < minTargetBitrateKbps) {
         return null
     }
 
     // TODO: dynamically adjust start bitrate based on network conditions, such as
     // using the previous BWE estimate.
-    val calculatedStartBitrate = (trackBr.maxBitrate * startBitrateMultiplier).roundToLong()
+    val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
     return if (trackBr.isScreenShare) {
         calculatedStartBitrate
     } else {
@@ -616,7 +616,7 @@ internal fun isSVCCodec(codec: String?): Boolean {
  */
 data class TrackBitrateInfo(
     val codec: String,
-    val maxBitrate: Long,
+    val targetBitrateKbps: Long,
     val isScreenShare: Boolean = false,
 )
 
