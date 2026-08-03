@@ -94,6 +94,10 @@ constructor(
     private var renegotiate = false
 
     private val trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
+    // x-google-start-bitrate is a connection-level BWE hint in libwebrtc. Keep it
+    // available through data-channel/audio-only offers and consume it only after a
+    // local video m-section successfully gets the hint.
+    private var hasAppliedVideoStartBitrate = false
     private var isClosed = AtomicBoolean(false)
 
     private val latestOfferId = AtomicInteger(0)
@@ -206,18 +210,37 @@ constructor(
                 val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
 
                 val mediaDescs = sdpDescription.getMediaDescriptions(true)
+                    .filterIsInstance<MediaDescription>()
+                // The publisher PeerConnection may negotiate before any video is published
+                // (for example, data channel only or audio first). Those offers should not
+                // consume the video start hint. When the first video offer is created, use
+                // one connection-level value across all video m-sections so libwebrtc's
+                // last-writer-wins handling cannot depend on SDP m-section order.
+                val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
+                    computeConnectionStartBitrate(mediaDescs, trackBitrates)
+                } else {
+                    null
+                }
+                var appliedVideoStartBitrate = false
                 for (mediaDesc in mediaDescs) {
-                    if (mediaDesc !is MediaDescription) {
-                        continue
-                    }
                     if (mediaDesc.media.mediaType == "audio") {
                         // TODO
                     } else if (mediaDesc.media.mediaType == "video") {
                         ensureVideoDDExtensionForSVC(mediaDesc)
-                        ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
+                        appliedVideoStartBitrate = ensureCodecBitrates(
+                            mediaDesc,
+                            trackBitrates = trackBitrates,
+                            connectionStartBitrate = connectionStartBitrate,
+                        ) || appliedVideoStartBitrate
                     }
                 }
-                finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
+                val mungedDescription = sdpDescription.toString()
+                finalSdp = setMungedSdp(sdpOffer, mungedDescription)
+                // setMungedSdp may fall back to the original SDP. Only mark the one-shot
+                // hint as used after the SDP with the hint is accepted locally.
+                if (appliedVideoStartBitrate && finalSdp?.description == mungedDescription) {
+                    hasAppliedVideoStartBitrate = true
+                }
             }
 
             finalSdp?.let { sdp ->
@@ -446,7 +469,18 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
  * Why 90%: Gives ~10% headroom for bandwidth estimation while starting close to target.
  * Why same for all codecs: Target bitrate already accounts for codec efficiency
  * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
- * Why cap at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
+ * Why cap camera at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
+ *
+ * libwebrtc applies these codec fmtp bitrate params to the shared Call, not just
+ * the m-section that carries them. To avoid last-writer-wins variance, each video
+ * m-section gets the same x-google-start-bitrate: the max hint among active video
+ * m-sections in the first offer that contains local video. Later renegotiations do
+ * not write it, because reapplying a start hint can reset an already-running
+ * bandwidth estimator.
+ *
+ * Do not write x-google-max-bitrate here. Per-track and per-layer caps are already
+ * applied with RtpParameters.Encoding.maxBitrateBps, while the SDP fmtp max becomes
+ * a Call-wide max_data_rate and can throttle unrelated concurrent tracks.
  */
 private const val startBitrateMultiplier = 0.9
 
@@ -464,65 +498,110 @@ fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
-    val msid = media.getMsid()?.value ?: return
-    for ((key, trackBr) in trackBitrates) {
+    ensureCodecBitrates(
+        media = media,
+        trackBitrates = trackBitrates,
+        connectionStartBitrate = computeConnectionStartBitrate(trackBitrates.values),
+    )
+}
+
+@VisibleForTesting
+internal fun ensureCodecBitrates(
+    media: MediaDescription,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+    connectionStartBitrate: Long?,
+): Boolean {
+    // Returns true when this media section maps to a local video track and has or
+    // receives the connection-level start hint.
+    val startBitrate = connectionStartBitrate ?: return false
+    val (_, codecPayload) = findTrackCodecBitrateInfo(media, trackBitrates) ?: return false
+
+    val fmtps = media.getFmtps()
+    var fmtpFound = false
+    for ((attribute, fmtp) in fmtps) {
+        if (fmtp.payload == codecPayload) {
+            fmtpFound = true
+            if (fmtp.config.contains("x-google-start-bitrate")) {
+                return true
+            }
+            attribute.value = "${fmtp.payload} ${fmtp.config};x-google-start-bitrate=$startBitrate"
+            break
+        }
+    }
+
+    if (!fmtpFound) {
+        media.addAttribute(
+            SdpFmtp(
+                payload = codecPayload,
+                config = "x-google-start-bitrate=$startBitrate",
+            ).toAttributeField(),
+        )
+    }
+    return true
+}
+
+private fun computeConnectionStartBitrate(
+    mediaDescriptions: Collection<MediaDescription>,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+): Long? {
+    // Use only video m-sections in the current SDP. trackBitrates can contain
+    // stale entries after unpublish, and those must not affect the connection hint.
+    return mediaDescriptions
+        .asSequence()
+        .filter { media -> media.media.mediaType == "video" }
+        .mapNotNull { media -> findTrackCodecBitrateInfo(media, trackBitrates)?.trackBitrateInfo }
+        .mapNotNull(::computeTrackStartBitrate)
+        .maxOrNull()
+}
+
+/**
+ * @suppress
+ */
+@VisibleForTesting
+internal fun computeConnectionStartBitrate(trackBitrates: Collection<TrackBitrateInfo>): Long? {
+    return trackBitrates.mapNotNull(::computeTrackStartBitrate).maxOrNull()
+}
+
+private data class TrackCodecBitrateInfo(
+    val trackBitrateInfo: TrackBitrateInfo,
+    val codecPayload: Long,
+)
+
+private fun findTrackCodecBitrateInfo(
+    media: MediaDescription,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+): TrackCodecBitrateInfo? {
+    val msid = media.getMsid()?.value ?: return null
+    for ((key, trackBitrateInfo) in trackBitrates) {
         if (key !is TrackBitrateInfoKey.Cid) {
             continue
         }
-
-        val (cid) = key
-        if (!msid.contains(cid)) {
+        if (!msid.contains(key.value)) {
             continue
         }
-
         val (_, rtp) = media.getRtps()
-            .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
+            .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBitrateInfo.codec, ignoreCase = true) }
             ?: continue
-        val codecPayload = rtp.payload
+        return TrackCodecBitrateInfo(
+            trackBitrateInfo = trackBitrateInfo,
+            codecPayload = rtp.payload,
+        )
+    }
+    return null
+}
 
-        // Skip start bitrate hint for very low bitrate tracks - the hint hurts more than it helps
-        if (trackBr.maxBitrate < minTargetBitrateKbps) {
-            continue
-        }
+private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo): Long? {
+    if (trackBr.maxBitrate < minTargetBitrateKbps) {
+        return null
+    }
 
-        val fmtps = media.getFmtps()
-        // Use 90% of target bitrate, capped at 1 Mbps for camera to prevent BWE from starting too aggressively
-        // Screen share is not capped since text/UI clarity requires high bitrate from the start
-        // TODO: dynamically adjust start bitrate based on network conditions (e.g., use previous BWE estimate)
-        val calculatedStartBitrate = (trackBr.maxBitrate * startBitrateMultiplier).roundToLong()
-        val startBitrate = if (trackBr.isScreenShare) {
-            calculatedStartBitrate
-        } else {
-            minOf(calculatedStartBitrate, maxStartBitrateKbps)
-        }
-
-        var fmtpFound = false
-        for ((attribute, fmtp) in fmtps) {
-            if (fmtp.payload == codecPayload) {
-                fmtpFound = true
-                var newFmtpConfig = fmtp.config
-                if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=$startBitrate"
-                }
-                if (!fmtp.config.contains("x-google-max-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
-                }
-                if (fmtp.config != newFmtpConfig) {
-                    attribute.value = "${fmtp.payload} $newFmtpConfig"
-                    break
-                }
-            }
-        }
-
-        if (!fmtpFound) {
-            media.addAttribute(
-                SdpFmtp(
-                    payload = codecPayload,
-                    config = "x-google-start-bitrate=$startBitrate;" +
-                        "x-google-max-bitrate=${trackBr.maxBitrate}",
-                ).toAttributeField(),
-            )
-        }
+    // TODO: dynamically adjust start bitrate based on network conditions, such as
+    // using the previous BWE estimate.
+    val calculatedStartBitrate = (trackBr.maxBitrate * startBitrateMultiplier).roundToLong()
+    return if (trackBr.isScreenShare) {
+        calculatedStartBitrate
+    } else {
+        minOf(calculatedStartBitrate, maxStartBitrateKbps)
     }
 }
 
