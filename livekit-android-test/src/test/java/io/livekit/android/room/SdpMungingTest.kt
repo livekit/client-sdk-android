@@ -63,8 +63,8 @@ class SdpMungingTest {
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
-                        "VP9",
-                        1000L,
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
                     ),
             ),
         )
@@ -86,8 +86,8 @@ class SdpMungingTest {
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
-                        "VP9",
-                        1000L,
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
                     ),
             ),
             connectionStartBitrate = 1000L,
@@ -110,8 +110,8 @@ class SdpMungingTest {
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
-                        "VP9",
-                        1000L,
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
                     ),
             ),
             connectionStartBitrate = null,
@@ -130,11 +130,11 @@ class SdpMungingTest {
             listOf(
                 TrackBitrateInfo(
                     codec = "VP8",
-                    maxBitrate = 2310L,
+                    targetBitrateKbps = 2310L,
                 ),
                 TrackBitrateInfo(
                     codec = "VP8",
-                    maxBitrate = 5000L,
+                    targetBitrateKbps = 5000L,
                     isScreenShare = true,
                 ),
             ),

@@ -728,7 +728,7 @@ internal constructor(
                         cid = cid,
                         TrackBitrateInfo(
                             codec = finalOptions.videoCodec,
-                            maxBitrate = targetBitrateBps / 1000,
+                            targetBitrateKbps = targetBitrateBps / 1000,
                             isScreenShare = trackSource == Track.Source.SCREEN_SHARE,
                         ),
                     )
