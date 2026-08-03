@@ -842,6 +842,36 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publishCameraUsesDefaultDegradationPreference() = runTest {
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(
+            RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE,
+            transceiver.sender.parameters.degradationPreference,
+        )
+    }
+
+    @Test
+    fun publishScreenShareUsesDefaultDegradationPreference() = runTest {
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(isScreencast = true))
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(
+            RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
+            transceiver.sender.parameters.degradationPreference,
+        )
+    }
+
+    @Test
     fun lackOfPublishPermissionReturnsFalse() = runTest {
         val noCanPublishJoin = with(TestData.JOIN.toBuilder()) {
             join = with(join.toBuilder()) {
