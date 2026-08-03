@@ -471,22 +471,6 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
  * Why same for all codecs: Target bitrate already accounts for codec efficiency
  * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
  * Why cap camera at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
- *
- * libwebrtc applies these codec fmtp bitrate params to the shared Call, not just
- * the m-section that carries them. To avoid last-writer-wins variance, each video
- * m-section gets the same x-google-start-bitrate: the max hint among active video
- * m-sections in the first offer that contains local video. Later renegotiations do
- * not write it, because reapplying a start hint can reset an already-running
- * bandwidth estimator.
- *
- * Do not write x-google-max-bitrate here. libwebrtc promotes this SDP fmtp
- * value into the shared Call max_data_rate, so one video m-section can cap the
- * whole publisher connection and throttle unrelated concurrent tracks, such as
- * camera plus screen share. The track-specific limit belongs in
- * RtpParameters.Encoding.maxBitrateBps, where per-track and per-layer caps are
- * already applied. Keep this behavior aligned across LiveKit SDKs by relying on
- * encoding parameters for max bitrate and reserving SDP munging for the one
- * connection-level start bitrate hint.
  */
 private const val startBitrateMultiplier = 0.9
 
@@ -511,6 +495,23 @@ fun ensureCodecBitrates(
     )
 }
 
+/*
+ * libwebrtc applies these codec fmtp bitrate params to the shared Call, not just
+ * the m-section that carries them. To avoid last-writer-wins variance, each video
+ * m-section gets the same x-google-start-bitrate: the max hint among active video
+ * m-sections in the first offer that contains local video. Later renegotiations do
+ * not write it, because reapplying a start hint can reset an already-running
+ * bandwidth estimator.
+ *
+ * Do not write x-google-max-bitrate here. libwebrtc promotes this SDP fmtp
+ * value into the shared Call max_data_rate, so one video m-section can cap the
+ * whole publisher connection and throttle unrelated concurrent tracks, such as
+ * camera plus screen share. The track-specific limit belongs in
+ * RtpParameters.Encoding.maxBitrateBps, where per-track and per-layer caps are
+ * already applied. Keep this behavior aligned across LiveKit SDKs by relying on
+ * encoding parameters for max bitrate and reserving SDP munging for the one
+ * connection-level start bitrate hint.
+ */
 @VisibleForTesting
 internal fun ensureCodecBitrates(
     media: MediaDescription,
