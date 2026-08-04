@@ -6,6 +6,10 @@
     <string name="e2ee_enabled_str">Enable E2EE</string>
     <string name="url">URL</string>
     <string name="token_server_id">Token Server ID</string>
+    <string name="room_name">Room Name (optional)</string>
+    <string name="participant_name">Participant Name (optional)</string>
+    <string name="participant_identity">Participant Identity (optional)</string>
+    <string name="agent_name">Agent Name (optional)</string>
     <string name="tab_url_token">URL &amp; Token</string>
     <string name="tab_dev_token_server">Dev Token Server</string>
     <string name="save_values">Save Values</string>

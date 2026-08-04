@@ -34,5 +34,9 @@ sealed class TokenSourceArgs : Parcelable {
     @Parcelize
     data class DevTokenServer(
         val tokenServerId: String,
+        val roomName: String? = null,
+        val participantName: String? = null,
+        val participantIdentity: String? = null,
+        val agentName: String? = null,
     ) : TokenSourceArgs()
 }

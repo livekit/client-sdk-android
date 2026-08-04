@@ -53,6 +53,7 @@ import io.livekit.android.rpc.RpcError
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.token.TokenRequestOptions
 import io.livekit.android.token.TokenSource
 import io.livekit.android.token.TokenSourceResponse
 import io.livekit.android.util.LKLog
@@ -259,7 +260,14 @@ class CallViewModel(
 
     private suspend fun fetchConnectionDetails(): Result<TokenSourceResponse> = when (tokenSourceArgs) {
         is TokenSourceArgs.Literal -> TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token).fetch()
-        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).fetch()
+        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).fetch(
+            TokenRequestOptions(
+                roomName = tokenSourceArgs.roomName,
+                participantName = tokenSourceArgs.participantName,
+                participantIdentity = tokenSourceArgs.participantIdentity,
+                agentName = tokenSourceArgs.agentName,
+            ),
+        )
     }
 
     private suspend fun connectToRoom() {

@@ -139,6 +139,10 @@ class MainActivity : ComponentActivity() {
             var url by remember { mutableStateOf(defaultUrl) }
             var token by remember { mutableStateOf(defaultToken) }
             var tokenServerId by remember { mutableStateOf(defaultTokenServerId) }
+            var roomName by remember { mutableStateOf("") }
+            var participantName by remember { mutableStateOf("") }
+            var participantIdentity by remember { mutableStateOf("") }
+            var agentName by remember { mutableStateOf("") }
             var e2eeKey by remember { mutableStateOf(defaultE2eeKey) }
             var e2eeOn by remember { mutableStateOf(defaultE2eeOn) }
             var stressTest by remember { mutableStateOf(false) }
@@ -204,6 +208,34 @@ class MainActivity : ComponentActivity() {
                                     value = tokenServerId,
                                     onValueChange = { tokenServerId = it },
                                     label = { Text("Token Server ID") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = roomName,
+                                    onValueChange = { roomName = it },
+                                    label = { Text("Room Name (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = participantName,
+                                    onValueChange = { participantName = it },
+                                    label = { Text("Participant Name (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = participantIdentity,
+                                    onValueChange = { participantIdentity = it },
+                                    label = { Text("Participant Identity (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = agentName,
+                                    onValueChange = { agentName = it },
+                                    label = { Text("Agent Name (optional)") },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             }
@@ -272,7 +304,14 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     TokenMode.DevServer -> {
-                                        onConnect(TokenSourceArgs.DevTokenServer(tokenServerId), e2eeKey, e2eeOn, StressTest.None)
+                                        val devTokenServerArgs = TokenSourceArgs.DevTokenServer(
+                                            tokenServerId = tokenServerId,
+                                            roomName = roomName.ifBlank { null },
+                                            participantName = participantName.ifBlank { null },
+                                            participantIdentity = participantIdentity.ifBlank { null },
+                                            agentName = agentName.ifBlank { null },
+                                        )
+                                        onConnect(devTokenServerArgs, e2eeKey, e2eeOn, StressTest.None)
                                     }
                                 }
                             },

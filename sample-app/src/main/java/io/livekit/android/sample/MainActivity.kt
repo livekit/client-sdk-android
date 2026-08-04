@@ -53,9 +53,8 @@ class MainActivity : AppCompatActivity() {
             tokenModeTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
                     val literalMode = tab.position == TAB_POSITION_LITERAL
-                    url.visibility = if (literalMode) View.VISIBLE else View.GONE
-                    token.visibility = if (literalMode) View.VISIBLE else View.GONE
-                    tokenServerId.visibility = if (literalMode) View.GONE else View.VISIBLE
+                    literalFields.visibility = if (literalMode) View.VISIBLE else View.GONE
+                    devTokenServerFields.visibility = if (literalMode) View.GONE else View.VISIBLE
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {}
@@ -72,6 +71,10 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     TokenSourceArgs.DevTokenServer(
                         tokenServerId = tokenServerId.editText?.text.toString(),
+                        roomName = roomName.editText?.text?.toString()?.ifBlank { null },
+                        participantName = participantName.editText?.text?.toString()?.ifBlank { null },
+                        participantIdentity = participantIdentity.editText?.text?.toString()?.ifBlank { null },
+                        agentName = agentName.editText?.text?.toString()?.ifBlank { null },
                     )
                 }
                 val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
