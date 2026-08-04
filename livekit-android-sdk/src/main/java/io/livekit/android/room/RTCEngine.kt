@@ -998,14 +998,13 @@ internal constructor(
 
             // Only use server-provided servers if user doesn't provide any.
             if (mergedServers.isEmpty()) {
-                iceServers.forEach { server ->
-                    if (!mergedServers.contains(server)) {
-                        mergedServers.add(server)
-                    }
-                }
+                mergedServers.addAll(serverIceServers)
             }
 
             iceServers = mergedServers
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy =
+                PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         }
             ?: RTCConfiguration(serverIceServers).apply {
                 sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN

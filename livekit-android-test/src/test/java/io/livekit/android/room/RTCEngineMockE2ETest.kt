@@ -17,6 +17,7 @@
 package io.livekit.android.room
 
 import com.google.protobuf.ByteString
+import io.livekit.android.ConnectOptions
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.events.FlowCollector
@@ -82,6 +83,38 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         val subPeerConnection = getSubscriberPeerConnection()
 
         assertEquals(sentIceServers, subPeerConnection.rtcConfig.iceServers)
+    }
+
+    @Test
+    fun customRtcConfigWithEmptyIceServersUsesServerIceServers() = runTest {
+        val connectJob = async {
+            room.connect(
+                url = TestData.EXAMPLE_URL,
+                token = "token",
+                options = ConnectOptions(
+                    rtcConfig = PeerConnection.RTCConfiguration(emptyList()).apply {
+                        iceTransportsType = PeerConnection.IceTransportsType.RELAY
+                    },
+                ),
+            )
+        }
+        prepareSignal(TestData.JOIN)
+        connectJob.await()
+        connectPeerConnection()
+
+        val subPeerConnection = getSubscriberPeerConnection()
+        assertEquals(PeerConnection.IceTransportsType.RELAY, subPeerConnection.rtcConfig.iceTransportsType)
+        val sentIceServers = TestData.JOIN.join.iceServersList
+            .map { it.toWebrtc() }
+        assertEquals(sentIceServers, subPeerConnection.rtcConfig.iceServers)
+        assertEquals(
+            PeerConnection.SdpSemantics.UNIFIED_PLAN,
+            subPeerConnection.rtcConfig.sdpSemantics,
+        )
+        assertEquals(
+            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY,
+            subPeerConnection.rtcConfig.continualGatheringPolicy,
+        )
     }
 
     @Test
