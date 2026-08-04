@@ -46,14 +46,17 @@ internal class EndpointTokenSourceImpl(
     ) : this(URL(url), method, headers)
 }
 
-data class SandboxTokenServerOptions(
+data class DevelopmentTokenServerOptions(
     val baseUrl: String? = null,
 )
 
-internal class SandboxTokenSource(sandboxId: String, options: SandboxTokenServerOptions) : EndpointTokenSource {
+@Deprecated("Use DevelopmentTokenServerOptions instead", ReplaceWith("DevelopmentTokenServerOptions"))
+typealias SandboxTokenServerOptions = DevelopmentTokenServerOptions
+
+internal class DevelopmentTokenSource(tokenServerId: String, options: DevelopmentTokenServerOptions) : EndpointTokenSource {
     override val url: URL = URL("${options.baseUrl ?: "https://cloud-api.livekit.io"}/api/v2/sandbox/connection-details")
     override val headers: Map<String, String> = mapOf(
-        "X-Sandbox-ID" to sandboxId,
+        "X-Sandbox-ID" to tokenServerId,
     )
 }
 
