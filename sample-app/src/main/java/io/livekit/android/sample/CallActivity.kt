@@ -40,6 +40,7 @@ import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
 import io.livekit.android.sample.dialog.showSelectAudioDeviceDialog
 import io.livekit.android.sample.model.StressTest
+import io.livekit.android.sample.model.TokenSourceArgs
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
@@ -51,8 +52,7 @@ class CallActivity : AppCompatActivity() {
             ?: throw NullPointerException("args is null!")
 
         CallViewModel(
-            url = args.url,
-            token = args.token,
+            tokenSourceArgs = args.tokenSourceArgs,
             e2ee = args.e2eeOn,
             e2eeKey = args.e2eeKey,
             stressTest = args.stressTest,
@@ -262,8 +262,7 @@ class CallActivity : AppCompatActivity() {
 
     @Parcelize
     data class BundleArgs(
-        val url: String,
-        val token: String,
+        val tokenSourceArgs: TokenSourceArgs,
         val e2eeKey: String,
         val e2eeOn: Boolean,
         val stressTest: StressTest,

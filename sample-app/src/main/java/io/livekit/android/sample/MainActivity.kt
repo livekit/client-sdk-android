@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,14 @@ package io.livekit.android.sample
 import android.content.Intent
 import android.os.Bundle
 import android.text.SpannableStringBuilder
+import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.tabs.TabLayout
 import io.livekit.android.sample.databinding.MainActivityBinding
 import io.livekit.android.sample.model.StressTest
+import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.util.requestNeededPermissions
 
 class MainActivity : AppCompatActivity() {
@@ -36,21 +39,46 @@ class MainActivity : AppCompatActivity() {
 
         val urlString = viewModel.getSavedUrl()
         val tokenString = viewModel.getSavedToken()
+        val tokenServerIdString = viewModel.getSavedTokenServerId()
         val e2EEOn = viewModel.getE2EEOptionsOn()
         val e2EEKey = viewModel.getSavedE2EEKey()
 
         binding.run {
             url.editText?.text = SpannableStringBuilder(urlString)
             token.editText?.text = SpannableStringBuilder(tokenString)
+            tokenServerId.editText?.text = SpannableStringBuilder(tokenServerIdString)
             e2eeEnabled.isChecked = e2EEOn
             e2eeKey.editText?.text = SpannableStringBuilder(e2EEKey)
+
+            tokenModeTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+                override fun onTabSelected(tab: TabLayout.Tab) {
+                    val literalMode = tab.position == TAB_POSITION_LITERAL
+                    url.visibility = if (literalMode) View.VISIBLE else View.GONE
+                    token.visibility = if (literalMode) View.VISIBLE else View.GONE
+                    tokenServerId.visibility = if (literalMode) View.GONE else View.VISIBLE
+                }
+
+                override fun onTabUnselected(tab: TabLayout.Tab) {}
+
+                override fun onTabReselected(tab: TabLayout.Tab) {}
+            })
+
             connectButton.setOnClickListener {
+                val tokenSourceArgs = if (tokenModeTabs.selectedTabPosition == TAB_POSITION_LITERAL) {
+                    TokenSourceArgs.Literal(
+                        url = url.editText?.text.toString(),
+                        token = token.editText?.text.toString(),
+                    )
+                } else {
+                    TokenSourceArgs.DevTokenServer(
+                        tokenServerId = tokenServerId.editText?.text.toString(),
+                    )
+                }
                 val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                     putExtra(
                         CallActivity.KEY_ARGS,
                         CallActivity.BundleArgs(
-                            url = url.editText?.text.toString(),
-                            token = token.editText?.text.toString(),
+                            tokenSourceArgs = tokenSourceArgs,
                             e2eeOn = e2eeEnabled.isChecked,
                             e2eeKey = e2eeKey.editText?.text.toString(),
                             stressTest = StressTest.None,
@@ -64,6 +92,7 @@ class MainActivity : AppCompatActivity() {
             saveButton.setOnClickListener {
                 viewModel.setSavedUrl(url.editText?.text?.toString() ?: "")
                 viewModel.setSavedToken(token.editText?.text?.toString() ?: "")
+                viewModel.setSavedTokenServerId(tokenServerId.editText?.text?.toString() ?: "")
                 viewModel.setSavedE2EEOn(e2eeEnabled.isChecked)
                 viewModel.setSavedE2EEKey(e2eeKey.editText?.text?.toString() ?: "")
 
@@ -78,6 +107,7 @@ class MainActivity : AppCompatActivity() {
                 viewModel.reset()
                 url.editText?.text = SpannableStringBuilder(MainViewModel.URL)
                 token.editText?.text = SpannableStringBuilder(MainViewModel.TOKEN)
+                tokenServerId.editText?.text = SpannableStringBuilder(MainViewModel.TOKEN_SERVER_ID)
                 e2eeEnabled.isChecked = false
                 e2eeKey.editText?.text = SpannableStringBuilder("")
 
@@ -92,5 +122,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         requestNeededPermissions()
+    }
+
+    companion object {
+        private const val TAB_POSITION_LITERAL = 0
     }
 }

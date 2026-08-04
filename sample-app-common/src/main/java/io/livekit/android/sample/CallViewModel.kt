@@ -51,7 +51,10 @@ import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.sample.model.StressTest
+import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.token.TokenSource
+import io.livekit.android.token.TokenSourceResponse
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import kotlinx.coroutines.Dispatchers
@@ -68,8 +71,7 @@ import livekit.org.webrtc.CameraXHelper
 
 @OptIn(ExperimentalCamera2Interop::class)
 class CallViewModel(
-    val url: String,
-    val token: String,
+    val tokenSourceArgs: TokenSourceArgs,
     application: Application,
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
@@ -255,12 +257,18 @@ class CallViewModel(
         }
     }
 
+    private suspend fun fetchConnectionDetails(): Result<TokenSourceResponse> = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token).fetch()
+        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).fetch()
+    }
+
     private suspend fun connectToRoom() {
         try {
             room.e2eeOptions = getE2EEOptions()
+            val connectionDetails = fetchConnectionDetails().getOrThrow()
             room.connect(
-                url = url,
-                token = token,
+                url = connectionDetails.serverUrl,
+                token = connectionDetails.participantToken,
             )
 
             mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
@@ -495,6 +503,8 @@ class CallViewModel(
 
     private suspend fun quickConnectToRoom(token: String) {
         try {
+            // The stress test is only reachable with literal credentials.
+            val url = (tokenSourceArgs as TokenSourceArgs.Literal).url
             room.connect(
                 url = url,
                 token = token,

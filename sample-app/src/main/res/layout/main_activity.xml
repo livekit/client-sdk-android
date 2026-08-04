@@ -12,6 +12,24 @@
         android:layout_marginTop="50dp"
         android:src="@drawable/banner_dark" />
 
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/token_mode_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_url_token" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_dev_token_server" />
+
+    </com.google.android.material.tabs.TabLayout>
+
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/url"
         android:layout_width="match_parent"
@@ -31,6 +49,20 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:hint="@string/token">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/token_server_id"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:hint="@string/token_server_id"
+        android:visibility="gone">
 
         <com.google.android.material.textfield.TextInputEditText
             android:layout_width="match_parent"
