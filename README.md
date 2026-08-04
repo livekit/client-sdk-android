@@ -122,14 +122,13 @@ val source = TokenSource.fromLiteral("wss://your.livekit.host", "your_token")
 
 For development and testing. Follow the
 [development token server guide](https://docs.livekit.io/frontends/build/authentication/sandbox-token-server/)
-to enable your project's development token server and get the token server ID — the
-`token-server-xxxxxx` value in `https://token-server-xxxxxx.sandbox.livekit.io`.
+to enable your project's development token server and get the token server ID from the settings page.
 
 This token generation mechanism is inherently insecure and should only be used for prototyping;
 do **not** use it in production.
 
 ```kt
-val source = TokenSource.fromDevelopmentTokenServer("token-server-xxxxxx")
+val source = TokenSource.fromDevelopmentTokenServer("your token server id")
 ```
 
 #### 3. Endpoint
