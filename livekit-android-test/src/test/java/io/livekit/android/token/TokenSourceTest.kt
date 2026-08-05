@@ -187,8 +187,8 @@ class TokenSourceTest : BaseTest() {
     @Ignore("For manual testing only.")
     @Test
     fun testTokenServer() = runTest {
-        val source = TokenSource.fromSandboxTokenServer(
-            "", // Put sandboxId here to test manually.
+        val source = TokenSource.fromDevelopmentTokenServer(
+            "", // Put tokenServerId here to test manually.
         )
         val options = TokenRequestOptions(
             roomName = "room-name",

@@ -211,10 +211,17 @@ interface TokenSource {
             options = options,
         )
 
+        /**
+         * Creates a [ConfigurableTokenSource] that queries a development token server for credentials.
+         *
+         * Note: This token provider is **insecure** and should **not** be used in production.
+         *
+         * @see fromDevelopmentTokenServer
+         */
         @Suppress("DEPRECATION")
         @Deprecated("Use fromDevelopmentTokenServer instead", ReplaceWith("fromDevelopmentTokenServer(sandboxId, options)"))
         fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource =
-            fromDevelopmentTokenServer(sandboxId, options)
+            fromDevelopmentTokenServer(sandboxId, DevelopmentTokenServerOptions(baseUrl = options.baseUrl))
     }
 }
 
