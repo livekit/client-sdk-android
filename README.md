@@ -21,6 +21,7 @@ Use this SDK to add realtime video, audio and data features to your Android/Kotl
 - [SDK Size](#sdk-size)
 - [Usage](#usage)
     - [Permissions](#permissions)
+    - [Token sources](#token-sources)
     - [Publishing camera and microphone](#publishing-camera-and-microphone)
     - [Sharing screen](#sharing-screen)
     - [Rendering subscribed tracks](#rendering-subscribed-tracks)
@@ -101,6 +102,77 @@ LiveKit relies on the `RECORD_AUDIO` and `CAMERA` permissions to use the microph
 These permission must be requested at runtime. Reference
 the [sample app](https://github.com/livekit/client-sdk-android/blob/4e76e36e0d9f895c718bd41809ab5ff6c57aabd4/sample-app-compose/src/main/java/io/livekit/android/composesample/MainActivity.kt#L134)
 for an example.
+
+### Token sources
+
+To connect to a room, you need a server URL and a participant token. The `TokenSource` factory
+methods cover the common ways of obtaining these credentials:
+
+#### 1. Literal
+
+Use this to pass a pregenerated server URL and token. Generate tokens via the
+[LiveKit CLI](https://docs.livekit.io/frontends/build/authentication/custom/#manual-token-creation)
+or from your [LiveKit Cloud](https://cloud.livekit.io/) project's API key page.
+
+```kt
+val source = TokenSource.fromLiteral("wss://your.livekit.host", "your_token")
+```
+
+#### 2. Development Token Server
+
+For development and testing. Follow the
+[development token server guide](https://docs.livekit.io/frontends/build/authentication/sandbox-token-server/)
+to enable your project's development token server and get the token server ID from the settings page.
+
+This token generation mechanism is inherently insecure and should only be used for prototyping;
+do **not** use it in production.
+
+```kt
+val source = TokenSource.fromDevelopmentTokenServer("your token server id")
+```
+
+#### 3. Endpoint
+
+For production. Point to your own token endpoint URL and add any required authentication headers.
+The request and response follow the standard format described in the
+[endpoint token generation guide](https://docs.livekit.io/frontends/build/authentication/endpoint/).
+
+```kt
+val source = TokenSource.fromEndpoint(
+    url = "https://your.token-server/api/token",
+    headers = mapOf("Authorization" to "Bearer <auth>"),
+)
+```
+
+#### 4. Custom
+
+For fully custom logic, supply your own fetch function:
+
+```kt
+val source = TokenSource.fromCustom { options ->
+    // Generate credentials via custom means here.
+    Result.success(TokenSourceResponse(serverUrl = "...", participantToken = "..."))
+}
+```
+
+#### Fetching credentials and connecting
+
+Configurable token sources (development token server, endpoint, custom) accept
+`TokenRequestOptions` per fetch; fixed sources (literal) take no options:
+
+```kt
+val response = source.fetch(
+    TokenRequestOptions(roomName = "room", participantName = "participant"),
+).getOrThrow()
+
+room.connect(response.serverUrl, response.participantToken)
+```
+
+To avoid refetching credentials that are still valid, wrap any token source with `.cached()`:
+
+```kt
+val cachedSource = source.cached()
+```
 
 ### Publishing camera and microphone
 

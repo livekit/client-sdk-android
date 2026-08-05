@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -187,8 +187,8 @@ class TokenSourceTest : BaseTest() {
     @Ignore("For manual testing only.")
     @Test
     fun testTokenServer() = runTest {
-        val source = TokenSource.fromSandboxTokenServer(
-            "", // Put sandboxId here to test manually.
+        val source = TokenSource.fromDevelopmentTokenServer(
+            "", // Put tokenServerId here to test manually.
         )
         val options = TokenRequestOptions(
             roomName = "room-name",

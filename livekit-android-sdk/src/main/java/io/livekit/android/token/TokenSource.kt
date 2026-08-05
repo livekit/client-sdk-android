@@ -165,6 +165,8 @@ interface TokenSource {
         /**
          * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
          *
+         * For more info: [https://docs.livekit.io/frontends/build/authentication/endpoint/](https://docs.livekit.io/frontends/build/authentication/endpoint/)
+         *
          * @param method the HTTP request method to use. Defaults to POST.
          * @see cached
          * @see CachingConfigurableTokenSource
@@ -178,6 +180,8 @@ interface TokenSource {
         /**
          * Creates a [ConfigurableTokenSource] that fetches from a given [url] using the standard token server format.
          *
+         * For more info: [https://docs.livekit.io/frontends/build/authentication/endpoint/](https://docs.livekit.io/frontends/build/authentication/endpoint/)
+         *
          * @param method the HTTP request method to use. Defaults to POST.
          * @see cached
          * @see CachingConfigurableTokenSource
@@ -189,18 +193,35 @@ interface TokenSource {
         )
 
         /**
-         * Creates a [ConfigurableTokenSource] that fetches from a sandbox token server for credentials,
+         * Creates a [ConfigurableTokenSource] that queries a development token server for credentials,
          * which supports quick prototyping/getting started types of use cases.
          *
          * Note: This token provider is **insecure** and should **not** be used in production.
          *
+         * For more info: [https://docs.livekit.io/frontends/build/authentication/sandbox-token-server/](https://docs.livekit.io/frontends/build/authentication/sandbox-token-server/)
+         *
          * @see cached
          * @see CachingConfigurableTokenSource
          */
-        fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource = SandboxTokenSource(
-            sandboxId = sandboxId,
+        fun fromDevelopmentTokenServer(
+            tokenServerId: String,
+            options: DevelopmentTokenServerOptions = DevelopmentTokenServerOptions(),
+        ): ConfigurableTokenSource = DevelopmentTokenSource(
+            tokenServerId = tokenServerId,
             options = options,
         )
+
+        /**
+         * Creates a [ConfigurableTokenSource] that queries a development token server for credentials.
+         *
+         * Note: This token provider is **insecure** and should **not** be used in production.
+         *
+         * @see fromDevelopmentTokenServer
+         */
+        @Suppress("DEPRECATION")
+        @Deprecated("Use fromDevelopmentTokenServer instead", ReplaceWith("fromDevelopmentTokenServer(sandboxId, DevelopmentTokenServerOptions(options.baseUrl))"))
+        fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource =
+            fromDevelopmentTokenServer(sandboxId, DevelopmentTokenServerOptions(baseUrl = options.baseUrl))
     }
 }
 
