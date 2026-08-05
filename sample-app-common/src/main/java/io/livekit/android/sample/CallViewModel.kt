@@ -53,6 +53,8 @@ import io.livekit.android.rpc.RpcError
 import io.livekit.android.sample.model.StressTest
 import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.token.ConfigurableTokenSource
+import io.livekit.android.token.FixedTokenSource
 import io.livekit.android.token.TokenRequestOptions
 import io.livekit.android.token.TokenSource
 import io.livekit.android.token.TokenSourceResponse
@@ -154,29 +156,17 @@ class CallViewModel(
     val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
 
     /**
-     * Fetches the connection details used to connect to the room.
+     * The token source used to fetch connection details for the room.
      *
-     * The token source is created once and wrapped with [cached], so reconnects reuse
-     * the same credentials until the token expires. Otherwise the development token
-     * server would issue new random values on every fetch when no explicit room
-     * name/participant identity is set, causing reconnects to join a different room.
+     * Created once and (for the development token server) wrapped with [cached], so
+     * reconnects reuse the same credentials until the token expires. Otherwise the
+     * development token server would issue new random values on every fetch when no
+     * explicit room name/participant identity is set, causing reconnects to join a
+     * different room.
      */
-    private val fetchConnectionDetails: suspend () -> Result<TokenSourceResponse> = when (tokenSourceArgs) {
-        is TokenSourceArgs.Literal -> {
-            val tokenSource = TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token)
-            suspend { tokenSource.fetch() }
-        }
-
-        is TokenSourceArgs.DevTokenServer -> {
-            val tokenSource = TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).cached()
-            val options = TokenRequestOptions(
-                roomName = tokenSourceArgs.roomName,
-                participantName = tokenSourceArgs.participantName,
-                participantIdentity = tokenSourceArgs.participantIdentity,
-                agentName = tokenSourceArgs.agentName,
-            )
-            suspend { tokenSource.fetch(options) }
-        }
+    private val tokenSource: TokenSource = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token)
+        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).cached()
     }
 
     init {
@@ -283,6 +273,21 @@ class CallViewModel(
                 mutableEnableAudioProcessor.postValue(true)
             }
         }
+    }
+
+    /**
+     * Fetches the connection details used to connect to the room from [tokenSource].
+     */
+    private suspend fun fetchConnectionDetails(): Result<TokenSourceResponse> = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> (tokenSource as FixedTokenSource).fetch()
+        is TokenSourceArgs.DevTokenServer -> (tokenSource as ConfigurableTokenSource).fetch(
+            TokenRequestOptions(
+                roomName = tokenSourceArgs.roomName,
+                participantName = tokenSourceArgs.participantName,
+                participantIdentity = tokenSourceArgs.participantIdentity,
+                agentName = tokenSourceArgs.agentName,
+            ),
+        )
     }
 
     private suspend fun connectToRoom() {
