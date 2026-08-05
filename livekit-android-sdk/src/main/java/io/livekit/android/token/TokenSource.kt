@@ -219,7 +219,7 @@ interface TokenSource {
          * @see fromDevelopmentTokenServer
          */
         @Suppress("DEPRECATION")
-        @Deprecated("Use fromDevelopmentTokenServer instead", ReplaceWith("fromDevelopmentTokenServer(sandboxId, options)"))
+        @Deprecated("Use fromDevelopmentTokenServer instead", ReplaceWith("fromDevelopmentTokenServer(sandboxId, DevelopmentTokenServerOptions(options.baseUrl))"))
         fun fromSandboxTokenServer(sandboxId: String, options: SandboxTokenServerOptions = SandboxTokenServerOptions()): ConfigurableTokenSource =
             fromDevelopmentTokenServer(sandboxId, DevelopmentTokenServerOptions(baseUrl = options.baseUrl))
     }
