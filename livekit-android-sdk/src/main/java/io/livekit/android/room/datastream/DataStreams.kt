@@ -16,7 +16,6 @@
 
 package io.livekit.android.room.datastream
 
-import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
@@ -33,15 +32,16 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import livekit.LivekitModels
 import java.io.Closeable
 import java.util.Collections
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 import io.livekit.uniffi.ByteStreamInfo as FfiByteStreamInfo
 import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
@@ -83,7 +83,6 @@ class DataStreams
 internal constructor(
     private val engine: RTCEngine,
     closeableManager: CloseableManager,
-    @Named(InjectionNames.DISPATCHER_IO) ioDispatcher: CoroutineDispatcher,
 ) : Closeable {
 
     /**
@@ -104,7 +103,28 @@ internal constructor(
      */
     internal var maxPayloadSize: () -> Long? = { null }
 
-    private val coroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    /**
+     * The dispatcher for everything on the FFI boundary: calls into the core, and the coroutines
+     * that react to its callbacks.
+     *
+     * Deliberately a real dispatcher, and deliberately not the injected one. Two reasons, both of
+     * which have bitten:
+     *
+     *  - The core resumes a suspended call from a thread on its own runtime, so the continuation
+     *    has to land on a dispatcher actually backed by threads. On a virtual-time test dispatcher
+     *    it is queued for a scheduler nobody is advancing and the call never completes.
+     *  - The core invokes our delegates synchronously on its runtime threads. An unconfined
+     *    dispatcher resumes waiting coroutines *inline on the calling thread*, so the work those
+     *    coroutines do -- awaiting a publisher connection, waiting out data channel backpressure --
+     *    would run on, and block, a core runtime thread. Enough of those and the core's runtime
+     *    deadlocks and every stream stops.
+     *
+     * Confining all of it here keeps both hazards off callers, including SDK users whose own tests
+     * may run the SDK on a test dispatcher.
+     */
+    private val ffiDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    private val coroutineScope = CoroutineScope(SupervisorJob() + ffiDispatcher)
 
     private val textStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, TextStreamHandler>())
     private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
@@ -227,7 +247,7 @@ internal constructor(
     // region Outgoing
 
     suspend fun streamText(options: StreamTextOptions): TextStreamSender {
-        val writer = mappingErrors { outgoing.streamText(options.toFfi()) }
+        val writer = onFfi { outgoing.streamText(options.toFfi()) }
         return TextStreamSender(
             info = writer.info().toSdk(currentEncryptionType()),
             destination = TextWriterDestination(writer),
@@ -235,7 +255,7 @@ internal constructor(
     }
 
     suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender {
-        val writer = mappingErrors { outgoing.streamBytes(options.toFfi()) }
+        val writer = onFfi { outgoing.streamBytes(options.toFfi()) }
         return ByteStreamSender(
             info = writer.info().toSdk(currentEncryptionType()),
             destination = ByteWriterDestination(writer),
@@ -243,12 +263,12 @@ internal constructor(
     }
 
     suspend fun sendText(text: String, options: StreamTextOptions): TextStreamInfo {
-        return mappingErrors { outgoing.sendText(text, options.toFfi()) }
+        return onFfi { outgoing.sendText(text, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
     suspend fun sendBytes(data: ByteArray, options: StreamBytesOptions): ByteStreamInfo {
-        return mappingErrors { outgoing.sendBytes(data, options.toFfi()) }
+        return onFfi { outgoing.sendBytes(data, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
@@ -259,7 +279,7 @@ internal constructor(
      * the core reads the bytes but does not inspect the file's metadata.
      */
     suspend fun sendFile(path: String, options: StreamBytesOptions): ByteStreamInfo {
-        return mappingErrors { outgoing.sendFile(path, options.toFfi()) }
+        return onFfi { outgoing.sendFile(path, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
@@ -445,7 +465,7 @@ internal constructor(
         coroutineScope.launch {
             try {
                 while (true) {
-                    val chunk = next() ?: break
+                    val chunk = withContext(ffiDispatcher) { next() } ?: break
                     channel.send(chunk)
                 }
                 channel.close()
@@ -483,7 +503,7 @@ internal constructor(
 
         override suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit> {
             return try {
-                writeToFfi(data)
+                withContext(ffiDispatcher) { writeToFfi(data) }
                 Result.success(Unit)
             } catch (e: FfiDataStreamException) {
                 open = false
@@ -497,7 +517,7 @@ internal constructor(
             }
             open = false
             try {
-                closeFfi(reason)
+                withContext(ffiDispatcher) { closeFfi(reason) }
             } catch (e: FfiDataStreamException) {
                 throw e.toStreamException()
             }
@@ -524,9 +544,12 @@ internal constructor(
 
     // endregion
 
-    private inline fun <T> mappingErrors(body: () -> T): T {
+    /**
+     * Runs a suspending call into the core on [ffiDispatcher], translating its errors.
+     */
+    private suspend fun <T> onFfi(body: suspend () -> T): T {
         try {
-            return body()
+            return withContext(ffiDispatcher) { body() }
         } catch (e: FfiDataStreamException) {
             throw e.toStreamException()
         }

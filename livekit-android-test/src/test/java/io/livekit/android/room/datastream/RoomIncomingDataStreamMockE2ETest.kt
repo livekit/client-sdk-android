@@ -62,7 +62,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(0, ByteArray(1) { 1 }).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertEquals(1, collectedData.size)
         assertEquals(1, collectedData[0][0].toInt())
     }
@@ -102,7 +102,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(0, "hello".toByteArray()).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertEquals(1, collectedData.size)
         assertEquals("hello", collectedData[0])
     }
@@ -148,7 +148,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(2, "!".toByteArray()).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertEquals(3, collectedData.size)
         assertEquals("hello", collectedData[0])
         assertEquals("world", collectedData[1])
@@ -190,7 +190,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(2, "!".toByteArray()).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertEquals(3, collectedData.size)
         assertEquals("hello", collectedData[0])
         assertEquals("world", collectedData[1])
@@ -232,7 +232,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         }
         subDataChannel.observer?.onMessage(abnormalEnd.wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertTrue(threwOnce)
     }
 
@@ -269,7 +269,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(0, ByteArray(2) { 1 }).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertTrue(threwOnce)
     }
 
@@ -306,7 +306,7 @@ class RoomIncomingDataStreamMockE2ETest : MockE2ETest() {
         subDataChannel.observer?.onMessage(createStreamChunk(0, ByteArray(1) { 1 }).wrap())
         subDataChannel.observer?.onMessage(createStreamTrailer().wrap())
 
-        assertTrue(finished)
+        awaitCondition(message = "Stream handler did not finish") { finished }
         assertTrue(threwOnce)
     }
 

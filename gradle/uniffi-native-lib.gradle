@@ -68,7 +68,15 @@ ext.resolveUniffiNativeLibDirs = {
     return candidates
 }
 
-ext.applyUniffiNativeLibPath = { Test task ->
+ext.configureUniffiForUnitTests = { Test task ->
+    // The generated bindings pick their cleaner by API level, and at 34+ use
+    // android.system.SystemCleaner. Robolectric's implementation of that delegates to
+    // jdk.internal.ref.CleanerFactory, which the module system hides by default -- so merely
+    // constructing an FFI object throws IllegalAccessError. Opening the package up lets the
+    // Android code path run as written, rather than forcing every test that touches the FFI down
+    // to an older Robolectric SDK.
+    task.jvmArgs += ["--add-exports", "java.base/jdk.internal.ref=ALL-UNNAMED"]
+
     def dirs = resolveUniffiNativeLibDirs()
     if (dirs.isEmpty()) {
         task.doFirst {

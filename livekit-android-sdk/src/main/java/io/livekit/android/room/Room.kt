@@ -47,6 +47,8 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
+import io.livekit.android.room.datastream.DataStreamOptions
+import io.livekit.android.room.datastream.DataStreams
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
@@ -150,6 +152,7 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val dataStreams: DataStreams,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
@@ -182,6 +185,13 @@ constructor(
         }
         rpcClientManager.getRemoteClientProtocol = getRemoteClientProtocol
         rpcServerManager.getRemoteClientProtocol = getRemoteClientProtocol
+
+        // The data stream core decides per-recipient whether a v2 framing is safe, so give it a
+        // live view of the room. Lambdas rather than a Room reference, which would be a DI cycle.
+        dataStreams.remoteClientProtocol = getRemoteClientProtocol
+        dataStreams.remoteIdentities = { remoteParticipants.keys.toList() }
+        dataStreams.remoteCapabilities = { id -> remoteParticipants[id]?.capabilities ?: emptyList() }
+        dataStreams.maxPayloadSize = { dataStreamOptions.maxPayloadSize }
     }
 
     enum class State {
@@ -317,6 +327,11 @@ constructor(
     var e2eeOptions: E2EEOptions? = null
 
     /**
+     * Room-wide data stream settings. Must be set up prior to [connect].
+     */
+    var dataStreamOptions: DataStreamOptions = DataStreamOptions()
+
+    /**
      * Default options to use when creating an audio track.
      */
     var audioTrackCaptureDefaults: LocalAudioTrackOptions by defaultsManager::audioTrackCaptureDefaults
@@ -406,6 +421,7 @@ constructor(
             videoTrackPublishDefaults = videoTrackPublishDefaults,
             screenShareTrackCaptureDefaults = screenShareTrackCaptureDefaults,
             screenShareTrackPublishDefaults = screenShareTrackPublishDefaults,
+            dataStreamOptions = dataStreamOptions,
         )
 
     /**
@@ -647,6 +663,7 @@ constructor(
         adaptiveStream = options.adaptiveStream
         dynacast = options.dynacast
         e2eeOptions = options.e2eeOptions
+        dataStreamOptions = options.dataStreamOptions
     }
 
     /**
@@ -794,6 +811,10 @@ constructor(
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
 
         localParticipant.handleParticipantDisconnect(identity)
+
+        // Fail any stream they were midway through sending, so its reader raises instead of waiting
+        // for chunks that will never arrive.
+        dataStreams.abortStreamsFrom(identity)
     }
 
     fun getParticipantBySid(sid: String): Participant? {
@@ -1341,22 +1362,10 @@ constructor(
      * @suppress
      */
     override fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type) {
-        when (dp.valueCase) {
-            LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
-                incomingDataStreamManager.handleStreamHeader(dp.streamHeader, Participant.Identity(dp.participantIdentity), encryptionType)
-            }
-
-            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK -> {
-                incomingDataStreamManager.handleDataChunk(dp.streamChunk, encryptionType)
-            }
-
-            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER -> {
-                incomingDataStreamManager.handleStreamTrailer(dp.streamTrailer, encryptionType)
-            }
-
-            // Ignore other cases.
-            else -> {}
-        }
+        // Forwarded whole rather than destructured: the core re-decodes the packet itself, and v2
+        // headers carry fields (inline content, compression) that only it interprets. The packet has
+        // already been decrypted by the engine, which is what the core expects.
+        dataStreams.handleIncoming(dp)
     }
 
     /**

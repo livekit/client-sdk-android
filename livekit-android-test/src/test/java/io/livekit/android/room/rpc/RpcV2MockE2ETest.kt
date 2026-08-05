@@ -88,7 +88,14 @@ class RpcV2MockE2ETest : MockE2ETest() {
      * Returns the request attributes and the assembled UTF-8 payload, or null if no such
      * stream is present.
      */
-    private fun collectOutgoingV2Stream(topic: String): Pair<Map<String, String>, String>? {
+    private suspend fun collectOutgoingV2Stream(topic: String): Pair<Map<String, String>, String>? {
+        // Sending a stream now crosses into the Rust core and back on its own threads, so the
+        // packets are not on the mock channel the instant the calling coroutine yields. Waiting for
+        // them, then letting the test dispatcher run, also gets the sender past its send and into
+        // whatever it does next -- for an RPC caller, waiting for the ack the test is about to feed
+        // it. Without that the ack arrives before anyone is listening.
+        awaitStable { pubDataChannel.sentBuffers.size }
+        coroutineRule.dispatcher.scheduler.runCurrent()
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val header = packets.firstOrNull { it.hasStreamHeader() && it.streamHeader.topic == topic }
             ?: return null
@@ -107,6 +114,52 @@ class RpcV2MockE2ETest : MockE2ETest() {
     /**
      * Simulate an inbound v2 RPC request stream landing on the subscriber data channel.
      */
+    /**
+     * Waits for in-flight data stream work to finish.
+     *
+     * Replaces advancing the test scheduler: data streams are now handled by the Rust core on its
+     * own threads, which no amount of virtual time will drive. Waiting for the sent-packet count to
+     * go quiet keeps the tests that assert a packet was *not* produced honest, which a fixed sleep
+     * would not.
+     */
+    /**
+     * Waits for the caller's outgoing RPC request stream header to reach the mock channel.
+     *
+     * Publishing a request now goes through the Rust core on its own threads, so the header is not
+     * on the channel the moment the calling coroutine yields.
+     */
+    private fun awaitRequestStreamHeader(): DataPacket {
+        fun headers() = pubDataChannel.sentBuffers.map { parsePacket(it) }
+            .filter { it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC }
+
+        awaitCondition(message = "No outgoing RPC request stream was published") {
+            headers().isNotEmpty()
+        }
+        return headers().first()
+    }
+
+    /**
+     * Waits for [job] to finish.
+     *
+     * Data streams cross into the Rust core and back on its own threads, so an RPC no longer
+     * settles just by advancing the test scheduler. Waiting on the job itself keeps this
+     * deterministic -- waiting a fixed period, or for output to go quiet, races the core's
+     * start-up on a cold run.
+     */
+    private fun awaitJob(job: kotlinx.coroutines.Deferred<*>) {
+        awaitCondition(message = "RPC did not complete") { job.isCompleted }
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+    }
+
+    /**
+     * Waits for a packet matching [predicate] to reach the mock publisher channel.
+     */
+    private fun awaitPacket(message: String, predicate: (DataPacket) -> Boolean) {
+        awaitCondition(message = message) {
+            pubDataChannel.sentBuffers.map { parsePacket(it) }.any(predicate)
+        }
+    }
+
     private fun simulateIncomingRequestStream(
         requestId: String,
         method: String,
@@ -249,7 +302,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val requestId = attrs[RpcRequestAttrs.REQUEST_ID]!!
         subDataChannel.simulateBufferReceived(createAck(requestId))
         simulateIncomingResponseStream(requestId, "bye")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals("bye", rpcJob.await())
     }
@@ -277,7 +330,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
 
         subDataChannel.simulateBufferReceived(createAck(requestId))
         simulateIncomingResponseStream(requestId, largePayload)
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals(largePayload, rpcJob.await())
     }
@@ -289,7 +342,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
 
         room.localParticipant.registerRpcMethod("hello") { "pong" }
         simulateIncomingRequestStream("req-1", "hello", "ping")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No ack for req-1") { it.hasRpcAck() && it.rpcAck.requestId == "req-1" }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
 
@@ -317,7 +370,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val largeResponse = "X".repeat(20_000)
         room.localParticipant.registerRpcMethod("echo") { largeResponse }
         simulateIncomingRequestStream("req-large", "echo", "ping")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No ack for req-large") { it.hasRpcAck() && it.rpcAck.requestId == "req-large" }
 
         val outgoing = collectOutgoingV2Stream(RPC_RESPONSE_DATA_STREAM_TOPIC)
         assertNotNull("expected a v2 response stream for a 20k response", outgoing)
@@ -336,7 +389,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         simulateRemoteJoinAsV2()
 
         simulateIncomingRequestStream("req-x", "unknown-method", "")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No error response for req-x") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-x" && it.rpcResponse.hasError()
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         // Ack first
@@ -362,7 +417,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
             throw RuntimeException("oops")
         }
         simulateIncomingRequestStream("req-app-err", "boom", "")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No error response for req-app-err") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-app-err" && it.rpcResponse.hasError()
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val errorResponse = packets.firstOrNull {
@@ -383,7 +440,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val custom = RpcError(101, "custom error")
         room.localParticipant.registerRpcMethod("err") { throw custom }
         simulateIncomingRequestStream("req-custom", "err", "")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No error response for req-custom") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-custom" && it.rpcResponse.hasError()
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val errorResponse = packets.firstOrNull {
@@ -447,7 +506,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val requestId = outgoing.first[RpcRequestAttrs.REQUEST_ID]!!
         subDataChannel.simulateBufferReceived(createAck(requestId))
         subDataChannel.simulateBufferReceived(createV1Response(requestId, error = customError))
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals(customError, rpcJob.await())
     }
@@ -473,7 +532,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         coroutineRule.dispatcher.scheduler.runCurrent()
 
         simulateMessageFromServer(TestData.PARTICIPANT_DISCONNECT)
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals(
             RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create(),
@@ -498,17 +557,13 @@ class RpcV2MockE2ETest : MockE2ETest() {
                 payload = "p1",
             )
         }
-        coroutineRule.dispatcher.scheduler.runCurrent()
-
-        val firstHeader = pubDataChannel.sentBuffers
-            .map { parsePacket(it) }
-            .first { it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC }
+        val firstHeader = awaitRequestStreamHeader()
         val requestId1 = firstHeader.streamHeader.attributesMap[RpcRequestAttrs.REQUEST_ID]!!
 
         // No advanceTimeBy / no scheduler tick between publish and reply.
         subDataChannel.simulateBufferReceived(createAck(requestId1))
         simulateIncomingResponseStream(requestId1, "r1", streamId = "resp-1")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob1)
         assertEquals("r1", rpcJob1.await())
 
         // A second back-to-back call works — proves no orphaned pending entries.
@@ -520,15 +575,12 @@ class RpcV2MockE2ETest : MockE2ETest() {
                 payload = "p2",
             )
         }
-        coroutineRule.dispatcher.scheduler.runCurrent()
-        val secondHeader = pubDataChannel.sentBuffers
-            .map { parsePacket(it) }
-            .first { it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC }
+        val secondHeader = awaitRequestStreamHeader()
         val requestId2 = secondHeader.streamHeader.attributesMap[RpcRequestAttrs.REQUEST_ID]!!
         assertTrue("second call must get a fresh request id", requestId2 != requestId1)
         subDataChannel.simulateBufferReceived(createAck(requestId2))
         simulateIncomingResponseStream(requestId2, "r2", streamId = "resp-2")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob2)
         assertEquals("r2", rpcJob2.await())
     }
 
@@ -566,7 +618,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
                 payload = "p",
             )
         }
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals("during", rpcJob.await())
     }
@@ -605,7 +657,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         // Now deliver a late ack + response. Must not throw or double-resolve.
         subDataChannel.simulateBufferReceived(createAck(requestId))
         simulateIncomingResponseStream(requestId, "too-late", streamId = "resp-late")
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        // Already completed by the timeout; let the late delivery be processed, then re-check.
+        awaitJob(rpcJob)
+        awaitStable { pubDataChannel.sentBuffers.size }
 
         // The original completion stays at CONNECTION_TIMEOUT; the rpcJob doesn't change.
         assertEquals(RpcError.BuiltinRpcError.CONNECTION_TIMEOUT.create(), rpcJob.await())
@@ -656,7 +710,12 @@ class RpcV2MockE2ETest : MockE2ETest() {
                 )
             }
         }
-        coroutineRule.dispatcher.scheduler.runCurrent()
+        awaitCondition(message = "Expected five outgoing RPC request streams") {
+            pubDataChannel.sentBuffers.map { parsePacket(it) }.count {
+                it.hasStreamHeader() && it.streamHeader.topic == RPC_REQUEST_DATA_STREAM_TOPIC
+            } == 5
+        }
+        awaitStable { pubDataChannel.sentBuffers.size }
 
         // Five separate v2 request streams should have been produced.
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
@@ -684,6 +743,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         for ((requestId, responsePayload) in requestIdToResponse) {
             subDataChannel.simulateBufferReceived(createAck(requestId))
             simulateIncomingResponseStream(requestId, responsePayload)
+        }
+        awaitCondition(message = "Not all concurrent RPCs completed") {
+            deferred.all { it.isCompleted }
         }
         coroutineRule.dispatcher.scheduler.advanceUntilIdle()
 
@@ -717,7 +779,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val requestId = rpcRequest!!.rpcRequest.id
         subDataChannel.simulateBufferReceived(createAck(requestId))
         subDataChannel.simulateBufferReceived(createV1Response(requestId, payload = "bye"))
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals("bye", rpcJob.await())
     }
@@ -742,7 +804,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
             build()
         }
         subDataChannel.simulateBufferReceived(v1Request.toDataChannelBuffer())
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No response for req-v1") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-v1"
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         // Ack
@@ -811,7 +875,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
             throw RuntimeException("oops")
         }
         subDataChannel.simulateBufferReceived(v1RequestPacket("req-v1-app", "boom", ""))
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No error response for req-v1-app") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-v1-app" && it.rpcResponse.hasError()
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val errorResponse = packets.firstOrNull {
@@ -836,7 +902,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val custom = RpcError(101, "custom v1 err")
         room.localParticipant.registerRpcMethod("err") { throw custom }
         subDataChannel.simulateBufferReceived(v1RequestPacket("req-v1-cust", "err", ""))
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitPacket("No error response for req-v1-cust") {
+            it.hasRpcResponse() && it.rpcResponse.requestId == "req-v1-cust" && it.rpcResponse.hasError()
+        }
 
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val errorResponse = packets.firstOrNull {
@@ -905,7 +973,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val rpcRequest = packets.first { it.hasRpcRequest() }.rpcRequest
         subDataChannel.simulateBufferReceived(createAck(rpcRequest.id))
         subDataChannel.simulateBufferReceived(createV1Response(rpcRequest.id, error = customError))
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals(customError, rpcJob.await())
     }
@@ -932,7 +1000,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         coroutineRule.dispatcher.scheduler.runCurrent()
 
         simulateMessageFromServer(TestData.PARTICIPANT_DISCONNECT)
-        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        awaitJob(rpcJob)
 
         assertEquals(
             RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create(),

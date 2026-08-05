@@ -145,9 +145,22 @@ dependencies {
 apply from: rootProject.file('gradle/uniffi-native-lib.gradle')
 
 tasks.withType(Test).configureEach {
+    // One JVM per test class.
+    //
+    // The data stream core is a native library with process-global state (its async runtime, and
+    // the callback vtables the bindings register into it), loaded through JNA. Robolectric gives
+    // test classes their own classloaders, so a second class re-initializing those bindings can
+    // leave the first class's -- or its own -- callbacks pointing nowhere, and every data stream
+    // silently stops. It reproduced as whole test classes intermittently timing out depending on
+    // execution order.
+    //
+    // Isolating classes into their own JVMs sidesteps it, at the cost of roughly 90s on this
+    // module's suite. Worth revisiting if uniffi's Kotlin bindings ever become safe to initialize
+    // more than once in a process.
+    forkEvery = 1
     systemProperty "robolectric.logging.enabled", true
     // Data streams run through the Rust core, so unit tests need a host build of it.
-    applyUniffiNativeLibPath(it)
+    configureUniffiForUnitTests(it)
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
