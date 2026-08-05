@@ -1,0 +1,87 @@
+/*
+ * Copyright 2026 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Points JNA at a *host* build of liblivekit_uniffi for local unit tests.
+//
+// Data streams are implemented in the Rust core, so any test that exercises them has to load
+// the native library. Unit tests here run on the host JVM (Robolectric), but the
+// livekit-uniffi AAR only ships Android .so files -- so the host build has to be supplied
+// separately. This mirrors how client-sdk-swift's tests link the real xcframework rather than
+// faking the core.
+//
+// Resolution order:
+//   1. LIVEKIT_UNIFFI_LIB_DIR environment variable
+//   2. livekitUniffiLibDir Gradle property
+//   3. auto-discovery in a sibling rust-sdks checkout, which is the layout the LiveKit SDKs
+//      already assume for local uniffi development
+//
+// To produce the host library:
+//   cd ../rust-sdks/livekit-uniffi
+//   CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target <host triple>
+
+ext.resolveUniffiNativeLibDirs = {
+    def libNames = ["liblivekit_uniffi.dylib", "liblivekit_uniffi.so"]
+    def hasLib = { File dir -> dir.isDirectory() && libNames.any { new File(dir, it).isFile() } }
+
+    def explicit = System.getenv("LIVEKIT_UNIFFI_LIB_DIR") ?: project.findProperty("livekitUniffiLibDir")
+    if (explicit) {
+        def dir = file(explicit)
+        if (!hasLib(dir)) {
+            throw new GradleException(
+                "LIVEKIT_UNIFFI_LIB_DIR/livekitUniffiLibDir is set to '${dir}' but no " +
+                    "liblivekit_uniffi.{dylib,so} was found there.",
+            )
+        }
+        return [dir]
+    }
+
+    // Sibling rust-sdks checkout. `target/<triple>/release` is where a --target build lands
+    // (the uniffi Makefile always passes --target); `target/release` covers a plain build.
+    def targetRoot = new File(rootDir, "../rust-sdks/target")
+    if (!targetRoot.isDirectory()) {
+        return []
+    }
+    def candidates = []
+    def plain = new File(targetRoot, "release")
+    if (hasLib(plain)) {
+        candidates << plain
+    }
+    targetRoot.listFiles({ File f -> f.isDirectory() } as FileFilter)?.sort { it.name }?.each { triple ->
+        def dir = new File(triple, "release")
+        if (hasLib(dir)) {
+            candidates << dir
+        }
+    }
+    return candidates
+}
+
+ext.applyUniffiNativeLibPath = { Test task ->
+    def dirs = resolveUniffiNativeLibDirs()
+    if (dirs.isEmpty()) {
+        task.doFirst {
+            logger.warn(
+                "[livekit] No host build of liblivekit_uniffi found. Tests that exercise data " +
+                    "streams will fail to load the native library.\n" +
+                    "  Build it:  cd ../rust-sdks/livekit-uniffi && " +
+                    "CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target \$(rustc -vV | " +
+                    "sed -n 's/^host: //p')\n" +
+                    "  Or point at one:  -PlivekitUniffiLibDir=/path/to/dir",
+            )
+        }
+        return
+    }
+    task.systemProperty("jna.library.path", dirs.collect { it.absolutePath }.join(File.pathSeparator))
+}

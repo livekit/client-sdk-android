@@ -110,6 +110,10 @@ dependencies {
     implementation(project(":livekit-android-sdk"))
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
+    // The SDK keeps livekit-uniffi as `implementation` so the FFI types stay out of its public
+    // API. Tests here drive the FFI managers directly (capturing delegates, stub registries), so
+    // they need it on their own classpath.
+    implementation libs.livekit.uniffi
     api libs.okhttp.lib
     api libs.audioswitch
     implementation libs.androidx.annotation
@@ -128,6 +132,9 @@ dependencies {
 
     testImplementation libs.junit
     testImplementation libs.robolectric
+    // livekit-uniffi depends on jna's *aar*, which only carries Android .so dispatch libs. Host
+    // JVM test runs need the plain jar, which bundles libjnidispatch for desktop platforms.
+    testImplementation libs.jna.desktop
     testImplementation libs.okhttp.mockwebserver
     testImplementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     kaptTest libs.dagger.compiler
@@ -135,8 +142,12 @@ dependencies {
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso
 }
+apply from: rootProject.file('gradle/uniffi-native-lib.gradle')
+
 tasks.withType(Test).configureEach {
     systemProperty "robolectric.logging.enabled", true
+    // Data streams run through the Rust core, so unit tests need a host build of it.
+    applyUniffiNativeLibPath(it)
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
