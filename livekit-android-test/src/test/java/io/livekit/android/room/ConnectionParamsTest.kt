@@ -20,8 +20,8 @@ import io.livekit.android.ConnectOptions
 import io.livekit.android.stats.getClientInfo
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.TestData
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import livekit.LivekitModels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

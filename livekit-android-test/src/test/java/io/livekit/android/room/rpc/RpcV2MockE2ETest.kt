@@ -148,6 +148,11 @@ class RpcV2MockE2ETest : MockE2ETest() {
      */
     private fun awaitJob(job: kotlinx.coroutines.Deferred<*>) {
         awaitCondition(message = "RPC did not complete") { job.isCompleted }
+        // A completed job can still have siblings finishing behind it -- closing the request
+        // stream, emitting a disconnect event -- whose continuations are posted back to the test
+        // dispatcher from the core's threads. Keep pumping briefly so they run here rather than
+        // showing up as unfinished coroutines at tear-down.
+        awaitStable(quietMs = 50, minWaitMs = 100) { pubDataChannel.sentBuffers.size }
         coroutineRule.dispatcher.scheduler.advanceUntilIdle()
     }
 

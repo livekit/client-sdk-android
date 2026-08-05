@@ -83,7 +83,8 @@ class DataStreamsV2ReceiveTest : BaseTest() {
     // region Packet building
 
     private fun deflateRaw(input: ByteArray): ByteArray {
-        val deflater = Deflater(Deflater.DEFAULT_COMPRESSION, /* nowrap = */ true)
+        // nowrap = true gives raw DEFLATE, with no zlib header, which is the wire format.
+        val deflater = Deflater(Deflater.DEFAULT_COMPRESSION, true)
         deflater.setInput(input)
         deflater.finish()
         val out = ByteArray(input.size * 2 + 64)

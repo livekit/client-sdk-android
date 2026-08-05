@@ -195,7 +195,7 @@ class DataStreamsConversionTest {
     fun ioErrorsReadAsAbnormalEnd() {
         assertTrue(
             FfiDataStreamException.Io("disk went away").toStreamException()
-                is StreamException.AbnormalEndException,
+            is StreamException.AbnormalEndException,
         )
     }
 
@@ -221,7 +221,7 @@ class DataStreamsConversionTest {
         assertTrue(FfiDataStreamException.Incomplete().toStreamException() is StreamException.IncompleteException)
         assertTrue(
             FfiDataStreamException.EncryptionTypeMismatch().toStreamException()
-                is StreamException.EncryptionTypeMismatch,
+            is StreamException.EncryptionTypeMismatch,
         )
     }
 
