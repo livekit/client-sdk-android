@@ -876,6 +876,14 @@ constructor(
                 // TODO
             }
 
+            LivekitRtc.SignalResponse.MessageCase.STORE_DATA_BLOB_RESPONSE -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.GET_DATA_BLOB_RESPONSE -> {
+                // TODO
+            }
+
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null,
             -> {
