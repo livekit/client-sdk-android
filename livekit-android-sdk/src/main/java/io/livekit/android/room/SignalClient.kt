@@ -242,6 +242,12 @@ constructor(
         addParam(CONNECT_QUERY_NETWORK_TYPE, networkInfo.getNetworkType().protoName)
         addParam(CONNECT_QUERY_CLIENT_PROTOCOL, options.clientProtocol.value.toString())
 
+        // Capabilities go out as a comma separated list of protobuf enum names, which is the form
+        // the server parses on this path. Peers read them back off ParticipantInfo.
+        if (clientInfo.capabilitiesCount > 0) {
+            addParam(CONNECT_QUERY_CAPABILITIES, clientInfo.capabilitiesList.joinToString(",") { it.name })
+        }
+
         return queryBuilder.toString()
     }
 
@@ -1004,6 +1010,7 @@ constructor(
         const val CONNECT_QUERY_NETWORK_TYPE = "network"
         const val CONNECT_QUERY_PARTICIPANT_SID = "sid"
         const val CONNECT_QUERY_CLIENT_PROTOCOL = "client_protocol"
+        const val CONNECT_QUERY_CAPABILITIES = "capabilities"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
