@@ -1076,6 +1076,17 @@ enum class ClientProtocolVersion(val value: Int) {
      * instead of inline packets, lifting the 15 KB payload limit.
      */
     DATA_STREAM_RPC(1),
+
+    /**
+     * Data streams v2: the client understands single-packet data streams, where a small finite
+     * payload is carried inline in the stream header rather than as separate chunk and trailer
+     * packets.
+     *
+     * This is a baseline commitment, not an optional feature -- a peer that sees this version may
+     * send inline streams without further negotiation. Optional v2 features, such as
+     * `deflate-raw` compression, are negotiated separately via [ClientCapability].
+     */
+    DATA_STREAM_V2(2),
 }
 
 class ServerInfo(
