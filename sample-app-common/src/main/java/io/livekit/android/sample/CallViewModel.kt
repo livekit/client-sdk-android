@@ -56,6 +56,7 @@ import io.livekit.android.sample.service.ForegroundService
 import io.livekit.android.token.TokenRequestOptions
 import io.livekit.android.token.TokenSource
 import io.livekit.android.token.TokenSourceResponse
+import io.livekit.android.token.cached
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import kotlinx.coroutines.Dispatchers
@@ -151,6 +152,32 @@ class CallViewModel(
     // RPC tester state. Lives on the ViewModel so it survives dialog dismiss/reopen.
     private val mutableHandlers = MutableStateFlow<List<RpcHandlerState>>(emptyList())
     val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
+
+    /**
+     * Fetches the connection details used to connect to the room.
+     *
+     * The token source is created once and wrapped with [cached], so reconnects reuse
+     * the same credentials until the token expires. Otherwise the development token
+     * server would issue new random values on every fetch when no explicit room
+     * name/participant identity is set, causing reconnects to join a different room.
+     */
+    private val fetchConnectionDetails: suspend () -> Result<TokenSourceResponse> = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> {
+            val tokenSource = TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token)
+            suspend { tokenSource.fetch() }
+        }
+
+        is TokenSourceArgs.DevTokenServer -> {
+            val tokenSource = TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).cached()
+            val options = TokenRequestOptions(
+                roomName = tokenSourceArgs.roomName,
+                participantName = tokenSourceArgs.participantName,
+                participantIdentity = tokenSourceArgs.participantIdentity,
+                agentName = tokenSourceArgs.agentName,
+            )
+            suspend { tokenSource.fetch(options) }
+        }
+    }
 
     init {
 
@@ -256,18 +283,6 @@ class CallViewModel(
                 mutableEnableAudioProcessor.postValue(true)
             }
         }
-    }
-
-    private suspend fun fetchConnectionDetails(): Result<TokenSourceResponse> = when (tokenSourceArgs) {
-        is TokenSourceArgs.Literal -> TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token).fetch()
-        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).fetch(
-            TokenRequestOptions(
-                roomName = tokenSourceArgs.roomName,
-                participantName = tokenSourceArgs.participantName,
-                participantIdentity = tokenSourceArgs.participantIdentity,
-                agentName = tokenSourceArgs.agentName,
-            ),
-        )
     }
 
     private suspend fun connectToRoom() {
