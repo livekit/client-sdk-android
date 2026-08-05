@@ -12,8 +12,13 @@ def getDefaultToken() {
     return hasProperty('livekitSampleToken') ? livekitSampleToken : ""
 }
 
+def getDefaultTokenServerId() {
+    return hasProperty('livekitSampleTokenServerId') ? livekitSampleTokenServerId : ""
+}
+
 final url = getDefaultUrl()
 final token = getDefaultToken()
+final tokenServerId = getDefaultTokenServerId()
 
 android {
     namespace "io.livekit.android.sample.common"
@@ -34,11 +39,13 @@ android {
 
             buildConfigField "String", "DEFAULT_URL", "\"$url\""
             buildConfigField "String", "DEFAULT_TOKEN", "\"$token\""
+            buildConfigField "String", "DEFAULT_TOKEN_SERVER_ID", "\"$tokenServerId\""
         }
 
         debug {
             buildConfigField "String", "DEFAULT_URL", "\"$url\""
             buildConfigField "String", "DEFAULT_TOKEN", "\"$token\""
+            buildConfigField "String", "DEFAULT_TOKEN_SERVER_ID", "\"$tokenServerId\""
         }
     }
     buildFeatures {

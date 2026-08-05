@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Switch
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,17 +49,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.pager.ExperimentalPagerApi
 import io.livekit.android.composesample.ui.theme.AppTheme
 import io.livekit.android.sample.MainViewModel
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.model.StressTest
+import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.util.requestNeededPermissions
 
-@ExperimentalPagerApi
+private enum class TokenMode {
+    Literal,
+    DevServer,
+}
+
 class MainActivity : ComponentActivity() {
 
     private val viewModel by viewModels<MainViewModel>()
@@ -69,15 +76,15 @@ class MainActivity : ComponentActivity() {
             MainContent(
                 defaultUrl = viewModel.getSavedUrl(),
                 defaultToken = viewModel.getSavedToken(),
+                defaultTokenServerId = viewModel.getSavedTokenServerId(),
                 defaultE2eeKey = viewModel.getSavedE2EEKey(),
                 defaultE2eeOn = viewModel.getE2EEOptionsOn(),
-                onConnect = { url, token, e2eeKey, e2eeOn, stressTest ->
+                onConnect = { tokenSourceArgs, e2eeKey, e2eeOn, stressTest ->
                     val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
                         putExtra(
                             CallActivity.KEY_ARGS,
                             CallActivity.BundleArgs(
-                                url,
-                                token,
+                                tokenSourceArgs,
                                 e2eeKey,
                                 e2eeOn,
                                 stressTest,
@@ -86,9 +93,10 @@ class MainActivity : ComponentActivity() {
                     }
                     startActivity(intent)
                 },
-                onSave = { url, token, e2eeKey, e2eeOn ->
+                onSave = { url, token, tokenServerId, e2eeKey, e2eeOn ->
                     viewModel.setSavedUrl(url)
                     viewModel.setSavedToken(token)
+                    viewModel.setSavedTokenServerId(tokenServerId)
                     viewModel.setSavedE2EEKey(e2eeKey)
                     viewModel.setSavedE2EEOn(e2eeOn)
 
@@ -119,15 +127,22 @@ class MainActivity : ComponentActivity() {
         defaultUrl: String = MainViewModel.URL,
         defaultToken: String = MainViewModel.TOKEN,
         defaultSecondToken: String = MainViewModel.TOKEN,
+        defaultTokenServerId: String = MainViewModel.TOKEN_SERVER_ID,
         defaultE2eeKey: String = MainViewModel.E2EE_KEY,
         defaultE2eeOn: Boolean = false,
-        onConnect: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean, stressTest: StressTest) -> Unit = { _, _, _, _, _ -> },
-        onSave: (url: String, token: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _ -> },
+        onConnect: (tokenSourceArgs: TokenSourceArgs, e2eeKey: String, e2eeOn: Boolean, stressTest: StressTest) -> Unit = { _, _, _, _ -> },
+        onSave: (url: String, token: String, tokenServerId: String, e2eeKey: String, e2eeOn: Boolean) -> Unit = { _, _, _, _, _ -> },
         onReset: () -> Unit = {},
     ) {
         AppTheme {
+            var tokenMode by remember { mutableStateOf(TokenMode.Literal) }
             var url by remember { mutableStateOf(defaultUrl) }
             var token by remember { mutableStateOf(defaultToken) }
+            var tokenServerId by remember { mutableStateOf(defaultTokenServerId) }
+            var roomName by remember { mutableStateOf("") }
+            var participantName by remember { mutableStateOf("") }
+            var participantIdentity by remember { mutableStateOf("") }
+            var agentName by remember { mutableStateOf("") }
             var e2eeKey by remember { mutableStateOf(defaultE2eeKey) }
             var e2eeOn by remember { mutableStateOf(defaultE2eeOn) }
             var stressTest by remember { mutableStateOf(false) }
@@ -154,19 +169,77 @@ class MainActivity : ComponentActivity() {
                             contentDescription = "",
                         )
                         Spacer(modifier = Modifier.height(20.dp))
-                        OutlinedTextField(
-                            value = url,
-                            onValueChange = { url = it },
-                            label = { Text("URL") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        OutlinedTextField(
-                            value = token,
-                            onValueChange = { token = it },
-                            label = { Text("Token") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        TabRow(
+                            selectedTabIndex = tokenMode.ordinal,
+                            backgroundColor = Color.Transparent,
+                        ) {
+                            Tab(
+                                selected = tokenMode == TokenMode.Literal,
+                                onClick = { tokenMode = TokenMode.Literal },
+                                text = { Text("URL & Token") },
+                            )
+                            Tab(
+                                selected = tokenMode == TokenMode.DevServer,
+                                onClick = { tokenMode = TokenMode.DevServer },
+                                text = { Text("Dev Token Server") },
+                            )
+                        }
+                        when (tokenMode) {
+                            TokenMode.Literal -> {
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = url,
+                                    onValueChange = { url = it },
+                                    label = { Text("URL") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = token,
+                                    onValueChange = { token = it },
+                                    label = { Text("Token") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+
+                            TokenMode.DevServer -> {
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = tokenServerId,
+                                    onValueChange = { tokenServerId = it },
+                                    label = { Text("Token Server ID") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = roomName,
+                                    onValueChange = { roomName = it },
+                                    label = { Text("Room Name (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = participantName,
+                                    onValueChange = { participantName = it },
+                                    label = { Text("Participant Name (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = participantIdentity,
+                                    onValueChange = { participantIdentity = it },
+                                    label = { Text("Participant Identity (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                OutlinedTextField(
+                                    value = agentName,
+                                    onValueChange = { agentName = it },
+                                    label = { Text("Agent Name (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
 
                         if (e2eeOn) {
                             Spacer(modifier = Modifier.height(20.dp))
@@ -179,7 +252,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        if (stressTest) {
+                        if (tokenMode == TokenMode.Literal && stressTest) {
                             Spacer(modifier = Modifier.height(20.dp))
                             OutlinedTextField(
                                 value = secondToken,
@@ -203,34 +276,51 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Stress test")
-                            Switch(
-                                checked = stressTest,
-                                onCheckedChange = { stressTest = it },
-                            )
+                        if (tokenMode == TokenMode.Literal) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Stress test")
+                                Switch(
+                                    checked = stressTest,
+                                    onCheckedChange = { stressTest = it },
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(40.dp))
                         Button(
                             onClick = {
-                                val stressTestCmd = if (stressTest) {
-                                    StressTest.SwitchRoom(token, secondToken)
-                                } else {
-                                    StressTest.None
+                                when (tokenMode) {
+                                    TokenMode.Literal -> {
+                                        val stressTestCmd = if (stressTest) {
+                                            StressTest.SwitchRoom(token, secondToken)
+                                        } else {
+                                            StressTest.None
+                                        }
+                                        onConnect(TokenSourceArgs.Literal(url, token), e2eeKey, e2eeOn, stressTestCmd)
+                                    }
+
+                                    TokenMode.DevServer -> {
+                                        val devTokenServerArgs = TokenSourceArgs.DevTokenServer(
+                                            tokenServerId = tokenServerId,
+                                            roomName = roomName.ifBlank { null },
+                                            participantName = participantName.ifBlank { null },
+                                            participantIdentity = participantIdentity.ifBlank { null },
+                                            agentName = agentName.ifBlank { null },
+                                        )
+                                        onConnect(devTokenServerArgs, e2eeKey, e2eeOn, StressTest.None)
+                                    }
                                 }
-                                onConnect(url, token, e2eeKey, e2eeOn, stressTestCmd)
                             },
                         ) {
                             Text("Connect")
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = { onSave(url, token, e2eeKey, e2eeOn) }) {
+                        Button(onClick = { onSave(url, token, tokenServerId, e2eeKey, e2eeOn) }) {
                             Text("Save Values")
                         }
 
@@ -240,6 +330,7 @@ class MainActivity : ComponentActivity() {
                                 onReset()
                                 url = MainViewModel.URL
                                 token = MainViewModel.TOKEN
+                                tokenServerId = MainViewModel.TOKEN_SERVER_ID
                             },
                         ) {
                             Text("Reset Values")

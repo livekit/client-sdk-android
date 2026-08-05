@@ -51,7 +51,14 @@ import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.sample.model.StressTest
+import io.livekit.android.sample.model.TokenSourceArgs
 import io.livekit.android.sample.service.ForegroundService
+import io.livekit.android.token.ConfigurableTokenSource
+import io.livekit.android.token.FixedTokenSource
+import io.livekit.android.token.TokenRequestOptions
+import io.livekit.android.token.TokenSource
+import io.livekit.android.token.TokenSourceResponse
+import io.livekit.android.token.cached
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import kotlinx.coroutines.Dispatchers
@@ -68,8 +75,7 @@ import livekit.org.webrtc.CameraXHelper
 
 @OptIn(ExperimentalCamera2Interop::class)
 class CallViewModel(
-    val url: String,
-    val token: String,
+    val tokenSourceArgs: TokenSourceArgs,
     application: Application,
     val e2ee: Boolean = false,
     val e2eeKey: String? = "",
@@ -148,6 +154,20 @@ class CallViewModel(
     // RPC tester state. Lives on the ViewModel so it survives dialog dismiss/reopen.
     private val mutableHandlers = MutableStateFlow<List<RpcHandlerState>>(emptyList())
     val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
+
+    /**
+     * The token source used to fetch connection details for the room.
+     *
+     * Created once and (for the development token server) wrapped with [cached], so
+     * reconnects reuse the same credentials until the token expires. Otherwise the
+     * development token server would issue new random values on every fetch when no
+     * explicit room name/participant identity is set, causing reconnects to join a
+     * different room.
+     */
+    private val tokenSource: TokenSource = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> TokenSource.fromLiteral(tokenSourceArgs.url, tokenSourceArgs.token)
+        is TokenSourceArgs.DevTokenServer -> TokenSource.fromDevelopmentTokenServer(tokenSourceArgs.tokenServerId).cached()
+    }
 
     init {
 
@@ -255,12 +275,28 @@ class CallViewModel(
         }
     }
 
+    /**
+     * Fetches the connection details used to connect to the room from [tokenSource].
+     */
+    private suspend fun fetchConnectionDetails(): Result<TokenSourceResponse> = when (tokenSourceArgs) {
+        is TokenSourceArgs.Literal -> (tokenSource as FixedTokenSource).fetch()
+        is TokenSourceArgs.DevTokenServer -> (tokenSource as ConfigurableTokenSource).fetch(
+            TokenRequestOptions(
+                roomName = tokenSourceArgs.roomName,
+                participantName = tokenSourceArgs.participantName,
+                participantIdentity = tokenSourceArgs.participantIdentity,
+                agentName = tokenSourceArgs.agentName,
+            ),
+        )
+    }
+
     private suspend fun connectToRoom() {
         try {
             room.e2eeOptions = getE2EEOptions()
+            val connectionDetails = fetchConnectionDetails().getOrThrow()
             room.connect(
-                url = url,
-                token = token,
+                url = connectionDetails.serverUrl,
+                token = connectionDetails.participantToken,
             )
 
             mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
@@ -495,6 +531,8 @@ class CallViewModel(
 
     private suspend fun quickConnectToRoom(token: String) {
         try {
+            // The stress test is only reachable with literal credentials.
+            val url = (tokenSourceArgs as TokenSourceArgs.Literal).url
             room.connect(
                 url = url,
                 token = token,
