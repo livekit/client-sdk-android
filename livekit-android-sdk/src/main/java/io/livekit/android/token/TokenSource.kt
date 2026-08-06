@@ -114,10 +114,6 @@ data class RoomAgentDispatch(
      * Optional deployment to target. Leave empty to target the production deployment.
      */
     val deployment: String? = null,
-    /**
-     * Optional attributes to set on the dispatched agent participant.
-     */
-    val attributes: Map<String, String>? = null,
 )
 
 @SuppressLint("UnsafeOptInUsageError")
