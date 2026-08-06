@@ -33,8 +33,8 @@ lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
 # Data streams v2 core. Unreleased: build it from rust-sdks with
-# `cargo make android-package-local` (see scripts/patch-uniffi-kotlin.py) and it resolves
-# from mavenLocal(). Switch to a published version once livekit-uniffi ships this API.
+# `cargo make android-package-local` and it resolves from mavenLocal(). Switch to a published
+# version once livekit-uniffi ships this API.
 livekit-uniffi = "0.0.1"
 # livekit-uniffi's AAR pins jna 5.16.0, whose libjnidispatch.so fails to dlopen on 16 KB
 # page-size devices ("program alignment (8192) cannot be smaller than system page size").

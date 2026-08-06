@@ -528,8 +528,11 @@ internal constructor(
         private val writer: FfiTextStreamWriter,
     ) : WriterDestination<String>() {
         override suspend fun writeToFfi(data: String) = writer.write(data)
+
+        // closeStream, not close: the latter is the AutoCloseable one uniffi generates for
+        // releasing the handle. See the rename in livekit-uniffi's uniffi.toml.
         override suspend fun closeFfi(reason: String?) {
-            if (reason == null) writer.close() else writer.closeWithReason(reason)
+            if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
         }
     }
 
@@ -538,7 +541,7 @@ internal constructor(
     ) : WriterDestination<ByteArray>() {
         override suspend fun writeToFfi(data: ByteArray) = writer.write(data)
         override suspend fun closeFfi(reason: String?) {
-            if (reason == null) writer.close() else writer.closeWithReason(reason)
+            if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
         }
     }
 
