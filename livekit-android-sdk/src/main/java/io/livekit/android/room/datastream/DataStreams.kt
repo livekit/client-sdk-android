@@ -633,29 +633,43 @@ internal fun StreamBytesOptions.toFfi() = FfiStreamByteOptions(
 )
 
 /**
- * Maps a core error onto this SDK's existing [StreamException] hierarchy.
+ * Maps a core error onto this SDK's [StreamException] hierarchy, one to one.
  *
- * Several core cases collapse onto one [StreamException]: the public hierarchy predates the core
- * and is kept as-is for compatibility, so new failure modes are folded into the closest existing
- * case rather than widening public API. The core's message is preserved where the target case can
- * carry one.
+ * Every case the core can report is distinguishable here, either by its own exception type or by
+ * [StreamException.TerminatedException.Reason]. The size failures are modelled as subclasses of
+ * [StreamException.LengthExceededException] so that existing code catching that still catches them.
  */
 internal fun FfiDataStreamException.toStreamException(): StreamException = when (this) {
     is FfiDataStreamException.AbnormalEnd -> StreamException.AbnormalEndException(reason)
-    is FfiDataStreamException.Io -> StreamException.AbnormalEndException(reason)
-    is FfiDataStreamException.Utf8 -> StreamException.DecodeFailedException()
-    is FfiDataStreamException.Decompression -> StreamException.DecodeFailedException()
-    is FfiDataStreamException.LengthExceeded -> StreamException.LengthExceededException()
-    is FfiDataStreamException.HeaderTooLarge -> StreamException.LengthExceededException()
-    is FfiDataStreamException.PayloadTooLarge -> StreamException.LengthExceededException()
+    is FfiDataStreamException.Utf8 -> StreamException.DecodeFailedException(reason)
+    is FfiDataStreamException.Decompression -> StreamException.DecodeFailedException("Decompression failed")
+    is FfiDataStreamException.LengthExceeded -> StreamException.LengthExceededException(message)
+    is FfiDataStreamException.HeaderTooLarge -> StreamException.HeaderTooLargeException(message)
+    is FfiDataStreamException.PayloadTooLarge -> StreamException.PayloadTooLargeException(message)
     is FfiDataStreamException.Incomplete -> StreamException.IncompleteException()
-    is FfiDataStreamException.EncryptionTypeMismatch -> StreamException.EncryptionTypeMismatch()
-    is FfiDataStreamException.AlreadyClosed -> StreamException.TerminatedException("Stream is closed!")
-    is FfiDataStreamException.InvalidHeader -> StreamException.TerminatedException(message)
-    is FfiDataStreamException.MissedChunk -> StreamException.TerminatedException(message)
-    is FfiDataStreamException.SendFailed -> StreamException.TerminatedException(message)
-    is FfiDataStreamException.Internal -> StreamException.TerminatedException(message)
-    is FfiDataStreamException.InvalidFileName -> StreamException.TerminatedException(message)
+    is FfiDataStreamException.EncryptionTypeMismatch -> StreamException.EncryptionTypeMismatch(message)
+    is FfiDataStreamException.Internal -> StreamException.InternalException(message)
+
+    // No dedicated type; told apart by their reason.
+    is FfiDataStreamException.AlreadyClosed ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.ALREADY_CLOSED)
+
+    is FfiDataStreamException.InvalidHeader ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.INVALID_HEADER)
+
+    is FfiDataStreamException.MissedChunk ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.MISSED_CHUNK)
+
+    is FfiDataStreamException.SendFailed ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.SEND_FAILED)
+
+    is FfiDataStreamException.InvalidFileName ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.INVALID_FILE_NAME)
+
+    // A local file read or write failing is not the remote closing on us, so this is terminated
+    // rather than an abnormal end.
+    is FfiDataStreamException.Io ->
+        StreamException.TerminatedException(reason, StreamException.TerminatedException.Reason.IO)
 }
 
 // endregion

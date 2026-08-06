@@ -20,6 +20,7 @@ import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.participant.Participant
 import livekit.LivekitModels
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -192,56 +193,94 @@ class DataStreamsConversionTest {
     }
 
     @Test
-    fun ioErrorsReadAsAbnormalEnd() {
+    fun decodeFailuresKeepTheirDetail() {
+        val utf8 = FfiDataStreamException.Utf8("invalid byte").toStreamException()
+        assertTrue(utf8 is StreamException.DecodeFailedException)
         assertTrue(
-            FfiDataStreamException.Io("disk went away").toStreamException()
-            is StreamException.AbnormalEndException,
+            "the core's detail should survive, was: ${utf8.message}",
+            utf8.message?.contains("invalid byte") == true,
+        )
+
+        assertTrue(
+            FfiDataStreamException.Decompression().toStreamException()
+            is StreamException.DecodeFailedException,
         )
     }
 
-    @Test
-    fun decodeFailures() {
-        assertTrue(FfiDataStreamException.Utf8("bad").toStreamException() is StreamException.DecodeFailedException)
-        assertTrue(FfiDataStreamException.Decompression().toStreamException() is StreamException.DecodeFailedException)
-    }
-
     /**
-     * Three distinct size failures fold onto one public case. Left as-is rather than widening
-     * public API, but pinned here so the fold is a decision rather than an accident.
+     * The size failures each get their own type, but remain [StreamException.LengthExceededException]
+     * subclasses so that code catching that keeps catching all of them.
      */
     @Test
-    fun sizeFailuresFoldOntoLengthExceeded() {
-        assertTrue(FfiDataStreamException.LengthExceeded().toStreamException() is StreamException.LengthExceededException)
-        assertTrue(FfiDataStreamException.HeaderTooLarge().toStreamException() is StreamException.LengthExceededException)
-        assertTrue(FfiDataStreamException.PayloadTooLarge().toStreamException() is StreamException.LengthExceededException)
+    fun sizeFailuresAreDistinctYetStillLengthExceeded() {
+        val lengthExceeded = FfiDataStreamException.LengthExceeded().toStreamException()
+        val headerTooLarge = FfiDataStreamException.HeaderTooLarge().toStreamException()
+        val payloadTooLarge = FfiDataStreamException.PayloadTooLarge().toStreamException()
+
+        assertTrue(headerTooLarge is StreamException.HeaderTooLargeException)
+        assertTrue(payloadTooLarge is StreamException.PayloadTooLargeException)
+
+        // All three catchable as the pre-existing type.
+        for (error in listOf(lengthExceeded, headerTooLarge, payloadTooLarge)) {
+            assertTrue(
+                "${error::class.simpleName} should be a LengthExceededException",
+                error is StreamException.LengthExceededException,
+            )
+        }
+        // ...but the plain case is not one of the new subtypes.
+        assertFalse(lengthExceeded is StreamException.HeaderTooLargeException)
+        assertFalse(lengthExceeded is StreamException.PayloadTooLargeException)
     }
 
     @Test
-    fun incompleteAndEncryptionMismatch() {
+    fun incompleteAndEncryptionMismatchAndInternal() {
         assertTrue(FfiDataStreamException.Incomplete().toStreamException() is StreamException.IncompleteException)
         assertTrue(
             FfiDataStreamException.EncryptionTypeMismatch().toStreamException()
             is StreamException.EncryptionTypeMismatch,
         )
+        assertTrue(FfiDataStreamException.Internal().toStreamException() is StreamException.InternalException)
     }
 
+    /**
+     * The cases without a dedicated type stay tellable apart by their reason, which is what makes
+     * the mapping one to one rather than lossy.
+     */
     @Test
-    fun remainingFailuresReadAsTerminated() {
-        val terminated = listOf(
-            FfiDataStreamException.AlreadyClosed(),
-            FfiDataStreamException.InvalidHeader(),
-            FfiDataStreamException.MissedChunk(),
-            FfiDataStreamException.SendFailed(),
-            FfiDataStreamException.Internal(),
-            FfiDataStreamException.InvalidFileName(),
+    fun terminatedCasesAreDisambiguatedByReason() {
+        val expected = mapOf<FfiDataStreamException, StreamException.TerminatedException.Reason>(
+            FfiDataStreamException.AlreadyClosed() to StreamException.TerminatedException.Reason.ALREADY_CLOSED,
+            FfiDataStreamException.InvalidHeader() to StreamException.TerminatedException.Reason.INVALID_HEADER,
+            FfiDataStreamException.MissedChunk() to StreamException.TerminatedException.Reason.MISSED_CHUNK,
+            FfiDataStreamException.SendFailed() to StreamException.TerminatedException.Reason.SEND_FAILED,
+            FfiDataStreamException.InvalidFileName() to StreamException.TerminatedException.Reason.INVALID_FILE_NAME,
+            FfiDataStreamException.Io("disk went away") to StreamException.TerminatedException.Reason.IO,
         )
 
-        for (error in terminated) {
+        for ((ffi, reason) in expected) {
+            val mapped = ffi.toStreamException()
             assertTrue(
-                "${error::class.simpleName} should map to TerminatedException",
-                error.toStreamException() is StreamException.TerminatedException,
+                "${ffi::class.simpleName} should map to TerminatedException, was ${mapped::class.simpleName}",
+                mapped is StreamException.TerminatedException,
             )
+            assertEquals(reason, (mapped as StreamException.TerminatedException).reason)
         }
+
+        // Every reason but UNKNOWN is actually produced by some core failure.
+        val produced = expected.values.toSet()
+        val unmapped = StreamException.TerminatedException.Reason.entries
+            .filterNot { it == StreamException.TerminatedException.Reason.UNKNOWN }
+            .filterNot { it in produced }
+        assertTrue("reasons never produced by the mapping: $unmapped", unmapped.isEmpty())
+    }
+
+    /** The default keeps the pre-existing single-argument construction working. */
+    @Test
+    fun terminatedReasonDefaultsToUnknown() {
+        assertEquals(
+            StreamException.TerminatedException.Reason.UNKNOWN,
+            StreamException.TerminatedException("boom").reason,
+        )
     }
 
     // endregion
