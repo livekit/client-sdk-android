@@ -119,6 +119,10 @@ dependencies {
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
     implementation libs.livekit.uniffi
+    // livekit-uniffi depends on jna 5.16.0, whose native dispatch library cannot be loaded on
+    // 16 KB page-size devices -- which Android now requires apps targeting API 35+ to support.
+    // Overriding to a version that loads there; remove once the AAR itself moves up.
+    implementation "net.java.dev.jna:jna:${libs.versions.jna.get()}@aar"
     api libs.webrtc
     api libs.okhttp.lib
     implementation libs.okhttp.coroutines

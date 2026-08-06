@@ -141,6 +141,11 @@ dependencies {
 
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso
+    // Instrumented tests drive the FFI directly to prove the native library works on a real
+    // device; see DataStreamsOnDeviceTest.
+    androidTestImplementation libs.livekit.uniffi
+    androidTestImplementation libs.coroutines.lib
+    androidTestImplementation libs.protobuf.javalite
 }
 apply from: rootProject.file('gradle/uniffi-native-lib.gradle')
 

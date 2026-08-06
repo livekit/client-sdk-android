@@ -36,9 +36,11 @@ kotlin = "1.9.25"
 # `cargo make android-package-local` (see scripts/patch-uniffi-kotlin.py) and it resolves
 # from mavenLocal(). Switch to a published version once livekit-uniffi ships this API.
 livekit-uniffi = "0.0.1"
-# Must match the version livekit-uniffi's AAR depends on. Only used to put the desktop JNA
-# dispatch library on the unit-test classpath; see gradle/uniffi-native-lib.gradle.
-jna = "5.16.0"
+# livekit-uniffi's AAR pins jna 5.16.0, whose libjnidispatch.so fails to dlopen on 16 KB
+# page-size devices ("program alignment (8192) cannot be smaller than system page size").
+# 5.19.1 loads correctly there, so the SDK overrides the transitive pin. Also used for the
+# desktop JNA dispatch library on the unit-test classpath; see gradle/uniffi-native-lib.gradle.
+jna = "5.19.1"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
