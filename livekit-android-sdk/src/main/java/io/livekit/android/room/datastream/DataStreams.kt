@@ -129,9 +129,6 @@ internal constructor(
     private val textStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, TextStreamHandler>())
     private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
 
-    /** Topics we have already warned about, so an unhandled topic logs once rather than per stream. */
-    private val warnedTopics = Collections.synchronizedSet(mutableSetOf<String>())
-
     /**
      * Outbound packets waiting to go on the wire.
      *
@@ -363,7 +360,10 @@ internal constructor(
             val info = reader.info().toSdk(currentEncryptionType())
             val handler = textStreamHandlers[info.topic]
             if (handler == null) {
-                warnMissingHandler("text", info.topic, info.id, identity)
+                LKLog.w {
+                    "Received text stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
+                        "(stream ${info.id} from $identity)"
+                }
                 return
             }
             deliver {
@@ -378,7 +378,10 @@ internal constructor(
             val info = reader.info().toSdk(currentEncryptionType())
             val handler = byteStreamHandlers[info.topic]
             if (handler == null) {
-                warnMissingHandler("byte", info.topic, info.id, identity)
+                LKLog.w {
+                    "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
+                        "(stream ${info.id} from $identity)"
+                }
                 return
             }
             deliver {
@@ -425,15 +428,6 @@ internal constructor(
                 block()
             } catch (e: Exception) {
                 LKLog.e(e) { "Unhandled exception when invoking stream handler!" }
-            }
-        }
-    }
-
-    private fun warnMissingHandler(kind: String, topic: String, id: String, identity: String) {
-        if (warnedTopics.add(topic)) {
-            LKLog.w {
-                "Received $kind stream for topic \"$topic\", but no handler was found. Ignoring. " +
-                    "(stream $id from $identity)"
             }
         }
     }
