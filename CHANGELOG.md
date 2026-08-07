@@ -1,5 +1,35 @@
 # client-sdk-android
 
+## 2.28.0
+
+### Minor Changes
+
+- Add `TokenSource.fromDevelopmentTokenServer`, the new name for the now-deprecated `TokenSource.fromSandboxTokenServer` (`SandboxTokenServerOptions` is likewise deprecated in favor of `DevelopmentTokenServerOptions`) - [#994](https://github.com/livekit/client-sdk-android/pull/994) ([@MaxHeimbrock](https://github.com/MaxHeimbrock))
+
+### Patch Changes
+
+- Use source-specific default video degradation preferences: camera tracks default to maintaining framerate, screen share tracks default to maintaining resolution, and other video sources default to balanced. This matches client-sdk-js. Video tracks published with an explicit `source` other than camera or screen share now use balanced rather than WebRTC's implicit choice; set `degradationPreference` on the publish options to override. - [#991](https://github.com/livekit/client-sdk-android/pull/991) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  The resolved preference is now also applied to the backup codec's sender. Previously only the primary encoder was configured and the backup encoder let libwebrtc derive a preference implicitly, so the two encoders could adapt along different axes off the same video source.
+
+- Add SDK size documentation to README explaining multi-architecture native libraries and how to measure actual size impact - [#981](https://github.com/livekit/client-sdk-android/pull/981) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+- Fix `ScreenAudioCapturer` crashing the audio thread when its `MediaProjection` is revoked (for example via the system "stop sharing" chip) before the first microphone buffer arrives. `initAudioRecord` now returns false when the `AudioRecord` cannot be created instead of throwing inside WebRTC's audio record thread, where an unhandled exception kills the process; only `startRecording()` was guarded before. `AudioRecord.read` failures are also handled now: the return value was ignored, so once the projection died the buffer's stale contents (the last captured frame) were mixed into the microphone track on every callback, an audible loop until the callback was detached. On a read error the capturer releases its `AudioRecord` and degrades to mic-only audio. - [#982](https://github.com/livekit/client-sdk-android/pull/982) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+  `releaseAudioResources` is also safe to call while `initAudioRecord` is still running. It runs on the app's thread while init runs on the audio record thread, and it used to observe a null `audioRecord` and do nothing, so the recorder that init went on to publish stayed running until finalization. Leaked recorders hold the playback capture input open, and later capture attempts fail once enough of them accumulate.
+
+- Fix `ScreenCaptureService` staying bound when screen share setup is cancelled. `ScreenCaptureConnection` recorded a binding only once `onServiceConnected` arrived, so a coroutine cancelled before `connect()` returned left the `ServiceConnection` registered, and `BIND_AUTO_CREATE` kept the service alive for the lifetime of the context. `LocalParticipant.setScreenShareEnabled` awaits the bind internally and abandons the track it just created if cancelled, so nothing reached `stop()` on that path. A cancelled connect now releases the binding itself once no caller is left waiting on it, and `stop()` unbinds on the same wider condition. Callers stay tracked until `connect()` actually returns, so a cancellation landing after the service connected but before the caller resumed releases the binding too. This also covers the documented case where `bindService` leaves a connection registered while reporting failure or throwing. - [#983](https://github.com/livekit/client-sdk-android/pull/983) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+  Two paths that could leave `connect()` suspended forever are fixed as well. `stop()` racing a connect no longer strands the caller, since requesting the bind and registering the waiter now happen under one lock, and a failed `bindService` no longer leaves the state claiming a bind is in flight for the next caller to wait on.
+
+- Fixed setTrackEnabled leaking track resources when cancelled before the track is published, including the sender negotiated for a failed publish, and LocalScreencastVideoTrack leaking its SurfaceTextureHelper on dispose. - [#986](https://github.com/livekit/client-sdk-android/pull/986) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix silent mic race between Room.connect audio publish and setMicrophoneEnabled - [#988](https://github.com/livekit/client-sdk-android/pull/988) ([@MaxHeimbrock](https://github.com/MaxHeimbrock))
+
+- Fix custom RTCConfigurations not picking up server-provided ice servers when user-provided list is empty - [#993](https://github.com/livekit/client-sdk-android/pull/993) ([@davidliu](https://github.com/davidliu))
+
+- Fix: only latch WebRTC initialization after PeerConnectionFactory.initialize succeeds, so a failed native library load stays retryable and surfaces as a catchable exception instead of poisoning the process and crashing on the next LiveKit.create() call. - [#992](https://github.com/livekit/client-sdk-android/pull/992) ([@shivanshu877](https://github.com/shivanshu877))
+
 ## 2.27.0
 
 ### Minor Changes
