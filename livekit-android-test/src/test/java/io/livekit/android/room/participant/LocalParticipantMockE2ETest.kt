@@ -842,6 +842,163 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publishCameraUsesDefaultDegradationPreference() = runTest {
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(
+            RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE,
+            transceiver.sender.parameters.degradationPreference,
+        )
+    }
+
+    @Test
+    fun publishScreenShareUsesDefaultDegradationPreference() = runTest {
+        connect()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(isScreencast = true))
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(
+            RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
+            transceiver.sender.parameters.degradationPreference,
+        )
+    }
+
+    @Test
+    fun publishOtherSourceUsesBalancedDegradationPreference() = runTest {
+        connect()
+
+        room.localParticipant.publishVideoTrack(
+            track = createLocalTrack(),
+            options = VideoTrackPublishOptions(
+                null,
+                room.videoTrackPublishDefaults,
+                source = Track.Source.UNKNOWN,
+            ),
+        )
+
+        val peerConnection = getPublisherPeerConnection()
+        val transceiver = peerConnection.transceivers.first()
+
+        assertEquals(
+            RtpParameters.DegradationPreference.BALANCED,
+            transceiver.sender.parameters.degradationPreference,
+        )
+    }
+
+    @Test
+    fun backupCodecUsesSameDefaultDegradationPreferenceAsPrimary() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            scalabilityMode = "L3T3",
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        val transceivers = getPublisherPeerConnection().transceivers
+        assertEquals(2, transceivers.size)
+
+        // Both the primary and the backup codec sender must resolve to the same preference,
+        // otherwise the two encoders adapt along different axes off a shared video source.
+        transceivers.forEach { transceiver ->
+            assertEquals(
+                RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE,
+                transceiver.sender.parameters.degradationPreference,
+            )
+        }
+    }
+
+    @Test
+    fun backupCodecUsesScreenShareDefaultDegradationPreference() = runTest {
+        room.screenShareTrackPublishDefaults = room.screenShareTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(isScreencast = true))
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        val transceivers = getPublisherPeerConnection().transceivers
+        assertEquals(2, transceivers.size)
+
+        transceivers.forEach { transceiver ->
+            assertEquals(
+                RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION,
+                transceiver.sender.parameters.degradationPreference,
+            )
+        }
+    }
+
+    @Test
+    fun backupCodecUsesExplicitDegradationPreference() = runTest {
+        val preference = RtpParameters.DegradationPreference.DISABLED
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            scalabilityMode = "L3T3",
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+            degradationPreference = preference,
+        )
+
+        connect()
+        room.localParticipant.publishVideoTrack(track = createLocalTrack())
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        val transceivers = getPublisherPeerConnection().transceivers
+        assertEquals(2, transceivers.size)
+
+        transceivers.forEach { transceiver ->
+            assertEquals(preference, transceiver.sender.parameters.degradationPreference)
+        }
+    }
+
+    @Test
+    fun backupCodecDegradationPreferenceFollowsExplicitSourceNotScreencastFlag() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        // A screencast-backed track deliberately published as a camera source: both senders
+        // must follow the declared source rather than letting the backup fall back to the
+        // native source's is_screencast flag.
+        room.localParticipant.publishVideoTrack(
+            track = createLocalTrack(isScreencast = true),
+            options = VideoTrackPublishOptions(
+                null,
+                room.videoTrackPublishDefaults,
+                source = Track.Source.CAMERA,
+            ),
+        )
+
+        receiveSubscribedQualityUpdate(room.localParticipant.videoTrackPublications.first().first.sid)
+
+        val transceivers = getPublisherPeerConnection().transceivers
+        assertEquals(2, transceivers.size)
+
+        transceivers.forEach { transceiver ->
+            assertEquals(
+                RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE,
+                transceiver.sender.parameters.degradationPreference,
+            )
+        }
+    }
+
+    @Test
     fun lackOfPublishPermissionReturnsFalse() = runTest {
         val noCanPublishJoin = with(TestData.JOIN.toBuilder()) {
             join = with(join.toBuilder()) {

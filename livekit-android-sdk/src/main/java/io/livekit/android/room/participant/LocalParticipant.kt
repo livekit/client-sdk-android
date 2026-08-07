@@ -592,11 +592,7 @@ internal constructor(
                 requestConfig = {
                     width = track.dimensions.width
                     height = track.dimensions.height
-                    source = options.source?.toProto() ?: if (track.options.isScreencast) {
-                        LivekitModels.TrackSource.SCREEN_SHARE
-                    } else {
-                        LivekitModels.TrackSource.CAMERA
-                    }
+                    source = resolveVideoTrackSource(track, options).toProto()
                     addAllLayers(videoLayers)
 
                     addSimulcastCodecs(
@@ -772,9 +768,7 @@ internal constructor(
                 transceiver.sortVideoCodecPreferences(finalOptions.videoCodec, capabilitiesGetter)
                 (track as LocalVideoTrack).codec = finalOptions.videoCodec
 
-                val rtpParameters = transceiver.sender.parameters
-                rtpParameters.degradationPreference = finalOptions.degradationPreference
-                transceiver.sender.parameters = rtpParameters
+                transceiver.applyDegradationPreference(finalOptions.degradationPreference, trackSource)
             }
 
             // PublisherTransportObserver.onRenegotiationNeeded() gets triggered automatically
@@ -1318,6 +1312,15 @@ internal constructor(
                 transceiver.sortVideoCodecPreferences(newOptions.videoCodec, capabilitiesGetter)
                 simulcastTrack.sender = transceiver.sender
 
+                // The backup codec has its own sender, so it needs the same degradation
+                // preference as the primary applied explicitly. Resolve the source the same
+                // way the primary publish did, rather than reading it back off the
+                // publication, so the two encoders can't disagree.
+                transceiver.applyDegradationPreference(
+                    newOptions.degradationPreference,
+                    resolveVideoTrackSource(track, newOptions),
+                )
+
                 engine.negotiatePublisher()
             }
             val publishJob = async {
@@ -1552,10 +1555,21 @@ abstract class BaseVideoTrackPublishOptions {
     abstract val backupCodec: BackupVideoCodec?
 
     /**
-     * When bandwidth is constrained, this preference indicates which is preferred
-     * between degrading resolution vs. framerate.
+     * Controls how the encoder trades off between resolution and framerate
+     * when bandwidth is constrained.
      *
-     * null value indicates default value (maintain framerate).
+     * - MAINTAIN_FRAMERATE: Prioritizes framerate, reduces resolution if needed
+     * - MAINTAIN_RESOLUTION: Prioritizes resolution, drops frames if needed
+     * - BALANCED: Balances between both
+     *
+     * If not set (null), the SDK uses defaults based on track source:
+     * - Camera: MAINTAIN_FRAMERATE (smoother video for real-time communication)
+     * - Screen share: MAINTAIN_RESOLUTION (clarity is critical for text/UI)
+     * - Other/unknown: BALANCED
+     *
+     * Note that a preference is always applied to video senders, so leaving this null
+     * selects the source-based default above rather than deferring to WebRTC's own
+     * implicit choice.
      */
     abstract val degradationPreference: RtpParameters.DegradationPreference?
 
@@ -1756,6 +1770,63 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
 
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
+
+/**
+ * Resolves the [Track.Source] a video track is published under: the explicitly requested
+ * source if any, otherwise inferred from whether the track is backed by a screencast source.
+ */
+private fun resolveVideoTrackSource(track: LocalVideoTrack, options: VideoTrackPublishOptions): Track.Source {
+    return options.source ?: if (track.options.isScreencast) {
+        Track.Source.SCREEN_SHARE
+    } else {
+        Track.Source.CAMERA
+    }
+}
+
+/**
+ * Returns the appropriate degradation preference for a video track based on its source.
+ *
+ * - Camera: MAINTAIN_FRAMERATE (smoother video for real-time communication)
+ * - Screen share: MAINTAIN_RESOLUTION (clarity is critical for reading text/UI)
+ * - Other/unknown: BALANCED
+ *
+ * Any other source means the application declined to declare a motion-vs-detail intent,
+ * so this falls back to BALANCED, the preference the WebRTC spec mandates as the default.
+ * This deliberately does not defer to libwebrtc's implicit derivation, which keys off the
+ * native source's is_screencast flag: custom feeds report is_screencast = false regardless
+ * of content (see VideoFrameCapturer/BitmapFrameCapturer), so deferring would resolve to
+ * MAINTAIN_FRAMERATE for every custom feed rather than recovering any real intent.
+ *
+ * This is the intended behavior across LiveKit client SDKs; client-sdk-js
+ * (`getDefaultDegradationPreference` in publishUtils.ts) and the Rust SDK
+ * (`get_default_degradation_preference` in room/options.rs) use the same mapping.
+ */
+private fun getDefaultDegradationPreference(source: Track.Source): RtpParameters.DegradationPreference {
+    return when (source) {
+        Track.Source.CAMERA -> RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE
+        Track.Source.SCREEN_SHARE -> RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+        else -> RtpParameters.DegradationPreference.BALANCED
+    }
+}
+
+/**
+ * Applies [preference] to this transceiver's sender, falling back to the
+ * source-based default from [getDefaultDegradationPreference].
+ *
+ * Degradation preference is a property of the sender, not of the track, so every
+ * sender feeding from a track needs it applied separately. In particular the backup
+ * codec gets its own transceiver over the same rtc track, and would otherwise let
+ * libwebrtc resolve a preference implicitly from the native source's is_screencast
+ * flag, diverging from the primary encoder.
+ */
+private fun RtpTransceiver.applyDegradationPreference(
+    preference: RtpParameters.DegradationPreference?,
+    source: Track.Source,
+) {
+    val rtpParameters = sender.parameters
+    rtpParameters.degradationPreference = preference ?: getDefaultDegradationPreference(source)
+    sender.parameters = rtpParameters
+}
 
 /**
  * A handler that processes an RPC request and returns a string
