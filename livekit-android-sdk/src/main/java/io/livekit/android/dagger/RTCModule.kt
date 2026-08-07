@@ -103,7 +103,6 @@ internal object RTCModule {
         if (!hasInitializedWebrtc) {
             executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) {
                 if (!hasInitializedWebrtc) {
-                    hasInitializedWebrtc = true
                     PeerConnectionFactory.initialize(
                         PeerConnectionFactory.InitializationOptions
                             .builder(appContext)
@@ -128,6 +127,12 @@ internal object RTCModule {
                             )
                             .createInitializationOptions(),
                     )
+                    // Only latch after initialize succeeds. If it throws (e.g. the native
+                    // library fails to load), latching beforehand would permanently skip
+                    // initialization for the process, and the next native call would crash
+                    // with an uncatchable-by-catch(Exception) UnsatisfiedLinkError instead
+                    // of a catchable failure at the call site.
+                    hasInitializedWebrtc = true
                 }
             }
         }
