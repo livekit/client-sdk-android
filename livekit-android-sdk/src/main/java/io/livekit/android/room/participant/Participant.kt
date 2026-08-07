@@ -22,6 +22,7 @@ import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
@@ -278,6 +279,18 @@ open class Participant(
         internal set
 
     /**
+     * The optional feature capabilities this participant's client advertises.
+     *
+     * Mirrored by the server from the participant's `ClientInfo`. Values this SDK build does not
+     * recognize are omitted, so an empty list means the participant advertised nothing usable.
+     * Unlike [clientProtocol], which is a single version, capabilities are independent flags.
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var capabilities: List<ClientCapability> by flowDelegate(emptyList())
+        internal set
+
+    /**
      * @suppress
      */
     @Deprecated("Use events instead")
@@ -449,6 +462,7 @@ open class Participant(
         agentAttributes = AgentAttributes.fromStringMap(info.attributesMap)
         state = State.fromProto(info.state)
         clientProtocol = info.clientProtocol
+        capabilities = info.capabilitiesList.mapNotNull { ClientCapability.fromProto(it) }
     }
 
     override fun equals(other: Any?): Boolean {

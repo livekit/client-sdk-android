@@ -60,7 +60,7 @@ data class ConnectOptions(
      * for peer-to-peer feature negotiation (RPC v2, etc.). Defaults to the latest
      * version supported by this SDK build.
      */
-    val clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_RPC,
+    val clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_V2,
 ) {
     internal var reconnect: Boolean = false
     internal var participantSid: String? = null

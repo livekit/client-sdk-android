@@ -110,6 +110,10 @@ dependencies {
     implementation(project(":livekit-android-sdk"))
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
+    // The SDK keeps livekit-uniffi as `implementation` so the FFI types stay out of its public
+    // API. Tests here drive the FFI managers directly (capturing delegates, stub registries), so
+    // they need it on their own classpath.
+    implementation libs.livekit.uniffi
     api libs.okhttp.lib
     api libs.audioswitch
     implementation libs.androidx.annotation
@@ -128,15 +132,40 @@ dependencies {
 
     testImplementation libs.junit
     testImplementation libs.robolectric
+    // livekit-uniffi depends on jna's *aar*, which only carries Android .so dispatch libs. Host
+    // JVM test runs need the plain jar, which bundles libjnidispatch for desktop platforms.
+    testImplementation libs.jna.desktop
     testImplementation libs.okhttp.mockwebserver
     testImplementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     kaptTest libs.dagger.compiler
 
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso
+    // Instrumented tests drive the FFI directly to prove the native library works on a real
+    // device; see DataStreamsOnDeviceTest.
+    androidTestImplementation libs.livekit.uniffi
+    androidTestImplementation libs.coroutines.lib
+    androidTestImplementation libs.protobuf.javalite
 }
+apply from: rootProject.file('gradle/uniffi-native-lib.gradle')
+
 tasks.withType(Test).configureEach {
+    // One JVM per test class.
+    //
+    // The data stream core is a native library with process-global state (its async runtime, and
+    // the callback vtables the bindings register into it), loaded through JNA. Robolectric gives
+    // test classes their own classloaders, so a second class re-initializing those bindings can
+    // leave the first class's -- or its own -- callbacks pointing nowhere, and every data stream
+    // silently stops. It reproduced as whole test classes intermittently timing out depending on
+    // execution order.
+    //
+    // Isolating classes into their own JVMs sidesteps it, at the cost of roughly 90s on this
+    // module's suite. Worth revisiting if uniffi's Kotlin bindings ever become safe to initialize
+    // more than once in a process.
+    forkEvery = 1
     systemProperty "robolectric.logging.enabled", true
+    // Data streams run through the Rust core, so unit tests need a host build of it.
+    configureUniffiForUnitTests(it)
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')

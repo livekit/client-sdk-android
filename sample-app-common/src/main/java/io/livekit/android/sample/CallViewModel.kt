@@ -38,6 +38,7 @@ import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
+import io.livekit.android.room.datastream.StreamBytesOptions
 import io.livekit.android.room.datastream.StreamTextOptions
 import io.livekit.android.room.datastream.incoming.TextStreamReceiver
 import io.livekit.android.room.participant.LocalParticipant
@@ -154,6 +155,12 @@ class CallViewModel(
     // RPC tester state. Lives on the ViewModel so it survives dialog dismiss/reopen.
     private val mutableHandlers = MutableStateFlow<List<RpcHandlerState>>(emptyList())
     val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
+
+    // Data stream tester state. On the ViewModel for the same reason, and because the handlers are
+    // registered against the room rather than the dialog -- they should keep collecting while the
+    // panel is closed.
+    private val mutableStreamSubscriptions = MutableStateFlow<List<StreamSubscriptionState>>(emptyList())
+    val streamSubscriptions: StateFlow<List<StreamSubscriptionState>> = mutableStreamSubscriptions
 
     /**
      * The token source used to fetch connection details for the room.
@@ -382,6 +389,12 @@ class CallViewModel(
         }
         mutableHandlers.value = emptyList()
 
+        // Same for data stream subscriptions.
+        mutableStreamSubscriptions.value.forEach { subscription ->
+            runCatching { unsubscribeFromStream(subscription.topic, subscription.kind) }
+        }
+        mutableStreamSubscriptions.value = emptyList()
+
         // Make sure to release any resources associated with LiveKit
         room.disconnect()
         room.release()
@@ -430,6 +443,95 @@ class CallViewModel(
             room.localParticipant.sendText(message, StreamTextOptions(topic = "lk.chat"))
         }
     }
+
+    // region Data stream tester
+
+    /**
+     * Registers a handler for [topic] and starts collecting what arrives on it.
+     *
+     * Text and byte handlers are separate registries in the SDK, so the same topic can carry one of
+     * each; subscriptions are keyed on the pair.
+     *
+     * @return a failure if the topic is already taken. That is not exceptional -- `lk.chat` is
+     *   registered by this ViewModel and `lk.rpc_request`/`lk.rpc_response` by the Room -- so it is
+     *   returned for the caller to show rather than thrown.
+     */
+    fun subscribeToStream(topic: String, kind: StreamKind): Result<Unit> {
+        if (topic.isBlank()) {
+            return Result.failure(IllegalArgumentException("Enter a topic"))
+        }
+        if (mutableStreamSubscriptions.value.any { it.topic == topic && it.kind == kind }) {
+            return Result.failure(IllegalArgumentException("Already subscribed to $topic"))
+        }
+
+        val state = StreamSubscriptionState(topic = topic, kind = kind)
+        return runCatching {
+            when (kind) {
+                StreamKind.TEXT -> room.registerTextStreamHandler(topic) { receiver, identity ->
+                    viewModelScope.launch {
+                        val (size, preview) = runCatching { receiver.readAll().joinToString("") }
+                            .fold(
+                                onSuccess = { it.toByteArray().size to truncateChars(it) },
+                                onFailure = { 0 to "<error: ${it.message ?: it::class.java.simpleName}>" },
+                            )
+                        state.record(identity, size, preview)
+                    }
+                }
+
+                StreamKind.BYTES -> room.registerByteStreamHandler(topic) { receiver, identity ->
+                    viewModelScope.launch {
+                        val (size, preview) = runCatching {
+                            receiver.readAll().fold(ByteArray(0)) { acc, chunk -> acc + chunk }
+                        }.fold(
+                            onSuccess = { it.size to bytesPreview(it) },
+                            onFailure = { 0 to "<error: ${it.message ?: it::class.java.simpleName}>" },
+                        )
+                        state.record(identity, size, preview)
+                    }
+                }
+            }
+            mutableStreamSubscriptions.value = mutableStreamSubscriptions.value + state
+        }
+    }
+
+    fun unsubscribeFromStream(topic: String, kind: StreamKind) {
+        when (kind) {
+            StreamKind.TEXT -> room.unregisterTextStreamHandler(topic)
+            StreamKind.BYTES -> room.unregisterByteStreamHandler(topic)
+        }
+        mutableStreamSubscriptions.value = mutableStreamSubscriptions.value
+            .filterNot { it.topic == topic && it.kind == kind }
+    }
+
+    /**
+     * Sends [content] as a data stream, returning the new stream's id.
+     *
+     * A null [destination] broadcasts. Which framing this actually produces on the wire -- one
+     * inline packet, or a compressed multi-packet stream, or plain chunks -- is decided by the core
+     * from what every recipient advertises, so it is worth varying the destination when testing.
+     */
+    suspend fun sendDataStream(
+        kind: StreamKind,
+        topic: String,
+        destination: Participant.Identity?,
+        content: String,
+    ): Result<String> {
+        val destinations = listOfNotNull(destination)
+        return when (kind) {
+            StreamKind.TEXT -> room.localParticipant
+                .sendText(content, StreamTextOptions(topic = topic, destinationIdentities = destinations))
+                .map { it.id }
+
+            StreamKind.BYTES -> room.localParticipant
+                .sendBytes(
+                    content.toByteArray(),
+                    StreamBytesOptions(topic = topic, destinationIdentities = destinations),
+                )
+                .map { it.id }
+        }
+    }
+
+    // endregion
 
     fun registerRpcHandler(method: String, initialResponse: String) {
         if (method.isBlank()) return
@@ -575,4 +677,60 @@ class RpcHandlerState(
 sealed class RpcRequestResult {
     data class Success(val response: String) : RpcRequestResult()
     data class Error(val code: Int?, val message: String) : RpcRequestResult()
+}
+
+/** Whether a stream carries text or raw bytes. Applies to both sending and subscribing. */
+enum class StreamKind(val label: String) {
+    TEXT("text"),
+    BYTES("bytes"),
+}
+
+data class ReceivedStreamRecord(
+    /** 1-based arrival number within its subscription. */
+    val n: Long,
+    val sender: Participant.Identity,
+    val receivedAtMs: Long,
+    /** Size of the whole payload, not of the truncated preview. */
+    val size: Int,
+    val preview: String,
+)
+
+class StreamSubscriptionState(
+    val topic: String,
+    val kind: StreamKind,
+) {
+    val received = MutableStateFlow<List<ReceivedStreamRecord>>(emptyList())
+    val count = MutableStateFlow(0L)
+
+    /** Newest first, capped so a chatty topic cannot grow without bound. */
+    fun record(sender: Participant.Identity, size: Int, preview: String) {
+        val n = count.value + 1
+        count.value = n
+        received.value = (
+            listOf(
+                ReceivedStreamRecord(
+                    n = n,
+                    sender = sender,
+                    receivedAtMs = System.currentTimeMillis(),
+                    size = size,
+                    preview = preview,
+                ),
+            ) + received.value
+            ).take(MAX_RECEIVED_PER_TOPIC)
+    }
+}
+
+private const val MAX_RECEIVED_PER_TOPIC = 100
+private const val PREVIEW_CHARS = 256
+private const val PREVIEW_BYTES = 64
+
+private fun truncateChars(s: String): String =
+    if (s.length <= PREVIEW_CHARS) s else s.take(PREVIEW_CHARS) + "..."
+
+private fun bytesPreview(data: ByteArray): String {
+    val shown = data.take(PREVIEW_BYTES)
+    val ellipsis = if (data.size > PREVIEW_BYTES) "..." else ""
+    val hex = shown.joinToString(" ") { "%02x".format(it) }
+    val utf8 = shown.toByteArray().toString(Charsets.UTF_8)
+    return "hex: $hex$ellipsis\nutf8: $utf8$ellipsis"
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,4 +56,38 @@ abstract class BaseTest {
             dispatchTimeoutMs = dispatchTimeoutMs,
             testBody = testBody
         )
+
+    /**
+     * Waits for [condition], pumping the test scheduler while also yielding real time.
+     *
+     * Needed wherever work crosses onto a real thread -- notably anything going through the Rust
+     * data stream core. See io.livekit.android.test.util.awaitCondition.
+     */
+    fun awaitCondition(
+        timeoutMs: Long = 5_000L,
+        message: String = "Condition was not met",
+        condition: () -> Boolean,
+    ) = io.livekit.android.test.util.awaitCondition(
+        scheduler = coroutineRule.dispatcher.scheduler,
+        timeoutMs = timeoutMs,
+        message = message,
+        condition = condition,
+    )
+
+    /**
+     * Waits until [snapshot] stops changing, pumping the test scheduler while also yielding real
+     * time. See io.livekit.android.test.util.awaitStable.
+     */
+    fun awaitStable(
+        quietMs: Long = 100L,
+        minWaitMs: Long = 200L,
+        timeoutMs: Long = 5_000L,
+        snapshot: () -> Any?,
+    ) = io.livekit.android.test.util.awaitStable(
+        scheduler = coroutineRule.dispatcher.scheduler,
+        quietMs = quietMs,
+        minWaitMs = minWaitMs,
+        timeoutMs = timeoutMs,
+        snapshot = snapshot,
+    )
 }

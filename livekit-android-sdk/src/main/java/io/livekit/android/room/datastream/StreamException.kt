@@ -29,13 +29,34 @@ sealed class StreamException(message: String? = null) : Exception(message) {
 
     /**
      * Incoming chunk data could not be decoded.
+     *
+     * Covers both invalid UTF-8 in a text stream and a compressed stream that could not be
+     * decompressed.
      */
-    class DecodeFailedException : StreamException()
+    class DecodeFailedException(message: String? = null) : StreamException(message)
 
     /**
      * Length exceeded total length specified in stream header.
      */
-    class LengthExceededException : StreamException()
+    open class LengthExceededException(message: String? = null) : StreamException(message)
+
+    /**
+     * A stream header was too large to send.
+     *
+     * A header travels in a single packet, so its attributes, topic and framing together have to
+     * fit the packet budget. Raised in place of sending an oversized header.
+     *
+     * A subclass of [LengthExceededException] so that code catching that keeps catching every
+     * size-limit failure.
+     */
+    class HeaderTooLargeException(message: String? = null) : LengthExceededException(message)
+
+    /**
+     * An incoming stream's payload exceeded the maximum accepted size.
+     *
+     * @see io.livekit.android.room.datastream.DataStreamOptions.maxPayloadSize
+     */
+    class PayloadTooLargeException(message: String? = null) : LengthExceededException(message)
 
     /**
      * Length is less than total length specified in stream header.
@@ -44,8 +65,38 @@ sealed class StreamException(message: String? = null) : Exception(message) {
 
     /**
      * Stream terminated before completion.
+     *
+     * [reason] distinguishes why, for the cases that do not have a dedicated exception.
      */
-    class TerminatedException(message: String? = null) : StreamException(message)
+    class TerminatedException
+    @JvmOverloads
+    constructor(
+        message: String? = null,
+        val reason: Reason = Reason.UNKNOWN,
+    ) : StreamException(message) {
+        enum class Reason {
+            /** No specific reason was reported. */
+            UNKNOWN,
+
+            /** The stream had already been closed. */
+            ALREADY_CLOSED,
+
+            /** An incoming header could not be understood. */
+            INVALID_HEADER,
+
+            /** A chunk arrived out of order, leaving a gap the stream cannot recover from. */
+            MISSED_CHUNK,
+
+            /** A packet could not be handed to the transport. */
+            SEND_FAILED,
+
+            /** A file name was not a plain name, or tried to escape its directory. */
+            INVALID_FILE_NAME,
+
+            /** Reading or writing the underlying file failed. */
+            IO,
+        }
+    }
 
     /**
      * Cannot perform operations on an unknown stream.
@@ -66,4 +117,9 @@ sealed class StreamException(message: String? = null) : Exception(message) {
      * Encryption of the data chunks did not match the declared encryption type.
      */
     class EncryptionTypeMismatch(message: String? = null) : StreamException(message)
+
+    /**
+     * A stream failed for a reason internal to the SDK, with no more specific cause available.
+     */
+    class InternalException(message: String? = null) : StreamException(message)
 }

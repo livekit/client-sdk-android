@@ -72,9 +72,13 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
         sender.close()
         assertFalse(sender.isOpen)
 
+        // Packets reach the wire asynchronously now: the core hands them to us on its own thread
+        // and we queue them for the reliable channel, so a completed write does not mean sent.
+        awaitCondition(message = "Expected header, chunk and trailer to be sent") {
+            pubDataChannel.sentBuffers.size >= 3
+        }
         val buffers = pubDataChannel.sentBuffers
 
-        println(buffers)
         assertEquals(3, buffers.size)
 
         val headerPacket = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
@@ -127,9 +131,13 @@ class RoomOutgoingDataStreamMockE2ETest : MockE2ETest() {
 
         assertFalse(sender.isOpen)
 
+        // Packets reach the wire asynchronously now: the core hands them to us on its own thread
+        // and we queue them for the reliable channel, so a completed write does not mean sent.
+        awaitCondition(message = "Expected header, chunk and trailer to be sent") {
+            pubDataChannel.sentBuffers.size >= 3
+        }
         val buffers = pubDataChannel.sentBuffers
 
-        println(buffers)
         assertEquals(3, buffers.size)
 
         val headerPacket = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data))
