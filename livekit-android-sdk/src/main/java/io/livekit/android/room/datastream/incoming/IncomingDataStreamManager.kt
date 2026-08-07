@@ -113,6 +113,7 @@ class IncomingDataStreamManagerImpl @Inject constructor(
                 .setParticipantIdentity(fromIdentity.value)
                 .setStreamHeader(header)
                 .build(),
+            encryptionType,
         )
     }
 
@@ -126,6 +127,7 @@ class IncomingDataStreamManagerImpl @Inject constructor(
             LivekitModels.DataPacket.newBuilder()
                 .setStreamChunk(chunk)
                 .build(),
+            encryptionType,
         )
     }
 
@@ -137,6 +139,7 @@ class IncomingDataStreamManagerImpl @Inject constructor(
             LivekitModels.DataPacket.newBuilder()
                 .setStreamTrailer(trailer)
                 .build(),
+            encryptionType,
         )
     }
 

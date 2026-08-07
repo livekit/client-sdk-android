@@ -17,6 +17,7 @@
 package io.livekit.android.room.datastream
 
 import com.google.protobuf.ByteString
+import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
@@ -24,6 +25,7 @@ import io.livekit.android.room.datastream.incoming.TextStreamReceiver
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.BaseTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.DataStream
 import org.junit.After
@@ -34,6 +36,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
@@ -415,6 +418,113 @@ class DataStreamsV2ReceiveTest : BaseTest() {
         val error = runCatching { reader.readAll() }.exceptionOrNull()
         assertTrue("expected a StreamException, got $error", error is StreamException)
     }
+
+    // endregion
+
+    // region Encryption
+    //
+    // Transport encryption is applied and undone in RTCEngine, on the whole packet, either side of
+    // the FFI: the core only ever sees plaintext and reports NONE on every stream, so holding a
+    // stream to how it arrived is the SDK's job.
+
+    @Test
+    fun streamInfoReportsTheEncryptionTheStreamArrivedUnder() = runTest {
+        dataStreams.handleIncoming(
+            header(text = true, inlineContent = "hi".toByteArray()),
+            LivekitModels.Encryption.Type.GCM,
+        )
+
+        assertEquals(LivekitModels.Encryption.Type.GCM, awaitTextStream().info.encryptionType)
+    }
+
+    /**
+     * Reporting the room's configuration rather than what arrived told an app checking
+     * [StreamInfo.encryptionType] what it wanted to hear: a plaintext stream came through labelled
+     * GCM purely because this end had encryption turned on.
+     */
+    @Test
+    fun plaintextStreamInAnEncryptedRoomIsReportedAsPlaintext() = runTest {
+        val mockE2EEManager = mock<E2EEManager>()
+        mockE2EEManager.stub { on { isDataChannelEncryptionEnabled() } doReturn true }
+        engine.stub { on { e2EEManager } doReturn mockE2EEManager }
+
+        dataStreams.handleIncoming(
+            header(text = true, inlineContent = "hi".toByteArray()),
+            LivekitModels.Encryption.Type.NONE,
+        )
+
+        assertEquals(LivekitModels.Encryption.Type.NONE, awaitTextStream().info.encryptionType)
+    }
+
+    /** A stream cannot open encrypted and then carry on in plaintext. */
+    @Test
+    fun aChunkThatChangesEncryptionFailsTheStream() = runTest {
+        dataStreams.handleIncoming(
+            header(text = true, totalLength = 100),
+            LivekitModels.Encryption.Type.GCM,
+        )
+        val reader = awaitTextStream()
+
+        dataStreams.handleIncoming(chunk("plaintext".toByteArray()), LivekitModels.Encryption.Type.NONE)
+
+        val error = runCatching { reader.readAll() }.exceptionOrNull()
+        assertTrue(
+            "expected EncryptionTypeMismatch, got $error",
+            error is StreamException.EncryptionTypeMismatch,
+        )
+    }
+
+    /**
+     * The core opens a stream on its own loop, so a contradicting chunk can be handed in before the
+     * reader exists. The reader still has to raise rather than wait for chunks that will never come.
+     */
+    @Test
+    fun aStreamFailedBeforeItsReaderExistsStillRaises() = runTest {
+        dataStreams.handleIncoming(
+            header(text = true, totalLength = 100),
+            LivekitModels.Encryption.Type.GCM,
+        )
+        // Deliberately no await in between.
+        dataStreams.handleIncoming(chunk("plaintext".toByteArray()), LivekitModels.Encryption.Type.NONE)
+
+        val error = runCatching { awaitTextStream().readAll() }.exceptionOrNull()
+        assertTrue(
+            "expected EncryptionTypeMismatch, got $error",
+            error is StreamException.EncryptionTypeMismatch,
+        )
+    }
+
+    /** A trailer is checked the same way, so a stream cannot be ended by an unencrypted peer. */
+    @Test
+    fun aTrailerThatChangesEncryptionFailsTheStream() = runTest {
+        dataStreams.handleIncoming(
+            header(text = true, totalLength = 100),
+            LivekitModels.Encryption.Type.GCM,
+        )
+        val reader = awaitTextStream()
+
+        dataStreams.handleIncoming(trailer(), LivekitModels.Encryption.Type.NONE)
+
+        val error = runCatching { reader.readAll() }.exceptionOrNull()
+        assertTrue(
+            "expected EncryptionTypeMismatch, got $error",
+            error is StreamException.EncryptionTypeMismatch,
+        )
+    }
+
+    @Test
+    fun consistentlyEncryptedStreamsAreDeliveredNormally() = runTest {
+        val gcm = LivekitModels.Encryption.Type.GCM
+        dataStreams.handleIncoming(header(text = true, totalLength = 5), gcm)
+        dataStreams.handleIncoming(chunk("hello".toByteArray()), gcm)
+        dataStreams.handleIncoming(trailer(), gcm)
+
+        assertEquals("hello", awaitTextStream().readAll().joinToString(""))
+    }
+
+    // endregion
+
+    // region Failures
 
     @Test
     fun nonDataStreamPacketsAreIgnored() = runTest {

@@ -1365,7 +1365,11 @@ constructor(
         // Forwarded whole rather than destructured: the core re-decodes the packet itself, and v2
         // headers carry fields (inline content, compression) that only it interprets. The packet has
         // already been decrypted by the engine, which is what the core expects.
-        dataStreams.handleIncoming(dp)
+        //
+        // The encryption goes with it: how the packet arrived is invisible to the core, which sees
+        // only the decrypted bytes, so DataStreams holds every stream to the encryption its header
+        // came in under.
+        dataStreams.handleIncoming(dp, encryptionType)
     }
 
     /**
