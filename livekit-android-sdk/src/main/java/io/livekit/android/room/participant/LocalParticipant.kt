@@ -509,14 +509,63 @@ internal constructor(
 
         if (publication != null) {
             val job = scope.launch {
-                track::features.flow.collect {
-                    engine.updateLocalAudioTrack(publication.sid, it + options.getFeaturesList())
+                launch {
+                    track::features.flow.collect {
+                        engine.updateLocalAudioTrack(publication.sid, it + options.getFeaturesList())
+                    }
+                }
+                launch {
+                    // Collection starts with the current value, reconciling on publish and
+                    // whenever applyOptions changes stopMicrophoneOnMute while published.
+                    track::options.flow.collect {
+                        updateAudioRecordingState()
+                    }
                 }
             }
             jobs[publication] = job
         }
 
         return publication != null
+    }
+
+    /**
+     * Tracks whether microphone recording has been stopped through
+     * `PeerConnection.setAudioRecording`, so recording is never touched unless
+     * [LocalAudioTrackOptions.stopMicrophoneOnMute] is in use. Only accessed
+     * from within `withPeerConnection` blocks, which serialize on the RTC thread.
+     */
+    private var audioRecordingStopped = false
+
+    /**
+     * Starts or stops microphone recording to match the current mute state of
+     * the published audio tracks.
+     *
+     * Recording is controlled through the factory-scoped native AudioState, so
+     * the setting survives peer connection recreations, and a republish while
+     * recording is stopped will not reopen the microphone.
+     */
+    internal fun updateAudioRecordingState() {
+        scope.launch {
+            engine.publisher?.withPeerConnection {
+                // Evaluate here so rapid mute toggles converge on the latest state
+                // regardless of coroutine dispatch order.
+                val stopRecording = shouldStopAudioRecording()
+                if (stopRecording != audioRecordingStopped) {
+                    setAudioRecording(!stopRecording)
+                    audioRecordingStopped = stopRecording
+                }
+            }
+        }
+    }
+
+    private fun shouldStopAudioRecording(): Boolean {
+        val audioTracks = localTrackPublications.mapNotNull { publication ->
+            val track = publication.track as? LocalAudioTrack ?: return@mapNotNull null
+            publication to track
+        }
+        return audioTracks.isNotEmpty() &&
+            audioTracks.all { (publication, _) -> publication.muted } &&
+            audioTracks.any { (_, track) -> track.options.stopMicrophoneOnMute }
     }
 
     /**
@@ -1046,6 +1095,10 @@ internal constructor(
         if (stopOnUnpublish) {
             track.stop()
         }
+        if (track is LocalAudioTrack) {
+            // Restores microphone recording if it was stopped on account of this track.
+            updateAudioRecordingState()
+        }
         internalListener?.onTrackUnpublished(publication, this)
         eventBus.postEvent(ParticipantEvent.LocalTrackUnpublished(this, publication), scope)
     }
@@ -1360,6 +1413,13 @@ internal constructor(
         // Only set the first time we start a full reconnect.
         if (republishes == null) {
             republishes = pubs
+        }
+
+        // The publications are cleared below, so unpublishTrack can't cancel these
+        // jobs during republishing. Republishing creates fresh jobs for the new
+        // publications.
+        for (publication in pubs) {
+            jobs.remove(publication)?.cancel()
         }
 
         trackPublications = trackPublications.toMutableMap().apply { clear() }

@@ -24,6 +24,25 @@ data class LocalAudioTrackOptions(
     val autoGainControl: Boolean = true,
     val highPassFilter: Boolean = true,
     val typingNoiseDetection: Boolean = true,
+    /**
+     * Whether to stop microphone capture while this track's publication is muted.
+     *
+     * Stopping capture releases the microphone so other apps can record from it,
+     * and turns off the OS microphone-in-use indicator. Capture automatically
+     * restarts when the publication is unmuted.
+     *
+     * Microphone capture is shared by all local audio tracks, so it is only
+     * stopped while every published local audio track is muted.
+     *
+     * Defaults to false, which keeps the microphone open while muted for
+     * instant unmutes.
+     *
+     * Example:
+     * ```
+     * room.audioTrackCaptureDefaults = room.audioTrackCaptureDefaults.copy(stopMicrophoneOnMute = true)
+     * ```
+     */
+    val stopMicrophoneOnMute: Boolean = false,
 )
 
 internal fun LocalAudioTrackOptions.toAudioProcessingOptions(): AudioProcessingOptions {

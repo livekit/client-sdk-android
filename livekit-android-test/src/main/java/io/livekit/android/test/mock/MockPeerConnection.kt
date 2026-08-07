@@ -121,7 +121,14 @@ class MockPeerConnection(
     override fun setAudioPlayout(playout: Boolean) {
     }
 
+    var audioRecording = true
+        private set
+    var setAudioRecordingCallCount = 0
+        private set
+
     override fun setAudioRecording(recording: Boolean) {
+        setAudioRecordingCallCount++
+        audioRecording = recording
     }
 
     override fun setConfiguration(config: RTCConfiguration): Boolean {

@@ -28,6 +28,8 @@ import io.livekit.android.room.DefaultsManager
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.RoomException
+import io.livekit.android.room.track.LocalAudioTrackOptions
+import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
 import io.livekit.android.room.track.ScreenSharePresets
@@ -40,6 +42,7 @@ import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClassList
 import io.livekit.android.test.coroutines.toListUntilSignal
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.MockRTCThreadToken
@@ -316,6 +319,114 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         room.localParticipant.unpublishTrack(videoTrack)
 
         transceivers.forEach { Mockito.verify(it).stopInternal() }
+    }
+
+    @Test
+    fun muteStopsMicrophoneRecordingWhenOptedIn() = runTest {
+        connect()
+        room.localParticipant.publishAudioTrack(
+            track = createMockLocalAudioTrack(options = LocalAudioTrackOptions(stopMicrophoneOnMute = true)),
+        )
+        val publication = room.localParticipant.trackPublications.values.first() as LocalTrackPublication
+        val publisherConnection = getPublisherPeerConnection()
+
+        publication.muted = true
+        assertFalse(publisherConnection.audioRecording)
+
+        publication.muted = false
+        assertTrue(publisherConnection.audioRecording)
+    }
+
+    @Test
+    fun muteKeepsMicrophoneRecordingByDefault() = runTest {
+        connect()
+        room.localParticipant.publishAudioTrack(track = createMockLocalAudioTrack())
+        val publication = room.localParticipant.trackPublications.values.first() as LocalTrackPublication
+
+        publication.muted = true
+        publication.muted = false
+        room.localParticipant.unpublishTrack(publication.track!!)
+
+        val publisherConnection = getPublisherPeerConnection()
+        assertTrue(publisherConnection.audioRecording)
+        assertEquals(0, publisherConnection.setAudioRecordingCallCount)
+    }
+
+    @Test
+    fun microphoneRecordingStopsOnlyWhenAllAudioTracksAreMuted() = runTest {
+        connect()
+        room.localParticipant.publishAudioTrack(
+            track = createMockLocalAudioTrack(options = LocalAudioTrackOptions(stopMicrophoneOnMute = true)),
+        )
+
+        val secondCid = "second_audio_cid"
+        val secondSid = "TR_second_audio"
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasAddTrack() && request.addTrack.cid == secondCid) {
+                wsFactory.receiveMessage(
+                    with(LivekitRtc.SignalResponse.newBuilder()) {
+                        trackPublished = with(LivekitRtc.TrackPublishedResponse.newBuilder()) {
+                            cid = secondCid
+                            track = TestData.LOCAL_AUDIO_TRACK.toBuilder().setSid(secondSid).build()
+                            build()
+                        }
+                        build()
+                    },
+                )
+                true
+            } else {
+                false
+            }
+        }
+        room.localParticipant.publishAudioTrack(
+            track = createMockLocalAudioTrack(mediaTrack = MockAudioStreamTrack(id = secondCid)),
+        )
+
+        val micPublication = room.localParticipant.trackPublications[TestData.LOCAL_AUDIO_TRACK.sid] as LocalTrackPublication
+        val secondPublication = room.localParticipant.trackPublications[secondSid] as LocalTrackPublication
+        val publisherConnection = getPublisherPeerConnection()
+
+        micPublication.muted = true
+        assertTrue(publisherConnection.audioRecording)
+
+        secondPublication.muted = true
+        assertFalse(publisherConnection.audioRecording)
+
+        secondPublication.muted = false
+        assertTrue(publisherConnection.audioRecording)
+    }
+
+    @Test
+    fun applyOptionsWhileMutedUpdatesMicrophoneRecording() = runTest {
+        connect()
+        val audioTrack = createMockLocalAudioTrack()
+        room.localParticipant.publishAudioTrack(track = audioTrack)
+        val publication = room.localParticipant.trackPublications.values.first() as LocalTrackPublication
+        val publisherConnection = getPublisherPeerConnection()
+
+        publication.muted = true
+        assertTrue(publisherConnection.audioRecording)
+
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(stopMicrophoneOnMute = true)).isSuccess)
+        assertFalse(publisherConnection.audioRecording)
+
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(stopMicrophoneOnMute = false)).isSuccess)
+        assertTrue(publisherConnection.audioRecording)
+    }
+
+    @Test
+    fun unpublishWhileMutedRestoresMicrophoneRecording() = runTest {
+        connect()
+        val audioTrack = createMockLocalAudioTrack(options = LocalAudioTrackOptions(stopMicrophoneOnMute = true))
+        room.localParticipant.publishAudioTrack(track = audioTrack)
+        val publication = room.localParticipant.trackPublications.values.first() as LocalTrackPublication
+        val publisherConnection = getPublisherPeerConnection()
+
+        publication.muted = true
+        assertFalse(publisherConnection.audioRecording)
+
+        room.localParticipant.unpublishTrack(audioTrack)
+        assertTrue(publisherConnection.audioRecording)
     }
 
     @Test
