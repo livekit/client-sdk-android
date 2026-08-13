@@ -33,6 +33,7 @@ import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.ConnectionState
 import io.livekit.android.room.DefaultsManager
+import io.livekit.android.room.PublishAcceptance
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.SenderTransceiverHandle
@@ -70,6 +71,7 @@ import io.livekit.android.util.flow
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -83,7 +85,6 @@ import livekit.LivekitModels
 import livekit.LivekitModels.AudioTrackFeature
 import livekit.LivekitModels.Codec
 import livekit.LivekitModels.DataPacket
-import livekit.LivekitModels.TrackInfo
 import livekit.LivekitRtc
 import livekit.LivekitRtc.AddTrackRequest
 import livekit.LivekitRtc.SimulcastCodec
@@ -143,6 +144,13 @@ internal constructor(
             .mapNotNull { it as? LocalTrackPublication }
             .toList()
 
+    // Feature-collector jobs of the published audio tracks, guarded by its own
+    // monitor. Retiring paths remove publications before draining their jobs, and a
+    // full reconnect preparation advances the engine's publish epoch. Registration
+    // requires the publication to still be present and the epoch stamped at the
+    // server's acceptance of the publish to still be current, so a collector never
+    // starts for a publication a reconnect invalidated, while one accepted by the
+    // post-reconnect session registers normally.
     private val jobs = mutableMapOf<LocalTrackPublication, Job>()
 
     // For ensuring that only one caller can execute setTrackEnabled at a time.
@@ -498,9 +506,9 @@ internal constructor(
                 }
             },
         )
-        var publication: LocalTrackPublication? = null
+        var result: PublishResult? = null
         try {
-            publication = publishTrackImpl(
+            result = publishTrackImpl(
                 track = track,
                 options = options,
                 requestConfig = {
@@ -516,16 +524,35 @@ internal constructor(
             LKLog.e(e) { "Error thrown when publishing track:" }
         }
 
-        if (publication != null) {
-            val job = scope.launch {
+        if (result != null) {
+            val publication = result.publication
+            val job = scope.launch(start = CoroutineStart.LAZY) {
                 track::features.flow.collect {
                     engine.updateLocalAudioTrack(publication.sid, it + options.getFeaturesList())
                 }
             }
-            jobs[publication] = job
+            // The publication may be retired by unpublishTrack or a full reconnect
+            // while this publish completes; registering afterwards would leave the
+            // job running with a stale sid, so it only starts if no full reconnect
+            // intervened since the server accepted the publish and the publication
+            // is still current.
+            val registered = synchronized(jobs) {
+                val current =
+                    engine.currentFullReconnectEpoch() == result.acceptanceEpoch &&
+                        trackPublications[publication.sid] === publication
+                if (current) {
+                    jobs[publication] = job
+                }
+                current
+            }
+            if (registered) {
+                job.start()
+            } else {
+                job.cancel()
+            }
         }
 
-        return publication != null
+        return result != null
     }
 
     /**
@@ -624,7 +651,7 @@ internal constructor(
                 },
                 encodings = encodings,
                 publishListener = publishListener,
-            )
+            )?.publication
         } catch (e: TrackException.PublishException) {
             LKLog.e(e) { "Error thrown when publishing track:" }
         }
@@ -653,7 +680,7 @@ internal constructor(
 
     /**
      * @throws TrackException.PublishException thrown when the publish fails. see [TrackException.PublishException.message] for details.
-     * @return true if the track publish was successful.
+     * @return the publish result, or null if the publish failed.
      */
     @Throws(TrackException.PublishException::class)
     private suspend fun publishTrackImpl(
@@ -662,7 +689,7 @@ internal constructor(
         requestConfig: AddTrackRequest.Builder.() -> Unit,
         encodings: List<RtpParameters.Encoding> = emptyList(),
         publishListener: PublishListener? = null,
-    ): LocalTrackPublication? {
+    ): PublishResult? {
         if (track.isDisposed) {
             LKLog.w { "Attempting to publish a disposed track, ignoring." }
             return null
@@ -784,7 +811,7 @@ internal constructor(
             // so no need to call negotiate manually.
         }
 
-        suspend fun requestAddTrack(): TrackInfo? {
+        suspend fun requestAddTrack(): PublishAcceptance? {
             return try {
                 engine.addTrack(
                     cid = cid,
@@ -801,12 +828,13 @@ internal constructor(
         }
 
         var publication: LocalTrackPublication? = null
+        var result: PublishResult? = null
         try {
-            val trackInfo: TrackInfo?
+            val acceptance: PublishAcceptance?
             if (enabledPublishVideoCodecs.isNotEmpty()) {
                 // Can simultaneous publish and negotiate.
                 // codec is pre-verified in publishVideoTrack
-                trackInfo = coroutineScope {
+                acceptance = coroutineScope {
                     val negotiateJob = launch { negotiate() }
                     val publishJob = async { requestAddTrack() }
 
@@ -815,12 +843,12 @@ internal constructor(
                 }
             } else {
                 // legacy path.
-                trackInfo = requestAddTrack()
-                if (trackInfo != null) {
+                acceptance = requestAddTrack()
+                if (acceptance != null) {
                     if (options is VideoTrackPublishOptions) {
                         // server might not support the codec the client has requested, in that case, fallback
                         // to a supported codec
-                        val primaryCodecMime = trackInfo.codecsList.firstOrNull()?.mimeType
+                        val primaryCodecMime = acceptance.trackInfo.codecsList.firstOrNull()?.mimeType
 
                         if (primaryCodecMime != null) {
                             val updatedCodec = primaryCodecMime.mimeTypeToVideoCodec()
@@ -841,13 +869,14 @@ internal constructor(
                 }
             }
 
-            if (trackInfo != null) {
+            if (acceptance != null) {
                 publication = LocalTrackPublication(
-                    info = trackInfo,
+                    info = acceptance.trackInfo,
                     track = track,
                     participant = this,
                     options = options,
                 )
+                result = PublishResult(publication, acceptance.fullReconnectEpoch)
                 addTrackPublication(publication)
                 LKLog.v { "add track publication $publication" }
 
@@ -883,8 +912,18 @@ internal constructor(
             }
         }
 
-        return publication
+        return result
     }
+
+    /**
+     * A completed publish: the created publication and the full reconnect epoch stamped
+     * when the server accepted it, used to decide whether bookkeeping keyed to the
+     * publication is still valid at registration time.
+     */
+    private class PublishResult(
+        val publication: LocalTrackPublication,
+        val acceptanceEpoch: Long,
+    )
 
     private fun computeVideoEncodings(
         isScreenShare: Boolean,
@@ -1030,14 +1069,12 @@ internal constructor(
             return
         }
 
-        val publicationJob = jobs[publication]
-        if (publicationJob != null) {
-            publicationJob.cancel()
-            jobs.remove(publication)
-        }
-
         val sid = publication.sid
         trackPublications = trackPublications.toMutableMap().apply { remove(sid) }
+
+        // The publication is retired above, so a racing publishAudioTrack fails its
+        // registration re-check and cannot register a job after this drain.
+        synchronized(jobs) { jobs.remove(publication) }?.cancel()
 
         if (engine.connectionState == ConnectionState.CONNECTED) {
             engine.removeTrack(track.rtcTrack)
@@ -1464,7 +1501,7 @@ internal constructor(
             }
             negotiateJob.join()
             try {
-                val trackInfo = publishJob.await()
+                val trackInfo = publishJob.await().trackInfo
                 LKLog.d { "published $codec for track ${track.sid}, $trackInfo" }
             } catch (e: Exception) {
                 e.rethrowIfCancellationSignal()
@@ -1493,6 +1530,21 @@ internal constructor(
         }
 
         trackPublications = trackPublications.toMutableMap().apply { clear() }
+
+        // The publications are cleared, so the unpublishTrack calls during
+        // republishing can't find them to cancel their jobs, and republishing
+        // creates fresh jobs for the new publications. Advancing the epoch fails
+        // the registration re-check of any publish accepted before this
+        // preparation, whose publication would otherwise re-insert itself after
+        // this drain and satisfy the presence check. Only an acceptance from a
+        // signal session opened for the current epoch can register afterwards.
+        val staleJobs = synchronized(jobs) {
+            engine.advanceFullReconnectEpoch()
+            val stale = jobs.values.toList()
+            jobs.clear()
+            stale
+        }
+        staleJobs.forEach { it.cancel() }
 
         for (publication in pubs) {
             internalListener?.onTrackUnpublished(publication, this)
