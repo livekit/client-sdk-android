@@ -16,8 +16,10 @@
 
 package io.livekit.android.room.datatrack
 
+import androidx.annotation.CheckResult
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
 import io.livekit.uniffi.HandleSignalResponseException
 import io.livekit.uniffi.LocalDataTrackManager
@@ -57,19 +59,23 @@ constructor(
     /**
      * Publishes a data track with the given name and options.
      *
-     * @throws DataTrackPublishException if the SFU rejects the publication or the request fails.
+     * @return A successful [Result] containing the published track, or a failure containing
+     * [DataTrackPublishException].
      */
-    @Throws(DataTrackPublishException::class)
-    suspend fun publishTrack(name: String, options: DataTrackPublishOptions? = null): LocalDataTrack {
+    @CheckResult
+    suspend fun publishTrack(name: String, options: DataTrackPublishOptions? = null): Result<LocalDataTrack> {
         val ffiOptions = DataTrackOptions(
             name = name,
             schema = options?.schema?.toFfi(),
             frameEncoding = options?.frameEncoding?.toFfi(),
         )
-        try {
-            return LocalDataTrack(ensureManager().publishTrack(ffiOptions))
+        return try {
+            Result.success(LocalDataTrack(ensureManager().publishTrack(ffiOptions)))
         } catch (e: PublishException) {
-            throw e.toSdk()
+            Result.failure(e.toSdk())
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            Result.failure(DataTrackPublishException.Internal(e.message ?: "", e))
         }
     }
 

@@ -16,8 +16,10 @@
 
 package io.livekit.android.room.datatrack
 
+import androidx.annotation.CheckResult
 import androidx.annotation.IntRange
 import io.livekit.android.room.participant.Participant
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackSubscribeOptions
 import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
 import uniffi.livekit_datatrack.DataTrackSubscribeException as FfiSubscribeException
@@ -28,8 +30,9 @@ import uniffi.livekit_datatrack.DataTrackSubscribeException as FfiSubscribeExcep
  * Call [subscribe] to start receiving frames.
  *
  * ```
- * val stream = remoteTrack.subscribe()
- * stream.flow.collect { frame -> process(frame.payload) }
+ * remoteTrack.subscribe().onSuccess { stream ->
+ *     stream.flow.collect { frame -> process(frame.payload) }
+ * }
  * ```
  */
 class RemoteDataTrack internal constructor(
@@ -78,18 +81,21 @@ class RemoteDataTrack internal constructor(
      *
      * @param bufferSize Maximum number of received frames buffered internally before the oldest
      * is dropped. Values below 1 are clamped to 1.
-     * @throws DataTrackSubscribeException if the subscription cannot be established.
+     * @return A successful [Result] containing the [DataTrackStream], or a failure containing
+     * [DataTrackSubscribeException].
      */
-    @JvmOverloads
-    @Throws(DataTrackSubscribeException::class)
+    @CheckResult
     suspend fun subscribe(
         @IntRange(from = 1) bufferSize: Int = DEFAULT_BUFFER_SIZE,
-    ): DataTrackStream {
+    ): Result<DataTrackStream> {
         val options = DataTrackSubscribeOptions(bufferSize = bufferSize.coerceAtLeast(1).toUInt())
-        try {
-            return DataTrackStream(impl.subscribeWithOptions(options))
+        return try {
+            Result.success(DataTrackStream(impl.subscribeWithOptions(options)))
         } catch (e: FfiSubscribeException) {
-            throw e.toSdk()
+            Result.failure(e.toSdk())
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            Result.failure(DataTrackSubscribeException.Internal(e.message ?: "", e))
         }
     }
 

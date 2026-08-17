@@ -988,28 +988,29 @@ internal constructor(
      * [LocalDataTrack.unpublish] or [LocalDataTrack.close].
      *
      * ```
-     * val track = room.localParticipant.publishDataTrack("telemetry")
-     * track.tryPush(DataTrackFrame(payload))
-     * track.unpublish()
+     * val result = room.localParticipant.publishDataTrack("telemetry")
+     * result.onSuccess { track ->
+     *     track.tryPush(DataTrackFrame(payload))
+     *     track.unpublish()
+     * }
      * ```
      *
      * @param name Track name visible to other participants. Must be unique per publisher.
      * @param options Optional encoding and schema metadata, surfaced to subscribers via
      * [io.livekit.android.room.datatrack.DataTrackInfo].
-     * @return A [LocalDataTrack] used to push frames via [LocalDataTrack.tryPush].
-     * @throws DataTrackPublishException if the track cannot be published.
+     * @return A successful [Result] containing the published [LocalDataTrack], or a failure
+     * containing [DataTrackPublishException].
      *
      * When self-hosting the LiveKit SFU, a [DataTrackPublishException.Timeout] may indicate a
      * release that predates data track support.
      */
-    @JvmOverloads
-    @Throws(DataTrackPublishException::class)
+    @CheckResult
     suspend fun publishDataTrack(
         name: String,
         options: DataTrackPublishOptions? = null,
-    ): LocalDataTrack {
+    ): Result<LocalDataTrack> {
         if (engine.connectionState == ConnectionState.DISCONNECTED) {
-            throw DataTrackPublishException.Disconnected("Not connected to a room")
+            return Result.failure(DataTrackPublishException.Disconnected("Not connected to a room"))
         }
         return outgoingDataTrackManager.publishTrack(name, options)
     }
@@ -1028,18 +1029,21 @@ internal constructor(
      * @param name Track name visible to other participants. Must be unique per publisher.
      * @param options Optional encoding and schema metadata; see [publishDataTrack].
      * @param block Receives the published track; the track is unpublished when it returns or throws.
-     * @return The value returned by [block].
-     * @throws DataTrackPublishException if the track cannot be published.
+     * @return A successful [Result] containing the value returned by [block], or a failure if
+     * the track cannot be published or [block] throws.
      */
-    @Throws(DataTrackPublishException::class)
+    @CheckResult
     suspend fun <T> withDataTrack(
         name: String,
         options: DataTrackPublishOptions? = null,
         block: suspend (LocalDataTrack) -> T,
-    ): T {
-        val track = publishDataTrack(name, options)
+    ): Result<T> {
+        val track = publishDataTrack(name, options).getOrElse { return Result.failure(it) }
         try {
-            return block(track)
+            return Result.success(block(track))
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            return Result.failure(e)
         } finally {
             track.unpublish()
         }
