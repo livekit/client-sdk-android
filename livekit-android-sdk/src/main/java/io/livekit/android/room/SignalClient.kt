@@ -21,6 +21,7 @@ import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
 import io.livekit.android.dagger.InjectionNames
+import io.livekit.android.room.datatrack.DataTrackSchemaException
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
 import io.livekit.android.stats.NetworkInfo
@@ -28,11 +29,14 @@ import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.TimeoutException
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -60,11 +64,14 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * SignalClient to LiveKit WS servers
@@ -121,6 +128,9 @@ constructor(
     private var pingTimeoutDurationMillis: Long = 0
     private var pingIntervalDurationMillis: Long = 0
     private var rtt: Long = 0
+
+    private val nextDataBlobRequestId = AtomicInteger(0)
+    private val dataBlobCompleters = ConcurrentHashMap<Int, CompletableDeferred<ByteArray>>()
 
     var connectionState: ConnectionState = ConnectionState.DISCONNECTED
 
@@ -641,6 +651,76 @@ constructor(
         sendRequest(request)
     }
 
+    /**
+     * Stores a blob on the server under [key], replacing nothing — a key can only be written once.
+     */
+    internal suspend fun sendStoreDataBlob(key: LivekitModels.DataBlobKey, contents: ByteArray): Result<Unit> {
+        return sendIdCorrelatedRequest { requestId ->
+            LivekitRtc.SignalRequest.newBuilder()
+                .setStoreDataBlobRequest(
+                    LivekitRtc.StoreDataBlobRequest.newBuilder()
+                        .setRequestId(requestId)
+                        .setBlob(
+                            LivekitModels.DataBlob.newBuilder()
+                                .setKey(key)
+                                .setContents(com.google.protobuf.ByteString.copyFrom(contents)),
+                        ),
+                )
+                .build()
+        }.map { }
+    }
+
+    /**
+     * Reads back a blob [participantIdentity] stored under [key].
+     */
+    internal suspend fun sendGetDataBlob(
+        key: LivekitModels.DataBlobKey,
+        participantIdentity: String,
+    ): Result<ByteArray> {
+        return sendIdCorrelatedRequest { requestId ->
+            LivekitRtc.SignalRequest.newBuilder()
+                .setGetDataBlobRequest(
+                    LivekitRtc.GetDataBlobRequest.newBuilder()
+                        .setRequestId(requestId)
+                        .setParticipantIdentity(participantIdentity)
+                        .setKey(key),
+                )
+                .build()
+        }
+    }
+
+    /**
+     * Sends a request the SFU answers by echoing its id, and waits for that answer.
+     */
+    private suspend fun sendIdCorrelatedRequest(
+        build: (Int) -> LivekitRtc.SignalRequest,
+    ): Result<ByteArray> {
+        if (!isConnected) {
+            return Result.failure(DataTrackSchemaException.Disconnected("Not connected to a room"))
+        }
+        val requestId = nextDataBlobRequestId.incrementAndGet()
+        val deferred = CompletableDeferred<ByteArray>()
+        dataBlobCompleters[requestId] = deferred
+        try {
+            sendRequest(build(requestId))
+            return withDeadline(DATA_BLOB_REQUEST_TIMEOUT) {
+                Result.success(deferred.await())
+            }
+        } catch (e: TimeoutException) {
+            return Result.failure(
+                DataTrackSchemaException.Timeout("Timed out waiting for data blob response", e),
+            )
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            return Result.failure(
+                e as? DataTrackSchemaException
+                    ?: DataTrackSchemaException.Internal(e.message ?: "", e),
+            )
+        } finally {
+            dataBlobCompleters.remove(requestId)
+        }
+    }
+
     private fun sendRequest(request: LivekitRtc.SignalRequest) {
         val skipQueue = skipQueueTypes.contains(request.messageCase)
 
@@ -856,6 +936,19 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
+                val requestResponse = response.requestResponse
+                val reason = requestResponse.reason
+                val isFailure = reason != LivekitRtc.RequestResponse.Reason.OK &&
+                    reason != LivekitRtc.RequestResponse.Reason.QUEUED
+                if (isFailure) {
+                    val completer = dataBlobCompleters.remove(requestResponse.requestId)
+                    if (completer != null) {
+                        val message = requestResponse.message.ifEmpty {
+                            "Request rejected (reason ${reason.number})"
+                        }
+                        completer.completeExceptionally(DataTrackSchemaException.Rejected(message))
+                    }
+                }
                 // Pass the full SignalResponse — UniFFI deserializes and filters data-track related ones.
                 listener?.onRequestResponse(response)
             }
@@ -884,6 +977,15 @@ constructor(
                 listener?.onDataTrackSubscriberHandles(response)
             }
 
+            LivekitRtc.SignalResponse.MessageCase.STORE_DATA_BLOB_RESPONSE -> {
+                dataBlobCompleters.remove(response.storeDataBlobResponse.requestId)
+                    ?.complete(ByteArray(0))
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.GET_DATA_BLOB_RESPONSE -> {
+                dataBlobCompleters.remove(response.getDataBlobResponse.requestId)
+                    ?.complete(response.getDataBlobResponse.blob.contents.toByteArray())
+            }
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null,
             -> {
@@ -920,6 +1022,16 @@ constructor(
         pongJob = null
     }
 
+    private fun failPendingDataBlobRequests() {
+        val pending = dataBlobCompleters.values.toList()
+        dataBlobCompleters.clear()
+        pending.forEach { completer ->
+            completer.completeExceptionally(
+                DataTrackSchemaException.Disconnected("Not connected to a room"),
+            )
+        }
+    }
+
     /**
      * Closes out any existing websocket connection, and cleans up used resources.
      *
@@ -930,6 +1042,7 @@ constructor(
         LKLog.v(Exception()) { "Closing SignalClient: code = $code, reason = $reason" }
         isConnected = false
         isReconnecting = false
+        failPendingDataBlobRequests()
         if (::coroutineScope.isInitialized) {
             coroutineScope.close()
         }
@@ -1035,6 +1148,7 @@ constructor(
 //            iceServer("stun:stun4.l.google.com:19302"),
         )
         private const val SIGNAL_CONNECT_TIMEOUT = 10000
+        private val DATA_BLOB_REQUEST_TIMEOUT = 5.seconds
         const val CLOSE_REASON_NORMAL_CLOSURE = 1000
         const val CLOSE_REASON_PING_TIMEOUT = 3000
         const val CLOSE_REASON_WEBSOCKET_FAILURE = 3500

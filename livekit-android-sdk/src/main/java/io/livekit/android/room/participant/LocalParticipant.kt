@@ -39,6 +39,8 @@ import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.datatrack.DataTrackPublishException
 import io.livekit.android.room.datatrack.DataTrackPublishOptions
+import io.livekit.android.room.datatrack.DataTrackSchemaException
+import io.livekit.android.room.datatrack.DataTrackSchemaId
 import io.livekit.android.room.datatrack.LocalDataTrack
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.isSVCCodec
@@ -89,6 +91,9 @@ import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 import java.util.Collections
 import javax.inject.Named
 import kotlin.math.max
@@ -1016,6 +1021,56 @@ internal constructor(
     }
 
     /**
+     * Stores the definition of a data track schema, making it available to subscribers.
+     *
+     * Define a schema before publishing any data track that references it, so subscribers can
+     * resolve it by ID via [getSchema]. Treat a definition as write-once — whether redefining an
+     * existing one is rejected is up to the server.
+     *
+     * ```
+     * val schema = DataTrackSchemaId("reading.v1", DataTrackSchemaEncoding.JsonSchema)
+     * room.localParticipant.defineSchema(schema, definition)
+     * room.localParticipant.publishDataTrack(
+     *     "reading",
+     *     DataTrackPublishOptions(schema, DataTrackFrameEncoding.Json),
+     * )
+     * ```
+     *
+     * @param id Identifies the schema; the same ID goes into [DataTrackPublishOptions].
+     * @param definition The definition, stored as-is. It is neither parsed nor validated against
+     * its [DataTrackSchemaId.encoding], so it's up to the caller to keep it well-formed.
+     * @return A successful [Result] if the schema was stored, or a failure containing
+     * [DataTrackSchemaException].
+     */
+    @CheckResult
+    suspend fun defineSchema(id: DataTrackSchemaId, definition: String): Result<Unit> {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            return Result.failure(DataTrackSchemaException.Disconnected("Not connected to a room"))
+        }
+        return engine.client.sendStoreDataBlob(id.blobKey, definition.toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * Retrieves the definition a participant [defineSchema]'d for a schema its data tracks
+     * reference.
+     *
+     * @param id Identifies the schema, as carried by [io.livekit.android.room.datatrack.DataTrackInfo.schema].
+     * @param publishedBy Identity of the participant that defined it.
+     * @return A successful [Result] containing the definition, or a failure containing
+     * [DataTrackSchemaException].
+     */
+    @CheckResult
+    suspend fun getSchema(id: DataTrackSchemaId, publishedBy: Identity): Result<String> {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            return Result.failure(DataTrackSchemaException.Disconnected("Not connected to a room"))
+        }
+        val bytes = engine.client.sendGetDataBlob(id.blobKey, publishedBy.value)
+            .getOrElse { return Result.failure(it) }
+        return decodeUtf8(bytes)?.let { Result.success(it) }
+            ?: Result.failure(DataTrackSchemaException.InvalidDefinition("Schema definition is not valid UTF-8"))
+    }
+
+    /**
      * Publishes a data track for the duration of [block], then unpublishes it automatically.
      *
      * The track is unpublished when [block] returns, throws, or the calling coroutine is cancelled.
@@ -1749,6 +1804,17 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
 
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
+
+private fun decodeUtf8(bytes: ByteArray): String? {
+    val decoder = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+    return try {
+        decoder.decode(ByteBuffer.wrap(bytes)).toString()
+    } catch (_: CharacterCodingException) {
+        null
+    }
+}
 
 /**
  * A handler that processes an RPC request and returns a string

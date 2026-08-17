@@ -16,6 +16,8 @@
 
 package io.livekit.android.room.datatrack
 
+import livekit.LivekitModels
+import livekit.LivekitModels.DataTrackSchemaEncoding.WellKnownSchemaEncoding
 import io.livekit.uniffi.DataTrackSchemaId as FfiSchemaId
 import uniffi.livekit_datatrack.DataTrackFrameEncoding as FfiFrameEncoding
 import uniffi.livekit_datatrack.DataTrackSchemaEncoding as FfiSchemaEncoding
@@ -39,6 +41,20 @@ data class DataTrackSchemaId(
         name = name,
         encoding = encoding.toFfi(),
     )
+
+    internal fun toProto(): LivekitModels.DataTrackSchemaId =
+        LivekitModels.DataTrackSchemaId.newBuilder()
+            .setName(name)
+            .setEncoding(encoding.toProto())
+            .build()
+
+    /**
+     * As a data blob key, for storing and reading back the schema's definition.
+     */
+    internal val blobKey: LivekitModels.DataBlobKey
+        get() = LivekitModels.DataBlobKey.newBuilder()
+            .setSchemaId(toProto())
+            .build()
 }
 
 /**
@@ -108,6 +124,22 @@ sealed class DataTrackSchemaEncoding {
         JsonSchema -> FfiSchemaEncoding.JsonSchema
         Other -> FfiSchemaEncoding.Other
         is Custom -> FfiSchemaEncoding.Custom(identifier)
+    }
+
+    internal fun toProto(): LivekitModels.DataTrackSchemaEncoding {
+        val builder = LivekitModels.DataTrackSchemaEncoding.newBuilder()
+        when (this) {
+            Protobuf -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_PROTOBUF
+            Flatbuffer -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_FLATBUFFER
+            Ros1Msg -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_ROS1_MSG
+            Ros2Msg -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_ROS2_MSG
+            Ros2Idl -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_ROS2_IDL
+            OmgIdl -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_OMG_IDL
+            JsonSchema -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_JSON_SCHEMA
+            Other -> builder.wellKnown = WellKnownSchemaEncoding.WELL_KNOWN_SCHEMA_ENCODING_UNSPECIFIED
+            is Custom -> builder.custom = identifier
+        }
+        return builder.build()
     }
 
     companion object {

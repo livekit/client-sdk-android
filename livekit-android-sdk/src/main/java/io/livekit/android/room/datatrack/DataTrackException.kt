@@ -118,6 +118,38 @@ sealed class DataTrackSubscribeException(message: String, cause: Throwable? = nu
     class Internal(message: String, cause: Throwable? = null) : DataTrackSubscribeException(message, cause)
 }
 
+/**
+ * An error raised while storing or resolving a data track schema via
+ * [io.livekit.android.room.participant.LocalParticipant.defineSchema] /
+ * [io.livekit.android.room.participant.LocalParticipant.getSchema].
+ */
+sealed class DataTrackSchemaException(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    /**
+     * The connection was lost before the request completed, or the participant is not connected.
+     */
+    class Disconnected(message: String, cause: Throwable? = null) : DataTrackSchemaException(message, cause)
+
+    /**
+     * The SFU rejected the request (for example the schema was never defined).
+     */
+    class Rejected(message: String, cause: Throwable? = null) : DataTrackSchemaException(message, cause)
+
+    /**
+     * The stored definition is not valid UTF-8.
+     */
+    class InvalidDefinition(message: String, cause: Throwable? = null) : DataTrackSchemaException(message, cause)
+
+    /**
+     * The SFU did not respond in time.
+     */
+    class Timeout(message: String, cause: Throwable? = null) : DataTrackSchemaException(message, cause)
+
+    /**
+     * An unexpected internal error occurred.
+     */
+    class Internal(message: String, cause: Throwable? = null) : DataTrackSchemaException(message, cause)
+}
+
 @Suppress("CyclomaticComplexMethod") // Mechanical 1:1 mapping of UniFFI publish error cases.
 internal fun FfiPublishException.toSdk(): DataTrackPublishException = when (this) {
     is FfiPublishException.NotAllowed -> DataTrackPublishException.NotAllowed(message ?: "", this)
