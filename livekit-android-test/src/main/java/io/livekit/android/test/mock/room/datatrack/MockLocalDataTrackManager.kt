@@ -70,10 +70,24 @@ class MockLocalDataTrackManager(
     }
 
     override suspend fun publishTrack(options: DataTrackOptions): LocalDataTrack {
+        val request = LivekitRtc.SignalRequest.newBuilder()
+            .setPublishDataTrackRequest(
+                LivekitRtc.PublishDataTrackRequest.newBuilder()
+                    .setName(options.name)
+                    .build(),
+            )
+            .build()
+            .toByteArray()
+        delegate.onSignalRequest(request)
         return MockFfiLocalDataTrack(name = options.name).also { publishedTracks.add(it) }
     }
 
-    override fun republishTracks() {}
+    var republishTracksCount = 0
+        private set
+
+    override fun republishTracks() {
+        republishTracksCount++
+    }
 
     override fun close() {
         closed = true

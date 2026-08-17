@@ -197,6 +197,7 @@ internal constructor(
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
     private var dataTrackDataChannel: DataChannel? = null
+    private var dataTrackDataChannelManager: DataChannelManager? = null
     private var dataTrackDataChannelSub: DataChannel? = null
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
@@ -285,8 +286,10 @@ internal constructor(
 
         configure(joinResponse, options)
 
-        // create offer
-        if (!isSubscriberPrimary || joinResponse.fastPublish) {
+        // Subscriber-primary defers the publisher PC until something is published. After a full
+        // reconnect `hasPublished` is still set, so re-negotiate here — otherwise the ICE wait
+        // stalls and data-track republish never runs.
+        if (!isSubscriberPrimary || joinResponse.fastPublish || hasPublished) {
             negotiatePublisher()
         }
         client.onReadyForResponses()
@@ -407,7 +410,13 @@ internal constructor(
                         DATA_TRACK_DATA_CHANNEL_LABEL,
                         dataTrackInit,
                     ).also { dataChannel ->
-                        dataChannel.registerObserver(DataChannelObserver(dataChannel))
+                        val dataChannelManager = DataChannelManager(
+                            dataChannel,
+                            DataChannelObserver(dataChannel),
+                            rtcThreadToken,
+                        )
+                        dataTrackDataChannelManager = dataChannelManager
+                        dataChannel.registerObserver(dataChannelManager)
                     }
                 }
             }
@@ -533,6 +542,8 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
+                    dataTrackDataChannelManager?.dispose()
+                    dataTrackDataChannelManager = null
                     dataTrackDataChannel = null
                     dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
@@ -939,6 +950,38 @@ internal constructor(
         throw RoomException.ConnectException(
             "could not establish publisher connection: publisher state: ${publisherObserver.connectionState}, channel state: ${channelManager.state}",
         )
+    }
+
+    /**
+     * Negotiates the publisher if needed and waits until the `_data_track` channel is open.
+     *
+     * Data-track publish must not proceed until then: [sendDataTrackPackets] drops packets while
+     * the channel is not [DataChannel.State.OPEN].
+     */
+    @Throws(exceptionClasses = [RoomException.ConnectException::class])
+    internal suspend fun ensureDataTrackPublisherConnected() {
+        if (publisher == null) {
+            throw RoomException.ConnectException("Publisher isn't setup yet! Is the room connected?")
+        }
+
+        if (isSubscriberPrimary &&
+            publisher?.isConnected() != true &&
+            publisher?.iceConnectionState() != PeerConnection.IceConnectionState.CHECKING
+        ) {
+            negotiatePublisher()
+        }
+
+        val channelManager = dataTrackDataChannelManager
+            ?: throw RoomException.ConnectException(
+                "Publisher data track channel not established; is the room connected?",
+            )
+        val opened = withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
+            channelManager.waitUntilOpen()
+            true
+        }
+        if (opened != true) {
+            throw RoomException.ConnectException("Timed out establishing the publisher data track channel")
+        }
     }
 
     private fun dataChannelManagerForKind(kind: LivekitModels.DataPacket.Kind): DataChannelManager? =

@@ -18,6 +18,7 @@ package io.livekit.android.room.datatrack
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.ReconnectType
 import io.livekit.android.room.Room
 import io.livekit.android.room.SignalClient
@@ -25,11 +26,17 @@ import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.MockDataChannel
+import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.yield
 import livekit.LivekitRtc
+import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.PeerConnection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -59,6 +66,31 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
         val local = localDataTrackManagerFactory.manager
         assertEquals(1, local.publishedTracks.size)
         assertEquals("telemetry", local.publishedTracks.single().info().name)
+    }
+
+    @Test
+    fun publishDataTrackWaitsForPublisherChannelOpen() = runTest {
+        connect()
+        val channel = publisherDataTrackChannel()
+        channel.state = DataChannel.State.CONNECTING
+
+        val publish = async { room.localParticipant.publishDataTrack("telemetry") }
+        yield()
+        assertTrue(publish.isActive)
+
+        channel.state = DataChannel.State.OPEN
+        val result = publish.await()
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun publishDataTrackTimesOutIfPublisherChannelNeverOpens() = runTest {
+        connect()
+        publisherDataTrackChannel().state = DataChannel.State.CONNECTING
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is DataTrackPublishException.Timeout)
     }
 
     @Test
@@ -203,8 +235,34 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun fullReconnectRenegotiatesPublisherForDataTrack() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        val local = localDataTrackManagerFactory.manager
+        assertEquals(0, local.republishTracksCount)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        assertEquals(1, local.republishTracksCount)
+        assertEquals(
+            PeerConnection.PeerConnectionState.CONNECTED,
+            getPublisherPeerConnection().connectionState(),
+        )
+    }
+
+    @Test
     fun softReconnectIncludesPublishedDataTracksInSyncState() = runTest {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
         connect()
 
         val result = room.localParticipant.publishDataTrack("telemetry")
@@ -242,6 +300,27 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
 
         assertEquals(1, remote.resendSubscriptionUpdatesCount)
     }
+
+    private val publisherOfferHandler: SignalRequestHandler = { request ->
+        if (request.hasOffer()) {
+            val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                    sdp = "remote_answer"
+                    type = "answer"
+                    id = request.offer.id
+                    build()
+                }
+                build()
+            }
+            wsFactory.receiveMessage(answer)
+            true
+        } else {
+            false
+        }
+    }
+
+    private fun publisherDataTrackChannel() =
+        getPublisherPeerConnection().dataChannels[RTCEngine.DATA_TRACK_DATA_CHANNEL_LABEL] as MockDataChannel
 
     private fun reconnectWebsocket() {
         wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))

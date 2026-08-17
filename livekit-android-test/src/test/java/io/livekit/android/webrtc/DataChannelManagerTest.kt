@@ -121,6 +121,42 @@ class DataChannelManagerTest : BaseTest() {
     }
 
     @Test
+    fun waitUntilOpen_completesWhenAlreadyOpen() = runTest {
+        val channel = MockDataChannel("dc")
+        val manager = DataChannelManager(channel, NOOP_OBSERVER, MockRTCThreadToken())
+        channel.registerObserver(manager)
+        manager.waitUntilOpen()
+    }
+
+    @Test
+    fun waitUntilOpen_completesWhenChannelOpens() = runTest {
+        val channel = MockDataChannel("dc")
+        val manager = DataChannelManager(channel, NOOP_OBSERVER, MockRTCThreadToken())
+        channel.registerObserver(manager)
+        channel.state = DataChannel.State.CONNECTING
+        val waiter = async { manager.waitUntilOpen() }
+        yield()
+        channel.state = DataChannel.State.OPEN
+        waiter.await()
+    }
+
+    @Test
+    fun waitUntilOpen_cancelledWhenDisposedWhileWaiting() = runTest {
+        val channel = MockDataChannel("dc")
+        val manager = DataChannelManager(channel, NOOP_OBSERVER, MockRTCThreadToken())
+        channel.registerObserver(manager)
+        channel.state = DataChannel.State.CONNECTING
+        val waiter = async { manager.waitUntilOpen() }
+        yield()
+        manager.dispose()
+        try {
+            waiter.await()
+            fail("expected CancellationException")
+        } catch (_: CancellationException) {
+        }
+    }
+
+    @Test
     fun waitForBufferedAmountLow_cancelledWhenDisposedWhileWaiting() = runTest {
         val channel = MockDataChannel("dc")
         val manager = DataChannelManager(channel, NOOP_OBSERVER, MockRTCThreadToken())

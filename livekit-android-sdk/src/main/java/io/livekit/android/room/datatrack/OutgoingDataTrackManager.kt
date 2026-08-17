@@ -18,6 +18,7 @@ package io.livekit.android.room.datatrack
 
 import androidx.annotation.CheckResult
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.RoomException
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
@@ -71,6 +72,19 @@ constructor(
             schema = options?.schema?.toFfi(),
             frameEncoding = options?.frameEncoding?.toFfi(),
         )
+        try {
+            engineProvider.get().ensureDataTrackPublisherConnected()
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            val message = e.message ?: "Lost the connection while establishing the publisher data track channel"
+            return Result.failure(
+                if (e is RoomException.ConnectException && message.startsWith("Timed out")) {
+                    DataTrackPublishException.Timeout(message, e)
+                } else {
+                    DataTrackPublishException.Disconnected(message, e)
+                },
+            )
+        }
         return try {
             Result.success(LocalDataTrack(ensureManager().publishTrack(ffiOptions)))
         } catch (e: PublishException) {
@@ -98,7 +112,7 @@ constructor(
      * Receives a serialized [livekit.LivekitRtc.SignalResponse] containing
      * `UnpublishDataTrackResponse`.
      *
-     * UniFFI does not consume this message. Local unpublish is applied by
+     * UniFFI does not consume this message yet. Local unpublish is applied by
      * [LocalDataTrack.unpublish] before the SFU acks.
      */
     fun handleSfuUnpublishResponse(responseBytes: ByteArray) {
