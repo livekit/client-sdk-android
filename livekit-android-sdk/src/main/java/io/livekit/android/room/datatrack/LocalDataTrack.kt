@@ -21,14 +21,15 @@ import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.takeWhile
 import uniffi.livekit_datatrack.PushFrameErrorReason
-import java.io.Closeable
 import io.livekit.uniffi.LocalDataTrack as FfiLocalDataTrack
 
 /**
- * A data track published by the local participant.
+ * A data track published by the local participant. Obtain one from
+ * [io.livekit.android.room.participant.LocalParticipant.publishDataTrack], then push frames with
+ * [tryPush].
  *
- * The publication follows this object's lifetime: releasing the last reference unpublishes the
- * track, as does calling [unpublish] or [close]. [Closeable] so `use { }` scopes a publication.
+ * The publication follows this object's lifetime: keep a reference for as long as the track should
+ * stay published — releasing the last reference unpublishes it, as does calling [unpublish].
  *
  * ```
  * val result = room.localParticipant.publishDataTrack("telemetry")
@@ -40,12 +41,12 @@ import io.livekit.uniffi.LocalDataTrack as FfiLocalDataTrack
  */
 class LocalDataTrack internal constructor(
     private val impl: FfiLocalDataTrack,
-) : Closeable {
+) : DataTrackFrameSink {
     /**
      * Whether the track is currently published. Becomes `false` after [unpublish] or if the SFU
      * unpublishes it.
      */
-    val isPublished: Boolean
+    override val isPublished: Boolean
         get() = impl.isPublished()
 
     /**
@@ -66,7 +67,7 @@ class LocalDataTrack internal constructor(
      * [DataTrackPushFrameException].
      */
     @CheckResult
-    fun tryPush(frame: DataTrackFrame): Result<Unit> {
+    override fun tryPush(frame: DataTrackFrame): Result<Unit> {
         return try {
             impl.tryPush(frame.toFfi())
             Result.success(Unit)
@@ -107,13 +108,6 @@ class LocalDataTrack internal constructor(
     }
 
     /**
-     * Unpublishes the track. Same as [unpublish]; provided so `use { }` scopes a publication.
-     */
-    override fun close() {
-        unpublish()
-    }
-
-    /**
      * Policy for [send] when the send queue is full.
      */
     enum class FrameDropPolicy {
@@ -125,33 +119,63 @@ class LocalDataTrack internal constructor(
     }
 
     /**
-     * Sends frames from [frames] until the flow completes or the track is unpublished.
+     * Sends frames from [frames] until it ends or the track is unpublished.
      *
      * @param onQueueFull How to handle a full send queue. Defaults to [FrameDropPolicy.DROP].
-     * @return A successful [Result] if every frame was sent or dropped per [onQueueFull], or a
-     * failure containing [DataTrackPushFrameException] if [onQueueFull] is [FrameDropPolicy.FAIL]
-     * and the queue is full.
+     * @return A successful [Result] if every frame was sent or dropped per [onQueueFull], or if
+     * the track is unpublished mid-send. A failure containing [DataTrackPushFrameException] if
+     * [onQueueFull] is [FrameDropPolicy.FAIL] and the queue is full.
      */
     @CheckResult
     suspend fun send(
         frames: Flow<DataTrackFrame>,
         onQueueFull: FrameDropPolicy = FrameDropPolicy.DROP,
-    ): Result<Unit> {
-        var sending = true
-        var failure: DataTrackPushFrameException? = null
-        frames.takeWhile { sending && isPublished && failure == null }.collect { frame ->
-            tryPush(frame).onFailure { error ->
-                when (error) {
-                    is DataTrackPushFrameException.TrackUnpublished -> sending = false
-                    is DataTrackPushFrameException.QueueFull ->
-                        if (onQueueFull == FrameDropPolicy.FAIL) {
-                            failure = error
-                        }
-                    is DataTrackPushFrameException -> failure = error
-                    else -> failure = DataTrackPushFrameException.Internal(error.message ?: "", error)
-                }
+    ): Result<Unit> = sendFrames(frames, onQueueFull)
+}
+
+/**
+ * The slice of a publication the sequence send drives — a seam so the queue-full policy is
+ * unit-testable, since saturating a live pipeline to observe it is inherently timing-dependent.
+ *
+ * @suppress
+ */
+internal interface DataTrackFrameSink {
+    val isPublished: Boolean
+    fun tryPush(frame: DataTrackFrame): Result<Unit>
+}
+
+internal suspend fun DataTrackFrameSink.sendFrames(
+    source: Flow<DataTrackFrame>,
+    onQueueFull: LocalDataTrack.FrameDropPolicy,
+): Result<Unit> {
+    var outcome: Result<Unit>? = null
+    source.takeWhile { isPublished && outcome == null }.collect { frame ->
+        outcome = sendOne(frame, onQueueFull)
+    }
+    return outcome ?: Result.success(Unit)
+}
+
+/**
+ * @return `null` to keep sending, or a [Result] that ends the send — success if the track was
+ * unpublished, failure otherwise.
+ */
+private fun DataTrackFrameSink.sendOne(
+    frame: DataTrackFrame,
+    onQueueFull: LocalDataTrack.FrameDropPolicy,
+): Result<Unit>? {
+    if (!isPublished) return Result.success(Unit)
+    val error = tryPush(frame).exceptionOrNull() ?: return null
+    // The track can be unpublished between the check above and the push; end the send as
+    // documented rather than surfacing an error.
+    return when (error) {
+        is DataTrackPushFrameException.TrackUnpublished -> Result.success(Unit)
+        is DataTrackPushFrameException.QueueFull ->
+            if (onQueueFull == LocalDataTrack.FrameDropPolicy.FAIL) {
+                Result.failure(error)
+            } else {
+                null
             }
-        }
-        return failure?.let { Result.failure(it) } ?: Result.success(Unit)
+        is DataTrackPushFrameException -> Result.failure(error)
+        else -> Result.failure(DataTrackPushFrameException.Internal(error.message ?: "", error))
     }
 }

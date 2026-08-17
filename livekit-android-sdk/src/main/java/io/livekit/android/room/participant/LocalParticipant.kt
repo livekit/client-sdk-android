@@ -985,7 +985,7 @@ internal constructor(
      *
      * The publication follows the returned track's lifetime: keep a reference for as long as the
      * track should stay published — releasing the last reference unpublishes it, as does calling
-     * [LocalDataTrack.unpublish] or [LocalDataTrack.close].
+     * [LocalDataTrack.unpublish].
      *
      * ```
      * val result = room.localParticipant.publishDataTrack("telemetry")

@@ -78,8 +78,8 @@ sealed class DataTrackPushFrameException(message: String, cause: Throwable? = nu
      * The send queue is full; the frame was not enqueued.
      *
      * The rejected [frame] — the same instance that was pushed, not a copy — comes back so it can
-     * be retried or re-queued. Mainly for [LocalDataTrack.send], where frames come from a [kotlinx.coroutines.flow.Flow]
-     * and the caller holds no reference of its own.
+     * be retried or re-queued. Mainly for [LocalDataTrack.send], where frames come from a
+     * [kotlinx.coroutines.flow.Flow] and the caller holds no reference of its own.
      */
     class QueueFull(
         message: String,
