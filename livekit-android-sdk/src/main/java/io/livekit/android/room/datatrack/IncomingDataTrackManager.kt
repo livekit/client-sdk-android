@@ -18,14 +18,13 @@ package io.livekit.android.room.datatrack
 
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
-import io.livekit.uniffi.DataTrackSid
 import io.livekit.uniffi.HandleSignalResponseException
-import io.livekit.uniffi.RemoteDataTrack
 import io.livekit.uniffi.RemoteDataTrackManager
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
+import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
 
 /**
  * Owns the UniFFI [RemoteDataTrackManager] and bridges its transport callbacks into [RTCEngine].
@@ -59,20 +58,32 @@ constructor(
             engineProvider.get().sendDataTrackSignalRequest(request)
         }
 
-        override fun onTrackPublished(track: RemoteDataTrack) {
-            listener?.onTrackPublished(track)
+        override fun onTrackPublished(track: FfiRemoteDataTrack) {
+            listener?.onTrackPublished(RemoteDataTrack(track))
                 ?: LKLog.d { "Remote data track published: ${track.info().sid}" }
         }
 
-        override fun onTrackUnpublished(sid: DataTrackSid) {
-            listener?.onTrackUnpublished(sid)
+        override fun onTrackUnpublished(sid: String) {
+            listener?.onTrackUnpublished(DataTrackSid(sid))
                 ?: LKLog.d { "Remote data track unpublished: $sid" }
         }
     }
 
     /**
+     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `JoinResponse`
+     * to the UniFFI manager so pre-existing remote data tracks are discovered.
+     */
+    fun handleSfuJoinResponse(responseBytes: ByteArray) {
+        try {
+            ensureManager().handleSfuJoinResponse(responseBytes)
+        } catch (e: HandleSignalResponseException) {
+            LKLog.w(e) { "Failed to handle JoinResponse for data tracks" }
+        }
+    }
+
+    /**
      * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `ParticipantUpdate`
-     * (or an equivalent update built from join `otherParticipants`) to the UniFFI manager.
+     * to the UniFFI manager.
      */
     fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String) {
         try {

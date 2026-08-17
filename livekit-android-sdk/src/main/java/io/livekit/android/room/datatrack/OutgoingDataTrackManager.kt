@@ -18,13 +18,11 @@ package io.livekit.android.room.datatrack
 
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
-import io.livekit.uniffi.DataTrackInfo
 import io.livekit.uniffi.DataTrackOptions
 import io.livekit.uniffi.HandleSignalResponseException
-import io.livekit.uniffi.LocalDataTrack
 import io.livekit.uniffi.LocalDataTrackManager
 import io.livekit.uniffi.LocalDataTrackManagerDelegate
-import io.livekit.uniffi.PublishException
+import uniffi.livekit_datatrack.PublishException
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -57,13 +55,22 @@ constructor(
     }
 
     /**
-     * Publishes a data track with the given options.
+     * Publishes a data track with the given name and options.
      *
-     * @throws PublishException if the SFU rejects the publication or the request fails.
+     * @throws DataTrackPublishException if the SFU rejects the publication or the request fails.
      */
-    @Throws(PublishException::class)
-    suspend fun publishTrack(options: DataTrackOptions): LocalDataTrack {
-        return ensureManager().publishTrack(options)
+    @Throws(DataTrackPublishException::class)
+    suspend fun publishTrack(name: String, options: DataTrackPublishOptions? = null): LocalDataTrack {
+        val ffiOptions = DataTrackOptions(
+            name = name,
+            schema = options?.schema?.toFfi(),
+            frameEncoding = options?.frameEncoding?.toFfi(),
+        )
+        try {
+            return LocalDataTrack(ensureManager().publishTrack(ffiOptions))
+        } catch (e: PublishException) {
+            throw e.toSdk()
+        }
     }
 
     /**
@@ -100,10 +107,11 @@ constructor(
     }
 
     /**
-     * Returns info for all currently published data tracks.
+     * Returns serialized `PublishDataTrackResponse` messages for currently published tracks,
+     * suitable for [livekit.LivekitRtc.SyncState.publishDataTracks].
      */
-    suspend fun queryTracks(): List<DataTrackInfo> {
-        return localManager?.queryTracks() ?: emptyList()
+    suspend fun publishResponsesForSyncState(): List<ByteArray> {
+        return localManager?.publishResponsesForSyncState() ?: emptyList()
     }
 
     /**
