@@ -17,6 +17,11 @@
 package io.livekit.android.test.mock.room.datatrack
 
 import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
+import io.livekit.uniffi.DataTrackInfo
+import io.livekit.uniffi.DataTrackStream
+import io.livekit.uniffi.DataTrackSubscribeOptions
+import io.livekit.uniffi.NoHandle
+import io.livekit.uniffi.RemoteDataTrack
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import io.livekit.uniffi.RemoteDataTrackManagerInterface
 
@@ -59,7 +64,65 @@ class MockRemoteDataTrackManager(
 
     override fun resendSubscriptionUpdates() {}
 
+    /**
+     * Fires [RemoteDataTrackManagerDelegate.onTrackPublished] as the UniFFI manager would.
+     */
+    fun simulateTrackPublished(
+        name: String,
+        publisherIdentity: String,
+        sid: String = "DT_mock",
+    ): MockFfiRemoteDataTrack {
+        val track = MockFfiRemoteDataTrack(
+            name = name,
+            publisherIdentity = publisherIdentity,
+            sid = sid,
+        )
+        delegate.onTrackPublished(track)
+        return track
+    }
+
+    /**
+     * Fires [RemoteDataTrackManagerDelegate.onTrackUnpublished] as the UniFFI manager would.
+     */
+    fun simulateTrackUnpublished(sid: String) {
+        delegate.onTrackUnpublished(sid)
+    }
+
     override fun close() {
         closed = true
     }
+}
+
+/**
+ * UniFFI [RemoteDataTrack] stand-in that does not touch native code.
+ */
+class MockFfiRemoteDataTrack(
+    name: String,
+    publisherIdentity: String,
+    sid: String = "DT_mock",
+) : RemoteDataTrack(NoHandle) {
+    private val trackInfo = DataTrackInfo(
+        sid = sid,
+        name = name,
+        usesE2ee = false,
+        schema = null,
+        frameEncoding = null,
+    )
+    private val identity = publisherIdentity
+
+    override fun info(): DataTrackInfo = trackInfo
+
+    override fun isPublished(): Boolean = true
+
+    override fun publisherIdentity(): String = identity
+
+    override suspend fun subscribe(): DataTrackStream {
+        throw UnsupportedOperationException("subscribe is not supported in tests")
+    }
+
+    override suspend fun subscribeWithOptions(options: DataTrackSubscribeOptions): DataTrackStream {
+        throw UnsupportedOperationException("subscribe is not supported in tests")
+    }
+
+    override suspend fun waitForUnpublish() {}
 }

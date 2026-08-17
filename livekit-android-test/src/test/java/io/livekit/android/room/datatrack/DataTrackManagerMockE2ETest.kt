@@ -16,12 +16,23 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.assert.assertIsClass
+import io.livekit.android.test.events.EventCollector
+import io.livekit.android.test.mock.TestData
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DataTrackManagerMockE2ETest : MockE2ETest() {
 
     @Test
@@ -45,4 +56,148 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
         assertEquals(1, local.publishedTracks.size)
         assertEquals("telemetry", local.publishedTracks.single().info().name)
     }
+
+    @Test
+    fun remoteDataTrackPublishedAttachesToParticipant() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val participant = remoteParticipant()
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantCollector = EventCollector(participant.events, coroutineRule.scope)
+
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_test",
+        )
+        advanceUntilIdle()
+
+        val attached = participant.dataTracks["telemetry"]
+        assertNotNull(attached)
+        assertEquals("telemetry", attached!!.name)
+        assertEquals(DataTrackSid("DT_test"), attached.info.sid)
+
+        val roomEvents = roomCollector.stopCollecting()
+        val participantEvents = participantCollector.stopCollecting()
+
+        assertEquals(1, roomEvents.size)
+        assertIsClass(RoomEvent.DataTrackPublished::class.java, roomEvents.first())
+        val roomEvent = roomEvents.first() as RoomEvent.DataTrackPublished
+        assertEquals(participant, roomEvent.participant)
+        assertEquals(attached, roomEvent.track)
+
+        assertEquals(1, participantEvents.size)
+        assertIsClass(ParticipantEvent.DataTrackPublished::class.java, participantEvents.first())
+    }
+
+    @Test
+    fun remoteDataTrackPublishedBeforeParticipantIsParkedThenAttached() = runTest {
+        connect()
+
+        val parkedCollector = EventCollector(room.events, coroutineRule.scope)
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "parked",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_parked",
+        )
+        advanceUntilIdle()
+
+        assertTrue(room.remoteParticipants.isEmpty())
+        assertTrue(parkedCollector.stopCollecting().none { it is RoomEvent.DataTrackPublished })
+
+        val attachedCollector = EventCollector(room.events, coroutineRule.scope)
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val participant = remoteParticipant()
+        val attached = participant.dataTracks["parked"]
+        assertNotNull(attached)
+        assertEquals("parked", attached!!.name)
+
+        val events = attachedCollector.stopCollecting()
+        assertTrue(events.any { it is RoomEvent.DataTrackPublished })
+    }
+
+    @Test
+    fun remoteDataTrackUnpublishedRemovesFromParticipant() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val participant = remoteParticipant()
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_unpub",
+        )
+        advanceUntilIdle()
+        assertNotNull(participant.dataTracks["telemetry"])
+
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        val participantCollector = EventCollector(participant.events, coroutineRule.scope)
+
+        remoteDataTrackManagerFactory.manager.simulateTrackUnpublished("DT_unpub")
+        advanceUntilIdle()
+
+        assertNull(participant.dataTracks["telemetry"])
+
+        val roomEvents = roomCollector.stopCollecting()
+        val participantEvents = participantCollector.stopCollecting()
+
+        assertEquals(1, roomEvents.size)
+        assertIsClass(RoomEvent.DataTrackUnpublished::class.java, roomEvents.first())
+        assertEquals(DataTrackSid("DT_unpub"), (roomEvents.first() as RoomEvent.DataTrackUnpublished).sid)
+
+        assertEquals(1, participantEvents.size)
+        assertIsClass(ParticipantEvent.DataTrackUnpublished::class.java, participantEvents.first())
+    }
+
+    @Test
+    fun participantDisconnectUnpublishesDataTracks() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_leave",
+        )
+        advanceUntilIdle()
+
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        simulateMessageFromServer(TestData.PARTICIPANT_DISCONNECT)
+        advanceUntilIdle()
+
+        val events = roomCollector.stopCollecting()
+        assertTrue(events.any { it is RoomEvent.DataTrackUnpublished && it.sid == DataTrackSid("DT_leave") })
+        assertTrue(events.any { it is RoomEvent.ParticipantDisconnected })
+        assertTrue(room.remoteParticipants.isEmpty())
+    }
+
+    @Test
+    fun fullReconnectDetachesDataTracksWithoutUnpublishEvent() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_reconnect",
+        )
+        advanceUntilIdle()
+
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onFullReconnecting()
+        advanceUntilIdle()
+
+        val events = roomCollector.stopCollecting()
+        assertTrue(events.none { it is RoomEvent.DataTrackUnpublished })
+    }
+
+    private fun remoteParticipant() =
+        room.remoteParticipants[Participant.Identity(TestData.REMOTE_PARTICIPANT.identity)]!!
 }

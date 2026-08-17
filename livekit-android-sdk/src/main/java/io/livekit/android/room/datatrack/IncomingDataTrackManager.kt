@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.uniffi.HandleSignalResponseException
@@ -33,6 +34,9 @@ import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
  * SFU participant / subscriber-handle responses and `_data_track` channel packets are forwarded
  * into the Rust manager; subscription signal requests are sent back out through the engine.
  *
+ * Publication events are emitted on [events]. The publisher may not be in the room yet; callers
+ * should park the track until [io.livekit.android.room.participant.RemoteParticipant] exists.
+ *
  * @suppress
  */
 @Singleton
@@ -42,18 +46,16 @@ constructor(
     private val engineProvider: Provider<RTCEngine>,
     private val remoteDataTrackManagerFactory: RemoteDataTrackManagerFactory,
 ) {
-    /**
-     * Optional listener for remote data-track publication events.
-     */
-    interface Listener {
-        fun onTrackPublished(track: RemoteDataTrack)
-        fun onTrackUnpublished(sid: DataTrackSid)
-    }
+    private val eventBus = BroadcastEventBus<IncomingDataTrackEvent>()
 
-    var listener: Listener? = null
+    /**
+     * Publication and unpublication events from the UniFFI remote manager.
+     */
+    internal val events = eventBus.readOnly()
 
     private val lock = Any()
     private var remoteManager: RemoteDataTrackManagerInterface? = null
+    private val remoteTracks = mutableListOf<RemoteDataTrack>()
 
     private val delegate = object : RemoteDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
@@ -61,13 +63,33 @@ constructor(
         }
 
         override fun onTrackPublished(track: FfiRemoteDataTrack) {
-            listener?.onTrackPublished(RemoteDataTrack(track))
-                ?: LKLog.d { "Remote data track published: ${track.info().sid}" }
+            val wrapped = RemoteDataTrack(track)
+            synchronized(lock) {
+                remoteTracks.add(wrapped)
+            }
+            eventBus.tryPostEvent(IncomingDataTrackEvent.TrackPublished(wrapped))
         }
 
         override fun onTrackUnpublished(sid: String) {
-            listener?.onTrackUnpublished(DataTrackSid(sid))
-                ?: LKLog.d { "Remote data track unpublished: $sid" }
+            val dataTrackSid = DataTrackSid(sid)
+            val unpublished = synchronized(lock) {
+                val matches = remoteTracks.filter { it.info.sid == dataTrackSid }
+                remoteTracks.removeAll { track -> matches.any { it === track } }
+                matches
+            }
+            for (track in unpublished) {
+                eventBus.tryPostEvent(IncomingDataTrackEvent.TrackUnpublished(dataTrackSid, track))
+            }
+        }
+    }
+
+    /**
+     * Remote data tracks currently known to the UniFFI manager, including those whose publisher
+     * is not yet in the room.
+     */
+    internal fun snapshotRemoteTracks(): List<RemoteDataTrack> {
+        synchronized(lock) {
+            return remoteTracks.toList()
         }
     }
 
@@ -128,6 +150,7 @@ constructor(
         synchronized(lock) {
             (remoteManager as? AutoCloseable)?.close()
             remoteManager = null
+            remoteTracks.clear()
         }
     }
 

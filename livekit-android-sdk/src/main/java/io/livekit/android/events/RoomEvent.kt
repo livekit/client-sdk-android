@@ -19,6 +19,8 @@ package io.livekit.android.events
 import io.livekit.android.annotations.Beta
 import io.livekit.android.e2ee.E2EEState
 import io.livekit.android.room.Room
+import io.livekit.android.room.datatrack.DataTrackSid
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.participant.ConnectionQuality
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
@@ -155,6 +157,34 @@ sealed class RoomEvent(val room: Room) : Event() {
      */
     class TrackUnpublished(room: Room, val publication: TrackPublication, val participant: Participant) :
         RoomEvent(room)
+
+    /**
+     * A [RemoteParticipant] published a data track.
+     *
+     * ```
+     * room.events.collect { event ->
+     *     if (event is RoomEvent.DataTrackPublished) {
+     *         event.track.subscribe().onSuccess { stream ->
+     *             stream.flow.collect { frame -> process(frame.payload) }
+     *         }
+     *     }
+     * }
+     * ```
+     */
+    class DataTrackPublished(
+        room: Room,
+        val participant: RemoteParticipant,
+        val track: RemoteDataTrack,
+    ) : RoomEvent(room)
+
+    /**
+     * A [RemoteParticipant] unpublished a data track.
+     */
+    class DataTrackUnpublished(
+        room: Room,
+        val participant: RemoteParticipant,
+        val sid: DataTrackSid,
+    ) : RoomEvent(room)
 
     /**
      * The [LocalParticipant] has subscribed to a new track. This event will always fire as

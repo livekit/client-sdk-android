@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package io.livekit.android.events
 
+import io.livekit.android.room.datatrack.DataTrackSid
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.ParticipantPermission
@@ -119,6 +121,22 @@ sealed class ParticipantEvent(open val participant: Participant) : Event() {
      */
     class TrackUnpublished(override val participant: RemoteParticipant, val publication: RemoteTrackPublication) :
         ParticipantEvent(participant)
+
+    /**
+     * A [RemoteParticipant] published a data track.
+     */
+    class DataTrackPublished(
+        override val participant: RemoteParticipant,
+        val track: RemoteDataTrack,
+    ) : ParticipantEvent(participant)
+
+    /**
+     * A [RemoteParticipant] unpublished a data track.
+     */
+    class DataTrackUnpublished(
+        override val participant: RemoteParticipant,
+        val sid: DataTrackSid,
+    ) : ParticipantEvent(participant)
 
     /**
      * Subscribed to a new track

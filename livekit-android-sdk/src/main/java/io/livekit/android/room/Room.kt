@@ -48,6 +48,10 @@ import io.livekit.android.events.collect
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
+import io.livekit.android.room.datatrack.DataTrackSid
+import io.livekit.android.room.datatrack.IncomingDataTrackEvent
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.ReconnectPolicy
@@ -150,6 +154,7 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val incomingDataTrackManager: IncomingDataTrackManager,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
@@ -486,6 +491,7 @@ constructor(
             // Setup local participant.
             localParticipant.reinitialize(options)
             setupLocalParticipantEventHandling()
+            setupIncomingDataTrackEventHandling()
 
             if (roomOptions.e2eeOptions != null) {
                 e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
@@ -704,6 +710,7 @@ constructor(
                 getOrCreateRemoteParticipant(Participant.Identity(info.identity), info)
             }
         }
+        reattachRemoteDataTracks()
     }
 
     private fun setupLocalParticipantEventHandling() {
@@ -792,14 +799,50 @@ constructor(
         }
     }
 
+    private fun setupIncomingDataTrackEventHandling() {
+        coroutineScope.launch {
+            incomingDataTrackManager.events.collect { event ->
+                when (event) {
+                    is IncomingDataTrackEvent.TrackPublished -> attachRemoteDataTrack(event.track)
+                    is IncomingDataTrackEvent.TrackUnpublished -> unpublishRemoteDataTrack(event.sid, event.track)
+                }
+            }
+        }
+    }
+
+    private fun attachRemoteDataTrack(track: RemoteDataTrack) {
+        val participant = remoteParticipants[track.publisherIdentity]
+        if (participant == null) {
+            LKLog.d { "Data track published by not-yet-known participant ${track.publisherIdentity}" }
+            return
+        }
+        participant.addDataTrack(track)
+    }
+
+    private fun unpublishRemoteDataTrack(sid: DataTrackSid, track: RemoteDataTrack) {
+        val participant = remoteParticipants[track.publisherIdentity] ?: return
+        participant.unpublishDataTrack(sid)
+        eventBus.postEvent(RoomEvent.DataTrackUnpublished(this, participant, sid), coroutineScope)
+    }
+
+    private fun reattachRemoteDataTracks() {
+        for (track in incomingDataTrackManager.snapshotRemoteTracks()) {
+            attachRemoteDataTrack(track)
+        }
+    }
+
     private fun handleParticipantDisconnect(identity: Participant.Identity) {
         val newParticipants = mutableRemoteParticipants.toMutableMap()
         val removedParticipant = newParticipants.remove(identity) ?: return
+        val unpublishedDataSids = removedParticipant.unpublishDataTracks()
         removedParticipant.trackPublications.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid, true)
         }
 
         mutableRemoteParticipants = newParticipants
+        for (sid in unpublishedDataSids) {
+            eventBus.postEvent(RoomEvent.DataTrackUnpublished(this, removedParticipant, sid), coroutineScope)
+        }
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
 
         localParticipant.handleParticipantDisconnect(identity)
@@ -856,6 +899,14 @@ constructor(
                             )
                         }
                     }
+
+                    is ParticipantEvent.DataTrackPublished -> emitWhenConnected(
+                        RoomEvent.DataTrackPublished(
+                            room = this@Room,
+                            participant = it.participant,
+                            track = it.track,
+                        ),
+                    )
 
                     is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(
                         RoomEvent.TrackStreamStateChanged(
@@ -1272,6 +1323,7 @@ constructor(
                 }
             }
         }
+        reattachRemoteDataTracks()
     }
 
     /**
@@ -1474,6 +1526,7 @@ constructor(
      */
     override fun onFullReconnecting() {
         localParticipant.prepareForFullReconnect()
+        remoteParticipants.values.forEach { it.detachDataTracks() }
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
             .forEach { identity -> handleParticipantDisconnect(identity) }
     }
