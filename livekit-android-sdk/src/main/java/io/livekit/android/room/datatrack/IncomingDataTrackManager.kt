@@ -19,15 +19,16 @@ package io.livekit.android.room.datatrack
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.uniffi.HandleSignalResponseException
-import io.livekit.uniffi.RemoteDataTrackManager
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
+import io.livekit.uniffi.RemoteDataTrackManagerInterface
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
 
 /**
- * Owns the UniFFI [RemoteDataTrackManager] and bridges its transport callbacks into [RTCEngine].
+ * Owns the UniFFI [io.livekit.uniffi.RemoteDataTrackManager] and bridges its transport callbacks
+ * into [RTCEngine].
  *
  * SFU participant / subscriber-handle responses and `_data_track` channel packets are forwarded
  * into the Rust manager; subscription signal requests are sent back out through the engine.
@@ -39,6 +40,7 @@ class IncomingDataTrackManager
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,
+    private val remoteDataTrackManagerFactory: RemoteDataTrackManagerFactory,
 ) {
     /**
      * Optional listener for remote data-track publication events.
@@ -51,7 +53,7 @@ constructor(
     var listener: Listener? = null
 
     private val lock = Any()
-    private var remoteManager: RemoteDataTrackManager? = null
+    private var remoteManager: RemoteDataTrackManagerInterface? = null
 
     private val delegate = object : RemoteDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
@@ -124,16 +126,15 @@ constructor(
      */
     fun close() {
         synchronized(lock) {
-            remoteManager?.close()
+            (remoteManager as? AutoCloseable)?.close()
             remoteManager = null
         }
     }
 
-    private fun ensureManager(): RemoteDataTrackManager {
+    private fun ensureManager(): RemoteDataTrackManagerInterface {
         synchronized(lock) {
             remoteManager?.let { return it }
-            // Decryption provider wiring is left for a follow-up (E2EE).
-            return RemoteDataTrackManager(delegate, null).also { remoteManager = it }
+            return remoteDataTrackManagerFactory.create(delegate).also { remoteManager = it }
         }
     }
 }

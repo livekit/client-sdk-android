@@ -108,6 +108,7 @@ dokkaHtml {
 dependencies {
 
     implementation(project(":livekit-android-sdk"))
+    implementation libs.livekit.uniffi
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
     api libs.okhttp.lib

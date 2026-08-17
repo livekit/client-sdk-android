@@ -22,15 +22,16 @@ import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
 import io.livekit.uniffi.HandleSignalResponseException
-import io.livekit.uniffi.LocalDataTrackManager
 import io.livekit.uniffi.LocalDataTrackManagerDelegate
+import io.livekit.uniffi.LocalDataTrackManagerInterface
 import uniffi.livekit_datatrack.PublishException
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * Owns the UniFFI [LocalDataTrackManager] and bridges its transport callbacks into [RTCEngine].
+ * Owns the UniFFI [io.livekit.uniffi.LocalDataTrackManager] and bridges its transport callbacks
+ * into [RTCEngine].
  *
  * Signal requests / SFU responses and data-track packets are forwarded through the engine so the
  * Rust manager stays decoupled from WebRTC and WebSocket details.
@@ -42,9 +43,10 @@ class OutgoingDataTrackManager
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,
+    private val localDataTrackManagerFactory: LocalDataTrackManagerFactory,
 ) {
     private val lock = Any()
-    private var localManager: LocalDataTrackManager? = null
+    private var localManager: LocalDataTrackManagerInterface? = null
 
     private val delegate = object : LocalDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
@@ -125,16 +127,15 @@ constructor(
      */
     fun close() {
         synchronized(lock) {
-            localManager?.close()
+            (localManager as? AutoCloseable)?.close()
             localManager = null
         }
     }
 
-    private fun ensureManager(): LocalDataTrackManager {
+    private fun ensureManager(): LocalDataTrackManagerInterface {
         synchronized(lock) {
             localManager?.let { return it }
-            // Encryption provider wiring is left for a follow-up (E2EE).
-            return LocalDataTrackManager(delegate, null).also { localManager = it }
+            return localDataTrackManagerFactory.create(delegate).also { localManager = it }
         }
     }
 }
