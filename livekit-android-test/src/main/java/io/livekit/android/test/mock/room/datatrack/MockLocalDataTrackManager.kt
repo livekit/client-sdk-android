@@ -26,6 +26,7 @@ import io.livekit.uniffi.LocalDataTrackManagerInterface
 import io.livekit.uniffi.NoHandle
 import livekit.LivekitModels
 import livekit.LivekitRtc
+import uniffi.livekit_datatrack.EncryptionProvider
 
 class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
     /**
@@ -33,7 +34,17 @@ class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
      */
     lateinit var manager: MockLocalDataTrackManager
 
-    override fun create(delegate: LocalDataTrackManagerDelegate): LocalDataTrackManagerInterface {
+    /**
+     * Encryption provider passed into the last [create] call.
+     */
+    var lastEncryptionProvider: EncryptionProvider? = null
+        private set
+
+    override fun create(
+        delegate: LocalDataTrackManagerDelegate,
+        encryptionProvider: EncryptionProvider?,
+    ): LocalDataTrackManagerInterface {
+        lastEncryptionProvider = encryptionProvider
         return MockLocalDataTrackManager(delegate).also { manager = it }
     }
 }

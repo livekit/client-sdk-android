@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
@@ -56,6 +57,7 @@ constructor(
     private val lock = Any()
     private var remoteManager: RemoteDataTrackManagerInterface? = null
     private val remoteTracks = mutableListOf<RemoteDataTrack>()
+    private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     private val delegate = object : RemoteDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
@@ -157,7 +159,7 @@ constructor(
     private fun ensureManager(): RemoteDataTrackManagerInterface {
         synchronized(lock) {
             remoteManager?.let { return it }
-            return remoteDataTrackManagerFactory.create(delegate).also { remoteManager = it }
+            return remoteDataTrackManagerFactory.create(delegate, cryptor).also { remoteManager = it }
         }
     }
 }

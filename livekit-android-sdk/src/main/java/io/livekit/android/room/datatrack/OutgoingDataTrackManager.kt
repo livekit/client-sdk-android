@@ -17,6 +17,7 @@
 package io.livekit.android.room.datatrack
 
 import androidx.annotation.CheckResult
+import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.RoomException
 import io.livekit.android.util.LKLog
@@ -48,6 +49,7 @@ constructor(
 ) {
     private val lock = Any()
     private var localManager: LocalDataTrackManagerInterface? = null
+    private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     private val delegate = object : LocalDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
@@ -160,7 +162,16 @@ constructor(
     private fun ensureManager(): LocalDataTrackManagerInterface {
         synchronized(lock) {
             localManager?.let { return it }
-            return localDataTrackManagerFactory.create(delegate).also { localManager = it }
+            // Whether frames are encrypted is fixed when the manager is built: unlike data
+            // channel payloads (a per-message property), data track encryption is a track-level
+            // protocol property that subscribers key their decryption on. The cryptor is passed
+            // only when E2EE is on — its presence is what marks published tracks as encrypted
+            // ([DataTrackInfo.usesE2ee]).
+            val encryptionProvider = cryptor.takeIf {
+                engineProvider.get().e2EEManager?.isDataTrackEncryptionEnabled() == true
+            }
+            return localDataTrackManagerFactory.create(delegate, encryptionProvider)
+                .also { localManager = it }
         }
     }
 }

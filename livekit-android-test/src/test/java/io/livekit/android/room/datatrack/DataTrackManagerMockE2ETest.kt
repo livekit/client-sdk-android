@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.RTCEngine
@@ -29,6 +30,7 @@ import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.e2ee.NoopKeyProvider
 import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -67,6 +69,36 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
         val local = localDataTrackManagerFactory.manager
         assertEquals(1, local.publishedTracks.size)
         assertEquals("telemetry", local.publishedTracks.single().info().name)
+        assertNull(localDataTrackManagerFactory.lastEncryptionProvider)
+    }
+
+    @Test
+    fun incomingDataTrackAlwaysReceivesDecryptionProvider() = runTest {
+        connect()
+        assertNotNull(remoteDataTrackManagerFactory.lastDecryptionProvider)
+    }
+
+    @Test
+    fun publishDataTrackPassesEncryptionProviderWhenE2eeEnabled() = runTest {
+        room.e2eeOptions = E2EEOptions(keyProvider = NoopKeyProvider())
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        // Tests use ReversingDataPacketCryptorManager by default.
+        val encryptionProvider = localDataTrackManagerFactory.lastEncryptionProvider
+        assertNotNull(encryptionProvider)
+        val encrypted = encryptionProvider!!.encrypt(byteArrayOf(1, 2, 3))
+        assertArrayEquals(byteArrayOf(3, 2, 1), encrypted.payload)
+
+        val decryptionProvider = remoteDataTrackManagerFactory.lastDecryptionProvider
+        assertNotNull(decryptionProvider)
+        val decrypted = decryptionProvider!!.decrypt(
+            encrypted,
+            room.localParticipant.identity!!.value,
+        )
+        assertArrayEquals(byteArrayOf(1, 2, 3), decrypted)
     }
 
     @Test

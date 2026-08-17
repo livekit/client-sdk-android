@@ -24,6 +24,7 @@ import io.livekit.uniffi.NoHandle
 import io.livekit.uniffi.RemoteDataTrack
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import io.livekit.uniffi.RemoteDataTrackManagerInterface
+import uniffi.livekit_datatrack.DecryptionProvider
 
 class MockRemoteDataTrackManagerFactory : RemoteDataTrackManagerFactory {
     /**
@@ -31,7 +32,17 @@ class MockRemoteDataTrackManagerFactory : RemoteDataTrackManagerFactory {
      */
     lateinit var manager: MockRemoteDataTrackManager
 
-    override fun create(delegate: RemoteDataTrackManagerDelegate): RemoteDataTrackManagerInterface {
+    /**
+     * Decryption provider passed into the last [create] call.
+     */
+    var lastDecryptionProvider: DecryptionProvider? = null
+        private set
+
+    override fun create(
+        delegate: RemoteDataTrackManagerDelegate,
+        decryptionProvider: DecryptionProvider?,
+    ): RemoteDataTrackManagerInterface {
+        lastDecryptionProvider = decryptionProvider
         return MockRemoteDataTrackManager(delegate).also { manager = it }
     }
 }

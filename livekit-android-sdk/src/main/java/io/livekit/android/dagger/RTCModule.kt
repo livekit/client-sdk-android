@@ -390,17 +390,15 @@ internal object RTCModule {
 
     @Provides
     fun localDataTrackManagerFactory(): LocalDataTrackManagerFactory {
-        return LocalDataTrackManagerFactory { delegate ->
-            // Encryption provider wiring is left for a follow-up (E2EE).
-            LocalDataTrackManager(delegate, null)
+        return LocalDataTrackManagerFactory { delegate, encryptionProvider ->
+            LocalDataTrackManager(delegate, encryptionProvider)
         }
     }
 
     @Provides
     fun remoteDataTrackManagerFactory(): RemoteDataTrackManagerFactory {
-        return RemoteDataTrackManagerFactory { delegate ->
-            // Decryption provider wiring is left for a follow-up (E2EE).
-            RemoteDataTrackManager(delegate, null)
+        return RemoteDataTrackManagerFactory { delegate, decryptionProvider ->
+            RemoteDataTrackManager(delegate, decryptionProvider)
         }
     }
 
