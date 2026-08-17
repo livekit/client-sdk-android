@@ -1349,6 +1349,10 @@ internal constructor(
         outgoingDataTrackManager.handleSfuPublishResponse(response.toByteArray())
     }
 
+    override fun onUnpublishDataTrackResponse(response: LivekitRtc.SignalResponse) {
+        outgoingDataTrackManager.handleSfuUnpublishResponse(response.toByteArray())
+    }
+
     override fun onRequestResponse(response: LivekitRtc.SignalResponse) {
         outgoingDataTrackManager.handleSfuRequestResponse(response.toByteArray())
     }

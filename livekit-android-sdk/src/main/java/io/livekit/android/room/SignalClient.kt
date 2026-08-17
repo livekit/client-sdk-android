@@ -970,7 +970,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.UNPUBLISH_DATA_TRACK_RESPONSE -> {
-                // TODO
+                listener?.onUnpublishDataTrackResponse(response)
             }
 
             LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
@@ -1092,6 +1092,7 @@ constructor(
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
+        fun onUnpublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
         fun onRequestResponse(response: LivekitRtc.SignalResponse) {}
         fun onDataTrackSubscriberHandles(response: LivekitRtc.SignalResponse) {}
     }

@@ -95,6 +95,17 @@ constructor(
     }
 
     /**
+     * Receives a serialized [livekit.LivekitRtc.SignalResponse] containing
+     * `UnpublishDataTrackResponse`.
+     *
+     * UniFFI does not consume this message. Local unpublish is applied by
+     * [LocalDataTrack.unpublish] before the SFU acks.
+     */
+    fun handleSfuUnpublishResponse(responseBytes: ByteArray) {
+        // UniFFI does not consume UnpublishDataTrackResponse.
+    }
+
+    /**
      * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing `RequestResponse`
      * to the UniFFI manager. Non-data-track request responses are ignored by the manager.
      */
