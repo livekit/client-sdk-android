@@ -29,6 +29,8 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.DataChannelManagerSendChannel
+import io.livekit.android.room.datatrack.DataTrackFrameSender
 import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
@@ -61,6 +63,7 @@ import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
+import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CoroutineDispatcher
@@ -199,6 +202,8 @@ internal constructor(
     private var dataTrackDataChannel: DataChannel? = null
     private var dataTrackDataChannelManager: DataChannelManager? = null
     private var dataTrackDataChannelSub: DataChannel? = null
+    private val dataTrackFrameSender = DataTrackFrameSender()
+    private var dataTrackPumpJob: Job? = null
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
@@ -417,6 +422,20 @@ internal constructor(
                         )
                         dataTrackDataChannelManager = dataChannelManager
                         dataChannel.registerObserver(dataChannelManager)
+                        dataTrackFrameSender.attach(DataChannelManagerSendChannel(dataChannelManager))
+                        dataTrackPumpJob?.cancel()
+                        dataTrackPumpJob = coroutineScope.launch {
+                            launch {
+                                dataChannelManager::bufferedAmount.flow.collect {
+                                    pumpDataTrackFrames()
+                                }
+                            }
+                            launch {
+                                dataChannelManager::state.flow.collect {
+                                    pumpDataTrackFrames()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -542,6 +561,9 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
+                    dataTrackPumpJob?.cancel()
+                    dataTrackPumpJob = null
+                    dataTrackFrameSender.attach(null)
                     dataTrackDataChannelManager?.dispose()
                     dataTrackDataChannelManager = null
                     dataTrackDataChannel = null
@@ -955,8 +977,8 @@ internal constructor(
     /**
      * Negotiates the publisher if needed and waits until the `_data_track` channel is open.
      *
-     * Data-track publish must not proceed until then: [sendDataTrackPackets] drops packets while
-     * the channel is not [DataChannel.State.OPEN].
+     * Data-track publish must not proceed until then: [sendDataTrackPackets] queues at most one
+     * frame while the channel is not [DataChannel.State.OPEN].
      */
     @Throws(exceptionClasses = [RoomException.ConnectException::class])
     internal suspend fun ensureDataTrackPublisherConnected() {
@@ -1417,26 +1439,21 @@ internal constructor(
     }
 
     /**
-     * Sends serialized data-track packets on the dedicated `_data_track` data channel.
+     * Queues serialized data-track packets on the dedicated `_data_track` data channel.
      *
-     * Packets belonging to one application frame are sent back-to-back; drop behavior when the
-     * channel is not open is left to the UniFFI manager / caller.
+     * Packets belonging to one application frame are metered as a unit (drop-oldest, one frame
+     * in flight) once the channel is [DataChannel.State.OPEN] and buffered amount is at or below
+     * [DataTrackFrameSender.LOW_WATER_MARK].
      */
     internal fun sendDataTrackPackets(packets: List<ByteArray>) {
-        if (packets.isEmpty()) {
-            return
+        executeOnRTCThread(rtcThreadToken) {
+            dataTrackFrameSender.sendOrQueue(packets)
         }
-        val channel = dataTrackDataChannel
-        if (channel == null || channel.state() != DataChannel.State.OPEN) {
-            LKLog.w { "data track channel not open; dropping ${packets.size} packet(s)" }
-            return
-        }
-        for (packet in packets) {
-            val buf = DataChannel.Buffer(ByteBuffer.wrap(packet), true)
-            if (!channel.send(buf)) {
-                LKLog.w { "failed to send data track packet (${packet.size} bytes)" }
-                return
-            }
+    }
+
+    private fun pumpDataTrackFrames() {
+        executeOnRTCThread(rtcThreadToken) {
+            dataTrackFrameSender.pump()
         }
     }
 

@@ -37,6 +37,7 @@ import kotlinx.coroutines.yield
 import livekit.LivekitRtc
 import livekit.org.webrtc.DataChannel
 import livekit.org.webrtc.PeerConnection
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -81,6 +82,37 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
         channel.state = DataChannel.State.OPEN
         val result = publish.await()
         assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun dataTrackPacketsWaitForLowWaterThenSend() = runTest {
+        connect()
+        val channel = publisherDataTrackChannel()
+        channel.bufferedAmount = DataTrackFrameSender.LOW_WATER_MARK + 1
+
+        room.engine.sendDataTrackPackets(listOf(byteArrayOf(1)))
+        assertTrue(channel.sentPayloads.isEmpty())
+
+        channel.bufferedAmount = 0
+        advanceUntilIdle()
+        assertEquals(1, channel.sentPayloads.size)
+        assertArrayEquals(byteArrayOf(1), channel.sentPayloads.single())
+    }
+
+    @Test
+    fun dataTrackPacketsDropOldestQueuedFrame() = runTest {
+        connect()
+        val channel = publisherDataTrackChannel()
+        channel.bufferedAmount = DataTrackFrameSender.LOW_WATER_MARK + 1
+
+        room.engine.sendDataTrackPackets(listOf(byteArrayOf(1)))
+        room.engine.sendDataTrackPackets(listOf(byteArrayOf(2)))
+        assertTrue(channel.sentPayloads.isEmpty())
+
+        channel.bufferedAmount = 0
+        advanceUntilIdle()
+        assertEquals(1, channel.sentPayloads.size)
+        assertArrayEquals(byteArrayOf(2), channel.sentPayloads.single())
     }
 
     @Test
