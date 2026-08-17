@@ -137,7 +137,7 @@ constructor(
     }
 
     /**
-     * Resend subscription updates after a full reconnect so the SFU knows which tracks are subscribed.
+     * Resend subscription updates after reconnect so the SFU re-issues subscriber handles.
      */
     fun resendSubscriptionUpdates() {
         remoteManager?.resendSubscriptionUpdates()

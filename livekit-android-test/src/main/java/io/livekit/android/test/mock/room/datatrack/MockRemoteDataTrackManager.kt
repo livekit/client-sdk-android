@@ -45,6 +45,8 @@ class MockRemoteDataTrackManager(
     val handledPackets = mutableListOf<ByteArray>()
     var closed = false
         private set
+    var resendSubscriptionUpdatesCount = 0
+        private set
 
     override fun handlePacketReceived(packet: ByteArray) {
         handledPackets.add(packet)
@@ -62,7 +64,9 @@ class MockRemoteDataTrackManager(
         handledSubscriberHandles.add(res)
     }
 
-    override fun resendSubscriptionUpdates() {}
+    override fun resendSubscriptionUpdates() {
+        resendSubscriptionUpdatesCount++
+    }
 
     /**
      * Fires [RemoteDataTrackManagerDelegate.onTrackPublished] as the UniFFI manager would.

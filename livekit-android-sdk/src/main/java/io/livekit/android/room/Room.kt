@@ -1099,7 +1099,7 @@ constructor(
         incomingDataStreamManager.clearOpenStreams()
     }
 
-    private fun sendSyncState() {
+    private suspend fun sendSyncState() {
         // Whether we're sending subscribed tracks or tracks to unsubscribe.
         val sendUnsub = connectOptions.autoSubscribe
         val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
@@ -1514,7 +1514,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onSignalConnected(isResume: Boolean) {
+    override suspend fun onSignalConnected(isResume: Boolean) {
         if (isResume) {
             // during resume reconnection, need to send sync state upon signal connection.
             sendSyncState()

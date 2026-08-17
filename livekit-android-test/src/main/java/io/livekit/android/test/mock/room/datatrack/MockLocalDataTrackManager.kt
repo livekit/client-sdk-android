@@ -24,6 +24,8 @@ import io.livekit.uniffi.LocalDataTrack
 import io.livekit.uniffi.LocalDataTrackManagerDelegate
 import io.livekit.uniffi.LocalDataTrackManagerInterface
 import io.livekit.uniffi.NoHandle
+import livekit.LivekitModels
+import livekit.LivekitRtc
 
 class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
     /**
@@ -53,7 +55,19 @@ class MockLocalDataTrackManager(
         handledRequestResponses.add(res)
     }
 
-    override suspend fun publishResponsesForSyncState(): List<ByteArray> = emptyList()
+    override suspend fun publishResponsesForSyncState(): List<ByteArray> {
+        return publishedTracks.filter { it.isPublished() }.map { track ->
+            LivekitRtc.PublishDataTrackResponse.newBuilder()
+                .setInfo(
+                    LivekitModels.DataTrackInfo.newBuilder()
+                        .setSid(track.info().sid)
+                        .setName(track.info().name)
+                        .build(),
+                )
+                .build()
+                .toByteArray()
+        }
+    }
 
     override suspend fun publishTrack(options: DataTrackOptions): LocalDataTrack {
         return MockFfiLocalDataTrack(name = options.name).also { publishedTracks.add(it) }

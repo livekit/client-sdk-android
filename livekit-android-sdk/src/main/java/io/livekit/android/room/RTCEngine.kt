@@ -730,8 +730,8 @@ internal constructor(
                     client.onPCConnected()
                     if (isFullReconnect) {
                         outgoingDataTrackManager.republishTracks()
-                        incomingDataTrackManager.resendSubscriptionUpdates()
                     }
+                    incomingDataTrackManager.resendSubscriptionUpdates()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -1075,7 +1075,7 @@ internal constructor(
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
-        fun onSignalConnected(isResume: Boolean)
+        suspend fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
@@ -1515,7 +1515,7 @@ internal constructor(
         }
     }
 
-    fun sendSyncState(
+    suspend fun sendSyncState(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
@@ -1548,6 +1548,16 @@ internal constructor(
             }
         }
 
+        val publishDataTracks = outgoingDataTrackManager.publishResponsesForSyncState().mapNotNull { bytes ->
+            try {
+                LivekitRtc.PublishDataTrackResponse.parseFrom(bytes)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to parse PublishDataTrackResponse for sync state" }
+                null
+            }
+        }
+
         val syncState = with(LivekitRtc.SyncState.newBuilder()) {
             if (answer != null) {
                 setAnswer(answer)
@@ -1557,6 +1567,7 @@ internal constructor(
             }
             setSubscription(subscription)
             addAllPublishTracks(publishedTracks)
+            addAllPublishDataTracks(publishDataTracks)
             addAllDataChannels(dataChannelInfos)
             addAllDatachannelReceiveStates(dataChannelReceiveStates)
             build()

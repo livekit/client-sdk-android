@@ -18,14 +18,18 @@ package io.livekit.android.room.datatrack
 
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
+import io.livekit.android.room.ReconnectType
 import io.livekit.android.room.Room
+import io.livekit.android.room.SignalClient
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -196,6 +200,61 @@ class DataTrackManagerMockE2ETest : MockE2ETest() {
 
         val events = roomCollector.stopCollecting()
         assertTrue(events.none { it is RoomEvent.DataTrackUnpublished })
+    }
+
+    @Test
+    fun softReconnectIncludesPublishedDataTracksInSyncState() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val syncState = wsFactory.ws.sentRequests
+            .map { LivekitRtc.SignalRequest.parseFrom(it.toPBByteString()) }
+            .firstOrNull { it.hasSyncState() }
+            ?.syncState
+        assertNotNull(syncState)
+        assertEquals(1, syncState!!.publishDataTracksCount)
+        assertEquals("telemetry", syncState.getPublishDataTracks(0).info.name)
+        assertEquals("DT_mock", syncState.getPublishDataTracks(0).info.sid)
+    }
+
+    @Test
+    fun softReconnectResendsDataTrackSubscriptions() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        val remote = remoteDataTrackManagerFactory.manager
+        assertEquals(0, remote.resendSubscriptionUpdatesCount)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        assertEquals(1, remote.resendSubscriptionUpdatesCount)
+    }
+
+    private fun reconnectWebsocket() {
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        val softReconnectParam = wsFactory.request.url
+            .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+            ?.toIntOrNull()
+            ?: 0
+
+        if (softReconnectParam == 0) {
+            simulateMessageFromServer(TestData.JOIN)
+        } else {
+            simulateMessageFromServer(TestData.RECONNECT)
+        }
     }
 
     private fun remoteParticipant() =
