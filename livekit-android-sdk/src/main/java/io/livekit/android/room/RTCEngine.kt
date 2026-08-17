@@ -269,8 +269,13 @@ internal constructor(
         if (joinResponse.hasParticipant()) {
             localParticipantIdentity = joinResponse.participant.identity
         }
-        // UniFFI AAR lacks handleSfuJoinResponse; feed other participants as a ParticipantUpdate.
-        feedJoinDataTracks(joinResponse)
+        // Discover pre-existing remote data tracks from the join response.
+        incomingDataTrackManager.handleSfuJoinResponse(
+            LivekitRtc.SignalResponse.newBuilder()
+                .setJoin(joinResponse)
+                .build()
+                .toByteArray(),
+        )
 
         listener?.onJoinResponse(joinResponse)
         isClosed = false
@@ -1386,26 +1391,6 @@ internal constructor(
                 return
             }
         }
-    }
-
-    /**
-     * Feeds remote participants from [JoinResponse] into [IncomingDataTrackManager] as a
-     * synthetic participant update (the published UniFFI AAR has no join-specific entry point).
-     */
-    private fun feedJoinDataTracks(joinResponse: JoinResponse) {
-        val identity = localParticipantIdentity ?: return
-        if (joinResponse.otherParticipantsList.isEmpty()) {
-            return
-        }
-        val responseBytes = LivekitRtc.SignalResponse.newBuilder()
-            .setUpdate(
-                LivekitRtc.ParticipantUpdate.newBuilder()
-                    .addAllParticipants(joinResponse.otherParticipantsList)
-                    .build(),
-            )
-            .build()
-            .toByteArray()
-        incomingDataTrackManager.handleSfuParticipantUpdate(responseBytes, identity)
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//

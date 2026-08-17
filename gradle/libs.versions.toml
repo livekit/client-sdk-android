@@ -32,7 +32,7 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
-livekit-uniffi = "0.0.1"
+livekit-uniffi = "0.1.8"
 [libraries]
 
 
