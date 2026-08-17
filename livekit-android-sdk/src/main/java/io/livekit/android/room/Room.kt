@@ -351,6 +351,9 @@ constructor(
      */
     var reconnectPolicy: ReconnectPolicy by engine::reconnectPolicy
 
+    /**
+     * The local participant.
+     */
     val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
     }

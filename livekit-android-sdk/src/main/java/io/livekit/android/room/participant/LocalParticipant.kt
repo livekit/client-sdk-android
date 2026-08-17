@@ -37,6 +37,10 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.Room
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
+import io.livekit.android.room.datatrack.DataTrackPublishException
+import io.livekit.android.room.datatrack.DataTrackPublishOptions
+import io.livekit.android.room.datatrack.LocalDataTrack
+import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
@@ -109,6 +113,7 @@ internal constructor(
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
     private val outgoingDataStreamManager: OutgoingDataStreamManager,
+    private val outgoingDataTrackManager: OutgoingDataTrackManager,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
 ) : Participant(Sid(""), null, coroutineDispatcher),
@@ -973,6 +978,71 @@ internal constructor(
         }
         internalListener?.onTrackUnpublished(publication, this)
         eventBus.postEvent(ParticipantEvent.LocalTrackUnpublished(this, publication), scope)
+    }
+
+    /**
+     * Publishes a data track, allowing this participant to send frames to subscribers.
+     *
+     * The publication follows the returned track's lifetime: keep a reference for as long as the
+     * track should stay published — releasing the last reference unpublishes it, as does calling
+     * [LocalDataTrack.unpublish] or [LocalDataTrack.close].
+     *
+     * ```
+     * val track = room.localParticipant.publishDataTrack("telemetry")
+     * track.tryPush(DataTrackFrame(payload))
+     * track.unpublish()
+     * ```
+     *
+     * @param name Track name visible to other participants. Must be unique per publisher.
+     * @param options Optional encoding and schema metadata, surfaced to subscribers via
+     * [io.livekit.android.room.datatrack.DataTrackInfo].
+     * @return A [LocalDataTrack] used to push frames via [LocalDataTrack.tryPush].
+     * @throws DataTrackPublishException if the track cannot be published.
+     *
+     * When self-hosting the LiveKit SFU, a [DataTrackPublishException.Timeout] may indicate a
+     * release that predates data track support.
+     */
+    @JvmOverloads
+    @Throws(DataTrackPublishException::class)
+    suspend fun publishDataTrack(
+        name: String,
+        options: DataTrackPublishOptions? = null,
+    ): LocalDataTrack {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            throw DataTrackPublishException.Disconnected("Not connected to a room")
+        }
+        return outgoingDataTrackManager.publishTrack(name, options)
+    }
+
+    /**
+     * Publishes a data track for the duration of [block], then unpublishes it automatically.
+     *
+     * The track is unpublished when [block] returns, throws, or the calling coroutine is cancelled.
+     *
+     * ```
+     * room.localParticipant.withDataTrack("telemetry") { track ->
+     *     track.tryPush(DataTrackFrame(payload))
+     * }
+     * ```
+     *
+     * @param name Track name visible to other participants. Must be unique per publisher.
+     * @param options Optional encoding and schema metadata; see [publishDataTrack].
+     * @param block Receives the published track; the track is unpublished when it returns or throws.
+     * @return The value returned by [block].
+     * @throws DataTrackPublishException if the track cannot be published.
+     */
+    @Throws(DataTrackPublishException::class)
+    suspend fun <T> withDataTrack(
+        name: String,
+        options: DataTrackPublishOptions? = null,
+        block: suspend (LocalDataTrack) -> T,
+    ): T {
+        val track = publishDataTrack(name, options)
+        try {
+            return block(track)
+        } finally {
+            track.unpublish()
+        }
     }
 
     /**
