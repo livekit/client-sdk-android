@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
 import io.livekit.uniffi.ClientCapability as FfiClientCapability
+import io.livekit.uniffi.EncryptionType as FfiEncryptionType
 import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
 import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
 import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
@@ -75,7 +76,7 @@ class DataStreamsOnDeviceTest {
 
     private class CapturingDelegate : FfiOutgoingDelegate {
         val packets = CopyOnWriteArrayList<DataPacket>()
-        override fun onPacketsAvailable(packets: List<ByteArray>) {
+        override suspend fun onPacketsAvailable(packets: List<ByteArray>) {
             for (bytes in packets) {
                 this.packets.add(DataPacket.parseFrom(bytes))
             }
@@ -107,6 +108,8 @@ class DataStreamsOnDeviceTest {
             bytes.add(reader)
             latch.countDown()
         }
+
+        override fun onStreamClosed(streamId: String, identity: String) {}
     }
 
     private fun CapturingDelegate.awaitPackets(count: Int) {
@@ -248,6 +251,7 @@ class DataStreamsOnDeviceTest {
             // Stamp a sender, which the wire carries but a capturing delegate never sees.
             incoming.handlePacketReceived(
                 packet.toBuilder().setParticipantIdentity(SENDER).build().toByteArray(),
+                FfiEncryptionType.NONE,
             )
         }
 
@@ -285,6 +289,7 @@ class DataStreamsOnDeviceTest {
         for (packet in sent.packets) {
             incoming.handlePacketReceived(
                 packet.toBuilder().setParticipantIdentity(SENDER).build().toByteArray(),
+                FfiEncryptionType.NONE,
             )
         }
         assertTrue(opened.latch.await(TIMEOUT.first, TIMEOUT.second))

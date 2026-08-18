@@ -236,7 +236,8 @@ class DataStreamsConversionTest {
     fun incompleteAndEncryptionMismatchAndInternal() {
         assertTrue(FfiDataStreamException.Incomplete().toStreamException() is StreamException.IncompleteException)
         assertTrue(
-            FfiDataStreamException.EncryptionTypeMismatch().toStreamException()
+            FfiDataStreamException.EncryptionTypeMismatch(FfiEncryptionType.GCM, FfiEncryptionType.NONE)
+                .toStreamException()
             is StreamException.EncryptionTypeMismatch,
         )
         assertTrue(FfiDataStreamException.Internal().toStreamException() is StreamException.InternalException)

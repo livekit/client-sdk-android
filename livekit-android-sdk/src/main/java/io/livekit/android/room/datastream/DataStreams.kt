@@ -48,6 +48,7 @@ import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
 import io.livekit.uniffi.ByteStreamWriter as FfiByteStreamWriter
 import io.livekit.uniffi.ClientCapability as FfiClientCapability
 import io.livekit.uniffi.DataStreamException as FfiDataStreamException
+import io.livekit.uniffi.EncryptionType as FfiEncryptionType
 import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
 import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
 import io.livekit.uniffi.OperationType as FfiOperationType
@@ -232,8 +233,9 @@ internal constructor(
      * Feeds a received data stream packet to the core, which re-decodes it itself.
      *
      * [encryptionType] is how this packet actually arrived, as determined by [RTCEngine]: `NONE`
-     * unless it came wrapped in an encrypted packet. It stays on this side of the FFI -- see
-     * [checkEncryptionType].
+     * unless it came wrapped in an encrypted packet. The core holds every stream to the encryption
+     * its header arrived under, failing it with an encryption type mismatch if a later packet
+     * disagrees.
      *
      * Cheap and non-blocking: the packet is queued and processed on the core's own loop, so this is
      * safe to call from a data channel callback. Packets that are not data stream packets, or do
@@ -247,7 +249,7 @@ internal constructor(
         if (!checkEncryptionType(packet, encryptionType)) {
             return
         }
-        incomingManager().handlePacketReceived(packet.toByteArray())
+        incomingManager().handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
     }
 
     /**
@@ -463,7 +465,7 @@ internal constructor(
      * delegate from a static root.
      */
     private inner class OutgoingDelegate : FfiOutgoingDelegate {
-        override fun onPacketsAvailable(packets: List<ByteArray>) {
+        override suspend fun onPacketsAvailable(packets: List<ByteArray>) {
             for (packet in packets) {
                 val result = outboundPackets.trySend(packet)
                 if (result.isFailure) {
@@ -517,6 +519,13 @@ internal constructor(
                 )
             }
         }
+
+        /**
+         * Nothing to do yet: readers observe their own stream ending, so nothing here needs the
+         * signal. It exists for ordered per-topic delivery -- gating the next stream's handler on
+         * the previous stream closing -- which this SDK does not implement yet.
+         */
+        override fun onStreamClosed(streamId: String, identity: String) {}
     }
 
     /**
@@ -729,6 +738,21 @@ internal fun TextStreamInfo.OperationType.toFfi(): FfiOperationType = when (this
     TextStreamInfo.OperationType.UPDATE -> FfiOperationType.UPDATE
     TextStreamInfo.OperationType.DELETE -> FfiOperationType.DELETE
     TextStreamInfo.OperationType.REACTION -> FfiOperationType.REACTION
+}
+
+internal fun LivekitModels.Encryption.Type.toFfi(): FfiEncryptionType = when (this) {
+    LivekitModels.Encryption.Type.NONE -> FfiEncryptionType.NONE
+    LivekitModels.Encryption.Type.GCM -> FfiEncryptionType.GCM
+    LivekitModels.Encryption.Type.CUSTOM -> FfiEncryptionType.CUSTOM
+    // Unknown schemes from a newer peer must not compare equal to plaintext, so they travel as
+    // the closest thing to "encrypted, but not something this SDK understands".
+    LivekitModels.Encryption.Type.UNRECOGNIZED -> FfiEncryptionType.CUSTOM
+}
+
+internal fun FfiEncryptionType.toSdk(): LivekitModels.Encryption.Type = when (this) {
+    FfiEncryptionType.NONE -> LivekitModels.Encryption.Type.NONE
+    FfiEncryptionType.GCM -> LivekitModels.Encryption.Type.GCM
+    FfiEncryptionType.CUSTOM -> LivekitModels.Encryption.Type.CUSTOM
 }
 
 internal fun ClientCapability.toFfi(): FfiClientCapability = when (this) {
