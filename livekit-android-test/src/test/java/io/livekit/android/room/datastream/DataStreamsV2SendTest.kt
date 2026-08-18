@@ -36,6 +36,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
@@ -121,6 +122,63 @@ class DataStreamsV2SendTest : BaseTest() {
     private fun destinations(vararg identities: String) = identities.map { Participant.Identity(it) }
 
     private val DataPacket.header: DataStream.Header get() = streamHeader
+
+    // endregion
+
+    // region Transport failures
+    //
+    // The core awaits the outgoing delegate, so the originating send stays pending until its
+    // packets have reached the engine -- and a failed handoff fails that send, rather than being
+    // logged into the void.
+
+    @Test
+    fun aFailedSendFailsTheOriginatingCall() = runTest {
+        remotes = PRE_V2
+        engine.stub {
+            onBlocking { sendData(any()) } doReturn Result.failure(RuntimeException("data channel went away"))
+        }
+
+        val error = runCatching {
+            dataStreams.sendText("hello world", StreamTextOptions(topic = TOPIC))
+        }.exceptionOrNull()
+
+        assertTrue("expected TerminatedException, got $error", error is StreamException.TerminatedException)
+        assertEquals(
+            StreamException.TerminatedException.Reason.SEND_FAILED,
+            (error as StreamException.TerminatedException).reason,
+        )
+    }
+
+    @Test
+    fun aFailedWriteClosesTheSender() = runTest {
+        remotes = PRE_V2
+        // Let the header through so the stream opens, then fail every later packet.
+        // doReturn rather than doAnswer: a doAnswer returning kotlin.Result from a suspend stub
+        // double-wraps the value (mockito-kotlin's inline-class boxing), turning a failure into
+        // success(failure) at the call site.
+        engine.stub {
+            onBlocking { sendData(any()) }.doReturnConsecutively(
+                listOf(
+                    Result.success(Unit),
+                    Result.failure(RuntimeException("data channel went away")),
+                ),
+            )
+        }
+
+        val sender = dataStreams.streamText(StreamTextOptions(topic = TOPIC))
+        assertTrue(sender.isOpen)
+
+        val result = sender.write("hello")
+
+        assertTrue("expected the write to fail, got $result", result.isFailure)
+        val error = result.exceptionOrNull()
+        assertTrue("expected TerminatedException, got $error", error is StreamException.TerminatedException)
+        assertEquals(
+            StreamException.TerminatedException.Reason.SEND_FAILED,
+            (error as StreamException.TerminatedException).reason,
+        )
+        assertTrue("a failed send should close the stream", !sender.isOpen)
+    }
 
     // endregion
 

@@ -30,6 +30,7 @@ import io.livekit.android.room.datastream.outgoing.StreamDestination
 import io.livekit.android.room.datastream.outgoing.TextStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegat
 import io.livekit.uniffi.OperationType as FfiOperationType
 import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
 import io.livekit.uniffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
+import io.livekit.uniffi.PacketDeliveryException as FfiPacketDeliveryException
 import io.livekit.uniffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
 import io.livekit.uniffi.StreamByteOptions as FfiStreamByteOptions
 import io.livekit.uniffi.StreamTextOptions as FfiStreamTextOptions
@@ -130,17 +132,6 @@ internal constructor(
     private val textStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, TextStreamHandler>())
     private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
 
-    /**
-     * Outbound packets waiting to go on the wire.
-     *
-     * The FFI delegate is a plain synchronous callback on a Rust runtime thread: it can neither
-     * block nor suspend, but sending has to await publisher connection and data channel
-     * backpressure. Handing off through an unbounded channel drained by a single coroutine keeps
-     * packets in the order the core emitted them while restoring the backpressure the previous
-     * implementation had.
-     */
-    private val outboundPackets = Channel<ByteArray>(Channel.UNLIMITED)
-
     private val outgoing: FfiOutgoingDataStreamManager =
         FfiOutgoingDataStreamManager(OutgoingDelegate(), RegistryDelegate())
 
@@ -149,11 +140,6 @@ internal constructor(
 
     init {
         closeableManager.registerClosable(this)
-        coroutineScope.launch {
-            for (packet in outboundPackets) {
-                sendPacket(packet)
-            }
-        }
     }
 
     /**
@@ -290,23 +276,6 @@ internal constructor(
             .toSdk(currentEncryptionType())
     }
 
-    private suspend fun sendPacket(bytes: ByteArray) {
-        val packet = try {
-            LivekitModels.DataPacket.parseFrom(bytes)
-        } catch (e: Exception) {
-            LKLog.e(e) { "Unable to decode an outgoing data stream packet; dropping it." }
-            return
-        }
-
-        engine.waitForBufferStatusLow(packet.kind)
-        val result = engine.sendData(packet)
-        if (result.isFailure) {
-            // The core acknowledges the send as soon as it hands the packet over, so there is
-            // nobody left to return this to; the originating send call has already returned.
-            LKLog.w(result.exceptionOrNull()) { "Failed to send a data stream packet." }
-        }
-    }
-
     // endregion
 
     /**
@@ -327,7 +296,6 @@ internal constructor(
 
     override fun close() {
         coroutineScope.cancel()
-        outboundPackets.close()
         // Releases the native handles, and with them the core's reference to our delegates. Those
         // delegates are held by a static handle map on the way in, so skipping this would keep this
         // object -- and through it the engine -- reachable for the life of the process.
@@ -341,7 +309,15 @@ internal constructor(
     // region FFI delegates
 
     /**
-     * Receives encoded `DataPacket`s from the core and queues them for the reliable data channel.
+     * Receives encoded `DataPacket`s from the core and sends them on the reliable data channel,
+     * returning only once every one has been handed to it.
+     *
+     * This is the back-pressure point by design. The core dedicates a single task to this delegate
+     * and does not pull the next batch until the call returns, which keeps packets in the order the
+     * core emitted them and the originating `send*`/`write` call pending until its packets have
+     * actually reached the transport. Throwing fails that call with a send failure and closes the
+     * affected stream; the binding runs this in a coroutine of its own (not on a core runtime
+     * thread), and cancels it if the core drops the originating send.
      *
      * Unlike the Swift implementation this holds a strong reference to its owner: the JVM collects
      * reference cycles, so the weak back-reference Swift needs to break an ARC cycle would buy
@@ -350,11 +326,22 @@ internal constructor(
      */
     private inner class OutgoingDelegate : FfiOutgoingDelegate {
         override suspend fun onPacketsAvailable(packets: List<ByteArray>) {
-            for (packet in packets) {
-                val result = outboundPackets.trySend(packet)
-                if (result.isFailure) {
-                    LKLog.w { "Dropping an outgoing data stream packet: the send queue is closed." }
+            try {
+                // Confined to ffiDispatcher per this class's threading rules: waiting out
+                // publisher connection and data channel backpressure must not resume on core
+                // runtime threads.
+                withContext(ffiDispatcher) {
+                    for (bytes in packets) {
+                        val packet = LivekitModels.DataPacket.parseFrom(bytes)
+                        engine.waitForBufferStatusLow(packet.kind)
+                        engine.sendData(packet).getOrThrow()
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LKLog.w(e) { "Failed to send data stream packets." }
+                throw FfiPacketDeliveryException.Failed(e.message ?: "Unable to deliver data stream packets.")
             }
         }
     }
