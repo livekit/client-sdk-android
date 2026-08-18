@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datastream
 
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
@@ -240,6 +241,16 @@ internal constructor(
      */
     fun abortStreamsFrom(identity: Participant.Identity) {
         synchronized(incomingLock) { incoming }?.abortStreamsFrom(identity.value)
+    }
+
+    /**
+     * Number of incoming streams currently open: announced by a header and still awaiting more
+     * packets. Inline single-packet streams complete during header handling and are never counted.
+     */
+    @VisibleForTesting
+    internal suspend fun openStreamCount(): ULong {
+        val manager = synchronized(incomingLock) { incoming } ?: return 0u
+        return withContext(ffiDispatcher) { manager.openStreamCount() }
     }
 
     // endregion

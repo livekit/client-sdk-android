@@ -548,6 +548,42 @@ class DataStreamsV2ReceiveTest : BaseTest() {
 
     // endregion
 
+    // region Open stream count
+    //
+    // The count is answered on the core's loop in order with the packets and aborts fed before
+    // it, which is what makes these assertions deterministic rather than polled.
+
+    @Test
+    fun openStreamCountFollowsTheStreamLifecycle() = runTest {
+        assertEquals(0uL, dataStreams.openStreamCount())
+
+        dataStreams.handleIncoming(header(text = true, totalLength = 5))
+        assertEquals(1uL, dataStreams.openStreamCount())
+
+        dataStreams.handleIncoming(chunk("hello".toByteArray()))
+        dataStreams.handleIncoming(trailer())
+        assertEquals(0uL, dataStreams.openStreamCount())
+    }
+
+    @Test
+    fun inlineStreamsAreNeverCounted() = runTest {
+        dataStreams.handleIncoming(header(text = true, inlineContent = "hi".toByteArray()))
+
+        assertEquals(0uL, dataStreams.openStreamCount())
+        assertEquals("hi", awaitTextStream().readAll().joinToString(""))
+    }
+
+    @Test
+    fun abortsAreObservableThroughTheCount() = runTest {
+        dataStreams.handleIncoming(header(text = true, totalLength = 100))
+        assertEquals(1uL, dataStreams.openStreamCount())
+
+        dataStreams.abortStreamsFrom(Participant.Identity(SENDER))
+        assertEquals(0uL, dataStreams.openStreamCount())
+    }
+
+    // endregion
+
     // region Failures
 
     @Test
