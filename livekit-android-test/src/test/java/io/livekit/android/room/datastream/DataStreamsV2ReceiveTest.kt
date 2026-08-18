@@ -548,6 +548,23 @@ class DataStreamsV2ReceiveTest : BaseTest() {
 
     // endregion
 
+    /**
+     * A packet arriving after close must not lazily rebuild the incoming manager: the scope its
+     * delegate needs is cancelled, so such a manager could never deliver anything -- and nothing
+     * would ever destroy it. (Ending a session is different: there, rebuilding is the point.)
+     */
+    @Test
+    fun packetsAfterCloseDoNotRebuildTheManager() = runTest {
+        dataStreams.handleIncoming(header(text = true, inlineContent = "hi".toByteArray()))
+        assertEquals("hi", awaitTextStream().readAll().joinToString(""))
+
+        dataStreams.close()
+        dataStreams.handleIncoming(header(text = true, totalLength = 100, streamId = "post-close"))
+
+        // The count reads the manager reference: 0 with none, 1 if a fresh one had been built.
+        assertEquals(0uL, dataStreams.openStreamCount())
+    }
+
     // region Open stream count
     //
     // The count is answered on the core's loop in order with the packets and aborts fed before

@@ -139,6 +139,14 @@ internal constructor(
     private val incomingLock = Any()
     private var incoming: FfiIncomingDataStreamManager? = null
 
+    /**
+     * Set by [close], guarded by [incomingLock]. Ending a session leaves [incoming] null so the
+     * next packet can rebuild it; closing must not: the scope the delegate needs is already
+     * cancelled, so a manager built after close could never deliver anything -- and nothing would
+     * ever destroy it.
+     */
+    private var closed = false
+
     init {
         closeableManager.registerClosable(this)
     }
@@ -150,8 +158,11 @@ internal constructor(
      * final until `connect` -- after this class is constructed. The first inbound packet can only
      * arrive after connecting, so reading the cap here picks up a value passed to `connect`.
      */
-    private fun incomingManager(): FfiIncomingDataStreamManager {
+    private fun incomingManager(): FfiIncomingDataStreamManager? {
         synchronized(incomingLock) {
+            if (closed) {
+                return null
+            }
             incoming?.let { return it }
             val manager = FfiIncomingDataStreamManager(
                 delegate = IncomingDelegate(),
@@ -215,7 +226,12 @@ internal constructor(
         packet: LivekitModels.DataPacket,
         encryptionType: LivekitModels.Encryption.Type = LivekitModels.Encryption.Type.NONE,
     ) {
-        incomingManager().handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
+        val manager = incomingManager()
+        if (manager == null) {
+            LKLog.d { "Dropping a data stream packet received after close." }
+            return
+        }
+        manager.handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
     }
 
     /**
@@ -318,6 +334,7 @@ internal constructor(
         // delegates are held by a static handle map on the way in, so skipping this would keep this
         // object -- and through it the engine -- reachable for the life of the process.
         synchronized(incomingLock) {
+            closed = true
             incoming?.destroy()
             incoming = null
         }
