@@ -509,6 +509,18 @@ internal constructor(
                 channel.close()
             } catch (e: FfiDataStreamException) {
                 channel.close(e.toStreamException())
+            } catch (e: CancellationException) {
+                // The scope is cancelled by close() with readers possibly still open. The
+                // cancellation must not become the channel's failure cause: receiveAsFlow
+                // rethrows it, and a CancellationException silently cancels the collecting
+                // coroutine instead of reaching the app's catch blocks. Fail the reader with a
+                // real stream error, then let the cancellation proceed.
+                channel.close(
+                    StreamException.TerminatedException(
+                        "Data streams were closed while the stream was still open.",
+                    ),
+                )
+                throw e
             } catch (e: Exception) {
                 channel.close(e)
             }

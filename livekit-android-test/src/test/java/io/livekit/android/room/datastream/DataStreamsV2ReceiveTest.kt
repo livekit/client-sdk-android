@@ -549,6 +549,24 @@ class DataStreamsV2ReceiveTest : BaseTest() {
     // endregion
 
     /**
+     * A reader still open when the subsystem closes must fail with a stream error. If the pump's
+     * internal cancellation became the channel's failure cause instead, collecting it would
+     * silently cancel the app's coroutine: catch(StreamException) blocks never run and whatever
+     * was awaiting the stream just stops.
+     */
+    @Test
+    fun closeFailsOpenReadersWithAStreamError() = runTest {
+        dataStreams.handleIncoming(header(text = true, totalLength = 100))
+        dataStreams.handleIncoming(chunk("partial".toByteArray()))
+        val reader = awaitTextStream()
+
+        dataStreams.close()
+
+        val error = runCatching { reader.readAll() }.exceptionOrNull()
+        assertTrue("expected a StreamException, got $error", error is StreamException)
+    }
+
+    /**
      * A packet arriving after close must not lazily rebuild the incoming manager: the scope its
      * delegate needs is cancelled, so such a manager could never deliver anything -- and nothing
      * would ever destroy it. (Ending a session is different: there, rebuilding is the point.)
