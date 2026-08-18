@@ -339,25 +339,49 @@ class DataStreamsV2ReceiveTest : BaseTest() {
     }
 
     @Test
-    fun abortAllStreamsFailsOpenStreams() = runTest {
+    fun endSessionFailsOpenStreams() = runTest {
         dataStreams.handleIncoming(header(text = true, totalLength = 100))
         dataStreams.handleIncoming(chunk("partial".toByteArray()))
         val reader = awaitTextStream()
 
-        dataStreams.abortAllStreams()
+        dataStreams.endSession()
 
         val error = runCatching { reader.readAll() }.exceptionOrNull()
         assertTrue("expected a StreamException, got $error", error is StreamException)
     }
 
-    /** Handler registrations outlive an abort, so streams after a reconnect are still delivered. */
+    /** Handler registrations outlive a session, so streams after a reconnect are still delivered. */
     @Test
-    fun handlersSurviveAbortAllStreams() = runTest {
-        dataStreams.abortAllStreams()
+    fun handlersSurviveEndSession() = runTest {
+        dataStreams.endSession()
 
         dataStreams.handleIncoming(header(text = true, inlineContent = "after".toByteArray()))
 
         assertEquals("after", awaitTextStream().readAll().joinToString(""))
+    }
+
+    /**
+     * The payload cap is fixed at the manager's construction, and the room options it comes from
+     * can change between connects of the same Room. Ending the session must discard the manager,
+     * or the next session silently keeps the first one's cap.
+     */
+    @Test
+    fun endSessionAppliesTheNextSessionsPayloadCap() = runTest {
+        dataStreams.maxPayloadSize = { 1_000_000 }
+        dataStreams.handleIncoming(header(text = true, inlineContent = "first session".toByteArray()))
+        assertEquals("first session", awaitTextStream().readAll().joinToString(""))
+
+        dataStreams.endSession()
+        textStreams.clear()
+
+        dataStreams.maxPayloadSize = { 4 }
+        dataStreams.handleIncoming(header(text = true, inlineContent = "way past the new cap".toByteArray()))
+
+        val error = runCatching { awaitTextStream().readAll() }.exceptionOrNull()
+        assertTrue(
+            "expected PayloadTooLargeException, got $error",
+            error is StreamException.PayloadTooLargeException,
+        )
     }
 
     // endregion

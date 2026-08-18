@@ -147,7 +147,7 @@ class IncomingDataStreamManagerImpl @Inject constructor(
      * @suppress
      */
     override fun clearOpenStreams() {
-        dataStreams.abortAllStreams()
+        dataStreams.endSession()
     }
 
     companion object {

@@ -218,13 +218,20 @@ internal constructor(
     }
 
     /**
-     * Fails every open incoming stream so blocked readers raise instead of hanging.
+     * Ends the incoming side of the current session: fails every open incoming stream so blocked
+     * readers raise instead of hanging, and discards the manager so the next session builds a
+     * fresh one.
      *
-     * Handler registrations survive, so streams arriving after a reconnect are still delivered.
-     * A no-op if no packet has ever been received, since nothing can be open.
+     * Since the manager's payload cap is fixed at its construction, reusing the manager would
+     * silently pin the first session's cap. Handler registrations live on this class and survive,
+     * so streams arriving after a reconnect are still delivered.
      */
-    fun abortAllStreams() {
-        synchronized(incomingLock) { incoming }?.abortAllStreams()
+    fun endSession() {
+        val old = synchronized(incomingLock) {
+            incoming.also { incoming = null }
+        } ?: return
+        old.abortAllStreams()
+        old.destroy()
     }
 
     /**
