@@ -424,8 +424,8 @@ class DataStreamsV2ReceiveTest : BaseTest() {
     // region Encryption
     //
     // Transport encryption is applied and undone in RTCEngine, on the whole packet, either side of
-    // the FFI: the core only ever sees plaintext and reports NONE on every stream, so holding a
-    // stream to how it arrived is the SDK's job.
+    // the FFI: the core only ever sees plaintext. The SDK passes along how each packet actually
+    // arrived, and the core holds every stream to the encryption its header arrived under.
 
     @Test
     fun streamInfoReportsTheEncryptionTheStreamArrivedUnder() = runTest {

@@ -72,7 +72,8 @@ class DataStreamsConversionTest {
         assertEquals("reply-to", info.replyToStreamId)
         assertEquals(listOf("att"), info.attachedStreamIds)
         assertTrue(info.generated)
-        // The core reports NONE on every stream; the room's real value is stamped on instead.
+        // Incoming streams are stamped with the encryption the core reports for them; outgoing
+        // streams get the room's own value (the core cannot see transport encryption).
         assertEquals(encryption, info.encryptionType)
     }
 

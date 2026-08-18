@@ -131,24 +131,6 @@ internal constructor(
     private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
 
     /**
-     * How each incoming stream arrived, keyed by stream id. See [checkEncryptionType].
-     *
-     * Bounded by eviction rather than by bookkeeping. An entry cannot simply be dropped when a
-     * stream ends: the core opens streams asynchronously, so a stream failed here can have a reader
-     * that does not exist yet, and one that ends in a single packet has no trailer to react to
-     * either. Since the keys come off the wire and are the sending peer's to choose, the table
-     * holds the [MAX_TRACKED_INCOMING_STREAMS] most recently touched streams and lets the rest age
-     * out. What an evicted stream loses is the encryption check on a stream that has been idle
-     * behind that many others, which the core has long since given up on.
-     */
-    private val incomingStreams = Collections.synchronizedMap(
-        object : LinkedHashMap<String, IncomingStream>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, IncomingStream>) =
-                size > MAX_TRACKED_INCOMING_STREAMS
-        },
-    )
-
-    /**
      * Outbound packets waiting to go on the wire.
      *
      * The FFI delegate is a plain synchronous callback on a Rust runtime thread: it can neither
@@ -246,89 +228,7 @@ internal constructor(
         packet: LivekitModels.DataPacket,
         encryptionType: LivekitModels.Encryption.Type = LivekitModels.Encryption.Type.NONE,
     ) {
-        if (!checkEncryptionType(packet, encryptionType)) {
-            return
-        }
         incomingManager().handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
-    }
-
-    /**
-     * Holds a stream to the encryption its header arrived under, failing it if a later packet
-     * disagrees.
-     *
-     * Transport encryption happens in [RTCEngine], on the whole packet, either side of the FFI: the
-     * core never sees it and reports `NONE` on every stream, so this check can only live here.
-     * Without it a peer could open a stream encrypted and then continue it in plaintext, and the
-     * reader would be none the wiser.
-     *
-     * Mirrors what web's `IncomingDataStreamManager` does with the same value, and what this SDK
-     * did before the port to the core.
-     *
-     * @return whether the packet should be passed on to the core.
-     */
-    private fun checkEncryptionType(
-        packet: LivekitModels.DataPacket,
-        encryptionType: LivekitModels.Encryption.Type,
-    ): Boolean {
-        when (packet.valueCase) {
-            LivekitModels.DataPacket.ValueCase.STREAM_HEADER -> {
-                incomingStreams[packet.streamHeader.streamId] = IncomingStream(encryptionType)
-            }
-
-            LivekitModels.DataPacket.ValueCase.STREAM_CHUNK ->
-                return matchesHeader(packet.streamChunk.streamId, encryptionType)
-
-            LivekitModels.DataPacket.ValueCase.STREAM_TRAILER ->
-                return matchesHeader(packet.streamTrailer.streamId, encryptionType)
-
-            else -> {}
-        }
-        return true
-    }
-
-    private fun matchesHeader(streamId: String, encryptionType: LivekitModels.Encryption.Type): Boolean {
-        // No header seen: either not ours to judge, or the stream aged out of the table. Either way
-        // the core decides what to do with a packet for a stream it does not know.
-        val stream = incomingStreams[streamId] ?: return true
-        if (stream.encryptionType == encryptionType) {
-            return true
-        }
-
-        LKLog.w {
-            "Dropping stream $streamId: it opened as ${stream.encryptionType} but a later packet " +
-                "arrived as $encryptionType."
-        }
-        stream.fail(
-            StreamException.EncryptionTypeMismatch(
-                "Encryption type mismatch for stream $streamId. " +
-                    "Expected ${stream.encryptionType}, got $encryptionType",
-            ),
-        )
-        return false
-    }
-
-    /**
-     * A stream the core has been handed, tracked here for the one thing the core cannot see: the
-     * encryption its header arrived under, and so whether a later packet contradicts it.
-     *
-     * The channel is attached after the fact because the core opens a stream asynchronously, on its
-     * own loop: a contradicting chunk can be handed in before the reader exists. A failure recorded
-     * before then is replayed onto the channel when it does, so the reader raises rather than
-     * waiting for chunks that will never be forwarded.
-     */
-    private class IncomingStream(val encryptionType: LivekitModels.Encryption.Type) {
-        private var channel: Channel<ByteArray>? = null
-        private var failure: StreamException? = null
-
-        fun attach(channel: Channel<ByteArray>) = synchronized(this) {
-            this.channel = channel
-            failure?.let { channel.close(it) }
-        }
-
-        fun fail(exception: StreamException) = synchronized(this) {
-            failure = exception
-            channel?.close(exception)
-        }
     }
 
     /**
@@ -338,7 +238,6 @@ internal constructor(
      * A no-op if no packet has ever been received, since nothing can be open.
      */
     fun abortAllStreams() {
-        incomingStreams.clear()
         synchronized(incomingLock) { incoming }?.abortAllStreams()
     }
 
@@ -411,26 +310,12 @@ internal constructor(
     // endregion
 
     /**
-     * How the stream [streamId]'s header actually arrived, for stamping onto [StreamInfo].
-     *
-     * The room's own configuration is deliberately not consulted: a stream that arrived in
-     * plaintext has to be reported as plaintext even in a room with encryption enabled, or an app
-     * checking [StreamInfo.encryptionType] is told what it wants to hear rather than what happened.
-     *
-     * `NONE` for a stream with no recorded header, which is what an unencrypted stream would be
-     * stamped anyway.
-     */
-    private fun incomingEncryptionType(streamId: String): LivekitModels.Encryption.Type {
-        return incomingStreams[streamId]?.encryptionType ?: LivekitModels.Encryption.Type.NONE
-    }
-
-    /**
      * The room's data channel encryption type, for streams this room sends.
      *
-     * The core reports `NONE` on every stream: end to end encryption across the FFI is not
-     * implemented, and payload encryption still happens in [RTCEngine] on the whole packet, either
-     * side of the FFI. Stamping the room's real value keeps [StreamInfo.encryptionType] meaning
-     * what it did before.
+     * Outgoing only: payload encryption happens in [RTCEngine] on the whole packet, after the
+     * core, so the core stamps outgoing streams `NONE` and the room's real value is applied here.
+     * Incoming streams need no such fixup -- the core stamps them with the encryption their
+     * header actually arrived under, as passed to [handleIncoming].
      */
     private fun currentEncryptionType(): LivekitModels.Encryption.Type {
         return if (engine.e2EEManager?.isDataChannelEncryptionEnabled() == true) {
@@ -443,7 +328,6 @@ internal constructor(
     override fun close() {
         coroutineScope.cancel()
         outboundPackets.close()
-        incomingStreams.clear()
         // Releases the native handles, and with them the core's reference to our delegates. Those
         // delegates are held by a static handle map on the way in, so skipping this would keep this
         // object -- and through it the engine -- reachable for the life of the process.
@@ -484,7 +368,10 @@ internal constructor(
     private inner class IncomingDelegate : FfiIncomingDelegate {
         override fun onTextStreamOpened(reader: FfiTextStreamReader, identity: String) {
             val ffiInfo = reader.info()
-            val info = ffiInfo.toSdk(incomingEncryptionType(ffiInfo.id))
+            // The core stamps the info with the encryption the stream's header arrived under, as
+            // passed to handlePacketReceived -- a plaintext stream is reported as plaintext even
+            // in a room with encryption enabled.
+            val info = ffiInfo.toSdk(ffiInfo.encryptionType.toSdk())
             val handler = textStreamHandlers[info.topic]
             if (handler == null) {
                 LKLog.w {
@@ -495,7 +382,7 @@ internal constructor(
             }
             deliver {
                 handler.invoke(
-                    TextStreamReceiver(info, pumpText(info.id, reader)),
+                    TextStreamReceiver(info, pumpText(reader)),
                     Participant.Identity(identity),
                 )
             }
@@ -503,7 +390,7 @@ internal constructor(
 
         override fun onByteStreamOpened(reader: FfiByteStreamReader, identity: String) {
             val ffiInfo = reader.info()
-            val info = ffiInfo.toSdk(incomingEncryptionType(ffiInfo.id))
+            val info = ffiInfo.toSdk(ffiInfo.encryptionType.toSdk())
             val handler = byteStreamHandlers[info.topic]
             if (handler == null) {
                 LKLog.w {
@@ -514,7 +401,7 @@ internal constructor(
             }
             deliver {
                 handler.invoke(
-                    ByteStreamReceiver(info, pumpBytes(info.id, reader)),
+                    ByteStreamReceiver(info, pumpBytes(reader)),
                     Participant.Identity(identity),
                 )
             }
@@ -574,8 +461,8 @@ internal constructor(
      * `readNext` / `readAll` surface exactly as it was: the channel closes normally when the
      * stream ends, or with a [StreamException] when it fails.
      */
-    private fun pumpBytes(streamId: String, reader: FfiByteStreamReader): Channel<ByteArray> {
-        return pump(streamId) { reader.next() }
+    private fun pumpBytes(reader: FfiByteStreamReader): Channel<ByteArray> {
+        return pump { reader.next() }
     }
 
     /**
@@ -585,14 +472,12 @@ internal constructor(
      * Lossless: the core splits text on character boundaries, so every piece is independently
      * valid UTF-8. Round-tripping keeps [TextStreamReceiver]'s public constructor untouched.
      */
-    private fun pumpText(streamId: String, reader: FfiTextStreamReader): Channel<ByteArray> {
-        return pump(streamId) { reader.next()?.toByteArray(Charsets.UTF_8) }
+    private fun pumpText(reader: FfiTextStreamReader): Channel<ByteArray> {
+        return pump { reader.next()?.toByteArray(Charsets.UTF_8) }
     }
 
-    private fun pump(streamId: String, next: suspend () -> ByteArray?): Channel<ByteArray> {
+    private fun pump(next: suspend () -> ByteArray?): Channel<ByteArray> {
         val channel = Channel<ByteArray>(capacity = Channel.UNLIMITED)
-        // Hands the channel to whatever fails this stream from outside the core; see IncomingStream.
-        incomingStreams[streamId]?.attach(channel)
         coroutineScope.launch {
             try {
                 while (true) {
@@ -687,15 +572,6 @@ internal constructor(
         } catch (e: FfiDataStreamException) {
             throw e.toStreamException()
         }
-    }
-
-    private companion object {
-        /**
-         * How many incoming streams [incomingStreams] holds before the least recently touched one
-         * is evicted. Comfortably above any plausible number of streams open at once, while still
-         * capping what a peer opening streams forever can make this room retain.
-         */
-        const val MAX_TRACKED_INCOMING_STREAMS = 1_024
     }
 }
 
