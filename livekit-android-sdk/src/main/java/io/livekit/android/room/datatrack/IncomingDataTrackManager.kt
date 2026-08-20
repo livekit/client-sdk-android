@@ -97,7 +97,8 @@ constructor(
 
     /**
      * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `JoinResponse`
-     * to the UniFFI manager so pre-existing remote data tracks are discovered.
+     * to the UniFFI manager so pre-existing remote data tracks are discovered. Pass the
+     * websocket bytes as received; re-encoding a decoded copy can drop newer fields.
      */
     fun handleSfuJoinResponse(responseBytes: ByteArray) {
         try {
@@ -109,7 +110,7 @@ constructor(
 
     /**
      * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `ParticipantUpdate`
-     * to the UniFFI manager.
+     * to the UniFFI manager. Pass the websocket bytes as received.
      */
     fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String) {
         try {
@@ -121,7 +122,7 @@ constructor(
 
     /**
      * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing
-     * `DataTrackSubscriberHandles` to the UniFFI manager.
+     * `DataTrackSubscriberHandles` to the UniFFI manager. Pass the websocket bytes as received.
      */
     fun handleSubscriberHandles(responseBytes: ByteArray) {
         try {

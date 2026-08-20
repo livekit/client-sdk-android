@@ -130,6 +130,7 @@ class SignalClientTest : BaseTest() {
         val response = job.await()
         assertEquals(true, client.isConnected)
         assertEquals(response, JOIN.join)
+        assertArrayEquals(JOIN.toByteArray(), client.lastJoinEncoded)
     }
 
     @Test

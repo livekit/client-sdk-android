@@ -119,7 +119,15 @@ constructor(
     /**
      * @see [onReadyForResponses]
      */
-    private val responseFlow = MutableSharedFlow<Pair<WebSocket, LivekitRtc.SignalResponse>>(Int.MAX_VALUE)
+    private val responseFlow = MutableSharedFlow<IncomingSignal>(Int.MAX_VALUE)
+
+    /**
+     * Wire bytes of the Join [LivekitRtc.SignalResponse] from the last successful [join].
+     * UniFFI parses these itself so re-encoding the decoded join cannot drop newer fields.
+     */
+    @Volatile
+    internal var lastJoinEncoded: ByteArray? = null
+        private set
     private val responseFlowJobLock = Object()
     private var responseFlowJob: Job? = null
 
@@ -268,9 +276,9 @@ constructor(
         synchronized(responseFlowJobLock) {
             if (responseFlowJob == null) {
                 responseFlowJob = coroutineScope.launch {
-                    responseFlow.collect { (ws, response) ->
+                    responseFlow.collect { incoming ->
                         responseFlow.resetReplayCache()
-                        handleSignalResponseImpl(ws, response)
+                        handleSignalResponseImpl(incoming.ws, incoming.response, incoming.encoded)
                     }
                 }
             }
@@ -322,7 +330,7 @@ constructor(
             .mergeFrom(byteArray)
         val response = signalResponseBuilder.build()
 
-        handleSignalResponse(webSocket, response)
+        handleSignalResponse(webSocket, response, byteArray)
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -752,7 +760,7 @@ constructor(
         }
     }
 
-    private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse) {
+    private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse, encoded: ByteArray) {
         if (ws != currentWs) {
             return
         }
@@ -778,11 +786,12 @@ constructor(
                     edition = ServerInfo.Edition.fromProto(response.join.serverInfo.edition),
                     version = serverVersion
                 )
+                lastJoinEncoded = encoded
                 joinContinuation?.resumeWith(Result.success(ConnectResult.Join(response.join)))
                 joinContinuation = null
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
-                handleSignalResponseImpl(ws, response)
+                handleSignalResponseImpl(ws, response, encoded)
                 val cont = joinContinuation
                 joinContinuation = null
                 cont?.resumeWithException(
@@ -824,10 +833,10 @@ constructor(
                 return
             }
         }
-        responseFlow.tryEmit(ws to response)
+        responseFlow.tryEmit(IncomingSignal(ws, response, encoded))
     }
 
-    private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse) {
+    private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse, encoded: ByteArray) {
         if (ws != currentWs) {
             LKLog.v { "received message from old websocket, discarding." }
             return
@@ -858,7 +867,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.UPDATE -> {
-                listener?.onParticipantUpdate(response.update.participantsList)
+                listener?.onParticipantUpdate(response.update.participantsList, encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.TRACK_SUBSCRIBED -> {
@@ -950,7 +959,7 @@ constructor(
                     }
                 }
                 // Pass the full SignalResponse — UniFFI deserializes and filters data-track related ones.
-                listener?.onRequestResponse(response)
+                listener?.onRequestResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
@@ -966,15 +975,15 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.PUBLISH_DATA_TRACK_RESPONSE -> {
-                listener?.onPublishDataTrackResponse(response)
+                listener?.onPublishDataTrackResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.UNPUBLISH_DATA_TRACK_RESPONSE -> {
-                listener?.onUnpublishDataTrackResponse(response)
+                listener?.onUnpublishDataTrackResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
-                listener?.onDataTrackSubscriberHandles(response)
+                listener?.onDataTrackSubscriberHandles(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.STORE_DATA_BLOB_RESPONSE -> {
@@ -1076,7 +1085,7 @@ constructor(
         fun onServerOffer(sessionDescription: SessionDescription, offerId: Int)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
         fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
-        fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>)
+        fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>, encoded: ByteArray)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
         fun onClose(reason: String, code: Int)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
@@ -1091,11 +1100,21 @@ constructor(
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
-        fun onPublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
-        fun onUnpublishDataTrackResponse(response: LivekitRtc.SignalResponse) {}
-        fun onRequestResponse(response: LivekitRtc.SignalResponse) {}
-        fun onDataTrackSubscriberHandles(response: LivekitRtc.SignalResponse) {}
+        fun onPublishDataTrackResponse(encoded: ByteArray) {}
+        fun onUnpublishDataTrackResponse(encoded: ByteArray) {}
+        fun onRequestResponse(encoded: ByteArray) {}
+        fun onDataTrackSubscriberHandles(encoded: ByteArray) {}
     }
+
+    /**
+     * A signal message together with the websocket bytes it arrived as.
+     * Data-track managers parse the encoded form themselves.
+     */
+    private class IncomingSignal(
+        val ws: WebSocket,
+        val response: LivekitRtc.SignalResponse,
+        val encoded: ByteArray,
+    )
 
     /**
      * Result of waiting for the initial signal response after opening the WebSocket.

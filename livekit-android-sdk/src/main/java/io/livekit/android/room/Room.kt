@@ -710,7 +710,6 @@ constructor(
                 getOrCreateRemoteParticipant(Participant.Identity(info.identity), info)
             }
         }
-        reattachRemoteDataTracks()
     }
 
     private fun setupLocalParticipantEventHandling() {
@@ -825,7 +824,10 @@ constructor(
         eventBus.postEvent(RoomEvent.DataTrackUnpublished(this, participant, sid), coroutineScope)
     }
 
-    private fun reattachRemoteDataTracks() {
+    /**
+     * @suppress
+     */
+    override fun reattachRemoteDataTracks() {
         for (track in incomingDataTrackManager.snapshotRemoteTracks()) {
             attachRemoteDataTrack(track)
         }
@@ -1323,7 +1325,6 @@ constructor(
                 }
             }
         }
-        reattachRemoteDataTracks()
     }
 
     /**
