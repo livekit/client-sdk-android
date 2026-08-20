@@ -29,5 +29,5 @@ data class DataStreamOptions(
      * bound, which keeps a misbehaving or malicious sender from growing memory regardless of the
      * length its header declared. Null uses the built-in default.
      */
-    val maxPayloadSize: Long? = null,
+    val maxPayloadByteLength: Long? = null,
 )

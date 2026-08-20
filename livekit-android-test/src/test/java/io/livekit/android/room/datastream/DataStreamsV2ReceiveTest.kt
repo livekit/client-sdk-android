@@ -367,14 +367,14 @@ class DataStreamsV2ReceiveTest : BaseTest() {
      */
     @Test
     fun endSessionAppliesTheNextSessionsPayloadCap() = runTest {
-        dataStreams.maxPayloadSize = { 1_000_000 }
+        dataStreams.maxPayloadByteLength = { 1_000_000 }
         dataStreams.handleIncoming(header(text = true, inlineContent = "first session".toByteArray()))
         assertEquals("first session", awaitTextStream().readAll().joinToString(""))
 
         dataStreams.endSession()
         textStreams.clear()
 
-        dataStreams.maxPayloadSize = { 4 }
+        dataStreams.maxPayloadByteLength = { 4 }
         dataStreams.handleIncoming(header(text = true, inlineContent = "way past the new cap".toByteArray()))
 
         val error = runCatching { awaitTextStream().readAll() }.exceptionOrNull()
@@ -432,8 +432,8 @@ class DataStreamsV2ReceiveTest : BaseTest() {
      * passed to connect() is picked up.
      */
     @Test
-    fun maxPayloadSizeIsEnforced() = runTest {
-        dataStreams.maxPayloadSize = { 16 }
+    fun maxPayloadByteLengthIsEnforced() = runTest {
+        dataStreams.maxPayloadByteLength = { 16 }
 
         dataStreams.handleIncoming(header(text = true))
         val reader = awaitTextStream()

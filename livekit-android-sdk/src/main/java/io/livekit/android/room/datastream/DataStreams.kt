@@ -105,7 +105,7 @@ internal constructor(
      * Cap on the size of a reassembled incoming payload, from
      * [io.livekit.android.RoomOptions.dataStreamOptions]. Read lazily -- see [incomingManager].
      */
-    internal var maxPayloadSize: () -> Long? = { null }
+    internal var maxPayloadByteLength: () -> Long? = { null }
 
     /**
      * The dispatcher for everything on the FFI boundary: calls into the core, and the coroutines
@@ -166,7 +166,7 @@ internal constructor(
             incoming?.let { return it }
             val manager = FfiIncomingDataStreamManager(
                 delegate = IncomingDelegate(),
-                maxPayloadByteLength = maxPayloadSize()?.toULong(),
+                maxPayloadByteLength = maxPayloadByteLength()?.toULong(),
             )
             incoming = manager
             return manager

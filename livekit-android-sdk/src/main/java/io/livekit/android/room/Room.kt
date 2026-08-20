@@ -191,7 +191,7 @@ constructor(
         dataStreams.remoteClientProtocol = getRemoteClientProtocol
         dataStreams.remoteIdentities = { remoteParticipants.keys.toList() }
         dataStreams.remoteCapabilities = { id -> remoteParticipants[id]?.capabilities ?: emptyList() }
-        dataStreams.maxPayloadSize = { dataStreamOptions.maxPayloadSize }
+        dataStreams.maxPayloadByteLength = { dataStreamOptions.maxPayloadByteLength }
     }
 
     enum class State {

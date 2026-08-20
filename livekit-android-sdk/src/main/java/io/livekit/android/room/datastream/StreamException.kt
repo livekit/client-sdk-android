@@ -54,7 +54,7 @@ sealed class StreamException(message: String? = null) : Exception(message) {
     /**
      * An incoming stream's payload exceeded the maximum accepted size.
      *
-     * @see io.livekit.android.room.datastream.DataStreamOptions.maxPayloadSize
+     * @see io.livekit.android.room.datastream.DataStreamOptions.maxPayloadByteLength
      */
     class PayloadTooLargeException(message: String? = null) : LengthExceededException(message)
 
