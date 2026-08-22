@@ -501,6 +501,32 @@ class SignalClientTest : BaseTest() {
         }
     }
 
+    @Test
+    fun subscribedAudioCodecUpdateNotifiesListener() = runTest {
+        val joinJob = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        joinJob.await()
+        client.onReadyForResponses()
+        val update = LivekitRtc.SubscribedAudioCodecUpdate.newBuilder()
+            .setTrackSid("track_sid")
+            .addSubscribedAudioCodecs(
+                LivekitModels.SubscribedAudioCodec.newBuilder()
+                    .setCodec("opus")
+                    .setEnabled(true),
+            )
+            .build()
+
+        client.onMessage(
+            wsFactory.ws,
+            LivekitRtc.SignalResponse.newBuilder()
+                .setSubscribedAudioCodecUpdate(update)
+                .build()
+                .toOkioByteString(),
+        )
+
+        Mockito.verify(listener).onSubscribedAudioCodecUpdate(update)
+    }
+
     // mock data
     companion object
 }

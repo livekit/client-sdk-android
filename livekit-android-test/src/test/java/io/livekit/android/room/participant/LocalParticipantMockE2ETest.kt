@@ -22,6 +22,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
+import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.DefaultsManager
@@ -319,6 +320,106 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun encryptedRedAudioAdvertisesOpusSimulcastCodec() = runTest {
+        room.dynacast = true
+        connect()
+        component.rtcEngine().e2EEManager = mock(E2EEManager::class.java)
+        wsFactory.ws.clearRequests()
+
+        room.localParticipant.publishAudioTrack(createMockLocalAudioTrack())
+
+        val addTrack = sentAddTrackRequests().single()
+        assertEquals(listOf("red", "opus"), addTrack.simulcastCodecsList.map { it.codec })
+        assertTrue(addTrack.simulcastCodecsList.first { it.codec == "red" }.cid.isNotEmpty())
+        assertTrue(addTrack.simulcastCodecsList.first { it.codec == "opus" }.cid.isEmpty())
+    }
+
+    @Test
+    fun unencryptedRedAudioDoesNotAdvertiseAudioSimulcast() = runTest {
+        room.dynacast = true
+        connect()
+        wsFactory.ws.clearRequests()
+
+        room.localParticipant.publishAudioTrack(createMockLocalAudioTrack())
+
+        assertTrue(sentAddTrackRequests().single().simulcastCodecsList.isEmpty())
+    }
+
+    @Test
+    fun subscribedOpusCreatesOneAdditionalAudioTransceiver() = runTest {
+        room.dynacast = true
+        connect()
+        val e2eeManager = mock(E2EEManager::class.java)
+        component.rtcEngine().e2EEManager = e2eeManager
+        val track = createMockLocalAudioTrack()
+        room.localParticipant.publishAudioTrack(track)
+        val trackSid = room.localParticipant.audioTrackPublications.first().first.sid
+        wsFactory.ws.clearRequests()
+
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to true)
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to true)
+        advanceUntilIdle()
+
+        assertEquals(2, getPublisherPeerConnection().transceivers.size)
+        val addTrack = sentAddTrackRequests().single()
+        assertEquals(trackSid, addTrack.sid)
+        assertEquals(listOf("opus"), addTrack.simulcastCodecsList.map { it.codec })
+        assertTrue(addTrack.simulcastCodecsList.single().cid.isNotEmpty())
+        val opusTransceiver = getPublisherPeerConnection().transceivers.last()
+        Mockito.verify(e2eeManager).addPublishedSender(
+            opusTransceiver.sender,
+            room.localParticipant.audioTrackPublications.first().first,
+            room.localParticipant,
+        )
+
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to false)
+        advanceUntilIdle()
+        assertFalse(opusTransceiver.sender.parameters.encodings.single().active)
+
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to true)
+        advanceUntilIdle()
+        assertTrue(opusTransceiver.sender.parameters.encodings.single().active)
+
+        room.localParticipant.unpublishTrack(track)
+        getPublisherPeerConnection().transceivers.forEach { Mockito.verify(it).stopInternal() }
+    }
+
+    @Test
+    fun subscribedOpusUpdateBeforePublicationIsReplayed() = runTest {
+        room.dynacast = true
+        connect()
+        component.rtcEngine().e2EEManager = mock(E2EEManager::class.java)
+        wsFactory.ws.clearRequests()
+
+        receiveSubscribedAudioCodecUpdate(TestData.LOCAL_AUDIO_TRACK.sid, "opus" to true)
+        room.localParticipant.publishAudioTrack(createMockLocalAudioTrack())
+        advanceUntilIdle()
+
+        assertEquals(2, getPublisherPeerConnection().transceivers.size)
+        assertEquals(
+            listOf("opus"),
+            sentAddTrackRequests().last().simulcastCodecsList.map { it.codec },
+        )
+    }
+
+    @Test
+    fun subscribedOpusDisabledWhilePublishingRemainsInactive() = runTest {
+        room.dynacast = true
+        connect()
+        component.rtcEngine().e2EEManager = mock(E2EEManager::class.java)
+        val track = createMockLocalAudioTrack()
+        room.localParticipant.publishAudioTrack(track)
+        val trackSid = room.localParticipant.audioTrackPublications.first().first.sid
+
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to true)
+        receiveSubscribedAudioCodecUpdate(trackSid, "opus" to false)
+        advanceUntilIdle()
+
+        val opusTransceiver = getPublisherPeerConnection().transceivers.last()
+        assertFalse(opusTransceiver.sender.parameters.encodings.single().active)
+    }
+
+    @Test
     fun republishAfterBackupCodecUnpublishCreatesNewBackupTransceiver() = runTest {
         room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
             videoCodec = VideoCodec.VP9.codecName,
@@ -448,6 +549,32 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
             },
         )
     }
+
+    private fun receiveSubscribedAudioCodecUpdate(trackSid: String, vararg codecs: Pair<String, Boolean>) {
+        wsFactory.receiveMessage(
+            LivekitRtc.SignalResponse.newBuilder()
+                .setSubscribedAudioCodecUpdate(
+                    LivekitRtc.SubscribedAudioCodecUpdate.newBuilder()
+                        .setTrackSid(trackSid)
+                        .addAllSubscribedAudioCodecs(
+                            codecs.map { (codec, enabled) ->
+                                LivekitModels.SubscribedAudioCodec.newBuilder()
+                                    .setCodec(codec)
+                                    .setEnabled(enabled)
+                                    .build()
+                            },
+                        ),
+                )
+                .build(),
+        )
+    }
+
+    private fun sentAddTrackRequests(): List<LivekitRtc.AddTrackRequest> =
+        wsFactory.ws.sentRequests.mapNotNull { requestBytes ->
+            LivekitRtc.SignalRequest.parseFrom(requestBytes.toPBByteString())
+                .takeIf { it.hasAddTrack() }
+                ?.addTrack
+        }
 
     private fun createLocalTrack(
         width: Int = 1280,

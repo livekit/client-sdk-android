@@ -48,7 +48,7 @@ constructor(
     dataPacketCryptorManagerFactory: DataPacketCryptorManager.Factory,
 ) {
     private var room: Room? = null
-    private val frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
+    private val frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, MutableList<FrameCryptor>>()
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
 
@@ -57,9 +57,8 @@ constructor(
     var enabled: Boolean = false
         set(value) {
             field = value
-            for (item in frameCryptors.entries) {
-                val frameCryptor = item.value
-                frameCryptor.isEnabled = enabled
+            for (cryptors in frameCryptors.values) {
+                cryptors.forEach { it.isEnabled = enabled }
             }
         }
 
@@ -129,12 +128,7 @@ constructor(
     fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
-        val frameCryptor = frameCryptors.get(trackId to participantId)
-        if (frameCryptor != null) {
-            frameCryptor.isEnabled = false
-            frameCryptor.dispose()
-            frameCryptors.remove(trackId to participantId)
-        }
+        removeFrameCryptors(trackId, participantId)
     }
 
     fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
@@ -146,6 +140,15 @@ constructor(
             }
         } ?: throw IllegalArgumentException("rtpSender is null")
 
+        addPublishedSender(rtpSender, publication, participant)
+    }
+
+    internal fun addPublishedSender(
+        rtpSender: RtpSender,
+        publication: TrackPublication,
+        participant: LocalParticipant,
+    ) {
+        val room = room ?: return
         val frameCryptor = addRtpSender(rtpSender, participant.identity!!, publication.sid, publication.track!!.kind.name.lowercase())
         frameCryptor.setObserver { trackId, state ->
             LKLog.i { "Sender::onFrameCryptionStateChanged: $trackId, state:  $state" }
@@ -164,11 +167,14 @@ constructor(
     fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
-        val frameCryptor = frameCryptors.get(trackId to participantId)
-        if (frameCryptor != null) {
+        removeFrameCryptors(trackId, participantId)
+    }
+
+    private fun removeFrameCryptors(trackId: String, participantId: Participant.Identity?) {
+        if (participantId == null) return
+        frameCryptors.remove(trackId to participantId)?.forEach { frameCryptor ->
             frameCryptor.isEnabled = false
             frameCryptor.dispose()
-            frameCryptors.remove(trackId to participantId)
         }
     }
 
@@ -194,7 +200,7 @@ constructor(
             keyProvider.rtcKeyProvider,
         )
 
-        frameCryptors[trackId to participantId] = frameCryptor
+        frameCryptors.getOrPut(trackId to participantId, ::mutableListOf).add(frameCryptor)
         frameCryptor.isEnabled = enabled
         frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
         return frameCryptor
@@ -209,7 +215,7 @@ constructor(
             keyProvider.rtcKeyProvider,
         )
 
-        frameCryptors[trackId to participantId] = frameCryptor
+        frameCryptors.getOrPut(trackId to participantId, ::mutableListOf).add(frameCryptor)
         frameCryptor.isEnabled = enabled
         frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
         return frameCryptor
@@ -232,9 +238,7 @@ constructor(
     }
 
     internal fun cleanup() {
-        for (frameCryptor in frameCryptors.values) {
-            frameCryptor.dispose()
-        }
+        frameCryptors.values.flatten().forEach(FrameCryptor::dispose)
         frameCryptors.clear()
     }
 

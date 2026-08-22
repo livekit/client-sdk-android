@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,16 @@ import org.mockito.kotlin.whenever
 import java.util.UUID
 
 object MockRtpSender {
-    fun create(id: String = "sender_id"): RtpSender {
+    fun create(
+        id: String = "sender_id",
+        encodings: MutableList<RtpParameters.Encoding> = mutableListOf(),
+    ): RtpSender {
         var rtpParameters: RtpParameters = MockRtpParameters(
             transactionId = UUID.randomUUID().toString(),
             degradationPreference = null,
             rtcp = MockRtpParameters.MockRtcp("", false),
             headerExtensions = mutableListOf(),
-            encodings = mutableListOf(),
+            encodings = encodings,
             codecs = mutableListOf(),
         )
         return Mockito.mock(RtpSender::class.java).apply {

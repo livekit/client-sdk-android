@@ -1057,6 +1057,7 @@ internal constructor(
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
+        fun onSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate: LivekitRtc.SubscribedAudioCodecUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
         fun onSignalConnected(isResume: Boolean)
@@ -1291,6 +1292,10 @@ internal constructor(
 
     override fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate) {
         listener?.onSubscribedQualityUpdate(subscribedQualityUpdate)
+    }
+
+    override fun onSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate: LivekitRtc.SubscribedAudioCodecUpdate) {
+        listener?.onSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate)
     }
 
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
