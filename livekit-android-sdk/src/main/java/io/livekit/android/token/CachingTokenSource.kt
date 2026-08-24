@@ -151,11 +151,13 @@ fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds, date: Da
     try {
         val jwt = TokenPayload(participantToken)
         val now = Date()
-        val expiresAt = jwt.expiresAt
+        // First-party minters always set exp. A signed JWT with no exp would
+        // otherwise stay cached forever (livekit/client-sdk-js#2057).
+        val expiresAt = jwt.expiresAt ?: return false
         val nbf = jwt.notBefore
 
         val isBefore = nbf != null && now.before(nbf)
-        val hasExpired = expiresAt != null && now.after(Date(expiresAt.time + tolerance.inWholeMilliseconds))
+        val hasExpired = now.after(Date(expiresAt.time + tolerance.inWholeMilliseconds))
 
         return !isBefore && !hasExpired
     } catch (e: Exception) {

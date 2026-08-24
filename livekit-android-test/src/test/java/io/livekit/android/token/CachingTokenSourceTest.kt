@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,6 +62,26 @@ class CachingTokenSourceTest : BaseTest() {
         )
 
         assertTrue(tokenResponse.hasValidToken(date = Date(9999999990000)))
+    }
+
+    @Test
+    fun tokenWithoutExpIsInvalid() {
+        val tokenResponse = TokenSourceResponse(
+            "wss://www.example.com",
+            NO_EXP_TOKEN,
+        )
+
+        assertFalse(tokenResponse.hasValidToken())
+    }
+
+    @Test
+    fun tokenWithExpOnlyIsValid() {
+        val tokenResponse = TokenSourceResponse(
+            "wss://www.example.com",
+            EXP_ONLY_TOKEN,
+        )
+
+        assertTrue(tokenResponse.hasValidToken())
     }
 
     @Test
@@ -128,5 +149,13 @@ class CachingTokenSourceTest : BaseTest() {
         const val EXPIRED_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiIsImtpZCI6IjlhMzJiZTg2NzkyZTM3Nm" +
             "I3ZTBlMmIyNjVjMjY1YTA5In0.eyJpYXQiOjAsIm5iZiI6MCwiZXhwIjowfQ.8oV9K-CeULScAjFIK2O7sxEGUD7" +
             "su3kCQv3Q8rhk0Hg_AuzQixJfz2Pt0rJUwLWhF0mSlcYMUKdR0yp12RfrdA"
+
+        // Dummy HS256 JWTs for cache-validity only (signature is not verified).
+        // NO_EXP: {"sub":"identity"} with no exp.
+        // EXP_ONLY: same identity plus exp 9876543210 (Fri Dec 22 2282).
+        const val NO_EXP_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpZGVudGl0eSJ9." +
+            "ytOOgz0Ly2PUjItxXAXFRIE9sgZnOKPzQVSovM7uH84"
+        const val EXP_ONLY_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+            "eyJzdWIiOiJpZGVudGl0eSIsImV4cCI6OTg3NjU0MzIxMH0.Im7BMAH9ZdnkdPb7oTny_kEiVmdzep3Bl-SNwqAruMw"
     }
 }
