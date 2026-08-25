@@ -1,5 +1,13 @@
 # client-sdk-android
 
+## 2.28.1
+
+### Patch Changes
+
+- Bumped protobuf-javalite to 3.25.9, which fixes the unbounded parser recursion reported as CVE-2024-7254. - [#1002](https://github.com/livekit/client-sdk-android/pull/1002) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix CachingTokenSource treating a JWT with no exp as still valid, so a token that never expires stays cached forever. Require exp; keep nbf optional. - [#1008](https://github.com/livekit/client-sdk-android/pull/1008) ([@SashaMIT](https://github.com/SashaMIT))
+
 ## 2.28.0
 
 ### Minor Changes
