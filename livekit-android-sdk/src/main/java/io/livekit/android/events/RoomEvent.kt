@@ -161,11 +161,15 @@ sealed class RoomEvent(val room: Room) : Event() {
     /**
      * A [RemoteParticipant] published a data track.
      *
+     * Collect frames in a separate coroutine so this event collector is not blocked.
+     *
      * ```
      * room.events.collect { event ->
      *     if (event is RoomEvent.DataTrackPublished) {
-     *         event.track.subscribe().onSuccess { stream ->
-     *             stream.flow.collect { frame -> process(frame.payload) }
+     *         scope.launch {
+     *             event.track.subscribe().onSuccess { stream ->
+     *                 stream.flow.collect { frame -> process(frame.payload) }
+     *             }
      *         }
      *     }
      * }

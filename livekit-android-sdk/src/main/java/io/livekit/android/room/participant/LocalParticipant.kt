@@ -92,7 +92,6 @@ import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
 import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.util.Collections
 import javax.inject.Named

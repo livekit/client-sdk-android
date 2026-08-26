@@ -59,6 +59,9 @@ constructor(
     private val remoteTracks = mutableListOf<RemoteDataTrack>()
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
+    /**
+     * Handles events from the UniFFI remote data track manager.
+     */
     private val delegate = object : RemoteDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
             engineProvider.get().sendDataTrackSignalRequest(request)
@@ -86,8 +89,8 @@ constructor(
     }
 
     /**
-     * Remote data tracks currently known to the UniFFI manager, including those whose publisher
-     * is not yet in the room.
+     * Returns a snapshot of the remote data tracks currently known to the 
+     * UniFFI manager, including those whose publisher is not yet in the room.
      */
     internal fun snapshotRemoteTracks(): List<RemoteDataTrack> {
         synchronized(lock) {

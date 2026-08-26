@@ -26,7 +26,7 @@ import io.livekit.uniffi.LocalDataTrack as FfiLocalDataTrack
 /**
  * A data track published by the local participant. Obtain one from
  * [io.livekit.android.room.participant.LocalParticipant.publishDataTrack], then push frames with
- * [tryPush].
+ * [tryPush] or [send].
  *
  * The publication follows this object's lifetime: keep a reference for as long as the track should
  * stay published — releasing the last reference unpublishes it, as does calling [unpublish].

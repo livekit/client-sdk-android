@@ -16,6 +16,8 @@
 
 package io.livekit.android.room.datatrack
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
 
 /**
@@ -24,7 +26,7 @@ import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
  * @param payload The application payload carried by this frame.
  * @param userTimestamp Optional sender-provided timestamp, opaque to the SDK and carried
  * end-to-end unmodified. Publisher and subscriber agree on what it means, so a sensor's clock
- * works as well as wall time. [now] and [durationSinceTimestampMs] are the exception — they
+ * works as well as wall time. [now] and [durationSinceTimestamp] are the exception — they
  * read it as milliseconds since the Unix epoch.
  */
 class DataTrackFrame(
@@ -32,16 +34,16 @@ class DataTrackFrame(
     val userTimestamp: Long? = null,
 ) {
     /**
-     * How long ago the frame was stamped, in milliseconds, or `null` if it carries no timestamp
-     * or the timestamp lies in the future.
+     * How long ago the frame was stamped, or `null` if it carries no timestamp or the timestamp
+     * lies in the future.
      *
      * Assumes [userTimestamp] is a Unix timestamp in milliseconds, as set by [now].
      */
-    val durationSinceTimestampMs: Long?
+    val durationSinceTimestamp: Duration?
         get() {
             val timestamp = userTimestamp ?: return null
             val elapsed = System.currentTimeMillis() - timestamp
-            return elapsed.takeIf { it >= 0 }
+            return elapsed.takeIf { it >= 0 }?.milliseconds
         }
 
     internal constructor(ffi: FfiDataTrackFrame) : this(

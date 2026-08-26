@@ -51,6 +51,9 @@ constructor(
     private var localManager: LocalDataTrackManagerInterface? = null
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
+    /**
+     * Handles events from the UniFFI local data track manager.
+     */
     private val delegate = object : LocalDataTrackManagerDelegate {
         override fun onSignalRequest(request: ByteArray) {
             engineProvider.get().sendDataTrackSignalRequest(request)
