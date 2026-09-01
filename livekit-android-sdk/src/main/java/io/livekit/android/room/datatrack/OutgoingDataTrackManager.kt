@@ -19,7 +19,6 @@ package io.livekit.android.room.datatrack
 import androidx.annotation.CheckResult
 import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.room.RTCEngine
-import io.livekit.android.room.RoomException
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
@@ -79,15 +78,15 @@ constructor(
         )
         try {
             engineProvider.get().ensureDataTrackPublisherConnected()
+        } catch (e: DataTrackPublishException) {
+            return Result.failure(e)
         } catch (e: Exception) {
             e.rethrowIfCancellationSignal()
-            val message = e.message ?: "Lost the connection while establishing the publisher data track channel"
             return Result.failure(
-                if (e is RoomException.ConnectException && message.startsWith("Timed out")) {
-                    DataTrackPublishException.Timeout(message, e)
-                } else {
-                    DataTrackPublishException.Disconnected(message, e)
-                },
+                DataTrackPublishException.Disconnected(
+                    e.message ?: "Lost the connection while establishing the publisher data track channel",
+                    e,
+                ),
             )
         }
         return try {

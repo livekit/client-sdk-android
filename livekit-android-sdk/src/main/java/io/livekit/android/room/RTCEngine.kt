@@ -29,8 +29,8 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
-import io.livekit.android.room.datatrack.DataChannelManagerSendChannel
-import io.livekit.android.room.datatrack.DataTrackFrameSender
+import io.livekit.android.room.datatrack.DataTrackPublishException
+import io.livekit.android.room.datatrack.DataTrackPublisherChannel
 import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
@@ -72,7 +72,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -200,30 +199,8 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
-    private var dataTrackDataChannel: DataChannel? = null
-    private var dataTrackDataChannelManager: DataChannelManager? = null
     private var dataTrackDataChannelSub: DataChannel? = null
-    private val dataTrackFrameSender = DataTrackFrameSender()
-    private var dataTrackPumpJob: Job? = null
-
-    /**
-     * Session-scoped gate for `_data_track` publisher-channel readiness. Rearmed (not failed) when
-     * the channel is swapped on reconnect, so a [ensureDataTrackPublisherConnected] issued in that
-     * window waits for the replacement instead of racing a torn-down transport. Closed only on a
-     * real [close], which unblocks waiters as a disconnect.
-     */
-    @FlowObservable
-    @get:FlowObservable
-    private var dataTrackPublisherChannelGate by flowDelegate(DataTrackPublisherChannelGate.WAITING)
-
-    /**
-     * Whether the subscriber `_data_track` is OPEN. Full reconnect waits for this before
-     * [IncomingDataTrackManager.resendSubscriptionUpdates] so handles/packets hit an observed
-     * channel. Soft reconnect typically stays OPEN.
-     */
-    @FlowObservable
-    @get:FlowObservable
-    private var dataTrackSubscriberChannelOpen by flowDelegate(false)
+    private val dataTrackPublisherChannel = DataTrackPublisherChannel(rtcThreadToken)
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
@@ -286,8 +263,6 @@ internal constructor(
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): JoinResponse = coroutineScope {
-        // New session (or full reconnect): the previous gate may still be CLOSED from [close].
-        dataTrackPublisherChannelGate = DataTrackPublisherChannelGate.WAITING
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
@@ -362,19 +337,9 @@ internal constructor(
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
                     if (newState.isConnected()) {
-                        // Stay RECONNECTING/RESUMING until post-ICE data-track resubscribe
-                        // finishes (Swift sets `.connected` only after `handleReconnect`).
-                        if (connectionState != ConnectionState.RECONNECTING &&
-                            connectionState != ConnectionState.RESUMING
-                        ) {
-                            connectionState = ConnectionState.CONNECTED
-                        }
+                        connectionState = ConnectionState.CONNECTED
                     } else if (newState.isDisconnected()) {
-                        if (connectionState != ConnectionState.RECONNECTING &&
-                            connectionState != ConnectionState.RESUMING
-                        ) {
-                            connectionState = ConnectionState.DISCONNECTED
-                        }
+                        connectionState = ConnectionState.DISCONNECTED
                     }
                 }
 
@@ -384,10 +349,7 @@ internal constructor(
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
-                            DATA_TRACK_DATA_CHANNEL_LABEL -> {
-                                setSubscriberDataTrackChannel(dataChannel)
-                                return@onDataChannel
-                            }
+                            DATA_TRACK_DATA_CHANNEL_LABEL -> dataTrackDataChannelSub = dataChannel
                             else -> return@onDataChannel
                         }
                         dataChannel.registerObserver(DataChannelObserver(dataChannel))
@@ -518,7 +480,6 @@ internal constructor(
         }
         LKLog.v { "Close - $reason" }
         isClosed = true
-        dataTrackPublisherChannelGate = DataTrackPublisherChannelGate.CLOSED
         reconnectingJob?.cancel()
         reconnectingJob = null
         coroutineScope.close()
@@ -568,20 +529,8 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
-                    dataTrackPumpJob?.cancel()
-                    dataTrackPumpJob = null
-                    dataTrackFrameSender.attach(null)
-                    dataTrackDataChannelManager?.dispose()
-                    dataTrackDataChannelManager = null
-                    dataTrackDataChannel = null
+                    dataTrackPublisherChannel.detach()
                     dataTrackDataChannelSub = null
-                    dataTrackSubscriberChannelOpen = false
-                    // The publisher channel is dead; re-arm the open gate — a publish issued
-                    // before the replacement channel arrives waits for it instead of proceeding
-                    // against the torn-down transport. Skip if the session itself is closing.
-                    if (dataTrackPublisherChannelGate != DataTrackPublisherChannelGate.CLOSED) {
-                        dataTrackPublisherChannelGate = DataTrackPublisherChannelGate.WAITING
-                    }
                     isSubscriberPrimary = false
                 }
             }
@@ -757,14 +706,13 @@ internal constructor(
 
                 val subscriberConnected = subscriber?.isConnected() == true
                 val publisherConnected = !hasPublished || publisher?.isConnected() == true
-                if (subscriberConnected &&
-                    publisherConnected &&
-                    (
-                        connectionState == ConnectionState.CONNECTED ||
-                            connectionState == ConnectionState.RESUMING ||
-                            connectionState == ConnectionState.RECONNECTING
-                        )
+                if ((connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.RESUMING) &&
+                    subscriberConnected &&
+                    publisherConnected
                 ) {
+                    if (connectionState == ConnectionState.RESUMING) {
+                        connectionState = ConnectionState.CONNECTED
+                    }
                     if (lastMessageSeq != null) {
                         resendReliableMessagesForResume(lastMessageSeq).onFailure { e ->
                             LKLog.w(e) {
@@ -773,18 +721,13 @@ internal constructor(
                             }
                         }
                     }
+                    // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
                     if (isFullReconnect) {
                         outgoingDataTrackManager.republishTracks()
                     }
-                    waitUntilInboundDataTrackChannelReady()
                     incomingDataTrackManager.resendSubscriptionUpdates()
-                    if (connectionState == ConnectionState.RESUMING ||
-                        connectionState == ConnectionState.RECONNECTING
-                    ) {
-                        connectionState = ConnectionState.CONNECTED
-                    }
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -1000,18 +943,12 @@ internal constructor(
      * Data-track publish must not proceed until then: [sendDataTrackPackets] queues at most one
      * frame while the channel is not [DataChannel.State.OPEN].
      *
-     * The wait is bound to the session, not a specific [DataChannelManager]: transport teardown
-     * (full reconnect) rearms the gate so an in-flight publish waits for the replacement channel
-     * instead of failing against a disposed one. A real [close] fails the wait as a disconnect.
+     * [DataTrackPublisherChannel] re-reads its manager each pass rather than capturing it, so a
+     * publish in flight when a full reconnect swaps the transport waits for the replacement
+     * channel instead of failing against a disposed one. A real [close] fails it as a disconnect.
      */
-    @Throws(exceptionClasses = [RoomException.ConnectException::class])
+    @Throws(exceptionClasses = [DataTrackPublishException::class])
     internal suspend fun ensureDataTrackPublisherConnected() {
-        if (isClosed || dataTrackPublisherChannelGate == DataTrackPublisherChannelGate.CLOSED) {
-            throw RoomException.ConnectException(
-                "Lost the connection while establishing the publisher data track channel",
-            )
-        }
-
         // Always mark publish intent so a full reconnect's joinImpl renegotiates even if this
         // wait started against a torn-down publisher transport.
         if (isSubscriberPrimary) {
@@ -1023,139 +960,37 @@ internal constructor(
             }
         }
 
-        if (dataTrackPublisherChannelGate == DataTrackPublisherChannelGate.OPEN) {
-            return
-        }
-
-        val gate = withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
-            ::dataTrackPublisherChannelGate.flow
-                .first { it != DataTrackPublisherChannelGate.WAITING }
-        }
-        when (gate) {
-            DataTrackPublisherChannelGate.OPEN -> return
-            DataTrackPublisherChannelGate.CLOSED -> throw RoomException.ConnectException(
+        val opened = dataTrackPublisherChannel.awaitOpen(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) { isClosed }
+        when (opened) {
+            true -> return
+            false -> throw DataTrackPublishException.Disconnected(
                 "Lost the connection while establishing the publisher data track channel",
             )
-            DataTrackPublisherChannelGate.WAITING, null -> throw RoomException.ConnectException(
+            null -> throw DataTrackPublishException.Timeout(
                 "Timed out establishing the publisher data track channel",
             )
         }
     }
 
-    private fun updateDataTrackPublisherChannelGate(open: Boolean) {
-        if (dataTrackPublisherChannelGate == DataTrackPublisherChannelGate.CLOSED) {
-            return
-        }
-        val live = dataTrackDataChannelManager?.takeIf { !it.disposed }
-        dataTrackPublisherChannelGate = if (open && live != null) {
-            DataTrackPublisherChannelGate.OPEN
-        } else {
-            DataTrackPublisherChannelGate.WAITING
-        }
-    }
-
     /**
-     * Creates the publisher `_data_track` channel and [setPublisherDataTrackChannel]s it.
+     * Creates the publisher `_data_track` channel and hands it to [dataTrackPublisherChannel].
      */
     private suspend fun createPublisherDataTrackChannel() {
         val dataTrackInit = DataChannel.Init()
         dataTrackInit.ordered = false
         dataTrackInit.maxRetransmits = 0
-        dataTrackDataChannel = publisher?.withPeerConnection {
+        publisher?.withPeerConnection {
             createDataChannel(
                 DATA_TRACK_DATA_CHANNEL_LABEL,
                 dataTrackInit,
             ).also { dataChannel ->
-                setPublisherDataTrackChannel(dataChannel)
-            }
-        }
-    }
-
-    /**
-     * Attaches [dataChannel] as the publisher `_data_track` transport: same frame sender, new
-     * SCTP association. A full reconnect's replacement arrives unopened; waiters on
-     * [ensureDataTrackPublisherConnected] keep waiting until this channel hits OPEN.
-     */
-    private fun setPublisherDataTrackChannel(dataChannel: DataChannel) {
-        val dataChannelManager = DataChannelManager(
-            dataChannel,
-            DataChannelObserver(dataChannel),
-            rtcThreadToken,
-        )
-        dataTrackDataChannelManager = dataChannelManager
-        // Wrapper so the open-gate tracks state on the observer thread, not after a coroutine
-        // hop — a publish must not race a channel that just left OPEN.
-        dataChannel.registerObserver(
-            object : DataChannel.Observer {
-                override fun onBufferedAmountChange(previousAmount: Long) {
-                    dataChannelManager.onBufferedAmountChange(previousAmount)
-                }
-
-                override fun onStateChange() {
-                    dataChannelManager.onStateChange()
-                    updateDataTrackPublisherChannelGate(
-                        dataChannelManager.state == DataChannel.State.OPEN,
-                    )
-                }
-
-                override fun onMessage(buffer: DataChannel.Buffer) {
-                    dataChannelManager.onMessage(buffer)
-                }
-            },
-        )
-        // Frames queued for the old channel belong to the torn-down transport.
-        dataTrackFrameSender.attach(DataChannelManagerSendChannel(dataChannelManager))
-        updateDataTrackPublisherChannelGate(
-            dataChannelManager.state == DataChannel.State.OPEN,
-        )
-        dataTrackPumpJob?.cancel()
-        dataTrackPumpJob = coroutineScope.launch {
-            launch {
-                dataChannelManager::bufferedAmount.flow.collect {
-                    pumpDataTrackFrames()
-                }
-            }
-            launch {
-                dataChannelManager::state.flow.collect {
-                    pumpDataTrackFrames()
-                }
-            }
-        }
-    }
-
-    /**
-     * Adopts the subscriber `_data_track` channel. Retain it so native callbacks outlive this
-     * call, and route received packets into the incoming UniFFI manager. The manager is not told
-     * about the channel itself — only packets.
-     */
-    private fun setSubscriberDataTrackChannel(dataChannel: DataChannel) {
-        dataTrackDataChannelSub = dataChannel
-        dataChannel.registerObserver(DataChannelObserver(dataChannel))
-        dataTrackSubscriberChannelOpen = dataChannel.state() == DataChannel.State.OPEN
-    }
-
-    /**
-     * After ICE is up, wait until inbound `_data_track` can receive before resending
-     * subscription updates. The reconnect job stays in RECONNECTING/RESUMING until this
-     * returns so Room.CONNECTED is not published early. Times out rather than failing
-     * reconnect if the channel never opens (older servers, data-track unused).
-     */
-    private suspend fun waitUntilInboundDataTrackChannelReady() {
-        val needsInbound = incomingDataTrackManager.snapshotRemoteTracks().isNotEmpty() ||
-            dataTrackDataChannelSub != null
-        if (!needsInbound) {
-            return
-        }
-        if (isSubscriberPrimary) {
-            if (dataTrackSubscriberChannelOpen) {
-                return
-            }
-            withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
-                ::dataTrackSubscriberChannelOpen.flow.first { it }
-            }
-        } else if (dataTrackPublisherChannelGate != DataTrackPublisherChannelGate.OPEN) {
-            withTimeoutOrNull(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) {
-                ::dataTrackPublisherChannelGate.flow.first { it == DataTrackPublisherChannelGate.OPEN }
+                val dataChannelManager = DataChannelManager(
+                    dataChannel,
+                    DataChannelObserver(dataChannel),
+                    rtcThreadToken,
+                )
+                dataChannel.registerObserver(dataChannelManager)
+                dataTrackPublisherChannel.attach(dataChannelManager, coroutineScope)
             }
         }
     }
@@ -1588,21 +1423,9 @@ internal constructor(
 
     /**
      * Queues serialized data-track packets on the dedicated `_data_track` data channel.
-     *
-     * Packets belonging to one application frame are metered as a unit (drop-oldest, one frame
-     * in flight) once the channel is [DataChannel.State.OPEN] and buffered amount is at or below
-     * [DataTrackFrameSender.LOW_WATER_MARK].
      */
     internal fun sendDataTrackPackets(packets: List<ByteArray>) {
-        executeOnRTCThread(rtcThreadToken) {
-            dataTrackFrameSender.sendOrQueue(packets)
-        }
-    }
-
-    private fun pumpDataTrackFrames() {
-        executeOnRTCThread(rtcThreadToken) {
-            dataTrackFrameSender.pump()
-        }
+        dataTrackPublisherChannel.sendPackets(packets)
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//
@@ -1611,9 +1434,6 @@ internal constructor(
     }
 
     fun onStateChange(dataChannel: DataChannel) {
-        if (dataChannel === dataTrackDataChannelSub) {
-            dataTrackSubscriberChannelOpen = dataChannel.state() == DataChannel.State.OPEN
-        }
     }
 
     fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
@@ -1863,16 +1683,6 @@ internal constructor(
     @VisibleForTesting
     fun getSubscriberPeerConnection() =
         subscriber!!.peerConnection
-}
-
-/**
- * Publisher `_data_track` channel readiness. [WAITING] and [OPEN] cycle across reconnects;
- * [CLOSED] is terminal for the session.
- */
-private enum class DataTrackPublisherChannelGate {
-    WAITING,
-    OPEN,
-    CLOSED,
 }
 
 /**

@@ -262,8 +262,14 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         assertEquals(1, remote.resendSubscriptionUpdatesCount)
     }
 
+    /**
+     * Resubscription follows transport connect directly and does not wait on the replacement
+     * subscriber `_data_track` channel, which the SFU opens on its own schedule. Packets on a
+     * channel that arrives later are still routed
+     * ([fullReconnectForwardsPacketsOnReplacementSubscriberDataTrackChannel]).
+     */
     @Test
-    fun fullReconnectResendsSubscriptionsAfterSubscriberDataTrackOpens() = runTest {
+    fun fullReconnectResendsSubscriptionsOnceReconnected() = runTest {
         room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
         wsFactory.registerSignalRequestHandler(publisherOfferHandler)
         connect()
@@ -271,26 +277,15 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
             name = "telemetry",
             publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
         )
+        val remote = remoteDataTrackManagerFactory.manager
+        assertEquals(0, remote.resendSubscriptionUpdatesCount)
 
         disconnectPeerConnection()
         testScheduler.advanceTimeBy(1000)
         reconnectWebsocket()
         connectPeerConnection()
-        testScheduler.runCurrent()
-
-        val remote = remoteDataTrackManagerFactory.manager
-        assertEquals(0, remote.resendSubscriptionUpdatesCount)
-        assertEquals(Room.State.RECONNECTING, room.state)
-
-        val channel = MockDataChannel(RTCEngine.DATA_TRACK_DATA_CHANNEL_LABEL)
-        channel.state = DataChannel.State.CONNECTING
-        getSubscriberPeerConnection().observer?.onDataChannel(channel)
-        testScheduler.runCurrent()
-        assertEquals(0, remote.resendSubscriptionUpdatesCount)
-        assertEquals(Room.State.RECONNECTING, room.state)
-
-        channel.state = DataChannel.State.OPEN
         advanceUntilIdle()
+
         assertEquals(1, remote.resendSubscriptionUpdatesCount)
         assertEquals(Room.State.CONNECTED, room.state)
     }
