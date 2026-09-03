@@ -38,10 +38,17 @@ class MockRemoteDataTrackManagerFactory : RemoteDataTrackManagerFactory {
     var lastDecryptionProvider: DecryptionProvider? = null
         private set
 
+    /**
+     * When set, [create] throws it instead of returning a manager, standing in for a native
+     * library that fails to load.
+     */
+    var createError: LinkageError? = null
+
     override fun create(
         delegate: RemoteDataTrackManagerDelegate,
         decryptionProvider: DecryptionProvider?,
     ): RemoteDataTrackManagerInterface {
+        createError?.let { throw it }
         lastDecryptionProvider = decryptionProvider
         return MockRemoteDataTrackManager(delegate).also { manager = it }
     }

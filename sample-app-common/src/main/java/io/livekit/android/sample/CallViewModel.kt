@@ -40,6 +40,7 @@ import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.datastream.StreamTextOptions
 import io.livekit.android.room.datastream.incoming.TextStreamReceiver
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
@@ -65,6 +66,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import livekit.org.webrtc.CameraXHelper
+import java.util.Collections
 
 @OptIn(ExperimentalCamera2Interop::class)
 class CallViewModel(
@@ -145,6 +147,10 @@ class CallViewModel(
     private val mutablePermissionAllowed = MutableStateFlow(true)
     val permissionAllowed = mutablePermissionAllowed.hide()
 
+    // Data tracks with a live subscription, so the same track isn't collected twice.
+    // RemoteDataTrack doesn't override equals, so this compares by identity.
+    private val subscribedDataTracks = Collections.synchronizedSet(mutableSetOf<RemoteDataTrack>())
+
     // RPC tester state. Lives on the ViewModel so it survives dialog dismiss/reopen.
     private val mutableHandlers = MutableStateFlow<List<RpcHandlerState>>(emptyList())
     val handlers: StateFlow<List<RpcHandlerState>> = mutableHandlers
@@ -192,6 +198,10 @@ class CallViewModel(
                 room.events.collect {
                     when (it) {
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
+                        is RoomEvent.DataTrackPublished -> subscribeToDataTrack(it.track)
+//                        // A full reconnect re-attaches the surviving tracks without republishing
+//                        // events for them, so sweep again rather than waiting on DataTrackPublished.
+//                        is RoomEvent.Reconnected -> subscribeToAvailableDataTracks()
                         is RoomEvent.DataReceived -> {
                             // Handling basic data packets.
                             val identity = it.participant?.identity ?: "server"
@@ -266,6 +276,9 @@ class CallViewModel(
             mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
             mutableEnableAudioProcessor.postValue(true)
 
+            // Data tracks already published when we joined.
+            subscribeToAvailableDataTracks()
+
             // Create and publish audio/video tracks
             val localParticipant = room.localParticipant
             localParticipant.setMicrophoneEnabled(true)
@@ -276,6 +289,46 @@ class CallViewModel(
             handlePrimarySpeaker(emptyList(), emptyList(), room)
         } catch (e: Throwable) {
             mutableError.value = e
+        }
+    }
+
+    /**
+     * Subscribes to every data track currently published in the room.
+     *
+     * [RoomEvent.DataTrackPublished] only fires while the room is connected, so tracks that were
+     * already published when we joined — or that were re-attached by a full reconnect — never
+     * announce themselves and have to be picked up from [RemoteParticipant.dataTracks] instead.
+     */
+    private fun subscribeToAvailableDataTracks() {
+        room.remoteParticipants.values
+            .flatMap { participant -> participant.dataTracks.values }
+            .forEach { track -> subscribeToDataTrack(track) }
+    }
+
+    /**
+     * Subscribes to [track] and forwards its frames to [dataReceived], ignoring tracks that are
+     * already being collected.
+     */
+    private fun subscribeToDataTrack(track: RemoteDataTrack) {
+        if (!subscribedDataTracks.add(track)) {
+            return
+        }
+        viewModelScope.launch(Dispatchers.Default) {
+            val stream = track.subscribe()
+                .getOrElse { e ->
+                    LKLog.e(e) { "Failed to subscribe to data track ${track.name}" }
+                    subscribedDataTracks.remove(track)
+                    return@launch
+                }
+
+            // Ends on its own once the track is unpublished.
+            stream.flow.collect { frame ->
+                val message = frame.payload.toString(Charsets.UTF_8)
+                mutableDataReceived.emit("${track.publisherIdentity.value}/${track.name}: $message")
+            }
+
+            // Allow a later republish under the same name to resubscribe.
+            subscribedDataTracks.remove(track)
         }
     }
 

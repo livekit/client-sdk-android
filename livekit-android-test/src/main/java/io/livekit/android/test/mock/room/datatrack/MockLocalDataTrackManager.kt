@@ -40,10 +40,17 @@ class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
     var lastEncryptionProvider: EncryptionProvider? = null
         private set
 
+    /**
+     * When set, [create] throws it instead of returning a manager, standing in for a native
+     * library that fails to load.
+     */
+    var createError: LinkageError? = null
+
     override fun create(
         delegate: LocalDataTrackManagerDelegate,
         encryptionProvider: EncryptionProvider?,
     ): LocalDataTrackManagerInterface {
+        createError?.let { throw it }
         lastEncryptionProvider = encryptionProvider
         return MockLocalDataTrackManager(delegate).also { manager = it }
     }

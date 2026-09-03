@@ -59,6 +59,16 @@ class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publishDataTrackFailsWhenNativeLibraryUnavailable() = runTest {
+        localDataTrackManagerFactory.createError = UnsatisfiedLinkError("dlopen failed")
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is DataTrackPublishException.Internal)
+    }
+
+    @Test
     fun publishDataTrackPassesEncryptionProviderWhenE2eeEnabled() = runTest {
         room.e2eeOptions = E2EEOptions(keyProvider = NoopKeyProvider())
         connect()

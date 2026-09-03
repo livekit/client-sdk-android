@@ -20,6 +20,7 @@ import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.HandleSignalResponseException
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import io.livekit.uniffi.RemoteDataTrackManagerInterface
@@ -56,6 +57,7 @@ constructor(
 
     private val lock = Any()
     private var remoteManager: RemoteDataTrackManagerInterface? = null
+    private var nativeUnavailable = false
     private val remoteTracks = mutableListOf<RemoteDataTrack>()
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
@@ -89,7 +91,7 @@ constructor(
     }
 
     /**
-     * Returns a snapshot of the remote data tracks currently known to the 
+     * Returns a snapshot of the remote data tracks currently known to the
      * UniFFI manager, including those whose publisher is not yet in the room.
      */
     internal fun snapshotRemoteTracks(): List<RemoteDataTrack> {
@@ -104,8 +106,9 @@ constructor(
      * websocket bytes as received; re-encoding a decoded copy can drop newer fields.
      */
     fun handleSfuJoinResponse(responseBytes: ByteArray) {
+        val manager = ensureManager() ?: return
         try {
-            ensureManager().handleSfuJoinResponse(responseBytes)
+            manager.handleSfuJoinResponse(responseBytes)
         } catch (e: HandleSignalResponseException) {
             LKLog.w(e) { "Failed to handle JoinResponse for data tracks" }
         }
@@ -116,8 +119,9 @@ constructor(
      * to the UniFFI manager. Pass the websocket bytes as received.
      */
     fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String) {
+        val manager = ensureManager() ?: return
         try {
-            ensureManager().handleSfuParticipantUpdate(responseBytes, localParticipantIdentity)
+            manager.handleSfuParticipantUpdate(responseBytes, localParticipantIdentity)
         } catch (e: HandleSignalResponseException) {
             LKLog.w(e) { "Failed to handle participant update for data tracks" }
         }
@@ -128,8 +132,9 @@ constructor(
      * `DataTrackSubscriberHandles` to the UniFFI manager. Pass the websocket bytes as received.
      */
     fun handleSubscriberHandles(responseBytes: ByteArray) {
+        val manager = ensureManager() ?: return
         try {
-            ensureManager().handleSubscriberHandles(responseBytes)
+            manager.handleSubscriberHandles(responseBytes)
         } catch (e: HandleSignalResponseException) {
             LKLog.w(e) { "Failed to handle DataTrackSubscriberHandles" }
         }
@@ -137,9 +142,18 @@ constructor(
 
     /**
      * Forwards a packet received on the `_data_track` data channel to the UniFFI manager.
+     *
+     * Called on a WebRTC callback thread, so nothing may escape: a throw here takes down the
+     * process rather than surfacing anywhere the app can handle it.
      */
     fun handlePacketReceived(packet: ByteArray) {
-        ensureManager().handlePacketReceived(packet)
+        val manager = ensureManager() ?: return
+        try {
+            manager.handlePacketReceived(packet)
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            LKLog.w(e) { "Failed to handle a data track packet" }
+        }
     }
 
     /**
@@ -160,10 +174,28 @@ constructor(
         }
     }
 
-    private fun ensureManager(): RemoteDataTrackManagerInterface {
+    /**
+     * The UniFFI manager, or `null` if its native library could not be loaded.
+     *
+     * Loading can fail on a device the packaged APK has no ABI for, among other reasons. Data
+     * tracks are then unavailable — but this runs on every connect and on the WebRTC receive
+     * path, so a failure must not fail [io.livekit.android.room.Room.connect] or crash the
+     * process for apps that never publish or subscribe to one. The failure is latched so the
+     * load is not retried per call, and every entry point above degrades to a no-op.
+     */
+    private fun ensureManager(): RemoteDataTrackManagerInterface? {
         synchronized(lock) {
             remoteManager?.let { return it }
-            return remoteDataTrackManagerFactory.create(delegate, cryptor).also { remoteManager = it }
+            if (nativeUnavailable) {
+                return null
+            }
+            return try {
+                remoteDataTrackManagerFactory.create(delegate, cryptor).also { remoteManager = it }
+            } catch (e: LinkageError) {
+                nativeUnavailable = true
+                LKLog.e(e) { "Data tracks are unavailable: the native library failed to load." }
+                null
+            }
         }
     }
 }

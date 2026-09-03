@@ -290,6 +290,29 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         assertEquals(Room.State.CONNECTED, room.state)
     }
 
+    /**
+     * The join path and the `_data_track` receive path both build the UniFFI manager on demand,
+     * and the receive path runs on a WebRTC callback thread. Neither may let a native-library
+     * failure escape, or apps that never touch data tracks lose the connection or the process.
+     */
+    @Test
+    fun nativeLibraryFailureLeavesTheRoomUsable() = runTest {
+        remoteDataTrackManagerFactory.createError = UnsatisfiedLinkError("dlopen failed")
+
+        connect()
+        assertEquals(Room.State.CONNECTED, room.state)
+
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+        assertNotNull(remoteParticipant())
+
+        // Received packets are dropped rather than thrown from the callback.
+        val channel = openSubscriberDataTrackChannel()
+        receiveDataTrackPacket(channel, byteArrayOf(1))
+        advanceUntilIdle()
+        assertEquals(Room.State.CONNECTED, room.state)
+    }
+
     private val publisherOfferHandler: SignalRequestHandler = { request ->
         if (request.hasOffer()) {
             val answer = with(LivekitRtc.SignalResponse.newBuilder()) {

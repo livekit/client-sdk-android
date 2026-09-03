@@ -48,6 +48,7 @@ constructor(
 ) {
     private val lock = Any()
     private var localManager: LocalDataTrackManagerInterface? = null
+    private var nativeUnavailable = false
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     /**
@@ -89,8 +90,14 @@ constructor(
                 ),
             )
         }
+        val manager = ensureManager()
+            ?: return Result.failure(
+                DataTrackPublishException.Internal(
+                    "Data tracks are unavailable: the native library failed to load",
+                ),
+            )
         return try {
-            Result.success(LocalDataTrack(ensureManager().publishTrack(ffiOptions)))
+            Result.success(LocalDataTrack(manager.publishTrack(ffiOptions)))
         } catch (e: PublishException) {
             Result.failure(e.toSdk())
         } catch (e: Exception) {
@@ -161,9 +168,17 @@ constructor(
         }
     }
 
-    private fun ensureManager(): LocalDataTrackManagerInterface {
+    /**
+     * The UniFFI manager, or `null` if its native library could not be loaded — see
+     * [IncomingDataTrackManager]. Reached only from [publishTrack], so the failure surfaces to
+     * the caller as a failed [Result] rather than degrading silently.
+     */
+    private fun ensureManager(): LocalDataTrackManagerInterface? {
         synchronized(lock) {
             localManager?.let { return it }
+            if (nativeUnavailable) {
+                return null
+            }
             // Whether frames are encrypted is fixed when the manager is built: unlike data
             // channel payloads (a per-message property), data track encryption is a track-level
             // protocol property that subscribers key their decryption on. The cryptor is passed
@@ -172,8 +187,14 @@ constructor(
             val encryptionProvider = cryptor.takeIf {
                 engineProvider.get().e2EEManager?.isDataTrackEncryptionEnabled() == true
             }
-            return localDataTrackManagerFactory.create(delegate, encryptionProvider)
-                .also { localManager = it }
+            return try {
+                localDataTrackManagerFactory.create(delegate, encryptionProvider)
+                    .also { localManager = it }
+            } catch (e: LinkageError) {
+                nativeUnavailable = true
+                LKLog.e(e) { "Data tracks are unavailable: the native library failed to load." }
+                null
+            }
         }
     }
 }
