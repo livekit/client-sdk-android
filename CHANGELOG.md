@@ -1,5 +1,11 @@
 # client-sdk-android
 
+## 2.28.2
+
+### Patch Changes
+
+- Update liwebrtc to 144.7559.14 - [#1011](https://github.com/livekit/client-sdk-android/pull/1011) ([@davidliu](https://github.com/davidliu))
+
 ## 2.28.1
 
 ### Patch Changes
