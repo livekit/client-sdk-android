@@ -346,9 +346,6 @@ internal constructor(
                 if (joinResponse.subscriberPrimary) {
                     // in subscriber primary mode, server side opens sub data channels.
                     subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
-
-
-                        LKLog.e { "LOL: got data channel: ${dataChannel.label()}!!!!!!!!"}
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
