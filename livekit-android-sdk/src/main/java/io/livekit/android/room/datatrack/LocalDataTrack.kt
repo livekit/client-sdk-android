@@ -25,11 +25,15 @@ import io.livekit.uniffi.LocalDataTrack as FfiLocalDataTrack
 
 /**
  * A data track published by the local participant. Obtain one from
- * [io.livekit.android.room.participant.LocalParticipant.publishDataTrack], then push frames with
- * [tryPush] or [send].
+ * [io.livekit.android.room.participant.LocalParticipant.publishDataTrack],
+ * then push frames with [tryPush] or [send].
  *
- * The publication follows this object's lifetime: keep a reference for as long as the track should
- * stay published — releasing the last reference unpublishes it, as does calling [unpublish].
+ * The publication stays live until [unpublish] is called, the SFU unpublishes
+ * the track, or the room disconnects. Dropping the last reference eventually
+ * unpublishes the track, but only once it is garbage collected — call
+ * [unpublish] to end the publication at a predictable point, or
+ * [io.livekit.android.room.participant.LocalParticipant.withDataTrack] to scope
+ * one to a block.
  *
  * ```
  * val result = room.localParticipant.publishDataTrack("telemetry")
