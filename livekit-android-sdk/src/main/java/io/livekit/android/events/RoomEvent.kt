@@ -161,6 +161,9 @@ sealed class RoomEvent(val room: Room) : Event() {
     /**
      * A [RemoteParticipant] published a data track.
      *
+     * Fires for every track, including those already published when this participant was
+     * first seen and those reattached after a full reconnect.
+     *
      * Collect frames in a separate coroutine so this event collector is not blocked.
      *
      * ```

@@ -906,7 +906,7 @@ constructor(
                         }
                     }
 
-                    is ParticipantEvent.DataTrackPublished -> emitWhenConnected(
+                    is ParticipantEvent.DataTrackPublished -> eventBus.postEvent(
                         RoomEvent.DataTrackPublished(
                             room = this@Room,
                             participant = it.participant,
