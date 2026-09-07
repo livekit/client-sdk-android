@@ -27,6 +27,7 @@ import io.livekit.uniffi.NoHandle
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import uniffi.livekit_datatrack.EncryptionProvider
+import uniffi.livekit_datatrack.PublishException
 
 class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
     /**
@@ -46,13 +47,22 @@ class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
      */
     var createError: LinkageError? = null
 
+    /**
+     * When set, every manager this creates fails [MockLocalDataTrackManager.publishTrack] with it,
+     * standing in for a publish the native core rejects.
+     */
+    var publishError: PublishException? = null
+
     override fun create(
         delegate: LocalDataTrackManagerDelegate,
         encryptionProvider: EncryptionProvider?,
     ): LocalDataTrackManagerInterface {
         createError?.let { throw it }
         lastEncryptionProvider = encryptionProvider
-        return MockLocalDataTrackManager(delegate).also { manager = it }
+        return MockLocalDataTrackManager(delegate).also {
+            it.publishError = publishError
+            manager = it
+        }
     }
 }
 
@@ -87,7 +97,11 @@ class MockLocalDataTrackManager(
         }
     }
 
+    /** Set to make [publishTrack] fail the way the native manager does. */
+    var publishError: PublishException? = null
+
     override suspend fun publishTrack(options: DataTrackOptions): LocalDataTrack {
+        publishError?.let { throw it }
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setPublishDataTrackRequest(
                 LivekitRtc.PublishDataTrackRequest.newBuilder()

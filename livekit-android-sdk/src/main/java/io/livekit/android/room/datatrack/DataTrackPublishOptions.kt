@@ -42,6 +42,9 @@ data class DataTrackPublishOptions(
  * A schema always describes frames in a specific encoding, so [frameEncoding] is required
  * alongside a [schema]. The declared metadata is surfaced to subscribers via [DataTrackInfo].
  *
+ * Whether a schema's encoding can actually describe frames in [frameEncoding] is checked when the
+ * track is published, surfacing as [DataTrackPublishException.InvalidSchema].
+ *
  * @param frameEncoding Encoding of the track's frames.
  * @param schema Schema describing the track's frames.
  */

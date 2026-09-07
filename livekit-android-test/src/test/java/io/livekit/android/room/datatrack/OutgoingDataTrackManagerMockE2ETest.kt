@@ -40,6 +40,7 @@ import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import uniffi.livekit_datatrack.PublishException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
@@ -66,6 +67,29 @@ class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
         val result = room.localParticipant.publishDataTrack("telemetry")
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is DataTrackPublishException.Internal)
+    }
+
+    /**
+     * The core rejects a schema whose encoding cannot describe the track's frames (and the other
+     * schema-metadata rules) before it allocates a handle. This covers the SDK's half: that the
+     * refusal reaches the caller as a typed failure rather than an opaque one.
+     */
+    @Test
+    fun publishDataTrackSurfacesInvalidSchemaFromTheCore() = runTest {
+        localDataTrackManagerFactory.publishError =
+            PublishException.InvalidSchema("Specified schema and frame encodings are incompatible")
+        connect()
+
+        val result = room.localParticipant.publishDataTrack(
+            "telemetry",
+            DataTrackPublishOptions(
+                DataTrackFrameEncoding.Cdr,
+                DataTrackSchemaId("reading.v1", DataTrackSchemaEncoding.JsonSchema),
+            ),
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is DataTrackPublishException.InvalidSchema)
     }
 
     @Test
