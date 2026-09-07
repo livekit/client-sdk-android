@@ -1414,7 +1414,6 @@ internal constructor(
     internal fun sendDataTrackSignalRequest(requestBytes: ByteArray) {
         // Data-track publish / subscribe signaling requires the publisher PC / `_data_track` DC.
         if (!hasPublished) {
-            hasPublished = true
             negotiatePublisher()
         }
         client.sendEncodedRequest(requestBytes)
