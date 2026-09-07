@@ -24,7 +24,6 @@ import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
 import livekit.org.webrtc.DataChannel
@@ -57,16 +56,6 @@ class DataChannelManager(
             .cancelOnSignal(signal)
             .takeWhile { it > amount }
             .collect()
-    }
-
-    suspend fun waitUntilOpen() {
-        if (state == DataChannel.State.OPEN) {
-            return
-        }
-        val signal = ::disposed.flow.map { if (it) Unit else null }
-        ::state.flow
-            .cancelOnSignal(signal)
-            .first { it == DataChannel.State.OPEN }
     }
 
     override fun onBufferedAmountChange(previousAmount: Long) {
