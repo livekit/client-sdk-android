@@ -63,7 +63,6 @@ import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
-import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CoroutineDispatcher

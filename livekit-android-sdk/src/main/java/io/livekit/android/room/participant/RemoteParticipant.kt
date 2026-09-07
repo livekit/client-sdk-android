@@ -23,7 +23,6 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.SignalClient
-import io.livekit.android.room.datatrack.DataTrackSid
 import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.track.KIND_AUDIO
 import io.livekit.android.room.track.KIND_VIDEO
@@ -35,7 +34,6 @@ import io.livekit.android.room.track.TrackException
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
-import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.RTCStatsGetter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
@@ -97,7 +95,15 @@ class RemoteParticipant(
         ): RemoteParticipant
     }
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
-    private val dataTracksLock = Any()
+
+    internal val dataTrackCollection = RemoteDataTrackCollection(
+        onPublished = { track ->
+            eventBus.postEvent(ParticipantEvent.DataTrackPublished(this, track), scope)
+        },
+        onUnpublished = { sid ->
+            eventBus.postEvent(ParticipantEvent.DataTrackUnpublished(this, sid), scope)
+        },
+    )
 
     /**
      * Data tracks published by this participant, keyed by track name.
@@ -116,8 +122,7 @@ class RemoteParticipant(
      */
     @FlowObservable
     @get:FlowObservable
-    var dataTracks: Map<String, RemoteDataTrack> by flowDelegate(emptyMap())
-        private set
+    val dataTracks: Map<String, RemoteDataTrack> by dataTrackCollection.delegate
 
     /**
      * Get a track publication with the corresponding sid.
@@ -284,70 +289,5 @@ class RemoteParticipant(
     // Internal methods just for posting events.
     internal fun onDataReceived(event: RoomEvent.DataReceived) {
         eventBus.postEvent(ParticipantEvent.DataReceived(this, event.data, event.topic, event.encryptionType), scope)
-    }
-
-    /**
-     * Adds the track, returning `false` if this exact track is already attached.
-     */
-    internal fun addDataTrack(track: RemoteDataTrack): Boolean {
-        val attached = synchronized(dataTracksLock) {
-            if (dataTracks.values.any { it === track }) {
-                return@synchronized false
-            }
-            dataTracks = dataTracks + (track.name to track)
-            true
-        }
-        if (attached) {
-            eventBus.postEvent(ParticipantEvent.DataTrackPublished(this, track), scope)
-        }
-        return attached
-    }
-
-    internal fun removeDataTrack(sid: DataTrackSid): RemoteDataTrack? {
-        // `info.sid` is an FFI call; resolve the instance before taking the lock.
-        val track = dataTracks.values.firstOrNull { it.info.sid == sid } ?: return null
-        synchronized(dataTracksLock) {
-            if (dataTracks.values.none { it === track }) {
-                return null
-            }
-            dataTracks = dataTracks - track.name
-            return track
-        }
-    }
-
-    /**
-     * Removes the track and emits [ParticipantEvent.DataTrackUnpublished], even if it was not
-     * attached (for example after a full reconnect detached it).
-     */
-    internal fun unpublishDataTrack(sid: DataTrackSid) {
-        removeDataTrack(sid)
-        eventBus.postEvent(ParticipantEvent.DataTrackUnpublished(this, sid), scope)
-    }
-
-    /**
-     * Unpublishes every attached data track and emits an unpublish event for each.
-     *
-     * @return The SIDs that were unpublished, for the room to emit matching [io.livekit.android.events.RoomEvent]s.
-     */
-    internal fun unpublishDataTracks(): List<DataTrackSid> {
-        val previous = synchronized(dataTracksLock) {
-            dataTracks.also { dataTracks = emptyMap() }
-        }
-        val sids = previous.values.map { it.info.sid }
-        for (sid in sids) {
-            eventBus.postEvent(ParticipantEvent.DataTrackUnpublished(this, sid), scope)
-        }
-        return sids
-    }
-
-    /**
-     * Drops attached data tracks without notifying. Used when the tracks outlive this participant
-     * object: a full reconnect recreates participants, but the incoming manager keeps its tracks
-     * and re-attaches them.
-     */
-    internal fun detachDataTracks() {
-        synchronized(dataTracksLock) {
-            dataTracks = emptyMap()
-        }
     }
 }

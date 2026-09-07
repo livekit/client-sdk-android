@@ -63,7 +63,11 @@ import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
+import io.livekit.android.room.participant.addDataTrack
+import io.livekit.android.room.participant.detachDataTracks
 import io.livekit.android.room.participant.publishTracksInfo
+import io.livekit.android.room.participant.unpublishDataTrack
+import io.livekit.android.room.participant.unpublishDataTracks
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC
 import io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC
