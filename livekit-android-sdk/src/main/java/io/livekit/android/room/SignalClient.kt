@@ -17,6 +17,7 @@
 package io.livekit.android.room
 
 import androidx.annotation.VisibleForTesting
+import com.google.protobuf.InvalidProtocolBufferException
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
@@ -741,9 +742,18 @@ constructor(
 
     /**
      * Sends a previously encoded [LivekitRtc.SignalRequest] (e.g. from UniFFI data track manager).
+     *
+     * Undecodable bytes are dropped rather than thrown: this runs on a callback from the native
+     * data track managers, so an exception here would unwind through the FFI boundary.
      */
     internal fun sendEncodedRequest(requestBytes: ByteArray) {
-        sendRequest(LivekitRtc.SignalRequest.parseFrom(requestBytes))
+        val request = try {
+            LivekitRtc.SignalRequest.parseFrom(requestBytes)
+        } catch (e: InvalidProtocolBufferException) {
+            LKLog.e(e) { "Discarding an encoded signal request that could not be parsed." }
+            return
+        }
+        sendRequest(request)
     }
 
     private fun sendRequestImpl(request: LivekitRtc.SignalRequest) {
