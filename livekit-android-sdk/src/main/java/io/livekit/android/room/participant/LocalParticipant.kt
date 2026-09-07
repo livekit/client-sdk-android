@@ -987,9 +987,11 @@ internal constructor(
     /**
      * Publishes a data track, allowing this participant to send frames to subscribers.
      *
-     * The publication follows the returned track's lifetime: keep a reference for as long as the
-     * track should stay published — releasing the last reference unpublishes it, as does calling
-     * [LocalDataTrack.unpublish].
+     * The publication stays live until [LocalDataTrack.unpublish] is called, the SFU unpublishes
+     * the track, or the room disconnects. Dropping the last reference to the returned track
+     * eventually unpublishes it, but only once it is garbage collected — call
+     * [LocalDataTrack.unpublish] to end the publication at a predictable point, or use
+     * [withDataTrack] to scope it to a block.
      *
      * ```
      * val result = room.localParticipant.publishDataTrack("telemetry")
