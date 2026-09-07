@@ -1031,7 +1031,7 @@ internal constructor(
      * room.localParticipant.defineSchema(schema, definition)
      * room.localParticipant.publishDataTrack(
      *     "reading",
-     *     DataTrackPublishOptions(schema, DataTrackFrameEncoding.Json),
+     *     DataTrackPublishOptions(DataTrackFrameEncoding.Json, schema),
      * )
      * ```
      *

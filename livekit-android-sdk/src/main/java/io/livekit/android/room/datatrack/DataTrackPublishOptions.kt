@@ -19,13 +19,33 @@ package io.livekit.android.room.datatrack
 /**
  * Options for publishing a data track.
  *
- * A schema always describes frames in a specific encoding, so [frameEncoding] should be set
- * whenever [schema] is. The declared metadata is surfaced to subscribers via [DataTrackInfo].
- *
- * @param schema Schema describing the track's frames.
- * @param frameEncoding Encoding of the track's frames.
+ * @param frameFormat Describes the track's frames. Leaving this unset publishes an untyped track.
  */
 data class DataTrackPublishOptions(
+    val frameFormat: DataTrackFrameFormat? = null,
+) {
+    /**
+     * Declares the frame format inline.
+     *
+     * @param frameEncoding Encoding of the track's frames.
+     * @param schema Schema describing the track's frames.
+     */
+    constructor(
+        frameEncoding: DataTrackFrameEncoding,
+        schema: DataTrackSchemaId? = null,
+    ) : this(DataTrackFrameFormat(frameEncoding, schema))
+}
+
+/**
+ * Describes the frames on a data track.
+ *
+ * A schema always describes frames in a specific encoding, so [frameEncoding] is required
+ * alongside a [schema]. The declared metadata is surfaced to subscribers via [DataTrackInfo].
+ *
+ * @param frameEncoding Encoding of the track's frames.
+ * @param schema Schema describing the track's frames.
+ */
+data class DataTrackFrameFormat(
+    val frameEncoding: DataTrackFrameEncoding,
     val schema: DataTrackSchemaId? = null,
-    val frameEncoding: DataTrackFrameEncoding? = null,
 )

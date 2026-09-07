@@ -74,8 +74,8 @@ constructor(
     suspend fun publishTrack(name: String, options: DataTrackPublishOptions? = null): Result<LocalDataTrack> {
         val ffiOptions = DataTrackOptions(
             name = name,
-            schema = options?.schema?.toFfi(),
-            frameEncoding = options?.frameEncoding?.toFfi(),
+            schema = options?.frameFormat?.schema?.toFfi(),
+            frameEncoding = options?.frameFormat?.frameEncoding?.toFfi(),
         )
         try {
             engineProvider.get().ensureDataTrackPublisherConnected()
