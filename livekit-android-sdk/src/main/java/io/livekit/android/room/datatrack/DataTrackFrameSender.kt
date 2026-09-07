@@ -100,6 +100,10 @@ internal class DataTrackFrameSender {
 
     /**
      * Queues a frame's packets for sending, evicting a previously queued frame (drop-oldest).
+     *
+     * Takes ownership of [packets] and of the arrays inside it: they are queued and handed to the
+     * channel as-is rather than copied, so a caller must not retain or mutate them afterwards.
+     * The packets arrive freshly lifted from the native manager, which keeps no reference to them.
      */
     fun sendOrQueue(packets: List<ByteArray>) {
         if (packets.isEmpty()) {
@@ -109,7 +113,7 @@ internal class DataTrackFrameSender {
         if (evicted != null) {
             LKLog.d { "Evicted queued data track frame (${evicted.size} packets) in favor of a newer one" }
         }
-        pendingFrame = packets.map { it.copyOf() }
+        pendingFrame = packets
         pump()
     }
 
