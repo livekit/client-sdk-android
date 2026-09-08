@@ -1273,7 +1273,10 @@ internal constructor(
             return
         }
         val (newOptions, newEncodings) = result
-        val simulcastTrack = track.addSimulcastTrack(codec, newEncodings)
+        // A duplicate SubscribedQualityUpdate can request a codec that is already being
+        // published (or mid-publish, before the sender is attached). Treat it as a no-op
+        // instead of throwing, so a repeated update doesn't crash the session.
+        val simulcastTrack = track.addSimulcastTrack(codec, newEncodings) ?: return
 
         val transceiverInit = RtpTransceiverInit(
             RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
