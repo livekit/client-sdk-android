@@ -242,6 +242,12 @@ constructor(
         addParam(CONNECT_QUERY_NETWORK_TYPE, networkInfo.getNetworkType().protoName)
         addParam(CONNECT_QUERY_CLIENT_PROTOCOL, options.clientProtocol.value.toString())
 
+        // Capabilities go out as a comma separated list of protobuf enum names, which is the form
+        // the server parses on this path. Peers read them back off ParticipantInfo.
+        if (clientInfo.capabilitiesCount > 0) {
+            addParam(CONNECT_QUERY_CAPABILITIES, clientInfo.capabilitiesList.joinToString(",") { it.name })
+        }
+
         return queryBuilder.toString()
     }
 
@@ -876,6 +882,14 @@ constructor(
                 // TODO
             }
 
+            LivekitRtc.SignalResponse.MessageCase.STORE_DATA_BLOB_RESPONSE -> {
+                // TODO
+            }
+
+            LivekitRtc.SignalResponse.MessageCase.GET_DATA_BLOB_RESPONSE -> {
+                // TODO
+            }
+
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
             null,
             -> {
@@ -996,6 +1010,7 @@ constructor(
         const val CONNECT_QUERY_NETWORK_TYPE = "network"
         const val CONNECT_QUERY_PARTICIPANT_SID = "sid"
         const val CONNECT_QUERY_CLIENT_PROTOCOL = "client_protocol"
+        const val CONNECT_QUERY_CAPABILITIES = "capabilities"
 
         const val SD_TYPE_ANSWER = "answer"
         const val SD_TYPE_OFFER = "offer"
@@ -1068,6 +1083,17 @@ enum class ClientProtocolVersion(val value: Int) {
      * instead of inline packets, lifting the 15 KB payload limit.
      */
     DATA_STREAM_RPC(1),
+
+    /**
+     * Data streams v2: the client understands single-packet data streams, where a small finite
+     * payload is carried inline in the stream header rather than as separate chunk and trailer
+     * packets.
+     *
+     * This is a baseline commitment, not an optional feature -- a peer that sees this version may
+     * send inline streams without further negotiation. Optional v2 features, such as
+     * `deflate-raw` compression, are negotiated separately via [ClientCapability].
+     */
+    DATA_STREAM_V2(2),
 }
 
 class ServerInfo(

@@ -17,14 +17,24 @@
 package io.livekit.android.test.mock
 
 import livekit.org.webrtc.DataChannel
+import java.util.concurrent.CopyOnWriteArrayList
 
 class MockDataChannel(private val label: String?) : DataChannel(1L) {
 
     var observer: Observer? = null
-    var sentBuffers = mutableListOf<Buffer>()
+
+    /**
+     * Buffers passed to [send], in order.
+     *
+     * Copy-on-write because sends no longer all originate from the test thread: data streams are
+     * driven by the Rust core, which emits packets from its own runtime threads, while assertions
+     * iterate this list from the test thread. A synchronized list would not be enough -- it still
+     * throws ConcurrentModificationException when traversed during a concurrent add.
+     */
+    var sentBuffers: MutableList<Buffer> = CopyOnWriteArrayList()
 
     /** Snapshot of the bytes visible at send time, captured via the Buffer's current position/limit. */
-    var sentPayloads = mutableListOf<ByteArray>()
+    var sentPayloads: MutableList<ByteArray> = CopyOnWriteArrayList()
     var sendResult = true
 
     /**

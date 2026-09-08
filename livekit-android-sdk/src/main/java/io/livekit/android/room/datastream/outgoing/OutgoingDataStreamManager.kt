@@ -17,24 +17,15 @@
 package io.livekit.android.room.datastream.outgoing
 
 import androidx.annotation.CheckResult
-import com.google.protobuf.ByteString
-import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.datastream.ByteStreamInfo
+import io.livekit.android.room.datastream.DataStreams
 import io.livekit.android.room.datastream.StreamBytesOptions
 import io.livekit.android.room.datastream.StreamException
-import io.livekit.android.room.datastream.StreamInfo
 import io.livekit.android.room.datastream.StreamTextOptions
 import io.livekit.android.room.datastream.TextStreamInfo
-import io.livekit.android.room.participant.Participant
-import io.livekit.android.util.LKLog
-import livekit.LivekitModels
-import livekit.LivekitModels.DataPacket
-import livekit.LivekitModels.DataStream
+import io.livekit.android.util.rethrowIfCancellationSignal
 import java.io.File
 import java.io.InputStream
-import java.util.Collections
-import java.util.Date
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
 interface OutgoingDataStreamManager {
@@ -73,6 +64,25 @@ interface OutgoingDataStreamManager {
     }
 
     /**
+     * Send a byte payload through a data stream.
+     *
+     * Prefer this over opening a stream with [streamBytes] when the whole payload is already in
+     * memory: because the size is known up front, it can be sent as a single packet and compressed,
+     * where recipients support it.
+     */
+    @CheckResult
+    suspend fun sendBytes(data: ByteArray, options: StreamBytesOptions = StreamBytesOptions()): Result<ByteStreamInfo> {
+        return useStreamSender(streamBytes(options)) {
+            val result = write(data)
+            if (result.isFailure) {
+                throw (result.exceptionOrNull() ?: Exception("Unknown error."))
+            }
+            close()
+            return@useStreamSender info
+        }
+    }
+
+    /**
      * Send a file through a data stream.
      */
     @CheckResult
@@ -89,219 +99,47 @@ interface OutgoingDataStreamManager {
 }
 
 /**
+ * Adapts [OutgoingDataStreamManager] onto [DataStreams], which owns the actual implementation.
+ *
+ * The whole-payload sends are overridden rather than left to the interface's default
+ * open-write-close implementations, so that they reach the core's one-shot paths and can be sent as
+ * a single packet and/or compressed.
+ *
  * @suppress
  */
-class OutgoingDataStreamManagerImpl
-@Inject
-constructor(
-    val engine: RTCEngine,
+class OutgoingDataStreamManagerImpl @Inject constructor(
+    private val dataStreams: DataStreams,
 ) : OutgoingDataStreamManager {
 
-    private data class Descriptor(
-        val info: StreamInfo,
-        val destinationIdentityStrings: List<String>,
-        var writtenLength: Long = 0L,
-        val nextChunkIndex: AtomicLong = AtomicLong(0),
-    )
-
-    private val openStreams = Collections.synchronizedMap(mutableMapOf<String, Descriptor>())
-
-    @CheckResult
-    private suspend fun openStream(
-        info: StreamInfo,
-        destinationIdentities: List<Participant.Identity> = emptyList(),
-    ): Result<Unit> {
-        if (openStreams.containsKey(info.id)) {
-            throw StreamException.AlreadyOpenedException()
-        }
-
-        val destinationIdentityStrings = destinationIdentities.map { it.value }
-        val headerPacket = with(DataPacket.newBuilder()) {
-            addAllDestinationIdentities(destinationIdentityStrings)
-            kind = DataPacket.Kind.RELIABLE
-            streamHeader = with(DataStream.Header.newBuilder()) {
-                this.streamId = info.id
-                this.topic = info.topic
-                this.timestamp = info.timestampMs
-                this.putAllAttributes(info.attributes)
-
-                info.totalSize?.let {
-                    this.totalLength = it
-                }
-
-                when (info) {
-                    is ByteStreamInfo -> {
-                        this.mimeType = info.mimeType
-                        this.byteHeader = with(DataStream.ByteHeader.newBuilder()) {
-                            if (info.name != null) {
-                                this.name = info.name
-                            }
-                            build()
-                        }
-                    }
-
-                    is TextStreamInfo -> {
-                        textHeader = with(DataStream.TextHeader.newBuilder()) {
-                            this.operationType = info.operationType.toProto()
-                            this.version = info.version
-                            if (info.replyToStreamId != null) {
-                                this.replyToStreamId = info.replyToStreamId
-                            }
-                            this.addAllAttachedStreamIds(info.attachedStreamIds)
-                            this.generated = info.generated
-                            build()
-                        }
-                    }
-                }
-                build()
-            }
-            build()
-        }
-
-        val result = engine.sendData(headerPacket)
-        if (result.isFailure) {
-            return result
-        }
-
-        val descriptor = Descriptor(info, destinationIdentityStrings)
-        openStreams[info.id] = descriptor
-
-        LKLog.d { "Opened send stream ${info.id}" }
-        return Result.success(Unit)
-    }
-
-    @CheckResult
-    private suspend fun sendChunk(streamId: String, dataChunk: ByteArray): Result<Unit> {
-        val descriptor = openStreams[streamId] ?: throw StreamException.UnknownStreamException()
-        val nextChunkIndex = descriptor.nextChunkIndex.getAndIncrement()
-
-        val chunkPacket = with(DataPacket.newBuilder()) {
-            addAllDestinationIdentities(descriptor.destinationIdentityStrings)
-            kind = DataPacket.Kind.RELIABLE
-            streamChunk = with(DataStream.Chunk.newBuilder()) {
-                this.streamId = streamId
-                this.content = ByteString.copyFrom(dataChunk)
-                this.chunkIndex = nextChunkIndex
-                build()
-            }
-            build()
-        }
-
-        engine.waitForBufferStatusLow(DataPacket.Kind.RELIABLE)
-        return engine.sendData(chunkPacket)
-    }
-
-    private suspend fun closeStream(streamId: String, reason: String? = null) {
-        val descriptor = openStreams[streamId] ?: throw StreamException.UnknownStreamException()
-
-        val trailerPacket = with(DataPacket.newBuilder()) {
-            addAllDestinationIdentities(descriptor.destinationIdentityStrings)
-            kind = DataPacket.Kind.RELIABLE
-            streamTrailer = with(DataStream.Trailer.newBuilder()) {
-                this.streamId = streamId
-                if (reason != null) {
-                    this.reason = reason
-                }
-                build()
-            }
-            build()
-        }
-
-        engine.waitForBufferStatusLow(DataPacket.Kind.RELIABLE)
-        val result = engine.sendData(trailerPacket)
-
-        if (result.isFailure) {
-            // Log close failure only for now.
-            LKLog.w(result.exceptionOrNull()) { "Error when closing stream!" }
-        }
-
-        openStreams.remove(streamId)
-        LKLog.d { "Closed send stream $streamId" }
-    }
-
     override suspend fun streamText(options: StreamTextOptions): TextStreamSender {
-        val streamInfo = TextStreamInfo(
-            id = options.streamId,
-            topic = options.topic,
-            timestampMs = Date().time,
-            totalSize = options.totalSize,
-            attributes = options.attributes,
-            operationType = options.operationType,
-            version = options.version,
-            replyToStreamId = options.replyToStreamId,
-            attachedStreamIds = options.attachedStreamIds,
-            generated = false,
-            encryptionType = if (engine.e2EEManager?.isDataChannelEncryptionEnabled() ?: false) {
-                LivekitModels.Encryption.Type.GCM
-            } else {
-                LivekitModels.Encryption.Type.NONE
-            },
-        )
-
-        val streamId = options.streamId
-        val result = openStream(streamInfo, options.destinationIdentities)
-
-        if (result.isFailure) {
-            throw result.exceptionOrNull() ?: StreamException.TerminatedException("Unknown failure when opening the stream!")
-        }
-
-        val destination = ManagerStreamDestination<String>(streamId)
-        return TextStreamSender(
-            streamInfo,
-            destination,
-        )
+        return dataStreams.streamText(options)
     }
 
     override suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender {
-        val streamInfo = ByteStreamInfo(
-            id = options.streamId,
-            topic = options.topic,
-            timestampMs = Date().time,
-            totalSize = options.totalSize,
-            attributes = options.attributes,
-            mimeType = options.mimeType,
-            name = options.name,
-            encryptionType = if (engine.e2EEManager?.isDataChannelEncryptionEnabled() ?: false) {
-                LivekitModels.Encryption.Type.GCM
-            } else {
-                LivekitModels.Encryption.Type.NONE
-            },
-        )
-
-        val streamId = options.streamId
-        val result = openStream(streamInfo, options.destinationIdentities)
-
-        if (result.isFailure) {
-            throw result.exceptionOrNull() ?: StreamException.TerminatedException("Unknown failure when opening the stream!")
-        }
-        val destination = ManagerStreamDestination<ByteArray>(streamId)
-        return ByteStreamSender(
-            streamInfo,
-            destination,
-        )
+        return dataStreams.streamBytes(options)
     }
 
-    private inner class ManagerStreamDestination<T>(val streamId: String) : StreamDestination<T> {
-        override val isOpen: Boolean
-            get() = openStreams.contains(streamId)
+    override suspend fun sendText(text: String, options: StreamTextOptions): Result<TextStreamInfo> {
+        return runCatchingStream { dataStreams.sendText(text, options) }
+    }
 
-        override suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit> {
-            if (!isOpen) {
-                return Result.failure(StreamException.TerminatedException("Stream is closed!"))
-            }
-            val chunks = chunker.invoke(data, RTCEngine.TARGET_DATA_PACKET_SIZE)
+    override suspend fun sendBytes(data: ByteArray, options: StreamBytesOptions): Result<ByteStreamInfo> {
+        return runCatchingStream { dataStreams.sendBytes(data, options) }
+    }
 
-            for (chunk in chunks) {
-                val result = sendChunk(streamId, chunk)
-                if (result.isFailure) {
-                    return result
-                }
-            }
-            return Result.success(Unit)
-        }
+    override suspend fun sendFile(file: File, options: StreamBytesOptions): Result<ByteStreamInfo> {
+        // Options are passed through untouched: the previous implementation did not infer a name,
+        // MIME type or size from the file either, and doing so now would change the bytes on the
+        // wire for existing callers.
+        return runCatchingStream { dataStreams.sendFile(file.absolutePath, options) }
+    }
 
-        override suspend fun close(reason: String?) {
-            closeStream(streamId, reason)
+    private inline fun <T> runCatchingStream(body: () -> T): Result<T> {
+        return try {
+            Result.success(body())
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            Result.failure(e)
         }
     }
 }

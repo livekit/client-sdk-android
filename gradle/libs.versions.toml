@@ -32,6 +32,15 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
+# Data streams v2 core. Unreleased: build it from rust-sdks with
+# `cargo make android-package-local` and it resolves from mavenLocal(). Switch to a published
+# version once livekit-uniffi ships this API.
+livekit-uniffi = "0.0.1"
+# livekit-uniffi's AAR pins jna 5.16.0, whose libjnidispatch.so fails to dlopen on 16 KB
+# page-size devices ("program alignment (8192) cannot be smaller than system page size").
+# 5.19.1 loads correctly there, so the SDK overrides the transitive pin. Also used for the
+# desktop JNA dispatch library on the unit-test classpath; see gradle/uniffi-native-lib.gradle.
+jna = "5.19.1"
 
 [libraries]
 android-jain-sip-ri = { module = "javax.sip:android-jain-sip-ri", version.ref = "androidJainSipRi" }
@@ -59,6 +68,8 @@ androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", 
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "androidx-lifecycle" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanaryAndroid" }
+livekit-uniffi = { module = "io.livekit:livekit-uniffi-android", version.ref = "livekit-uniffi" }
+jna-desktop = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 okhttp-lib = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-coroutines = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavalite" }

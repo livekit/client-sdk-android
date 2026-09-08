@@ -14,7 +14,16 @@
  limitations under the License.
 -->
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      livekit-uniffi's Gradle module declares minSdk 24 while this SDK supports 21. The native
+      library itself is built against platform 21 (cargo-ndk's default), so the declaration is
+      the only thing in the way. Overriding keeps this SDK's minSdk at 21; remove once
+      livekit-uniffi lowers its own declared minSdk to match.
+    -->
+    <uses-sdk tools:overrideLibrary="io.livekit.uniffi" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />

@@ -98,7 +98,9 @@ class ProtoConverterTest(
             ProtoConverterTestCase(
                 LivekitAgentDispatch.RoomAgentDispatch::class.java,
                 RoomAgentDispatch::class.java,
-                whitelist = listOf("restartPolicy", "deployment"),
+                // `attributes` arrived with a protocol bump and is not surfaced yet; adding it
+                // would be an unrelated public API change.
+                whitelist = listOf("restartPolicy", "deployment", "attributes"),
             ),
         )
 

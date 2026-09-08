@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Stops LeakCanary installing itself.
+
+  LeakCanary watches ViewModels by registering a ViewModelProvider.Factory, and the versions
+  available (2.8.1, and 2.14 checked too) are binary-incompatible with androidx.lifecycle 2.8.0:
+  every debug launch dies in Activity.onCreate with
+
+      java.lang.AbstractMethodError: abstract method
+      "androidx.lifecycle.ViewModel androidx.lifecycle.ViewModelProvider$Factory.create(
+       kotlin.reflect.KClass, androidx.lifecycle.viewmodel.CreationExtras)"
+      on receiver leakcanary.internal.ViewModelClearedWatcher$...
+
+  Removing the auto-install provider is LeakCanary's own documented way to turn it off. Drop this
+  file once a LeakCanary release works against lifecycle 2.8+, or if the watcher is configured off
+  some other way.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <provider
+            android:name="leakcanary.internal.MainProcessAppWatcherInstaller"
+            tools:node="remove" />
+    </application>
+</manifest>
