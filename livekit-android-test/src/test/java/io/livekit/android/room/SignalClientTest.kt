@@ -16,6 +16,9 @@
 
 package io.livekit.android.room
 
+import io.livekit.android.room.datatrack.DataTrackSchemaEncoding
+import io.livekit.android.room.datatrack.DataTrackSchemaException
+import io.livekit.android.room.datatrack.DataTrackSchemaId
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.NetworkType
 import io.livekit.android.test.BaseTest
@@ -41,6 +44,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocketListener
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -54,6 +58,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
+import com.google.protobuf.ByteString as PbByteString
 
 @ExperimentalCoroutinesApi
 class SignalClientTest : BaseTest() {
@@ -125,6 +130,7 @@ class SignalClientTest : BaseTest() {
         val response = job.await()
         assertEquals(true, client.isConnected)
         assertEquals(response, JOIN.join)
+        assertArrayEquals(JOIN.toByteArray(), client.lastJoinEncoded)
     }
 
     @Test
@@ -499,6 +505,137 @@ class SignalClientTest : BaseTest() {
             val result = runCatching { reconnectJob.await() }
             assertTrue("reconnect should have failed", result.isFailure)
         }
+    }
+
+    @Test
+    fun storeDataBlobSucceeds() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+
+        val key = DataTrackSchemaId("reading.v1", DataTrackSchemaEncoding.JsonSchema).blobKey
+        val storeJob = async { client.sendStoreDataBlob(key, "{}".toByteArray()) }
+        yield()
+
+        val sent = LivekitRtc.SignalRequest.parseFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+        assertTrue(sent.hasStoreDataBlobRequest())
+        val requestId = sent.storeDataBlobRequest.requestId
+
+        client.onMessage(
+            wsFactory.ws,
+            LivekitRtc.SignalResponse.newBuilder()
+                .setStoreDataBlobResponse(
+                    LivekitRtc.StoreDataBlobResponse.newBuilder()
+                        .setRequestId(requestId)
+                        .setKey(key),
+                )
+                .build()
+                .toOkioByteString(),
+        )
+
+        assertTrue(storeJob.await().isSuccess)
+    }
+
+    @Test
+    fun sendEncodedRequestForwardsValidBytes() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+        val before = wsFactory.ws.sentRequests.size
+
+        val encoded = LivekitRtc.SignalRequest.newBuilder()
+            .setPing(1234)
+            .build()
+            .toByteArray()
+        client.sendEncodedRequest(encoded)
+
+        assertEquals(before + 1, wsFactory.ws.sentRequests.size)
+        val sent = LivekitRtc.SignalRequest.parseFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+        assertEquals(1234L, sent.ping)
+    }
+
+    /**
+     * The native data track managers call this back across the FFI boundary, where a thrown
+     * parse failure would unwind into Rust.
+     */
+    @Test
+    fun sendEncodedRequestDropsUnparseableBytes() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+        val before = wsFactory.ws.sentRequests.size
+
+        client.sendEncodedRequest(byteArrayOf(-1, -1, -1, -1, -1, -1))
+
+        assertEquals(before, wsFactory.ws.sentRequests.size)
+    }
+
+    @Test
+    fun getDataBlobReturnsContents() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+
+        val key = DataTrackSchemaId("reading.v1", DataTrackSchemaEncoding.JsonSchema).blobKey
+        val contents = """{"type":"object"}""".toByteArray()
+        val getJob = async { client.sendGetDataBlob(key, "publisher") }
+        yield()
+
+        val sent = LivekitRtc.SignalRequest.parseFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+        assertTrue(sent.hasGetDataBlobRequest())
+        assertEquals("publisher", sent.getDataBlobRequest.participantIdentity)
+
+        client.onMessage(
+            wsFactory.ws,
+            LivekitRtc.SignalResponse.newBuilder()
+                .setGetDataBlobResponse(
+                    LivekitRtc.GetDataBlobResponse.newBuilder()
+                        .setRequestId(sent.getDataBlobRequest.requestId)
+                        .setBlob(
+                            LivekitModels.DataBlob.newBuilder()
+                                .setKey(key)
+                                .setContents(PbByteString.copyFrom(contents)),
+                        ),
+                )
+                .build()
+                .toOkioByteString(),
+        )
+
+        assertArrayEquals(contents, getJob.await().getOrThrow())
+    }
+
+    @Test
+    fun dataBlobRequestFailureCompletesWithRejected() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+
+        val key = DataTrackSchemaId("missing.v1", DataTrackSchemaEncoding.Protobuf).blobKey
+        val getJob = async { client.sendGetDataBlob(key, "publisher") }
+        yield()
+
+        val sent = LivekitRtc.SignalRequest.parseFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+        client.onMessage(
+            wsFactory.ws,
+            LivekitRtc.SignalResponse.newBuilder()
+                .setRequestResponse(
+                    LivekitRtc.RequestResponse.newBuilder()
+                        .setRequestId(sent.getDataBlobRequest.requestId)
+                        .setReason(LivekitRtc.RequestResponse.Reason.NOT_FOUND)
+                        .setMessage("not found"),
+                )
+                .build()
+                .toOkioByteString(),
+        )
+
+        val error = getJob.await().exceptionOrNull()
+        assertTrue(error is DataTrackSchemaException.Rejected)
+        assertEquals("not found", error?.message)
     }
 
     // mock data

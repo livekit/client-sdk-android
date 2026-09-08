@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +30,14 @@ import io.livekit.android.dagger.CapabilitiesGetter
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.e2ee.DataPacketCryptorManager
 import io.livekit.android.e2ee.KeyProvider
+import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
+import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
 import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
 import io.livekit.android.test.mock.e2ee.ReversingDataPacketCryptorManager
+import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
+import io.livekit.android.test.mock.room.datatrack.MockRemoteDataTrackManagerFactory
 import io.livekit.android.webrtc.PeerConnectionFactoryManager
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import livekit.org.webrtc.EglBase
@@ -138,4 +142,28 @@ object TestRTCModule {
             return ReversingDataPacketCryptorManager()
         }
     }
+
+    @Provides
+    @Singleton
+    fun mockLocalDataTrackManagerFactory(): MockLocalDataTrackManagerFactory {
+        return MockLocalDataTrackManagerFactory()
+    }
+
+    @Provides
+    @Singleton
+    fun localDataTrackManagerFactory(
+        factory: MockLocalDataTrackManagerFactory,
+    ): LocalDataTrackManagerFactory = factory
+
+    @Provides
+    @Singleton
+    fun mockRemoteDataTrackManagerFactory(): MockRemoteDataTrackManagerFactory {
+        return MockRemoteDataTrackManagerFactory()
+    }
+
+    @Provides
+    @Singleton
+    fun remoteDataTrackManagerFactory(
+        factory: MockRemoteDataTrackManagerFactory,
+    ): RemoteDataTrackManagerFactory = factory
 }

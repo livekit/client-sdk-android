@@ -36,6 +36,8 @@ import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.e2ee.DataPacketCryptorManager
 import io.livekit.android.e2ee.DataPacketCryptorManagerImpl
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
+import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
@@ -46,6 +48,8 @@ import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.RTCThreadTokenImpl
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
+import io.livekit.uniffi.LocalDataTrackManager
+import io.livekit.uniffi.RemoteDataTrackManager
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.Logging
@@ -387,6 +391,20 @@ internal object RTCModule {
     @Provides
     fun dataPacketCryptorManagerFactory(): DataPacketCryptorManager.Factory {
         return DataPacketCryptorManagerImpl.Factory
+    }
+
+    @Provides
+    fun localDataTrackManagerFactory(): LocalDataTrackManagerFactory {
+        return LocalDataTrackManagerFactory { delegate, encryptionProvider ->
+            LocalDataTrackManager(delegate, encryptionProvider)
+        }
+    }
+
+    @Provides
+    fun remoteDataTrackManagerFactory(): RemoteDataTrackManagerFactory {
+        return RemoteDataTrackManagerFactory { delegate, decryptionProvider ->
+            RemoteDataTrackManager(delegate, decryptionProvider)
+        }
     }
 
     @Provides

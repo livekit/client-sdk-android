@@ -32,6 +32,7 @@ import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.LKLog
+import livekit.LivekitModels.Encryption
 import livekit.org.webrtc.FrameCryptor
 import livekit.org.webrtc.FrameCryptor.FrameCryptionState
 import livekit.org.webrtc.FrameCryptorAlgorithm
@@ -71,6 +72,16 @@ constructor(
 
     fun isDataChannelEncryptionEnabled(): Boolean {
         return enabled && dataChannelEncryptionEnabled
+    }
+
+    /**
+     * Whether data-track frames should be encrypted: the runtime flag plus a configured
+     * encryption type (unlike the data-channel gate, which also requires
+     * [dataChannelEncryptionEnabled]).
+     */
+    internal fun isDataTrackEncryptionEnabled(): Boolean {
+        val type = room?.e2eeOptions?.encryptionType ?: return false
+        return enabled && type != Encryption.Type.NONE
     }
 
     fun keyProvider(): KeyProvider {

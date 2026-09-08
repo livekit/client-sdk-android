@@ -39,23 +39,25 @@ data class TokenRequestOptions(
      * Optional deployment to target. Leave empty to target the production deployment.
      */
     val agentDeployment: String? = null,
+    /**
+     * Attributes to set on the dispatched agent participant.
+     */
+    val agentAttributes: Map<String, String>? = null,
 )
 
 /**
  * Converts a [TokenRequestOptions] to [TokenSourceRequest], a JSON serializable request body.
  */
 fun TokenRequestOptions.toRequest(): TokenSourceRequest {
-    val agents = if (agentName != null || agentMetadata != null || agentDeployment != null) {
-        listOf(
-            RoomAgentDispatch(
-                agentName = agentName,
-                metadata = agentMetadata,
-                deployment = agentDeployment,
-            ),
-        )
-    } else {
-        null
-    }
+    val dispatch = RoomAgentDispatch(
+        agentName = agentName,
+        metadata = agentMetadata,
+        deployment = agentDeployment,
+        attributes = agentAttributes,
+    )
+    // Omit the dispatch entirely when the caller set none of its fields; comparing against a
+    // default instance keeps this correct as fields are added.
+    val agents = if (dispatch == RoomAgentDispatch()) null else listOf(dispatch)
     return TokenSourceRequest(
         roomName = roomName,
         participantName = participantName,
@@ -114,6 +116,10 @@ data class RoomAgentDispatch(
      * Optional deployment to target. Leave empty to target the production deployment.
      */
     val deployment: String? = null,
+    /**
+     * Attributes to set on the dispatched agent participant.
+     */
+    val attributes: Map<String, String>? = null,
 )
 
 @SuppressLint("UnsafeOptInUsageError")

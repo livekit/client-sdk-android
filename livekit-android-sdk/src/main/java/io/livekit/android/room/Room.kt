@@ -48,6 +48,10 @@ import io.livekit.android.events.collect
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.renderer.TextureViewRenderer
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
+import io.livekit.android.room.datatrack.DataTrackSid
+import io.livekit.android.room.datatrack.IncomingDataTrackEvent
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.ReconnectPolicy
@@ -59,7 +63,11 @@ import io.livekit.android.room.participant.ParticipantListener
 import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
+import io.livekit.android.room.participant.addDataTrack
+import io.livekit.android.room.participant.detachDataTracks
 import io.livekit.android.room.participant.publishTracksInfo
+import io.livekit.android.room.participant.unpublishDataTrack
+import io.livekit.android.room.participant.unpublishDataTracks
 import io.livekit.android.room.provisions.LKObjects
 import io.livekit.android.room.rpc.RPC_REQUEST_DATA_STREAM_TOPIC
 import io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC
@@ -150,6 +158,7 @@ constructor(
     private val connectionWarmer: ConnectionWarmer,
     private val audioRecordPrewarmer: AudioRecordPrewarmer,
     private val incomingDataStreamManager: IncomingDataStreamManager,
+    private val incomingDataTrackManager: IncomingDataTrackManager,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
@@ -351,6 +360,9 @@ constructor(
      */
     var reconnectPolicy: ReconnectPolicy by engine::reconnectPolicy
 
+    /**
+     * The local participant.
+     */
     val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
     }
@@ -483,6 +495,7 @@ constructor(
             // Setup local participant.
             localParticipant.reinitialize(options)
             setupLocalParticipantEventHandling()
+            setupIncomingDataTrackEventHandling()
 
             if (roomOptions.e2eeOptions != null) {
                 e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
@@ -783,14 +796,53 @@ constructor(
         }
     }
 
+    private fun setupIncomingDataTrackEventHandling() {
+        coroutineScope.launch {
+            incomingDataTrackManager.events.collect { event ->
+                when (event) {
+                    is IncomingDataTrackEvent.TrackPublished -> attachRemoteDataTrack(event.track)
+                    is IncomingDataTrackEvent.TrackUnpublished -> unpublishRemoteDataTrack(event.sid, event.track)
+                }
+            }
+        }
+    }
+
+    private fun attachRemoteDataTrack(track: RemoteDataTrack) {
+        val participant = remoteParticipants[track.publisherIdentity]
+        if (participant == null) {
+            LKLog.d { "Data track published by not-yet-known participant ${track.publisherIdentity}" }
+            return
+        }
+        participant.addDataTrack(track)
+    }
+
+    private fun unpublishRemoteDataTrack(sid: DataTrackSid, track: RemoteDataTrack) {
+        val participant = remoteParticipants[track.publisherIdentity] ?: return
+        participant.unpublishDataTrack(sid)
+        eventBus.postEvent(RoomEvent.DataTrackUnpublished(this, participant, sid), coroutineScope)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun reattachRemoteDataTracks() {
+        for (track in incomingDataTrackManager.snapshotRemoteTracks()) {
+            attachRemoteDataTrack(track)
+        }
+    }
+
     private fun handleParticipantDisconnect(identity: Participant.Identity) {
         val newParticipants = mutableRemoteParticipants.toMutableMap()
         val removedParticipant = newParticipants.remove(identity) ?: return
+        val unpublishedDataSids = removedParticipant.unpublishDataTracks()
         removedParticipant.trackPublications.values.toList().forEach { publication ->
             removedParticipant.unpublishTrack(publication.sid, true)
         }
 
         mutableRemoteParticipants = newParticipants
+        for (sid in unpublishedDataSids) {
+            eventBus.postEvent(RoomEvent.DataTrackUnpublished(this, removedParticipant, sid), coroutineScope)
+        }
         eventBus.postEvent(RoomEvent.ParticipantDisconnected(this, removedParticipant), coroutineScope)
 
         localParticipant.handleParticipantDisconnect(identity)
@@ -847,6 +899,14 @@ constructor(
                             )
                         }
                     }
+
+                    is ParticipantEvent.DataTrackPublished -> eventBus.postEvent(
+                        RoomEvent.DataTrackPublished(
+                            room = this@Room,
+                            participant = it.participant,
+                            track = it.track,
+                        ),
+                    )
 
                     is ParticipantEvent.TrackStreamStateChanged -> eventBus.postEvent(
                         RoomEvent.TrackStreamStateChanged(
@@ -1039,7 +1099,7 @@ constructor(
         incomingDataStreamManager.clearOpenStreams()
     }
 
-    private fun sendSyncState() {
+    private suspend fun sendSyncState() {
         // Whether we're sending subscribed tracks or tracks to unsubscribe.
         val sendUnsub = connectOptions.autoSubscribe
         val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
@@ -1453,7 +1513,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onSignalConnected(isResume: Boolean) {
+    override suspend fun onSignalConnected(isResume: Boolean) {
         if (isResume) {
             // during resume reconnection, need to send sync state upon signal connection.
             sendSyncState()
@@ -1465,6 +1525,7 @@ constructor(
      */
     override fun onFullReconnecting() {
         localParticipant.prepareForFullReconnect()
+        remoteParticipants.values.forEach { it.detachDataTracks() }
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
             .forEach { identity -> handleParticipantDisconnect(identity) }
     }
