@@ -55,6 +55,7 @@ import io.livekit.android.webrtc.DataPacketBuffer
 import io.livekit.android.webrtc.DataPacketItem
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
+import io.livekit.android.webrtc.ensureStereoOpus
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
@@ -1158,20 +1159,37 @@ internal constructor(
                 return@launch
             }
 
-            run<Unit> {
-                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
-                    is Either.Left -> Unit
-                    is Either.Right -> {
-                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
-                        return@launch
-                    }
-                }
-            }
+            val stereoAnswer = answer.ensureStereoOpus(sessionDescription)
+
+            val answerToSend = setLocalDescriptionWithStereoFallback(
+                stereoAnswer = stereoAnswer,
+                fallbackAnswer = answer,
+            ) ?: return@launch
 
             if (isClosed) {
                 return@launch
             }
-            client.sendAnswer(answer, offerId)
+            client.sendAnswer(answerToSend, offerId)
+        }
+    }
+
+    private suspend fun setLocalDescriptionWithStereoFallback(
+        stereoAnswer: SessionDescription,
+        fallbackAnswer: SessionDescription,
+    ): SessionDescription? {
+        when (val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()) {
+            is Either.Left -> return stereoAnswer
+            is Either.Right -> LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
+        }
+        // Fall back to the un-munged answer rather than leaving the
+        // subscriber without a local description (mirrors
+        // PeerConnectionTransport.setMungedSdp).
+        when (val fallback = subscriber?.withPeerConnection { setLocalDescription(fallbackAnswer) }.nullSafe()) {
+            is Either.Left -> return fallbackAnswer
+            is Either.Right -> {
+                LKLog.e { "error setting local description for answer: ${fallback.value}" }
+                return null
+            }
         }
     }
 
