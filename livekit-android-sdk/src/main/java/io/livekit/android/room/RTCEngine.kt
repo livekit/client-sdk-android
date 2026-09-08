@@ -1177,20 +1177,20 @@ internal constructor(
         stereoAnswer: SessionDescription,
         fallbackAnswer: SessionDescription,
     ): SessionDescription? {
-        val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()
-        if (outcome is Either.Left) {
-            return stereoAnswer
+        when (val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()) {
+            is Either.Left -> return stereoAnswer
+            is Either.Right -> LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
         }
-        LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
         // Fall back to the un-munged answer rather than leaving the
         // subscriber without a local description (mirrors
         // PeerConnectionTransport.setMungedSdp).
-        val fallback = subscriber?.withPeerConnection { setLocalDescription(fallbackAnswer) }.nullSafe()
-        if (fallback is Either.Left) {
-            return fallbackAnswer
+        when (val fallback = subscriber?.withPeerConnection { setLocalDescription(fallbackAnswer) }.nullSafe()) {
+            is Either.Left -> return fallbackAnswer
+            is Either.Right -> {
+                LKLog.e { "error setting local description for answer: ${fallback.value}" }
+                return null
+            }
         }
-        LKLog.e { "error setting local description for answer: ${fallback.value}" }
-        return null
     }
 
     override fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
