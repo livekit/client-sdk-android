@@ -55,6 +55,7 @@ import io.livekit.android.webrtc.DataPacketBuffer
 import io.livekit.android.webrtc.DataPacketItem
 import io.livekit.android.webrtc.RTCStatsGetter
 import io.livekit.android.webrtc.copy
+import io.livekit.android.webrtc.ensureStereoOpus
 import io.livekit.android.webrtc.isConnected
 import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
@@ -1158,20 +1159,37 @@ internal constructor(
                 return@launch
             }
 
-            run<Unit> {
-                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
+            val stereoAnswer = answer.ensureStereoOpus(sessionDescription)
+
+            val shouldFallback = run {
+                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()) {
+                    is Either.Left -> false
+                    is Either.Right -> {
+                        LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
+                        true
+                    }
+                }
+            }
+
+            if (shouldFallback) {
+                // Fall back to the un-munged answer rather than leaving the
+                // subscriber without a local description (mirrors
+                // PeerConnectionTransport.setMungedSdp).
+                when (val fallback = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
                     is Either.Left -> Unit
                     is Either.Right -> {
-                        LKLog.e { "error setting local description for answer: ${outcome.value}" }
+                        LKLog.e { "error setting local description for answer: ${fallback.value}" }
                         return@launch
                     }
                 }
+                client.sendAnswer(answer, offerId)
+                return@launch
             }
 
             if (isClosed) {
                 return@launch
             }
-            client.sendAnswer(answer, offerId)
+            client.sendAnswer(stereoAnswer, offerId)
         }
     }
 
