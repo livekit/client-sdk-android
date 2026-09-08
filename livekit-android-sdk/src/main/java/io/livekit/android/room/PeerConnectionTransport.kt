@@ -94,6 +94,11 @@ constructor(
     private var renegotiate = false
 
     private val trackBitrates = mutableMapOf<TrackBitrateInfoKey, TrackBitrateInfo>()
+
+    // x-google-start-bitrate is a connection-level BWE hint in libwebrtc. Keep it
+    // available through data-channel/audio-only offers and consume it only after a
+    // local video m-section successfully gets the hint.
+    private var hasAppliedVideoStartBitrate = false
     private var isClosed = AtomicBoolean(false)
 
     private val latestOfferId = AtomicInteger(0)
@@ -206,18 +211,37 @@ constructor(
                 val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
 
                 val mediaDescs = sdpDescription.getMediaDescriptions(true)
+                    .filterIsInstance<MediaDescription>()
+                // The publisher PeerConnection may negotiate before any video is published
+                // (for example, data channel only or audio first). Those offers should not
+                // consume the video start hint. When the first video offer is created, use
+                // one connection-level value across all video m-sections so libwebrtc's
+                // last-writer-wins handling cannot depend on SDP m-section order.
+                val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
+                    computeConnectionStartBitrate(mediaDescs, trackBitrates)
+                } else {
+                    null
+                }
+                var appliedVideoStartBitrate = false
                 for (mediaDesc in mediaDescs) {
-                    if (mediaDesc !is MediaDescription) {
-                        continue
-                    }
                     if (mediaDesc.media.mediaType == "audio") {
                         // TODO
                     } else if (mediaDesc.media.mediaType == "video") {
                         ensureVideoDDExtensionForSVC(mediaDesc)
-                        ensureCodecBitrates(mediaDesc, trackBitrates = trackBitrates)
+                        appliedVideoStartBitrate = ensureCodecBitrates(
+                            mediaDesc,
+                            trackBitrates = trackBitrates,
+                            connectionStartBitrate = connectionStartBitrate,
+                        ) || appliedVideoStartBitrate
                     }
                 }
-                finalSdp = setMungedSdp(sdpOffer, sdpDescription.toString())
+                val mungedDescription = sdpDescription.toString()
+                finalSdp = setMungedSdp(sdpOffer, mungedDescription)
+                // setMungedSdp may fall back to the original SDP. Only mark the one-shot
+                // hint as used after the SDP with the hint is accepted locally.
+                if (appliedVideoStartBitrate && finalSdp?.description == mungedDescription) {
+                    hasAppliedVideoStartBitrate = true
+                }
             }
 
             finalSdp?.let { sdp ->
@@ -437,13 +461,24 @@ fun ensureVideoDDExtensionForSVC(mediaDesc: MediaDescription) {
     }
 }
 
-/* The svc codec (av1/vp9) would use a very low bitrate at the beginning and
-increase slowly by the bandwidth estimator until it reach the target bitrate. The
-process commonly cost more than 10 seconds cause subscriber will get blur video at
-the first few seconds. So we use a 70% of target bitrate here as the start bitrate to
-eliminate this issue.
-*/
-private const val startBitrateForSVC = 0.7
+/*
+ * Video codecs use a very low bitrate at the beginning and increase slowly by
+ * the bandwidth estimator until they reach the target bitrate. The process commonly
+ * costs more than 10 seconds causing subscribers to get blurry video at the first
+ * few seconds. We use x-google-start-bitrate to hint the BWE to start higher.
+ *
+ * Why 90%: Gives ~10% headroom for bandwidth estimation while starting close to target.
+ * Why same for all codecs: Target bitrate already accounts for codec efficiency
+ * (e.g., users set lower targets for VP9/AV1 knowing they're more efficient).
+ * Why cap camera at 1 Mbps: Prevents BWE from starting too aggressively on high bitrate tracks.
+ */
+private const val startBitrateMultiplier = 0.9
+
+/** Maximum x-google-start-bitrate in kbps. 1 Mbps prevents BWE from starting too aggressively. */
+private const val maxStartBitrateKbps = 1000L
+
+/** Minimum target bitrate in kbps to apply start bitrate hint. Below this, the hint hurts more than it helps. */
+private const val minTargetBitrateKbps = 300L
 
 /**
  * @suppress
@@ -453,50 +488,127 @@ fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
-    val msid = media.getMsid()?.value ?: return
-    for ((key, trackBr) in trackBitrates) {
+    ensureCodecBitrates(
+        media = media,
+        trackBitrates = trackBitrates,
+        connectionStartBitrate = computeConnectionStartBitrate(trackBitrates.values),
+    )
+}
+
+/*
+ * libwebrtc applies these codec fmtp bitrate params to the shared Call, not just
+ * the m-section that carries them. To avoid last-writer-wins variance, each video
+ * m-section gets the same x-google-start-bitrate: the max hint among active video
+ * m-sections in the first offer that contains local video. Later renegotiations do
+ * not write it, because reapplying a start hint can reset an already-running
+ * bandwidth estimator.
+ *
+ * Do not write x-google-max-bitrate here. libwebrtc promotes this SDP fmtp
+ * value into the shared Call max_data_rate, so one video m-section can cap the
+ * whole publisher connection and throttle unrelated concurrent tracks, such as
+ * camera plus screen share. The track-specific limit belongs in
+ * RtpParameters.Encoding.maxBitrateBps, where per-track and per-layer caps are
+ * already applied. Keep this behavior aligned across LiveKit SDKs by relying on
+ * encoding parameters for max bitrate and reserving SDP munging for the one
+ * connection-level start bitrate hint.
+ */
+@VisibleForTesting
+internal fun ensureCodecBitrates(
+    media: MediaDescription,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+    connectionStartBitrate: Long?,
+): Boolean {
+    // Returns true when this media section maps to a local video track and has or
+    // receives the connection-level start hint.
+    val startBitrate = connectionStartBitrate ?: return false
+    val (_, codecPayload) = findTrackCodecBitrateInfo(media, trackBitrates) ?: return false
+
+    val fmtps = media.getFmtps()
+    var fmtpFound = false
+    for ((attribute, fmtp) in fmtps) {
+        if (fmtp.payload == codecPayload) {
+            fmtpFound = true
+            if (fmtp.config.contains("x-google-start-bitrate")) {
+                return true
+            }
+            attribute.value = "${fmtp.payload} ${fmtp.config};x-google-start-bitrate=$startBitrate"
+            break
+        }
+    }
+
+    if (!fmtpFound) {
+        media.addAttribute(
+            SdpFmtp(
+                payload = codecPayload,
+                config = "x-google-start-bitrate=$startBitrate",
+            ).toAttributeField(),
+        )
+    }
+    return true
+}
+
+private fun computeConnectionStartBitrate(
+    mediaDescriptions: Collection<MediaDescription>,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+): Long? {
+    // Use only video m-sections in the current SDP. trackBitrates can contain
+    // stale entries after unpublish, and those must not affect the connection hint.
+    return mediaDescriptions
+        .asSequence()
+        .filter { media -> media.media.mediaType == "video" }
+        .mapNotNull { media -> findTrackCodecBitrateInfo(media, trackBitrates)?.trackBitrateInfo }
+        .mapNotNull(::computeTrackStartBitrate)
+        .maxOrNull()
+}
+
+/**
+ * @suppress
+ */
+@VisibleForTesting
+internal fun computeConnectionStartBitrate(trackBitrates: Collection<TrackBitrateInfo>): Long? {
+    return trackBitrates.mapNotNull(::computeTrackStartBitrate).maxOrNull()
+}
+
+private data class TrackCodecBitrateInfo(
+    val trackBitrateInfo: TrackBitrateInfo,
+    val codecPayload: Long,
+)
+
+private fun findTrackCodecBitrateInfo(
+    media: MediaDescription,
+    trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+): TrackCodecBitrateInfo? {
+    val msid = media.getMsid()?.value ?: return null
+    for ((key, trackBitrateInfo) in trackBitrates) {
         if (key !is TrackBitrateInfoKey.Cid) {
             continue
         }
-
-        val (cid) = key
-        if (!msid.contains(cid)) {
+        if (!msid.contains(key.value)) {
             continue
         }
-
         val (_, rtp) = media.getRtps()
-            .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBr.codec, ignoreCase = true) }
+            .firstOrNull { (_, rtp) -> rtp.codec.equals(trackBitrateInfo.codec, ignoreCase = true) }
             ?: continue
-        val codecPayload = rtp.payload
+        return TrackCodecBitrateInfo(
+            trackBitrateInfo = trackBitrateInfo,
+            codecPayload = rtp.payload,
+        )
+    }
+    return null
+}
 
-        val fmtps = media.getFmtps()
-        var fmtpFound = false
-        for ((attribute, fmtp) in fmtps) {
-            if (fmtp.payload == codecPayload) {
-                fmtpFound = true
-                var newFmtpConfig = fmtp.config
-                if (!fmtp.config.contains("x-google-start-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-start-bitrate=${(trackBr.maxBitrate * startBitrateForSVC).roundToLong()}"
-                }
-                if (!fmtp.config.contains("x-google-max-bitrate")) {
-                    newFmtpConfig = "$newFmtpConfig;x-google-max-bitrate=${trackBr.maxBitrate}"
-                }
-                if (fmtp.config != newFmtpConfig) {
-                    attribute.value = "${fmtp.payload} $newFmtpConfig"
-                    break
-                }
-            }
-        }
+private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo): Long? {
+    if (trackBr.targetBitrateKbps < minTargetBitrateKbps) {
+        return null
+    }
 
-        if (!fmtpFound) {
-            media.addAttribute(
-                SdpFmtp(
-                    payload = codecPayload,
-                    config = "x-google-start-bitrate=${trackBr.maxBitrate * startBitrateForSVC};" +
-                        "x-google-max-bitrate=${trackBr.maxBitrate}",
-                ).toAttributeField(),
-            )
-        }
+    // TODO: dynamically adjust start bitrate based on network conditions, such as
+    // using the previous BWE estimate.
+    val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
+    return if (trackBr.isScreenShare) {
+        calculatedStartBitrate
+    } else {
+        minOf(calculatedStartBitrate, maxStartBitrateKbps)
     }
 }
 
@@ -511,7 +623,8 @@ internal fun isSVCCodec(codec: String?): Boolean {
  */
 data class TrackBitrateInfo(
     val codec: String,
-    val maxBitrate: Long,
+    val targetBitrateKbps: Long,
+    val isScreenShare: Boolean = false,
 )
 
 /**
