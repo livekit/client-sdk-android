@@ -443,6 +443,26 @@ internal constructor(
         return SenderTransceiverHandle(publisher, transceiver, sessionState)
     }
 
+    /**
+     * Sets the publisher PeerConnection's initial video bitrate.
+     */
+    internal suspend fun setPublisherInitialVideoBitrate(
+        initialBitrateBps: Int,
+        maxBitrateBps: Int,
+    ): Boolean {
+        require(initialBitrateBps > 0)
+        require(maxBitrateBps >= initialBitrateBps)
+
+        val publisherTransport = publisher ?: return false
+        return publisherTransport.withPeerConnection {
+            setBitrate(
+                null,
+                initialBitrateBps,
+                maxBitrateBps,
+            )
+        } == true
+    }
+
     fun updateSubscriptionPermissions(
         allParticipants: Boolean,
         participantTrackPermissions: List<ParticipantTrackPermission>,

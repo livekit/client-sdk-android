@@ -1624,6 +1624,31 @@ constructor(
     fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) = engine.getPublisherRTCStats(callback)
 
     /**
+     * Sets the local publisher's initial video bitrate.
+     *
+     * Call this after the room has connected and before or immediately after publishing video.
+     * For example:
+     * ```
+     * room.setPublisherInitialVideoBitrate(
+     *     initialBitrateBps = 1_500_000,
+     *     maxBitrateBps = 3_500_000,
+     * )
+     * ```
+     *
+     * @return `true` when WebRTC accepts the bitrate configuration, otherwise `false`.
+     * @throws IllegalArgumentException if either bitrate is invalid.
+     */
+    suspend fun setPublisherInitialVideoBitrate(
+        initialBitrateBps: Int,
+        maxBitrateBps: Int,
+    ): Boolean {
+        return engine.setPublisherInitialVideoBitrate(
+            initialBitrateBps = initialBitrateBps,
+            maxBitrateBps = maxBitrateBps,
+        )
+    }
+
+    /**
      * Get stats for the subscriber peer connection.
      *
      * @see getPublisherRTCStats
