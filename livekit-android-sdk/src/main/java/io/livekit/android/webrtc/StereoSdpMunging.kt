@@ -26,6 +26,7 @@ import livekit.org.webrtc.SessionDescription
 
 private const val OPUS_CODEC = "opus"
 private const val STEREO_FMTP_PARAM = "stereo=1"
+private const val STEREO_PARAM_PREFIX = "stereo="
 private const val SPROP_STEREO_FMTP_PARAM = "sprop-stereo=1"
 private const val MID_ATTRIBUTE = "mid"
 
@@ -124,7 +125,9 @@ private fun findOpusPayloadType(mediaDesc: MediaDescription): Long? {
 
 /* The native Opus decoder requires both sides of the negotiation to carry
 stereo=1. The server only puts sprop-stereo=1 into its offer; the answer must
-add the stereo=1 parameter itself or received packets are decoded as mono.
+add the stereo=1 parameter itself or received packets are decoded as mono. An
+existing conflicting value such as stereo=0 is replaced, since the decoder
+honors the first stereo parameter and would otherwise stay mono.
 */
 private fun ensureStereoFmtpParam(mediaDesc: MediaDescription, payloadType: Long) {
     var fmtpFound = false
@@ -133,9 +136,18 @@ private fun ensureStereoFmtpParam(mediaDesc: MediaDescription, payloadType: Long
             continue
         }
         fmtpFound = true
-        if (!fmtp.config.split(";").any { it.trim() == STEREO_FMTP_PARAM }) {
+        val params = fmtp.config.split(";").map { it.trim() }
+        val hasStereo = params.any { it.equals(STEREO_FMTP_PARAM, ignoreCase = true) }
+        val hasConflictingStereo = params.any {
+            it.startsWith(STEREO_PARAM_PREFIX, ignoreCase = true) &&
+                !it.equals(STEREO_FMTP_PARAM, ignoreCase = true)
+        }
+        if (!hasStereo || hasConflictingStereo) {
             try {
-                attribute.setValue("${fmtp.payload} ${fmtp.config};$STEREO_FMTP_PARAM")
+                val updated = params
+                    .filterNot { it.startsWith(STEREO_PARAM_PREFIX, ignoreCase = true) }
+                    .plus(STEREO_FMTP_PARAM)
+                attribute.setValue("${fmtp.payload} ${updated.joinToString(";")}")
             } catch (_: SdpException) {
                 LKLog.w { "stereo munging: failed to update opus fmtp line" }
             }
