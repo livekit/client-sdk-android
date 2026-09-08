@@ -10,7 +10,7 @@
     <ID>ComplexCondition:RemoteTrackPublication.kt$RemoteTrackPublication$isAutoManaged || !subscribed || this.fps == fps || track !is VideoTrack</ID>
     <ID>ComplexCondition:RemoteTrackPublication.kt$RemoteTrackPublication$isAutoManaged || !subscribed || videoDimensions == dimensions || track !is VideoTrack</ID>
     <ID>ComplexCondition:TextureViewRenderer.kt$TextureViewRenderer$enableFixedSize &amp;&amp; rotatedFrameWidth != 0 &amp;&amp; rotatedFrameHeight != 0 &amp;&amp; width != 0 &amp;&amp; height != 0</ID>
-    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): LocalTrackPublication?</ID>
+    <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): PublishResult?</ID>
     <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$private fun computeVideoEncodings( isScreenShare: Boolean, dimensions: Track.Dimensions, options: VideoTrackPublishOptions, ): List&lt;RtpParameters.Encoding></ID>
     <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$private suspend fun setTrackEnabled( source: Track.Source, enabled: Boolean, screenCaptureParams: ScreenCaptureParams? = null, ): Boolean</ID>
     <ID>CyclomaticComplexMethod:LocalParticipant.kt$LocalParticipant$suspend fun publishVideoTrack( track: LocalVideoTrack, options: VideoTrackPublishOptions = VideoTrackPublishOptions( null, if (track.options.isScreencast) screenShareTrackPublishDefaults else videoTrackPublishDefaults, ), publishListener: PublishListener? = null, ): Boolean</ID>
@@ -27,13 +27,13 @@
     <ID>CyclomaticComplexMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
     <ID>CyclomaticComplexMethod:RoomEvent.kt$fun LivekitModels.DisconnectReason?.convert(): DisconnectReason</ID>
     <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>
-    <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
+    <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(connection: SignalConnection, response: LivekitRtc.SignalResponse)</ID>
     <ID>EmptyFunctionBlock:RTCEngine.kt$RTCEngine${ }</ID>
     <ID>HasPlatformType:DataChannelManager.kt$DataChannelManager$@get:FlowObservable var state by flowDelegate(dataChannel.state()) private set</ID>
     <ID>IgnoredReturnValue:RpcServerManager.kt$RpcServerManager$publishRpcAck(callerIdentity, requestId)</ID>
     <ID>InstanceOfCheckForException:RpcServerManager.kt$RpcServerManager$e is RpcError</ID>
     <ID>LargeClass:LocalParticipant.kt$LocalParticipant : ParticipantOutgoingDataStreamManagerRpcManager</ID>
-    <ID>LargeClass:RTCEngine.kt$RTCEngine : Listener</ID>
+    <ID>LargeClass:RTCEngine.kt$RTCEngine : ListenerSignalSessionListener</ID>
     <ID>LargeClass:Room.kt$Room : ListenerParticipantListenerRpcManagerIncomingDataStreamManager</ID>
     <ID>LargeClass:SignalClient.kt$SignalClient : WebSocketListener</ID>
     <ID>LongMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
@@ -61,7 +61,7 @@
     <ID>LongParameterList:Room.kt$Room$( @Assisted private val context: Context, internal val engine: RTCEngine, private val eglBase: EglBase, localParticipantFactory: LocalParticipant.Factory, private val defaultsManager: DefaultsManager, @Named(InjectionNames.DISPATCHER_DEFAULT) private val defaultDispatcher: CoroutineDispatcher, @Named(InjectionNames.DISPATCHER_IO) private val ioDispatcher: CoroutineDispatcher, /** * The [AudioHandler] for setting up the audio as need. * * By default, this is an instance of [AudioSwitchHandler]. * * This can be substituted for your own custom implementation through * [LiveKitOverrides.audioOptions] when creating the room with [LiveKit.create]. * * @see [audioSwitchHandler] * @see [AudioSwitchHandler] */ val audioHandler: AudioHandler, private val closeableManager: CloseableManager, private val e2EEManagerFactory: E2EEManager.Factory, private val communicationWorkaround: CommunicationWorkaround, val audioProcessingController: AudioProcessingController, /** * A holder for objects that are used internally within LiveKit. */ val lkObjects: LKObjects, networkCallbackManagerFactory: NetworkCallbackManagerFactory, private val audioDeviceModule: AudioDeviceModule, private val regionUrlProviderFactory: RegionUrlProvider.Factory, private val connectionWarmer: ConnectionWarmer, private val audioRecordPrewarmer: AudioRecordPrewarmer, private val incomingDataStreamManager: IncomingDataStreamManager, private val rpcClientManager: RpcClientManager, private val rpcServerManager: RpcServerManager, private val remoteParticipantFactory: RemoteParticipant.Factory, )</ID>
     <ID>MapGetWithNotNullAssertionOperator:LocalParticipant.kt$LocalParticipant$sourcePubLocks[source]!!</ID>
     <ID>NestedBlockDepth:ByteStreamSender.kt$@CheckResult suspend fun ByteStreamSender.write(source: Source): Result&lt;Unit></ID>
-    <ID>NestedBlockDepth:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): LocalTrackPublication?</ID>
+    <ID>NestedBlockDepth:LocalParticipant.kt$LocalParticipant$@Throws(TrackException.PublishException::class) private suspend fun publishTrackImpl( track: Track, options: TrackPublishOptions, requestConfig: AddTrackRequest.Builder.() -> Unit, encodings: List&lt;RtpParameters.Encoding> = emptyList(), publishListener: PublishListener? = null, ): PublishResult?</ID>
     <ID>NestedBlockDepth:LocalParticipant.kt$LocalParticipant$fun cleanup()</ID>
     <ID>NestedBlockDepth:LocalVideoTrack.kt$LocalVideoTrack$internal fun setPublishingCodecs(codecs: List&lt;SubscribedCodec>): List&lt;VideoCodec></ID>
     <ID>NestedBlockDepth:LocalVideoTrack.kt$LocalVideoTrack$private fun setPublishingLayersForSender( sender: RtpSender, qualities: List&lt;LivekitRtc.SubscribedQuality>, )</ID>
@@ -71,7 +71,7 @@
     <ID>NestedBlockDepth:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
     <ID>NestedBlockDepth:Room.kt$Room$override suspend fun onPostReconnect(isFullReconnect: Boolean)</ID>
     <ID>NestedBlockDepth:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>
-    <ID>NestedBlockDepth:SignalClient.kt$SignalClient$private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse)</ID>
+    <ID>NestedBlockDepth:SignalClient.kt$SignalClient$private fun handleSignalResponse(connection: SignalConnection, response: LivekitRtc.SignalResponse)</ID>
     <ID>SwallowedException:FlowExt.kt$e: CancellationException</ID>
     <ID>SwallowedException:LocalVideoTrack.kt$LocalVideoTrack$e: Exception</ID>
     <ID>SwallowedException:TextureViewRenderer.kt$TextureViewRenderer$e: NotFoundException</ID>
@@ -86,7 +86,7 @@
     <ID>TooManyFunctions:Participant.kt$ParticipantListener</ID>
     <ID>TooManyFunctions:PeerConnectionTransport.kt$PeerConnectionTransport</ID>
     <ID>TooManyFunctions:PublisherTransportObserver.kt$PublisherTransportObserver : ObserverListenerPeerConnectionStateObservable</ID>
-    <ID>TooManyFunctions:RTCEngine.kt$RTCEngine : Listener</ID>
+    <ID>TooManyFunctions:RTCEngine.kt$RTCEngine : ListenerSignalSessionListener</ID>
     <ID>TooManyFunctions:RTCEngine.kt$RTCEngine$Listener</ID>
     <ID>TooManyFunctions:RTCMetricsManager.kt$io.livekit.android.room.metrics.RTCMetricsManager.kt</ID>
     <ID>TooManyFunctions:RTCModule.kt$RTCModule</ID>

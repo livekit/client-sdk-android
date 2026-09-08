@@ -97,6 +97,7 @@ import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SessionDescription
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -119,7 +120,8 @@ internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
-) : SignalClient.Listener {
+) : SignalClient.Listener,
+    SignalClient.SignalSessionListener {
     internal var listener: Listener? = null
 
     /**
@@ -175,8 +177,19 @@ internal constructor(
 
     internal var reconnectPolicy: ReconnectPolicy = DefaultReconnectPolicy()
 
-    private val pendingTrackResolvers: MutableMap<String, Continuation<LivekitModels.TrackInfo>> =
+    private val pendingTrackResolvers: MutableMap<String, Continuation<PublishAcceptance>> =
         mutableMapOf()
+
+    // Counts full reconnect preparations, which invalidate the server-side state of every
+    // publish accepted before them. Soft reconnects preserve publishes and do not advance
+    // it.
+    private val fullReconnectEpoch = AtomicLong(0)
+
+    internal fun currentFullReconnectEpoch(): Long = fullReconnectEpoch.get()
+
+    internal fun advanceFullReconnectEpoch() {
+        fullReconnectEpoch.incrementAndGet()
+    }
 
     internal var regionUrlProvider: RegionUrlProvider? = null
     private var sessionUrl: String? = null
@@ -266,6 +279,7 @@ internal constructor(
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
+        client.prepareSignalConnection(fullReconnectEpoch.get())
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
 
@@ -394,13 +408,13 @@ internal constructor(
     /**
      * @param builder an optional builder to include other parameters related to the track
      */
-    suspend fun addTrack(
+    internal suspend fun addTrack(
         cid: String,
         name: String,
         kind: LivekitModels.TrackType,
         stream: String?,
         builder: LivekitRtc.AddTrackRequest.Builder = LivekitRtc.AddTrackRequest.newBuilder(),
-    ): LivekitModels.TrackInfo {
+    ): PublishAcceptance {
         synchronized(pendingTrackResolvers) {
             if (pendingTrackResolvers[cid] != null) {
                 throw TrackException.DuplicateTrackException("Track with same ID $cid has already been published!")
@@ -639,6 +653,7 @@ internal constructor(
                     LKLog.v { "Attempting soft reconnect." }
                     subscriber?.prepareForIceRestart()
                     try {
+                        client.prepareSignalConnection(fullReconnectEpoch.get())
                         val response = client.reconnect(url!!, token, participantSid)
                         if (response is Either.Left) {
                             val reconnectResponse = response.value
@@ -1193,6 +1208,14 @@ internal constructor(
     }
 
     override fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse) {
+        handleLocalTrackPublished(response, fullReconnectEpoch.get())
+    }
+
+    override fun onLocalTrackPublishedInSession(response: LivekitRtc.TrackPublishedResponse, fullReconnectEpoch: Long) {
+        handleLocalTrackPublished(response, fullReconnectEpoch)
+    }
+
+    private fun handleLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse, fullReconnectEpoch: Long) {
         val cid = response.cid ?: run {
             LKLog.e { "local track published with null cid?" }
             return
@@ -1211,7 +1234,7 @@ internal constructor(
             LKLog.d { "missing track resolver for: $cid" }
             return
         }
-        cont.resume(response.track)
+        cont.resume(PublishAcceptance(response.track, fullReconnectEpoch))
     }
 
     override fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed) {
@@ -1605,6 +1628,15 @@ internal class SenderTransceiverHandle(
     internal val publisher: PeerConnectionTransport,
     internal val transceiver: RtpTransceiver,
     internal val signalSessionState: SignalSessionState,
+)
+
+/**
+ * A server-accepted publish: the track info from the TrackPublished response, stamped with
+ * the full reconnect epoch of the signal session that delivered it.
+ */
+internal class PublishAcceptance(
+    val trackInfo: LivekitModels.TrackInfo,
+    val fullReconnectEpoch: Long,
 )
 
 /**

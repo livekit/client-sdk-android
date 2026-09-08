@@ -87,7 +87,12 @@ constructor(
         private set
 
     @Volatile
-    private var currentWs: WebSocket? = null
+    private var currentSignalConnection: SignalConnection? = null
+
+    // Copied into the next WebSocket's connection context so each response is attributed
+    // to the full reconnect epoch of the session that delivered it.
+    @Volatile
+    private var nextFullReconnectEpoch = 0L
 
     @Volatile
     private var isReconnecting: Boolean = false
@@ -112,7 +117,7 @@ constructor(
     /**
      * @see [onReadyForResponses]
      */
-    private val responseFlow = MutableSharedFlow<Pair<WebSocket, LivekitRtc.SignalResponse>>(Int.MAX_VALUE)
+    private val responseFlow = MutableSharedFlow<Pair<SignalConnection, LivekitRtc.SignalResponse>>(Int.MAX_VALUE)
     private val responseFlowJobLock = Object()
     private var responseFlowJob: Job? = null
 
@@ -123,6 +128,10 @@ constructor(
     private var rtt: Long = 0
 
     var connectionState: ConnectionState = ConnectionState.DISCONNECTED
+
+    internal fun prepareSignalConnection(fullReconnectEpoch: Long) {
+        nextFullReconnectEpoch = fullReconnectEpoch
+    }
 
     /**
      * @throws Exception if fails to connect.
@@ -197,9 +206,10 @@ constructor(
                     // onFailure will handle cleanup.
                     LKLog.v { "connect cancelled, abort websocket" }
                     joinContinuation = null
-                    currentWs?.cancel()
+                    currentSignalConnection?.webSocket?.cancel()
                 }
-                currentWs = websocketFactory.newWebSocket(request, this@SignalClient)
+                val webSocket = websocketFactory.newWebSocket(request, this@SignalClient)
+                currentSignalConnection = SignalConnection(webSocket, nextFullReconnectEpoch)
             }
         }
     }
@@ -258,9 +268,9 @@ constructor(
         synchronized(responseFlowJobLock) {
             if (responseFlowJob == null) {
                 responseFlowJob = coroutineScope.launch {
-                    responseFlow.collect { (ws, response) ->
+                    responseFlow.collect { (connection, response) ->
                         responseFlow.resetReplayCache()
-                        handleSignalResponseImpl(ws, response)
+                        handleSignalResponseImpl(connection, response)
                     }
                 }
             }
@@ -294,7 +304,7 @@ constructor(
 
     // --------------------------------- WebSocket Listener --------------------------------------//
     override fun onMessage(webSocket: WebSocket, text: String) {
-        if (webSocket != currentWs) {
+        if (webSocket !== currentSignalConnection?.webSocket) {
             // Possibly message from old websocket, discard.
             return
         }
@@ -303,7 +313,8 @@ constructor(
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-        if (webSocket != currentWs) {
+        val connection = currentSignalConnection
+        if (webSocket !== connection?.webSocket) {
             // Possibly message from old websocket, discard.
             return
         }
@@ -312,11 +323,11 @@ constructor(
             .mergeFrom(byteArray)
         val response = signalResponseBuilder.build()
 
-        handleSignalResponse(webSocket, response)
+        handleSignalResponse(connection, response)
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-        if (webSocket != currentWs) {
+        if (webSocket !== currentSignalConnection?.webSocket) {
             return
         }
         handleWebSocketClose(reason, code)
@@ -327,7 +338,7 @@ constructor(
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        if (webSocket != currentWs) {
+        if (webSocket !== currentSignalConnection?.webSocket) {
             return
         }
         var reason: String? = null
@@ -653,20 +664,21 @@ constructor(
 
     private fun sendRequestImpl(request: LivekitRtc.SignalRequest) {
         LKLog.v { "sending request: $request" }
-        if (!isConnected || currentWs == null) {
+        val connection = currentSignalConnection
+        if (!isConnected || connection == null) {
             LKLog.w { "not connected, could not send request $request" }
             return
         }
         val message = request.toByteArray().toByteString()
-        val sent = currentWs?.send(message) ?: false
+        val sent = connection.webSocket.send(message)
 
         if (!sent) {
             LKLog.e { "error sending request: $request" }
         }
     }
 
-    private fun handleSignalResponse(ws: WebSocket, response: LivekitRtc.SignalResponse) {
-        if (ws != currentWs) {
+    private fun handleSignalResponse(connection: SignalConnection, response: LivekitRtc.SignalResponse) {
+        if (connection !== currentSignalConnection) {
             return
         }
 
@@ -695,7 +707,7 @@ constructor(
                 joinContinuation = null
             } else if (response.hasLeave()) {
                 // Some reconnects may immediately send leave back without a join response first.
-                handleSignalResponseImpl(ws, response)
+                handleSignalResponseImpl(connection, response)
                 val cont = joinContinuation
                 joinContinuation = null
                 cont?.resumeWithException(
@@ -737,11 +749,11 @@ constructor(
                 return
             }
         }
-        responseFlow.tryEmit(ws to response)
+        responseFlow.tryEmit(connection to response)
     }
 
-    private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse) {
-        if (ws != currentWs) {
+    private fun handleSignalResponseImpl(connection: SignalConnection, response: LivekitRtc.SignalResponse) {
+        if (connection !== currentSignalConnection) {
             LKLog.v { "received message from old websocket, discarding." }
             return
         }
@@ -779,7 +791,12 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.TRACK_PUBLISHED -> {
-                listener?.onLocalTrackPublished(response.trackPublished)
+                val listener = listener
+                if (listener is SignalSessionListener) {
+                    listener.onLocalTrackPublishedInSession(response.trackPublished, connection.fullReconnectEpoch)
+                } else {
+                    listener?.onLocalTrackPublished(response.trackPublished)
+                }
             }
 
             LivekitRtc.SignalResponse.MessageCase.SPEAKERS_CHANGED -> {
@@ -903,7 +920,7 @@ constructor(
         pongJob = coroutineScope.launch {
             delay(pingTimeoutDurationMillis)
             LKLog.d { "Ping timeout reached for ping sent at $timestamp." }
-            currentWs?.close(CLOSE_REASON_PING_TIMEOUT, "Ping timeout")
+            currentSignalConnection?.webSocket?.close(CLOSE_REASON_PING_TIMEOUT, "Ping timeout")
         }
     }
 
@@ -933,8 +950,8 @@ constructor(
         pingJob = null
         pongJob?.cancel()
         pongJob = null
-        currentWs?.close(code, reason)
-        currentWs = null
+        currentSignalConnection?.webSocket?.close(code, reason)
+        currentSignalConnection = null
         // Same ordering as [onFailure]: clear the field before cancel() for synchronous listener callbacks.
         val joinCont = joinContinuation
         joinContinuation = null
@@ -948,6 +965,15 @@ constructor(
         lastRoomOptions = null
         serverVersion = null
         serverInfo = null
+    }
+
+    private class SignalConnection(
+        val webSocket: WebSocket,
+        val fullReconnectEpoch: Long,
+    )
+
+    internal interface SignalSessionListener {
+        fun onLocalTrackPublishedInSession(response: LivekitRtc.TrackPublishedResponse, fullReconnectEpoch: Long)
     }
 
     interface Listener {
