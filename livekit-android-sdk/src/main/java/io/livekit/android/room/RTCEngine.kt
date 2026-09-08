@@ -1161,36 +1161,36 @@ internal constructor(
 
             val stereoAnswer = answer.ensureStereoOpus(sessionDescription)
 
-            val shouldFallback = run {
-                when (val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()) {
-                    is Either.Left -> false
-                    is Either.Right -> {
-                        LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
-                        true
-                    }
-                }
-            }
-
-            if (shouldFallback) {
-                // Fall back to the un-munged answer rather than leaving the
-                // subscriber without a local description (mirrors
-                // PeerConnectionTransport.setMungedSdp).
-                when (val fallback = subscriber?.withPeerConnection { setLocalDescription(answer) }.nullSafe()) {
-                    is Either.Left -> Unit
-                    is Either.Right -> {
-                        LKLog.e { "error setting local description for answer: ${fallback.value}" }
-                        return@launch
-                    }
-                }
-                client.sendAnswer(answer, offerId)
-                return@launch
-            }
+            val answerToSend = setLocalDescriptionWithStereoFallback(
+                stereoAnswer = stereoAnswer,
+                fallbackAnswer = answer,
+            ) ?: return@launch
 
             if (isClosed) {
                 return@launch
             }
-            client.sendAnswer(stereoAnswer, offerId)
+            client.sendAnswer(answerToSend, offerId)
         }
+    }
+
+    private suspend fun setLocalDescriptionWithStereoFallback(
+        stereoAnswer: SessionDescription,
+        fallbackAnswer: SessionDescription,
+    ): SessionDescription? {
+        val outcome = subscriber?.withPeerConnection { setLocalDescription(stereoAnswer) }.nullSafe()
+        if (outcome is Either.Left) {
+            return stereoAnswer
+        }
+        LKLog.e { "error setting local description for munged answer: ${outcome.value}" }
+        // Fall back to the un-munged answer rather than leaving the
+        // subscriber without a local description (mirrors
+        // PeerConnectionTransport.setMungedSdp).
+        val fallback = subscriber?.withPeerConnection { setLocalDescription(fallbackAnswer) }.nullSafe()
+        if (fallback is Either.Left) {
+            return fallbackAnswer
+        }
+        LKLog.e { "error setting local description for answer: ${fallback.value}" }
+        return null
     }
 
     override fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget) {
