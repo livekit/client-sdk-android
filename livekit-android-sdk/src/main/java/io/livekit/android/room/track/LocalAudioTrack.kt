@@ -81,8 +81,58 @@ constructor(
     private val delegateScope = CoroutineScope(dispatcher + SupervisorJob())
 
     internal var transceiver: RtpTransceiver? = null
+    internal var codec: String = "opus"
+    private val simulcastTransceiverMap = mutableMapOf<String, RtpTransceiver>()
+    private val pendingSimulcastCodecs = mutableSetOf<String>()
+    private val simulcastCodecEnabled = mutableMapOf<String, Boolean>()
+    internal val simulcastTransceivers: List<RtpTransceiver>
+        @Synchronized get() = simulcastTransceiverMap.values.toList()
     internal val sender: RtpSender?
         get() = transceiver?.sender
+
+    @Synchronized
+    internal fun beginPublishingSimulcastCodec(codec: String): Boolean {
+        val normalizedCodec = codec.lowercase().removePrefix("audio/")
+        if (simulcastTransceiverMap.containsKey(normalizedCodec)) return false
+        return pendingSimulcastCodecs.add(normalizedCodec)
+    }
+
+    @Synchronized
+    internal fun addSimulcastTransceiver(codec: String, transceiver: RtpTransceiver) {
+        val normalizedCodec = codec.lowercase().removePrefix("audio/")
+        simulcastTransceiverMap[normalizedCodec] = transceiver
+        pendingSimulcastCodecs.remove(normalizedCodec)
+        setPublishingCodecEnabled(normalizedCodec, simulcastCodecEnabled[normalizedCodec] ?: true)
+    }
+
+    @Synchronized
+    internal fun cancelPublishingSimulcastCodec(codec: String) {
+        pendingSimulcastCodecs.remove(codec.lowercase().removePrefix("audio/"))
+    }
+
+    @Synchronized
+    internal fun setPublishingCodecEnabled(codec: String, enabled: Boolean) {
+        val normalizedCodec = codec.lowercase().removePrefix("audio/")
+        if (this.codec != normalizedCodec) {
+            simulcastCodecEnabled[normalizedCodec] = enabled
+        }
+        val target = if (this.codec == normalizedCodec) transceiver else simulcastTransceiverMap[normalizedCodec]
+        val sender = target?.sender ?: return
+        val parameters = sender.parameters ?: return
+        val encoding = parameters.encodings?.firstOrNull() ?: return
+        if (encoding.active == enabled) return
+        encoding.active = enabled
+        if (!sender.setParameters(parameters)) {
+            LKLog.w { "failed to ${if (enabled) "enable" else "disable"} $normalizedCodec audio sender" }
+        }
+    }
+
+    @Synchronized
+    internal fun clearSimulcastCodecs() {
+        simulcastTransceiverMap.clear()
+        pendingSimulcastCodecs.clear()
+        simulcastCodecEnabled.clear()
+    }
 
     private val trackSinks = mutableSetOf<AudioTrackSink>()
 

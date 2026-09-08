@@ -1419,6 +1419,13 @@ constructor(
     /**
      * @suppress
      */
+    override fun onSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate: LivekitRtc.SubscribedAudioCodecUpdate) {
+        localParticipant.handleSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate)
+    }
+
+    /**
+     * @suppress
+     */
     override fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate) {
         val participant = getParticipantBySid(subscriptionPermissionUpdate.participantSid) as? RemoteParticipant ?: return
         participant.onSubscriptionPermissionUpdate(subscriptionPermissionUpdate)

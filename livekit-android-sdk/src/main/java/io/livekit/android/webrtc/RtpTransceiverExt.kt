@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,4 +58,24 @@ internal fun RtpTransceiver.sortVideoCodecPreferences(targetCodec: String, capab
         }
     }
     setCodecPreferences(matched.plus(partialMatched).plus(unmatched))
+}
+
+internal fun RtpTransceiver.setAudioCodecPreferences(targetCodec: String, capabilitiesGetter: CapabilitiesGetter) {
+    val capabilities = capabilitiesGetter(MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO)
+    val normalizedTarget = targetCodec.lowercase().removePrefix("audio/")
+    val selected = capabilities.codecs.filter { codec ->
+        val mimeType = codec.mimeType.lowercase()
+        when (normalizedTarget) {
+            "red" -> mimeType == "audio/red" || mimeType == "audio/opus"
+            "opus" -> mimeType != "audio/red"
+            else -> true
+        }
+    }.sortedBy { codec ->
+        when (codec.mimeType.lowercase()) {
+            "audio/$normalizedTarget" -> 0
+            "audio/opus" -> 1
+            else -> 2
+        }
+    }
+    setCodecPreferences(selected)
 }

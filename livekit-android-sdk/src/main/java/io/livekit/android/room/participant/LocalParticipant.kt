@@ -62,6 +62,7 @@ import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.rethrowIfCancellationSignal
+import io.livekit.android.webrtc.setAudioCodecPreferences
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -142,6 +143,8 @@ internal constructor(
     private val sourcePubLocks = Track.Source.entries.associateWith { Mutex() }
 
     internal val enabledPublishVideoCodecs = Collections.synchronizedList(mutableListOf<Codec>())
+    private val pendingSubscribedAudioCodecUpdates =
+        Collections.synchronizedMap(mutableMapOf<String, LivekitRtc.SubscribedAudioCodecUpdate>())
 
     private var defaultAudioTrack: LocalAudioTrack? = null
     private var defaultVideoTrack: LocalVideoTrack? = null
@@ -482,6 +485,8 @@ internal constructor(
             return false
         }
 
+        val encryptedCodecSimulcast = engine.e2EEManager != null && dynacast && options.red
+        track.codec = if (options.red) AUDIO_CODEC_RED else AUDIO_CODEC_OPUS
         val encodings = listOf(
             RtpParameters.Encoding(null, true, null).apply {
                 if (options.audioBitrate != null && options.audioBitrate > 0) {
@@ -497,6 +502,19 @@ internal constructor(
                 requestConfig = {
                     disableDtx = !options.dtx
                     disableRed = !options.red
+                    if (encryptedCodecSimulcast) {
+                        addSimulcastCodecs(
+                            SimulcastCodec.newBuilder()
+                                .setCodec(AUDIO_CODEC_RED)
+                                .setCid(track.rtcTrack.id())
+                                .build(),
+                        )
+                        addSimulcastCodecs(
+                            SimulcastCodec.newBuilder()
+                                .setCodec(AUDIO_CODEC_OPUS)
+                                .build(),
+                        )
+                    }
                     addAllAudioFeatures(options.getFeaturesList())
                     source = options.source?.toProto() ?: LivekitModels.TrackSource.MICROPHONE
                 },
@@ -769,6 +787,9 @@ internal constructor(
                 (track as LocalVideoTrack).codec = finalOptions.videoCodec
 
                 transceiver.applyDegradationPreference(finalOptions.degradationPreference, trackSource)
+            } else if (finalOptions is AudioTrackPublishOptions) {
+                val audioTrack = track as LocalAudioTrack
+                transceiver.setAudioCodecPreferences(audioTrack.codec, capabilitiesGetter)
             }
 
             // PublisherTransportObserver.onRenegotiationNeeded() gets triggered automatically
@@ -840,6 +861,9 @@ internal constructor(
                     options = options,
                 )
                 addTrackPublication(publication)
+                if (track is LocalAudioTrack) {
+                    pendingSubscribedAudioCodecUpdates.remove(publication.sid)?.let(::handleSubscribedAudioCodecUpdate)
+                }
                 LKLog.v { "add track publication $publication" }
 
                 publishListener?.onPublishSuccess(publication)
@@ -1038,6 +1062,10 @@ internal constructor(
             // until the connection closes. Stopping them releases the native resources and frees
             // the SDP m-sections for reuse. Limited to video, where this leak is significant.
             if (track is LocalVideoTrack) {
+                engine.stopTransceivers(listOfNotNull(track.transceiver) + track.simulcastTransceivers)
+                track.transceiver = null
+                track.clearSimulcastCodecs()
+            } else if (track is LocalAudioTrack) {
                 engine.stopTransceivers(listOfNotNull(track.transceiver) + track.simulcastTransceivers)
                 track.transceiver = null
                 track.clearSimulcastCodecs()
@@ -1262,6 +1290,95 @@ internal constructor(
         }
     }
 
+    internal fun handleSubscribedAudioCodecUpdate(update: LivekitRtc.SubscribedAudioCodecUpdate) {
+        if (!dynacast) return
+        val publication = trackPublications[update.trackSid] as? LocalTrackPublication
+        if (publication == null) {
+            pendingSubscribedAudioCodecUpdates[update.trackSid] = update
+            return
+        }
+        val track = publication.track as? LocalAudioTrack ?: return
+        val options = publication.options as? AudioTrackPublishOptions ?: return
+
+        update.subscribedAudioCodecsList.forEach { subscribedCodec ->
+            val codec = subscribedCodec.codec.lowercase().removePrefix("audio/")
+            if (codec == track.codec) {
+                track.setPublishingCodecEnabled(codec, subscribedCodec.enabled)
+            } else if (codec == AUDIO_CODEC_OPUS && options.red) {
+                track.setPublishingCodecEnabled(codec, subscribedCodec.enabled)
+                if (subscribedCodec.enabled && track.beginPublishingSimulcastCodec(codec)) {
+                    publishAdditionalAudioCodecForTrack(track, publication, codec, options)
+                }
+            }
+        }
+    }
+
+    private fun publishAdditionalAudioCodecForTrack(
+        track: LocalAudioTrack,
+        publication: LocalTrackPublication,
+        codec: String,
+        options: AudioTrackPublishOptions,
+    ) {
+        val encoding = RtpParameters.Encoding(null, true, null).apply {
+            options.audioBitrate?.takeIf { it > 0 }?.let { maxBitrateBps = it }
+        }
+        val transceiverInit = RtpTransceiverInit(
+            RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
+            listOf(this.sid.value),
+            listOf(encoding),
+        )
+
+        scope.launch {
+            val transceiver = try {
+                engine.createSenderTransceiver(track.rtcTrack, transceiverInit)?.transceiver
+            } catch (error: Exception) {
+                error.rethrowIfCancellationSignal()
+                track.cancelPublishingSimulcastCodec(codec)
+                LKLog.w(error) { "couldn't create additional $codec audio transceiver" }
+                return@launch
+            }
+            if (transceiver == null) {
+                track.cancelPublishingSimulcastCodec(codec)
+                LKLog.w { "couldn't create additional $codec audio transceiver" }
+                return@launch
+            }
+            transceiver.setAudioCodecPreferences(codec, capabilitiesGetter)
+            track.addSimulcastTransceiver(codec, transceiver)
+            engine.e2EEManager?.addPublishedSender(transceiver.sender, publication, this@LocalParticipant)
+
+            val request = AddTrackRequest.newBuilder().apply {
+                sid = publication.sid
+                muted = !track.enabled
+                source = publication.source.toProto()
+                addSimulcastCodecs(
+                    SimulcastCodec.newBuilder()
+                        .setCodec(codec)
+                        .setCid(transceiver.sender.id())
+                        .build(),
+                )
+            }
+            try {
+                coroutineScope {
+                    val negotiateJob = launch { engine.negotiatePublisher() }
+                    val publishJob = async {
+                        engine.addTrack(
+                            cid = transceiver.sender.id(),
+                            name = options.name ?: track.name,
+                            kind = track.kind.toProto(),
+                            stream = options.stream,
+                            builder = request,
+                        )
+                    }
+                    negotiateJob.join()
+                    publishJob.await()
+                }
+            } catch (error: Exception) {
+                error.rethrowIfCancellationSignal()
+                LKLog.w(error) { "exception when publishing $codec for audio track ${track.sid}" }
+            }
+        }
+    }
+
     private fun publishAdditionalCodecForTrack(track: LocalVideoTrack, codec: VideoCodec, options: VideoTrackPublishOptions) {
         val existingPublication = trackPublications[track.sid] ?: run {
             LKLog.w { "attempting to publish additional codec for non-published track?!" }
@@ -1418,6 +1535,7 @@ internal constructor(
      * @suppress
      */
     fun cleanup() {
+        pendingSubscribedAudioCodecUpdates.clear()
         for (pub in trackPublications.values) {
             val track = pub.track
 
@@ -1768,6 +1886,8 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
     return backupCodec?.codec != null && videoCodec != backupCodec.codec
 }
 
+private const val AUDIO_CODEC_OPUS = "opus"
+private const val AUDIO_CODEC_RED = "red"
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
 

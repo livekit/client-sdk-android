@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ object MockRtpTransceiver {
 
         when (direction) {
             RtpTransceiverDirection.SEND_RECV, RtpTransceiverDirection.SEND_ONLY -> {
-                val sender = MockRtpSender.create(id = id)
+                val sender = MockRtpSender.create(id = id, encodings = init.sendEncodings.toMutableList())
                 Mockito.`when`(mock.sender)
                     .then { sender }
             }

@@ -861,7 +861,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_AUDIO_CODEC_UPDATE -> {
-                // TODO
+                listener?.onSubscribedAudioCodecUpdate(response.subscribedAudioCodecUpdate)
             }
 
             LivekitRtc.SignalResponse.MessageCase.PUBLISH_DATA_TRACK_RESPONSE -> {
@@ -965,6 +965,7 @@ constructor(
         fun onError(error: Throwable)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
+        fun onSubscribedAudioCodecUpdate(subscribedAudioCodecUpdate: LivekitRtc.SubscribedAudioCodecUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
         fun onRefreshToken(token: String)
