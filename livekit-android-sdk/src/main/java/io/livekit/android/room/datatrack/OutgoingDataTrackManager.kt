@@ -17,6 +17,7 @@
 package io.livekit.android.room.datatrack
 
 import androidx.annotation.CheckResult
+import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
@@ -48,6 +49,7 @@ constructor(
     private val lock = Any()
     private var localManager: LocalDataTrackManagerInterface? = null
     private var nativeUnavailable = false
+    private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     /**
      * Handles events from the UniFFI local data track manager.
@@ -177,8 +179,16 @@ constructor(
             if (nativeUnavailable) {
                 return null
             }
+            // Whether frames are encrypted is fixed when the manager is built: unlike data
+            // channel payloads (a per-message property), data track encryption is a track-level
+            // protocol property that subscribers key their decryption on. The cryptor is passed
+            // only when E2EE is on — its presence is what marks published tracks as encrypted
+            // ([DataTrackInfo.usesE2ee]).
+            val encryptionProvider = cryptor.takeIf {
+                engineProvider.get().e2EEManager?.isDataTrackEncryptionEnabled() == true
+            }
             return try {
-                localDataTrackManagerFactory.create(delegate, null)
+                localDataTrackManagerFactory.create(delegate, encryptionProvider)
                     .also { localManager = it }
             } catch (e: LinkageError) {
                 nativeUnavailable = true

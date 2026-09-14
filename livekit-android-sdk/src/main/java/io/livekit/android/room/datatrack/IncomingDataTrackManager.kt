@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
@@ -58,6 +59,7 @@ constructor(
     private var remoteManager: RemoteDataTrackManagerInterface? = null
     private var nativeUnavailable = false
     private val remoteTracks = mutableListOf<RemoteDataTrack>()
+    private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     /**
      * Handles events from the UniFFI remote data track manager.
@@ -188,7 +190,7 @@ constructor(
                 return null
             }
             return try {
-                remoteDataTrackManagerFactory.create(delegate, null).also { remoteManager = it }
+                remoteDataTrackManagerFactory.create(delegate, cryptor).also { remoteManager = it }
             } catch (e: LinkageError) {
                 nativeUnavailable = true
                 LKLog.e(e) { "Data tracks are unavailable: the native library failed to load." }
