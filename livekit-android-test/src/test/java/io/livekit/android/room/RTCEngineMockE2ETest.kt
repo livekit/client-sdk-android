@@ -710,6 +710,27 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
     }
 
+    /**
+     * A candidate belonging to a server offer waits for that offer to be applied. Offer handling is
+     * launched rather than run inline, so without the hold the candidate would land against the
+     * description the offer replaces and be rejected against its ice credentials.
+     */
+    @Test
+    fun candidateArrivingWithAServerOfferWaitsForItsDescription() = runTest {
+        connect()
+
+        val subPeerConnection = getSubscriberPeerConnection()
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(TestData.OFFER)
+        simulateMessageFromServer(subscriberTrickle())
+
+        assertEquals(before, subPeerConnection.addedIceCandidates.size)
+
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
     private fun subscriberTrickle(): LivekitRtc.SignalResponse {
         val trickle = LivekitRtc.TrickleRequest.newBuilder()
             .setCandidateInit(
