@@ -67,7 +67,7 @@ class SignalClientTest : BaseTest() {
     lateinit var client: SignalClient
 
     @Mock
-    lateinit var listener: SignalClient.Listener
+    internal lateinit var listener: SignalClient.Listener
 
     @Mock
     lateinit var okHttpClient: OkHttpClient

@@ -151,7 +151,7 @@ object TestRTCModule {
 
     @Provides
     @Singleton
-    fun localDataTrackManagerFactory(
+    internal fun localDataTrackManagerFactory(
         factory: MockLocalDataTrackManagerFactory,
     ): LocalDataTrackManagerFactory = factory
 
@@ -163,7 +163,7 @@ object TestRTCModule {
 
     @Provides
     @Singleton
-    fun remoteDataTrackManagerFactory(
+    internal fun remoteDataTrackManagerFactory(
         factory: MockRemoteDataTrackManagerFactory,
     ): RemoteDataTrackManagerFactory = factory
 }
