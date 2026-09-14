@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.EventListenable
@@ -93,7 +94,8 @@ interface IncomingDataTrackManager {
  * @suppress
  */
 @Singleton
-internal class IncomingDataTrackManagerImpl
+@VisibleForTesting
+class IncomingDataTrackManagerImpl
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,

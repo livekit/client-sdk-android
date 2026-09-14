@@ -17,6 +17,7 @@
 package io.livekit.android.room.datatrack
 
 import androidx.annotation.CheckResult
+import androidx.annotation.VisibleForTesting
 import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
@@ -35,9 +36,14 @@ import javax.inject.Singleton
  *
  * Signal requests / SFU responses and data-track packets are forwarded through the engine so the
  * Rust manager stays decoupled from WebRTC and WebSocket details.
+ *
+ * Public so the e2e suite can drive it directly; not part of the supported API.
+ *
+ * @suppress
  */
 @Singleton
-internal class OutgoingDataTrackManager
+@VisibleForTesting
+class OutgoingDataTrackManager
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,
