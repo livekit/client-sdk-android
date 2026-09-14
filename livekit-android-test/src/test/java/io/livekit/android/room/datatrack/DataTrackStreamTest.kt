@@ -17,13 +17,19 @@
 package io.livekit.android.room.datatrack
 
 import io.livekit.android.test.BaseTest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
 import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
@@ -156,5 +162,62 @@ class DataTrackStreamTest : BaseTest() {
         stream.flow.collect { late.add(it) }
 
         assertEquals(emptyList<Int>(), payloads(late))
+    }
+
+    /**
+     * The end-of-stream signal must reach collectors behind the frames, never ahead of them.
+     *
+     * `shareIn` buffers frames (64 by default), so the drain finishes producing long before a
+     * collector has taken delivery. An out-of-band terminator — setting a flag that [flow] merges
+     * in — then races those buffered frames and usually wins, completing collection early. A
+     * single-frame stream can deliver nothing at all.
+     *
+     * This runs on a real multi-threaded dispatcher and repeats: the other tests here use
+     * [UnconfinedTestDispatcher], whose deterministic ordering hides the race entirely.
+     */
+    @Test
+    fun everyFrameSurvivesTheEndOfStream() = runTest {
+        for (frameCount in listOf(1, 2, 17)) {
+            val incomplete = mutableListOf<List<Int>>()
+            repeat(150) {
+                val fake = FakeFfiStream()
+                val stream = DataTrackStream(fake, Dispatchers.Default)
+                repeat(frameCount) { i -> fake.offer(i + 1) }
+                fake.end()
+
+                val received = withContext(Dispatchers.Default) {
+                    withTimeout(5_000) { stream.flow.toList() }
+                }
+                if (received.size != frameCount) {
+                    incomplete.add(payloads(received))
+                }
+            }
+            assertEquals(
+                "collections that lost frames with frameCount=$frameCount: $incomplete",
+                emptyList<List<Int>>(),
+                incomplete,
+            )
+        }
+    }
+
+    /**
+     * The counterpart to [everyFrameSurvivesTheEndOfStream]: [DataTrackStream.close] is the one
+     * case where completing ahead of buffered frames is correct, since the caller asked to stop.
+     * It must still end collection promptly rather than draining first.
+     */
+    @Test
+    fun closeEndsCollectionPromptlyOnARealDispatcher() = runTest {
+        withContext(Dispatchers.Default) {
+            val fake = FakeFfiStream()
+            val stream = DataTrackStream(fake, Dispatchers.Default)
+            val collecting = async(Dispatchers.Default) { stream.flow.toList() }
+
+            fake.offer(1)
+            // Give the collector a moment to subscribe and take the frame before closing.
+            delay(200)
+            stream.close()
+
+            withTimeout(5_000) { collecting.await() }
+        }
     }
 }
