@@ -731,6 +731,38 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
     }
 
+    /**
+     * A refused offer ends its own wait. The description it would have installed never came into
+     * being, so the connection carries on with the one in force and later candidates reach it
+     * rather than piling up behind an offer that is never going to land.
+     */
+    @Test
+    fun aRefusedOfferStopsHoldingCandidates() = runTest {
+        connect()
+        val subPeerConnection = getSubscriberPeerConnection()
+
+        simulateMessageFromServer(refusedOffer())
+        advanceUntilIdle()
+
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(subscriberTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
+    /** An empty description is the one the mock connection refuses. */
+    private fun refusedOffer(): LivekitRtc.SignalResponse {
+        val offer = LivekitRtc.SessionDescription.newBuilder()
+            .setSdp("")
+            .setType("offer")
+            .setId(100)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setOffer(offer)
+            .build()
+    }
+
     private fun subscriberTrickle(): LivekitRtc.SignalResponse {
         val trickle = LivekitRtc.TrickleRequest.newBuilder()
             .setCandidateInit(
