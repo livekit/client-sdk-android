@@ -41,6 +41,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocketListener
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -125,6 +126,7 @@ class SignalClientTest : BaseTest() {
         val response = job.await()
         assertEquals(true, client.isConnected)
         assertEquals(response, JOIN.join)
+        assertArrayEquals(JOIN.toByteArray(), client.lastJoinEncoded)
     }
 
     @Test
@@ -499,6 +501,42 @@ class SignalClientTest : BaseTest() {
             val result = runCatching { reconnectJob.await() }
             assertTrue("reconnect should have failed", result.isFailure)
         }
+    }
+
+    @Test
+    fun sendEncodedRequestForwardsValidBytes() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+        val before = wsFactory.ws.sentRequests.size
+
+        val encoded = LivekitRtc.SignalRequest.newBuilder()
+            .setPing(1234)
+            .build()
+            .toByteArray()
+        client.sendEncodedRequest(encoded)
+
+        assertEquals(before + 1, wsFactory.ws.sentRequests.size)
+        val sent = LivekitRtc.SignalRequest.parseFrom(wsFactory.ws.sentRequests.last().toPBByteString())
+        assertEquals(1234L, sent.ping)
+    }
+
+    /**
+     * The native data track managers call this back across the FFI boundary, where a thrown
+     * parse failure would unwind into Rust.
+     */
+    @Test
+    fun sendEncodedRequestDropsUnparseableBytes() = runTest {
+        val job = async { client.join(EXAMPLE_URL, "") }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+        val before = wsFactory.ws.sentRequests.size
+
+        client.sendEncodedRequest(byteArrayOf(-1, -1, -1, -1, -1, -1))
+
+        assertEquals(before, wsFactory.ws.sentRequests.size)
     }
 
     // mock data
