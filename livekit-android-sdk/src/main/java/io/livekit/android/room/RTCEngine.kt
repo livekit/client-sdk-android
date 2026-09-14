@@ -1357,6 +1357,17 @@ internal constructor(
     }
 
     /**
+     * Forwards an encoded [LivekitRtc.SignalRequest] produced by a UniFFI data track manager.
+     */
+    internal fun sendDataTrackSignalRequest(requestBytes: ByteArray) {
+        // Data-track publish / subscribe signaling requires the publisher PC / `_data_track` DC.
+        if (!hasPublished) {
+            negotiatePublisher()
+        }
+        client.sendEncodedRequest(requestBytes)
+    }
+
+    /**
      * Queues serialized data-track packets on the dedicated `_data_track` data channel.
      */
     internal fun sendDataTrackPackets(packets: List<ByteArray>) {
