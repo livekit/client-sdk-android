@@ -198,10 +198,9 @@ class CallViewModel(
                 room.events.collect {
                     when (it) {
                         is RoomEvent.FailedToConnect -> mutableError.value = it.error
+                        // Fires for tracks already published when a participant is first seen,
+                        // and again for the tracks reattached after a full reconnect.
                         is RoomEvent.DataTrackPublished -> subscribeToDataTrack(it.track)
-//                        // A full reconnect re-attaches the surviving tracks without republishing
-//                        // events for them, so sweep again rather than waiting on DataTrackPublished.
-//                        is RoomEvent.Reconnected -> subscribeToAvailableDataTracks()
                         is RoomEvent.DataReceived -> {
                             // Handling basic data packets.
                             val identity = it.participant?.identity ?: "server"
@@ -276,7 +275,7 @@ class CallViewModel(
             mutableEnhancedNsEnabled.postValue(room.audioProcessorIsEnabled)
             mutableEnableAudioProcessor.postValue(true)
 
-            // Data tracks already published when we joined.
+            // Covers any track announced before the event collector above was subscribed.
             subscribeToAvailableDataTracks()
 
             // Create and publish audio/video tracks
@@ -295,9 +294,10 @@ class CallViewModel(
     /**
      * Subscribes to every data track currently published in the room.
      *
-     * [RoomEvent.DataTrackPublished] only fires while the room is connected, so tracks that were
-     * already published when we joined — or that were re-attached by a full reconnect — never
-     * announce themselves and have to be picked up from [RemoteParticipant.dataTracks] instead.
+     * [RoomEvent.DataTrackPublished] also fires for these tracks, but the event collector is
+     * started in a sibling coroutine and may not be subscribed yet when connect completes.
+     * Sweeping [RemoteParticipant.dataTracks] once after connect covers that gap;
+     * [subscribedDataTracks] keeps the two paths from subscribing the same track twice.
      */
     private fun subscribeToAvailableDataTracks() {
         room.remoteParticipants.values
