@@ -22,7 +22,6 @@ import io.livekit.android.events.EventListenable
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.uniffi.HandleSignalResponseException
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import io.livekit.uniffi.RemoteDataTrackManagerInterface
 import javax.inject.Inject
@@ -149,7 +148,8 @@ constructor(
         val manager = ensureManager() ?: return
         try {
             manager.handleSfuJoinResponse(responseBytes)
-        } catch (e: HandleSignalResponseException) {
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.w(e) { "Failed to handle JoinResponse for data tracks" }
         }
     }
@@ -158,7 +158,8 @@ constructor(
         val manager = ensureManager() ?: return
         try {
             manager.handleSfuParticipantUpdate(responseBytes, localParticipantIdentity)
-        } catch (e: HandleSignalResponseException) {
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.w(e) { "Failed to handle participant update for data tracks" }
         }
     }
@@ -167,7 +168,8 @@ constructor(
         val manager = ensureManager() ?: return
         try {
             manager.handleSubscriberHandles(responseBytes)
-        } catch (e: HandleSignalResponseException) {
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.w(e) { "Failed to handle DataTrackSubscriberHandles" }
         }
     }
@@ -183,7 +185,13 @@ constructor(
     }
 
     override fun resendSubscriptionUpdates() {
-        remoteManager?.resendSubscriptionUpdates()
+        val manager = synchronized(lock) { remoteManager } ?: return
+        try {
+            manager.resendSubscriptionUpdates()
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            LKLog.w(e) { "Failed to resend data track subscription updates" }
+        }
     }
 
     override fun close() {

@@ -66,6 +66,11 @@ class MockLocalDataTrackManagerFactory : LocalDataTrackManagerFactory {
     }
 }
 
+/**
+ * Stands in for the UniFFI local manager, including its handle lifecycle: once [close] has run,
+ * every interface call throws [IllegalStateException] the way uniffi's generated `callWithHandle`
+ * guard does, so tests can reproduce a `disconnect()` destroying the manager mid-call.
+ */
 class MockLocalDataTrackManager(
     val delegate: LocalDataTrackManagerDelegate,
 ) : LocalDataTrackManagerInterface, AutoCloseable {
@@ -75,15 +80,25 @@ class MockLocalDataTrackManager(
     var closed = false
         private set
 
+    /**
+     * Mirrors uniffi's destroyed-handle guard, message included.
+     */
+    private fun checkNotDestroyed() {
+        check(!closed) { "MockLocalDataTrackManager object has already been destroyed" }
+    }
+
     override fun handleSfuPublishResponse(res: ByteArray) {
+        checkNotDestroyed()
         handledPublishResponses.add(res)
     }
 
     override fun handleSfuRequestResponse(res: ByteArray) {
+        checkNotDestroyed()
         handledRequestResponses.add(res)
     }
 
     override suspend fun publishResponsesForSyncState(): List<ByteArray> {
+        checkNotDestroyed()
         return publishedTracks.filter { it.isPublished() }.map { track ->
             LivekitRtc.PublishDataTrackResponse.newBuilder()
                 .setInfo(
@@ -101,6 +116,7 @@ class MockLocalDataTrackManager(
     var publishError: PublishException? = null
 
     override suspend fun publishTrack(options: DataTrackOptions): LocalDataTrack {
+        checkNotDestroyed()
         publishError?.let { throw it }
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setPublishDataTrackRequest(
@@ -118,6 +134,7 @@ class MockLocalDataTrackManager(
         private set
 
     override fun republishTracks() {
+        checkNotDestroyed()
         republishTracksCount++
     }
 

@@ -22,7 +22,6 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
-import io.livekit.uniffi.HandleSignalResponseException
 import io.livekit.uniffi.LocalDataTrackManagerDelegate
 import io.livekit.uniffi.LocalDataTrackManagerInterface
 import uniffi.livekit_datatrack.PublishException
@@ -112,7 +111,8 @@ constructor(
         val manager = localManager ?: return
         try {
             manager.handleSfuPublishResponse(responseBytes)
-        } catch (e: HandleSignalResponseException) {
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.w(e) { "Failed to handle PublishDataTrackResponse" }
         }
     }
@@ -136,7 +136,8 @@ constructor(
         val manager = localManager ?: return
         try {
             manager.handleSfuRequestResponse(responseBytes)
-        } catch (e: HandleSignalResponseException) {
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
             LKLog.w(e) { "Failed to handle RequestResponse for data tracks" }
         }
     }
@@ -145,15 +146,34 @@ constructor(
      * Republish all tracks after a full reconnect so the SFU recognizes existing publications.
      */
     fun republishTracks() {
-        localManager?.republishTracks()
+        val manager = synchronized(lock) { localManager } ?: return
+        try {
+            manager.republishTracks()
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            LKLog.w(e) { "Failed to republish data tracks after reconnect" }
+        }
     }
 
     /**
      * Returns serialized `PublishDataTrackResponse` messages for currently published tracks,
      * suitable for [livekit.LivekitRtc.SyncState.publishDataTracks].
+     *
+     * Runs on the resume path from `onSignalConnected`, a listener callback of the reconnect
+     * coroutine, which has no exception handler. A concurrent [close] can destroy the manager
+     * between resolving it and calling into it, which uniffi reports as an
+     * [IllegalStateException]; the sync state then goes out without data tracks rather than the
+     * resume dying.
      */
     suspend fun publishResponsesForSyncState(): List<ByteArray> {
-        return localManager?.publishResponsesForSyncState() ?: emptyList()
+        val manager = synchronized(lock) { localManager } ?: return emptyList()
+        return try {
+            manager.publishResponsesForSyncState()
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            LKLog.w(e) { "Failed to collect published data tracks for sync state" }
+            emptyList()
+        }
     }
 
     /**

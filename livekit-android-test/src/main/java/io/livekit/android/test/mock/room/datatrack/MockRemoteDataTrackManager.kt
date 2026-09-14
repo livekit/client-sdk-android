@@ -54,6 +54,11 @@ class MockRemoteDataTrackManagerFactory : RemoteDataTrackManagerFactory {
     }
 }
 
+/**
+ * Stands in for the UniFFI remote manager, including its handle lifecycle: once [close] has run,
+ * every interface call throws [IllegalStateException] the way uniffi's generated `callWithHandle`
+ * guard does, so tests can reproduce a `disconnect()` destroying the manager mid-call.
+ */
 class MockRemoteDataTrackManager(
     val delegate: RemoteDataTrackManagerDelegate,
 ) : RemoteDataTrackManagerInterface, AutoCloseable {
@@ -66,23 +71,35 @@ class MockRemoteDataTrackManager(
     var resendSubscriptionUpdatesCount = 0
         private set
 
+    /**
+     * Mirrors uniffi's destroyed-handle guard, message included.
+     */
+    private fun checkNotDestroyed() {
+        check(!closed) { "MockRemoteDataTrackManager object has already been destroyed" }
+    }
+
     override fun handlePacketReceived(packet: ByteArray) {
+        checkNotDestroyed()
         handledPackets.add(packet)
     }
 
     override fun handleSfuJoinResponse(res: ByteArray) {
+        checkNotDestroyed()
         handledJoinResponses.add(res)
     }
 
     override fun handleSfuParticipantUpdate(res: ByteArray, localParticipantIdentity: String) {
+        checkNotDestroyed()
         handledParticipantUpdates.add(res)
     }
 
     override fun handleSubscriberHandles(res: ByteArray) {
+        checkNotDestroyed()
         handledSubscriberHandles.add(res)
     }
 
     override fun resendSubscriptionUpdates() {
+        checkNotDestroyed()
         resendSubscriptionUpdatesCount++
     }
 
