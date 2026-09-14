@@ -298,10 +298,6 @@ constructor(
         return sdp
     }
 
-    fun prepareForIceRestart() {
-        restartingIce = true
-    }
-
     fun isClosed() = isClosed.get()
 
     fun closeBlocking() {

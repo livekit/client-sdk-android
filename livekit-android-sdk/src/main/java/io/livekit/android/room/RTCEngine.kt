@@ -637,7 +637,10 @@ internal constructor(
                     }
                     connectionState = ConnectionState.RESUMING
                     LKLog.v { "Attempting soft reconnect." }
-                    subscriber?.prepareForIceRestart()
+                    // The subscriber deliberately does not enter an ice restart state here. Only a
+                    // remote description clears that, and the server re-offers the subscriber only
+                    // when the reconnect moved us to another node, so on an ordinary resume it
+                    // would never clear and every later candidate would be queued and never added.
                     try {
                         val response = client.reconnect(url!!, token, participantSid)
                         if (response is Either.Left) {
