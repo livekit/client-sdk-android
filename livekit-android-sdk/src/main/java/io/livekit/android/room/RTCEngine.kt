@@ -637,10 +637,10 @@ internal constructor(
                     }
                     connectionState = ConnectionState.RESUMING
                     LKLog.v { "Attempting soft reconnect." }
-                    // The subscriber deliberately does not enter an ice restart state here. Only a
-                    // remote description clears that, and the server re-offers the subscriber only
-                    // when the reconnect moved us to another node, so on an ordinary resume it
-                    // would never clear and every later candidate would be queued and never added.
+                    // The subscriber is not told to hold candidates here. The server re-offers it
+                    // only when the reconnect moved us to another node, so a resume that stays put
+                    // would never clear the hold. onServerOffer sets it instead, which covers
+                    // exactly the offer it arrives with and nothing after.
                     try {
                         val response = client.reconnect(url!!, token, participantSid)
                         if (response is Either.Left) {
@@ -1131,6 +1131,9 @@ internal constructor(
 
     override fun onServerOffer(sessionDescription: SessionDescription, offerId: Int) {
         LKLog.v { "received server offer: ${sessionDescription.type}, ${runBlocking { publisher?.signalingState() }}" }
+        // Set before the work is scheduled: responses keep their order but this coroutine does not
+        // run inline, so a candidate for this offer can arrive while the old description is still on.
+        subscriber?.expectRemoteDescription()
         coroutineScope.launch {
             run {
                 when (val outcome = subscriber?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {

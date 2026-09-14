@@ -89,7 +89,9 @@ constructor(
         ) ?: throw IllegalStateException("peer connection creation failed?")
     }!!
     private val pendingCandidates = mutableListOf<IceCandidate>()
-    private var restartingIce: Boolean = false
+
+    /** Holds remote candidates until the remote description they belong to has been applied. */
+    private var awaitingRemoteDescription: Boolean = false
 
     private var renegotiate = false
 
@@ -104,7 +106,7 @@ constructor(
 
     fun addIceCandidate(candidate: IceCandidate) {
         executeRTCIfNotClosed {
-            if (peerConnection.remoteDescription != null && !restartingIce) {
+            if (peerConnection.remoteDescription != null && !awaitingRemoteDescription) {
                 peerConnection.addIceCandidate(candidate)
             } else {
                 pendingCandidates.add(candidate)
@@ -130,7 +132,7 @@ constructor(
                     peerConnection.addIceCandidate(pending)
                 }
                 pendingCandidates.clear()
-                restartingIce = false
+                awaitingRemoteDescription = false
             }
             return@launchRTCIfNotClosed result
         } ?: Either.Right("PCT is closed.")
@@ -167,7 +169,7 @@ constructor(
                     constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
                 if (iceRestart) {
                     LKLog.d { "restarting ice" }
-                    restartingIce = true
+                    awaitingRemoteDescription = true
                 }
 
                 if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
@@ -296,6 +298,14 @@ constructor(
             LKLog.w { "error: $errorMessage" }
         }
         return sdp
+    }
+
+    /**
+     * Says a remote description is on its way, so candidates for it wait rather than land against
+     * the description it replaces. Called before the work that applies it is scheduled.
+     */
+    fun expectRemoteDescription() {
+        awaitingRemoteDescription = true
     }
 
     fun isClosed() = isClosed.get()
