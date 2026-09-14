@@ -29,6 +29,7 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.DataTrackPublishException
 import io.livekit.android.room.datatrack.DataTrackPublisherChannel
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
@@ -903,6 +904,41 @@ internal constructor(
         throw RoomException.ConnectException(
             "could not establish publisher connection: publisher state: ${publisherObserver.connectionState}, channel state: ${channelManager.state}",
         )
+    }
+
+    /**
+     * Negotiates the publisher if needed and waits until the `_data_track` channel is open.
+     *
+     * Data-track publish must not proceed until then: [sendDataTrackPackets] queues at most one
+     * frame while the channel is not [DataChannel.State.OPEN].
+     *
+     * [DataTrackPublisherChannel] re-reads its manager each pass rather than capturing it, so a
+     * publish in flight when a full reconnect swaps the transport waits for the replacement
+     * channel instead of failing against a disposed one. A real [close] fails it as a disconnect.
+     */
+    @Throws(exceptionClasses = [DataTrackPublishException::class])
+    internal suspend fun ensureDataTrackPublisherConnected() {
+        // Always mark publish intent so a full reconnect's joinImpl renegotiates even if this
+        // wait started against a torn-down publisher transport.
+        if (isSubscriberPrimary) {
+            val publisherTransport = publisher
+            val iceChecking = publisherTransport?.iceConnectionState() ==
+                PeerConnection.IceConnectionState.CHECKING
+            if (publisherTransport?.isConnected() != true && !iceChecking) {
+                negotiatePublisher()
+            }
+        }
+
+        val opened = dataTrackPublisherChannel.awaitOpen(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) { isClosed }
+        when (opened) {
+            true -> return
+            false -> throw DataTrackPublishException.Disconnected(
+                "Lost the connection while establishing the publisher data track channel",
+            )
+            null -> throw DataTrackPublishException.Timeout(
+                "Timed out establishing the publisher data track channel",
+            )
+        }
     }
 
     /**
