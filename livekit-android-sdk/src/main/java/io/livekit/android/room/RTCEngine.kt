@@ -31,6 +31,7 @@ import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
 import io.livekit.android.room.datatrack.DataTrackPublishException
 import io.livekit.android.room.datatrack.DataTrackPublisherChannel
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
@@ -123,6 +124,7 @@ internal constructor(
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
     private val outgoingDataTrackManager: OutgoingDataTrackManager,
+    private val incomingDataTrackManager: IncomingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -178,6 +180,7 @@ internal constructor(
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
     private var participantSid: String? = null
+    private var localParticipantIdentity: String? = null
 
     internal val serverVersion: Semver?
         get() = client.serverVersion
@@ -195,6 +198,7 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
+    private var dataTrackDataChannelSub: DataChannel? = null
     private val dataTrackPublisherChannel = DataTrackPublisherChannel(rtcThreadToken)
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
@@ -264,7 +268,20 @@ internal constructor(
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
 
+        if (joinResponse.hasParticipant()) {
+            localParticipantIdentity = joinResponse.participant.identity
+        }
+        // Participants first, then the original join bytes (Swift order): UniFFI discovers
+        // tracks once publishers are registered, and re-encoding would drop newer fields.
         listener?.onJoinResponse(joinResponse)
+        incomingDataTrackManager.handleSfuJoinResponse(
+            client.lastJoinEncoded
+                ?: LivekitRtc.SignalResponse.newBuilder()
+                    .setJoin(joinResponse)
+                    .build()
+                    .toByteArray(),
+        )
+        listener?.reattachRemoteDataTracks()
         isClosed = false
         listener?.onSignalConnected(false)
 
@@ -329,6 +346,7 @@ internal constructor(
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                            DATA_TRACK_DATA_CHANNEL_LABEL -> dataTrackDataChannelSub = dataChannel
                             else -> return@onDataChannel
                         }
                         dataChannel.registerObserver(DataChannelObserver(dataChannel))
@@ -468,10 +486,12 @@ internal constructor(
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
+        localParticipantIdentity = null
         regionUrlProvider = null
         abortPendingPublishTracks()
         closeResources(reason)
         outgoingDataTrackManager.close()
+        incomingDataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -507,6 +527,7 @@ internal constructor(
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
                     dataTrackPublisherChannel.detach()
+                    dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
                 }
             }
@@ -1089,6 +1110,7 @@ internal constructor(
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: JoinResponse)
+        fun reattachRemoteDataTracks() {}
         fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -1271,6 +1293,11 @@ internal constructor(
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>, encoded: ByteArray) {
         listener?.onUpdateParticipants(updates)
+        val identity = localParticipantIdentity
+        if (identity != null) {
+            incomingDataTrackManager.handleSfuParticipantUpdate(encoded, identity)
+        }
+        listener?.reattachRemoteDataTracks()
     }
 
     override fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
@@ -1371,6 +1398,10 @@ internal constructor(
         outgoingDataTrackManager.handleSfuRequestResponse(encoded)
     }
 
+    override fun onDataTrackSubscriberHandles(encoded: ByteArray) {
+        incomingDataTrackManager.handleSubscriberHandles(encoded)
+    }
+
     /**
      * Forwards an encoded [LivekitRtc.SignalRequest] produced by a UniFFI data track manager.
      */
@@ -1399,6 +1430,10 @@ internal constructor(
 
     fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
         if (buffer == null) {
+            return
+        }
+        if (dataChannel.label() == DATA_TRACK_DATA_CHANNEL_LABEL) {
+            incomingDataTrackManager.handlePacketReceived(ByteString.copyFrom(buffer.data).toByteArray())
             return
         }
         var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
