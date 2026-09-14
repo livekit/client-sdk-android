@@ -1266,7 +1266,7 @@ internal constructor(
         listener?.onLocalTrackSubscribed(trackSubscribed)
     }
 
-    override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {
+    override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>, encoded: ByteArray) {
         listener?.onUpdateParticipants(updates)
     }
 
