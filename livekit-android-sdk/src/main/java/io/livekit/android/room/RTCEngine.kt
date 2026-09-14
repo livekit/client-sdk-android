@@ -31,6 +31,7 @@ import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
 import io.livekit.android.room.datatrack.DataTrackPublishException
 import io.livekit.android.room.datatrack.DataTrackPublisherChannel
+import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
 import io.livekit.android.room.network.ReconnectPolicy
@@ -121,6 +122,7 @@ internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
+    private val outgoingDataTrackManager: OutgoingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -469,6 +471,7 @@ internal constructor(
         regionUrlProvider = null
         abortPendingPublishTracks()
         closeResources(reason)
+        outgoingDataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -1354,6 +1357,18 @@ internal constructor(
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
         listener?.onLocalTrackUnpublished(trackUnpublished)
+    }
+
+    override fun onPublishDataTrackResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuPublishResponse(encoded)
+    }
+
+    override fun onUnpublishDataTrackResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuUnpublishResponse(encoded)
+    }
+
+    override fun onRequestResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuRequestResponse(encoded)
     }
 
     /**
