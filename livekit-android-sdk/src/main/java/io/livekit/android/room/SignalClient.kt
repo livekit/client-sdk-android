@@ -858,7 +858,8 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.REQUEST_RESPONSE -> {
-                // TODO
+                // Pass the full SignalResponse — UniFFI deserializes and filters data-track related ones.
+                listener?.onRequestResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.ROOM_MOVED -> {
@@ -874,15 +875,15 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.PUBLISH_DATA_TRACK_RESPONSE -> {
-                // TODO
+                listener?.onPublishDataTrackResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.UNPUBLISH_DATA_TRACK_RESPONSE -> {
-                // TODO
+                listener?.onUnpublishDataTrackResponse(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.DATA_TRACK_SUBSCRIBER_HANDLES -> {
-                // TODO
+                listener?.onDataTrackSubscriberHandles(encoded)
             }
 
             LivekitRtc.SignalResponse.MessageCase.MESSAGE_NOT_SET,
@@ -979,6 +980,10 @@ constructor(
         fun onRefreshToken(token: String)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
+        fun onPublishDataTrackResponse(encoded: ByteArray) {}
+        fun onUnpublishDataTrackResponse(encoded: ByteArray) {}
+        fun onRequestResponse(encoded: ByteArray) {}
+        fun onDataTrackSubscriberHandles(encoded: ByteArray) {}
     }
 
     /**
