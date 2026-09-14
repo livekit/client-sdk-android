@@ -480,11 +480,8 @@ private const val maxStartBitrateKbps = 1000L
 /** Minimum target bitrate in kbps to apply start bitrate hint. Below this, the hint hurts more than it helps. */
 private const val minTargetBitrateKbps = 300L
 
-/**
- * @suppress
- */
 @VisibleForTesting
-fun ensureCodecBitrates(
+internal fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
 ) {
@@ -496,21 +493,27 @@ fun ensureCodecBitrates(
 }
 
 /*
- * libwebrtc applies these codec fmtp bitrate params to the shared Call, not just
- * the m-section that carries them. To avoid last-writer-wins variance, each video
- * m-section gets the same x-google-start-bitrate: the max hint among active video
- * m-sections in the first offer that contains local video. Later renegotiations do
- * not write it, because reapplying a start hint can reset an already-running
- * bandwidth estimator.
+ * These codec fmtp params are connection-scoped, not m-section-scoped. libwebrtc reads them per
+ * m-section (WebRtcVideoSendChannel::ApplyChangedParams -> GetBitrateConfigForCodec) but pushes the
+ * result into the shared Call via SetSdpBitrateParameters, where RtpBitrateConfigurator stores one
+ * config for the whole peer connection. Two m-sections carrying different values is last-writer-wins.
  *
- * Do not write x-google-max-bitrate here. libwebrtc promotes this SDP fmtp
- * value into the shared Call max_data_rate, so one video m-section can cap the
- * whole publisher connection and throttle unrelated concurrent tracks, such as
- * camera plus screen share. The track-specific limit belongs in
- * RtpParameters.Encoding.maxBitrateBps, where per-track and per-layer caps are
- * already applied. Keep this behavior aligned across LiveKit SDKs by relying on
- * encoding parameters for max bitrate and reserving SDP munging for the one
- * connection-level start bitrate hint.
+ * Hence: one value, written to every video m-section, once.
+ *
+ * Write it once because the value persists. RtpBitrateConfigurator keeps start_bitrate_bps in its
+ * stored config and re-applies it on every network route change (RtpTransportControllerSend::
+ * OnNetworkRouteChanged reads GetConfig()), so a WiFi-to-cellular handover re-seeds the estimator
+ * from this hint with no renegotiation. Rewriting it later is at best a no-op (libwebrtc ignores an
+ * unchanged value, and only re-reads it when the send codec changes) and at worst restarts a
+ * converged bandwidth estimator, so a full reconnect -- a new peer connection, a new estimator -- is
+ * the only thing that should seed it again.
+ *
+ * Never write x-google-max-bitrate. The same Call-level promotion turns a per-track cap into a
+ * ceiling on total send bandwidth, so a 2.3 Mbps camera would starve a concurrent 3 Mbps screen
+ * share. libwebrtc carries a TODO conceding this is wrong ("codec max bitrate should probably not
+ * affect global call max bitrate"). Per-track and per-layer caps belong in
+ * RtpParameters.Encoding.maxBitrateBps, which is genuinely scoped per encoding. client-sdk-js and
+ * the Rust SDK never write it either.
  */
 @VisibleForTesting
 internal fun ensureCodecBitrates(
@@ -619,18 +622,30 @@ internal fun isSVCCodec(codec: String?): Boolean {
 }
 
 /**
- * @suppress
+ * The bitrate a local video track was published at, used to derive the connection-level
+ * `x-google-start-bitrate` hint in [ensureCodecBitrates].
+ *
+ * Carries no max bitrate: per-track and per-layer caps belong in
+ * [livekit.org.webrtc.RtpParameters.Encoding.maxBitrateBps], not in SDP.
+ *
+ * @param codec The codec the track is published with, matched against the m-section's rtpmap.
+ * @param targetBitrateKbps The track's target bitrate in **kbps** (not bps). For SVC this is the
+ *   single encoding's bitrate; for simulcast it is the sum across layers, since the bandwidth
+ *   estimator has to carry all of them.
+ * @param isScreenShare Whether the track is a screen share. Screen shares are exempt from the
+ *   [maxStartBitrateKbps] cap: they are typically published at high bitrates for text legibility,
+ *   and unlike camera content a conservative start is more costly than a brief overshoot.
  */
-data class TrackBitrateInfo(
+internal data class TrackBitrateInfo(
     val codec: String,
     val targetBitrateKbps: Long,
     val isScreenShare: Boolean = false,
 )
 
 /**
- * @suppress
+ * Identifies the local track a [TrackBitrateInfo] belongs to.
  */
-sealed class TrackBitrateInfoKey {
+internal sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
 }
