@@ -17,15 +17,24 @@
 package io.livekit.android.room.datatrack
 
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.ReconnectType
+import io.livekit.android.room.SignalClient
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel
+import io.livekit.android.test.mock.SignalRequestHandler
+import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.yield
+import livekit.LivekitRtc
 import livekit.org.webrtc.DataChannel
+import livekit.org.webrtc.PeerConnection
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -138,6 +147,31 @@ class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publishDataTrackWaitsForReplacementChannelAcrossFullReconnect() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+        publisherDataTrackChannel().state = DataChannel.State.CONNECTING
+
+        val publish = async { room.localParticipant.publishDataTrack("telemetry") }
+        yield()
+        assertTrue(publish.isActive)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        yield()
+        assertTrue(publish.isActive)
+
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val result = publish.await()
+        assertTrue(result.isSuccess)
+        assertEquals("telemetry", result.getOrThrow().info.name)
+    }
+
+    @Test
     fun publishDataTrackFailsIfDisconnectedWhileWaitingForChannel() = runTest {
         connect()
         publisherDataTrackChannel().state = DataChannel.State.CONNECTING
@@ -154,6 +188,111 @@ class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
         assertTrue(result.exceptionOrNull() is DataTrackPublishException.Disconnected)
     }
 
+    @Test
+    fun fullReconnectSendsDataTrackPacketsOnReplacementChannel() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+        val original = publisherDataTrackChannel()
+        room.engine.sendDataTrackPackets(listOf(byteArrayOf(1)))
+        assertEquals(1, original.sentPayloads.size)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val replacement = publisherDataTrackChannel()
+        assertNotSame(original, replacement)
+        room.engine.sendDataTrackPackets(listOf(byteArrayOf(2)))
+        advanceUntilIdle()
+        assertEquals(1, replacement.sentPayloads.size)
+        assertArrayEquals(byteArrayOf(2), replacement.sentPayloads.single())
+    }
+
+    @Test
+    fun fullReconnectRenegotiatesPublisherForDataTrack() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        val local = localDataTrackManagerFactory.manager
+        assertEquals(0, local.republishTracksCount)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        assertEquals(1, local.republishTracksCount)
+        assertEquals(
+            PeerConnection.PeerConnectionState.CONNECTED,
+            getPublisherPeerConnection().connectionState(),
+        )
+    }
+
+    @Test
+    fun softReconnectIncludesPublishedDataTracksInSyncState() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val syncState = wsFactory.ws.sentRequests
+            .map { LivekitRtc.SignalRequest.parseFrom(it.toPBByteString()) }
+            .firstOrNull { it.hasSyncState() }
+            ?.syncState
+        assertNotNull(syncState)
+        assertEquals(1, syncState!!.publishDataTracksCount)
+        assertEquals("telemetry", syncState.getPublishDataTracks(0).info.name)
+        assertEquals("DT_mock", syncState.getPublishDataTracks(0).info.sid)
+    }
+
+    private val publisherOfferHandler: SignalRequestHandler = { request ->
+        if (request.hasOffer()) {
+            val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                    sdp = "remote_answer"
+                    type = "answer"
+                    id = request.offer.id
+                    build()
+                }
+                build()
+            }
+            wsFactory.receiveMessage(answer)
+            true
+        } else {
+            false
+        }
+    }
+
     private fun publisherDataTrackChannel() =
         getPublisherPeerConnection().dataChannels[RTCEngine.DATA_TRACK_DATA_CHANNEL_LABEL] as MockDataChannel
+
+    private fun reconnectWebsocket() {
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        val softReconnectParam = wsFactory.request.url
+            .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+            ?.toIntOrNull()
+            ?: 0
+
+        if (softReconnectParam == 0) {
+            simulateMessageFromServer(TestData.JOIN)
+        } else {
+            simulateMessageFromServer(TestData.RECONNECT)
+        }
+    }
 }
