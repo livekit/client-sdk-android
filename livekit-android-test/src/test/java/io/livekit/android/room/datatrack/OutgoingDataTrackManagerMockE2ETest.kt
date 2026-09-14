@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
+import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.ReconnectType
 import io.livekit.android.room.SignalClient
@@ -23,6 +24,7 @@ import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
+import io.livekit.android.test.mock.e2ee.NoopKeyProvider
 import io.livekit.android.test.util.toPBByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -88,6 +90,29 @@ class OutgoingDataTrackManagerMockE2ETest : MockE2ETest() {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is DataTrackPublishException.InvalidSchema)
+    }
+
+    @Test
+    fun publishDataTrackPassesEncryptionProviderWhenE2eeEnabled() = runTest {
+        room.e2eeOptions = E2EEOptions(keyProvider = NoopKeyProvider())
+        connect()
+
+        val result = room.localParticipant.publishDataTrack("telemetry")
+        assertTrue(result.isSuccess)
+
+        // Tests use ReversingDataPacketCryptorManager by default.
+        val encryptionProvider = localDataTrackManagerFactory.lastEncryptionProvider
+        assertNotNull(encryptionProvider)
+        val encrypted = encryptionProvider!!.encrypt(byteArrayOf(1, 2, 3))
+        assertArrayEquals(byteArrayOf(3, 2, 1), encrypted.payload)
+
+        val decryptionProvider = remoteDataTrackManagerFactory.lastDecryptionProvider
+        assertNotNull(decryptionProvider)
+        val decrypted = decryptionProvider!!.decrypt(
+            encrypted,
+            room.localParticipant.identity!!.value,
+        )
+        assertArrayEquals(byteArrayOf(1, 2, 3), decrypted)
     }
 
     @Test

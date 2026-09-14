@@ -95,6 +95,12 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun incomingDataTrackAlwaysReceivesDecryptionProvider() = runTest {
+        connect()
+        assertNotNull(remoteDataTrackManagerFactory.lastDecryptionProvider)
+    }
+
+    @Test
     fun remoteDataTrackPublishedAttachesToParticipant() = runTest {
         connect()
         simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
