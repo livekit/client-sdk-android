@@ -140,8 +140,6 @@ class LocalDataTrack internal constructor(
 /**
  * The slice of a publication the sequence send drives — a seam so the queue-full policy is
  * unit-testable, since saturating a live pipeline to observe it is inherently timing-dependent.
- *
- * @suppress
  */
 internal interface DataTrackFrameSink {
     val isPublished: Boolean

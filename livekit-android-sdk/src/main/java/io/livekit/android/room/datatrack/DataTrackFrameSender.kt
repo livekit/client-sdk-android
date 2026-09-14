@@ -25,8 +25,6 @@ import java.nio.ByteBuffer
  * The slice of the RTC data channel the outbound drain drives — a seam so the drain logic is
  * unit-testable ([livekit.org.webrtc.DataChannel] can't be constructed without a live peer
  * connection).
- *
- * @suppress
  */
 internal interface DataTrackSendChannel {
     val bufferedAmount: Long
@@ -39,8 +37,6 @@ internal interface DataTrackSendChannel {
  *
  * [bufferedAmount] is read live from the native channel so the pump can meter after each send;
  * [DataChannelManager.bufferedAmount] only updates on the buffered-amount callback.
- *
- * @suppress
  */
 internal class DataChannelManagerSendChannel(
     private val manager: DataChannelManager,
@@ -66,8 +62,6 @@ internal class DataChannelManagerSendChannel(
  * one. Frames are handled whole — a partial frame is never left on the wire.
  *
  * Not thread-safe: the owner confines all calls to the RTC thread.
- *
- * @suppress
  */
 internal class DataTrackFrameSender {
     companion object {

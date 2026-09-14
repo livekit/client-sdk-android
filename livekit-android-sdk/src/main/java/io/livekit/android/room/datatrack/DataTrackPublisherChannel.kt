@@ -35,8 +35,6 @@ import livekit.org.webrtc.DataChannel
  * replacement [DataChannelManager] for the same session while the frame sender lives on, and
  * [awaitOpen] re-reads the current manager each pass so an in-flight publish waits for that
  * replacement instead of failing against a disposed one.
- *
- * @suppress
  */
 internal class DataTrackPublisherChannel(
     private val rtcThreadToken: RTCThreadToken,

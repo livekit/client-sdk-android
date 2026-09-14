@@ -29,8 +29,6 @@ import uniffi.livekit_datatrack.EncryptionProvider
  * Adds no key handling of its own — encryption rides [E2EEManager]'s existing AES-GCM data path
  * (the same [DataPacketCryptorManager] used for data-channel payloads). The manager is resolved
  * per call so one assigned after connecting still applies.
- *
- * @suppress
  */
 internal class DataTrackCryptor(
     private val e2eeManagerProvider: () -> E2EEManager?,
