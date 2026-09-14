@@ -289,8 +289,10 @@ internal constructor(
 
         configure(joinResponse, options)
 
-        // create offer
-        if (!isSubscriberPrimary || joinResponse.fastPublish) {
+        // Subscriber-primary defers the publisher PC until something is published. After a full
+        // reconnect `hasPublished` is still set, so re-negotiate here — otherwise the ICE wait
+        // stalls and data-track republish never runs.
+        if (!isSubscriberPrimary || joinResponse.fastPublish || hasPublished) {
             negotiatePublisher()
         }
         client.onReadyForResponses()
@@ -721,6 +723,10 @@ internal constructor(
                     // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
+                    if (isFullReconnect) {
+                        outgoingDataTrackManager.republishTracks()
+                    }
+                    incomingDataTrackManager.resendSubscriptionUpdates()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -1123,7 +1129,7 @@ internal constructor(
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
-        fun onSignalConnected(isResume: Boolean)
+        suspend fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
@@ -1538,7 +1544,7 @@ internal constructor(
         }
     }
 
-    fun sendSyncState(
+    suspend fun sendSyncState(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
@@ -1571,6 +1577,16 @@ internal constructor(
             }
         }
 
+        val publishDataTracks = outgoingDataTrackManager.publishResponsesForSyncState().mapNotNull { bytes ->
+            try {
+                LivekitRtc.PublishDataTrackResponse.parseFrom(bytes)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to parse PublishDataTrackResponse for sync state" }
+                null
+            }
+        }
+
         val syncState = with(LivekitRtc.SyncState.newBuilder()) {
             if (answer != null) {
                 setAnswer(answer)
@@ -1580,6 +1596,7 @@ internal constructor(
             }
             setSubscription(subscription)
             addAllPublishTracks(publishedTracks)
+            addAllPublishDataTracks(publishDataTracks)
             addAllDataChannels(dataChannelInfos)
             addAllDatachannelReceiveStates(dataChannelReceiveStates)
             build()

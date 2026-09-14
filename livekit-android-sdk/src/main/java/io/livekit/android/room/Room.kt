@@ -64,6 +64,7 @@ import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.participant.RpcHandler
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
 import io.livekit.android.room.participant.addDataTrack
+import io.livekit.android.room.participant.detachDataTracks
 import io.livekit.android.room.participant.publishTracksInfo
 import io.livekit.android.room.participant.unpublishDataTrack
 import io.livekit.android.room.participant.unpublishDataTracks
@@ -1104,7 +1105,7 @@ constructor(
         incomingDataStreamManager.clearOpenStreams()
     }
 
-    private fun sendSyncState() {
+    private suspend fun sendSyncState() {
         // Whether we're sending subscribed tracks or tracks to unsubscribe.
         val sendUnsub = connectOptions.autoSubscribe
         val participantTracksList = mutableListOf<LivekitModels.ParticipantTracks>()
@@ -1518,7 +1519,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onSignalConnected(isResume: Boolean) {
+    override suspend fun onSignalConnected(isResume: Boolean) {
         if (isResume) {
             // during resume reconnection, need to send sync state upon signal connection.
             sendSyncState()
@@ -1530,6 +1531,7 @@ constructor(
      */
     override fun onFullReconnecting() {
         localParticipant.prepareForFullReconnect()
+        remoteParticipants.values.forEach { it.detachDataTracks() }
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
             .forEach { identity -> handleParticipantDisconnect(identity) }
     }
