@@ -129,7 +129,11 @@ class MockPeerConnection(
         return true
     }
 
+    /** Every candidate actually handed to the connection, so a test can tell added from queued. */
+    val addedIceCandidates = mutableListOf<IceCandidate>()
+
     override fun addIceCandidate(candidate: IceCandidate?): Boolean {
+        candidate?.let { addedIceCandidates.add(it) }
         return true
     }
 

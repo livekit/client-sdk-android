@@ -683,4 +683,42 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             )
         }
     }
+
+    /**
+     * A resume must leave the subscriber able to take the paths the server proposes. It used to
+     * enter an ice restart state that only a remote description clears, and the server re-offers
+     * the subscriber only when the reconnect moved us to another node, so after an ordinary resume
+     * every later candidate was queued and never added. Same defect as client-sdk-js#2054.
+     */
+    @Test
+    fun softReconnectKeepsSubscriberApplyingRemoteCandidates() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val subPeerConnection = getSubscriberPeerConnection()
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(subscriberTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
+    private fun subscriberTrickle(): LivekitRtc.SignalResponse {
+        val trickle = LivekitRtc.TrickleRequest.newBuilder()
+            .setCandidateInit(
+                """{"candidate":"candidate:1 1 UDP 1 127.0.0.1 9 typ host","sdpMLineIndex":0,"sdpMid":"0"}""",
+            )
+            .setTarget(LivekitRtc.SignalTarget.SUBSCRIBER)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setTrickle(trickle)
+            .build()
+    }
 }
