@@ -12,5 +12,7 @@ subscriber unable to adopt any new path the server proposed.
 
 Candidates now wait on the description they belong to rather than on the reconnect. `onServerOffer`
 says a description is coming before it schedules the work that applies it, so a candidate that
-arrives in between is held rather than tried against the description being replaced, and the wait
-ends when that attempt ends whether the description lands or is refused.
+arrives in between is held rather than tried against the description being replaced. Each wait is
+owned by what answers it, an ice restart offer by its own offer id and a server offer by its own
+turn, and it ends when that attempt ends whether the description lands, is refused, or answers an
+offer that has since been superseded.

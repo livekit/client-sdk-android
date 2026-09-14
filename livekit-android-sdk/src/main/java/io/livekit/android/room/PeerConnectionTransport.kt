@@ -91,11 +91,14 @@ constructor(
     private val pendingCandidates = mutableListOf<IceCandidate>()
 
     /**
-     * How many remote descriptions are on their way. Candidates wait while any is outstanding, so
-     * one belonging to a description that has not landed is never tried against the description it
-     * replaces. Only touched on the RTC thread.
+     * The offers whose answers are still owed, by offer id, and how many server offers are still to
+     * be applied. Candidates wait while either stands, so one belonging to a description that has
+     * not landed is never tried against the description it replaces. Only touched on the RTC thread.
      */
-    private var awaitedDescriptions = 0
+    private val awaitedAnswers = mutableSetOf<Int>()
+    private var awaitedOffers = 0
+
+    private fun awaitingDescription() = awaitedAnswers.isNotEmpty() || awaitedOffers > 0
 
     private var renegotiate = false
 
@@ -110,7 +113,7 @@ constructor(
 
     fun addIceCandidate(candidate: IceCandidate) {
         executeRTCIfNotClosed {
-            if (peerConnection.remoteDescription != null && awaitedDescriptions == 0) {
+            if (peerConnection.remoteDescription != null && !awaitingDescription()) {
                 peerConnection.addIceCandidate(candidate)
             } else {
                 pendingCandidates.add(candidate)
@@ -128,13 +131,13 @@ constructor(
         val result = launchRTCIfNotClosed {
             val currentOfferId = latestOfferId.get()
             if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
-                // The offer this answers has been superseded, so its wait ends here; the offer that
-                // replaced it holds its own.
-                descriptionSettled(applied = false)
+                // The offer this answers has been superseded, so only that offer's wait ends here;
+                // the offer that replaced it keeps its own.
+                descriptionSettled(sd, offerId, applied = false)
                 return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: $currentOfferId, actual: $offerId")
             }
             val result = peerConnection.setRemoteDescription(sd)
-            descriptionSettled(applied = result is Either.Left)
+            descriptionSettled(sd, offerId, applied = result is Either.Left)
             return@launchRTCIfNotClosed result
         } ?: Either.Right("PCT is closed.")
 
@@ -170,7 +173,6 @@ constructor(
                     constraints.findConstraint(MediaConstraintKeys.ICE_RESTART) == MediaConstraintKeys.TRUE
                 if (iceRestart) {
                     LKLog.d { "restarting ice" }
-                    awaitedDescriptions++
                 }
 
                 if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
@@ -182,10 +184,6 @@ constructor(
                         // the best thing to do is to recreate the peerconnection
                         peerConnection.setRemoteDescription(curSd)
                     } else {
-                        // No offer goes out, so the answer it would have waited for is not coming.
-                        if (iceRestart) {
-                            descriptionSettled(applied = false)
-                        }
                         renegotiate = true
                         return@launchRTCIfNotClosed
                     }
@@ -198,13 +196,18 @@ constructor(
                 // this may skip some ids, but is not an issue.
                 offerId = latestOfferId.incrementAndGet()
 
+                // An ice restart mints new local credentials, so candidates wait for the answer
+                // that carries the far side's. The wait is owned by this offer id alone.
+                if (iceRestart) {
+                    awaitedAnswers.add(offerId)
+                }
+
                 val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         LKLog.d { "error creating offer: ${outcome.value}" }
-                        if (iceRestart) {
-                            descriptionSettled(applied = false)
-                        }
+                        // No offer goes out, so the answer it would have waited for is not coming.
+                        awaitedAnswers.remove(offerId)
                         return@launchRTCIfNotClosed
                     }
                 }
@@ -314,20 +317,28 @@ constructor(
      * answered by the attempt to set that description whether it lands or is refused.
      */
     fun expectRemoteDescription() {
-        executeRTCIfNotClosed { awaitedDescriptions++ }
+        executeRTCIfNotClosed { awaitedOffers++ }
     }
 
     /**
-     * Ends one wait, however it ended. Only a description that landed takes the candidates held for
-     * it, and only once nothing else is awaited. A wait that ended without one leaves them queued
-     * for the next description rather than dropping them, since one that no longer fits is refused
-     * by the connection anyway and one that still fits would otherwise be lost.
+     * Ends the wait this description answers, however it ended: an answer ends the wait its own
+     * offer opened and no other, a server offer ends one of the waits opened for them. Only a
+     * description that landed takes the candidates held, and only once nothing else is awaited. A
+     * wait that ended without one leaves them queued rather than dropping them, since one that no
+     * longer fits is refused by the connection anyway and one that still fits would be lost.
      */
-    private fun descriptionSettled(applied: Boolean) {
-        if (awaitedDescriptions > 0) {
-            awaitedDescriptions--
+    private fun descriptionSettled(sd: SessionDescription, offerId: Int, applied: Boolean) {
+        if (sd.type == SessionDescription.Type.ANSWER) {
+            // A legacy answer carries no id to match itself to, so it ends whatever was owed.
+            if (offerId > 0) {
+                awaitedAnswers.remove(offerId)
+            } else {
+                awaitedAnswers.clear()
+            }
+        } else if (awaitedOffers > 0) {
+            awaitedOffers--
         }
-        if (!applied || awaitedDescriptions > 0) {
+        if (!applied || awaitingDescription()) {
             return
         }
         pendingCandidates.forEach { pending ->
