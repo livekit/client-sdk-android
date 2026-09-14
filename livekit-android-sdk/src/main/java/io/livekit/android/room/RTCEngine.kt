@@ -29,6 +29,7 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.DataTrackPublisherChannel
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
 import io.livekit.android.room.network.ReconnectPolicy
@@ -191,6 +192,7 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
+    private val dataTrackPublisherChannel = DataTrackPublisherChannel(rtcThreadToken)
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
@@ -377,6 +379,9 @@ internal constructor(
                         dataChannel.registerObserver(lossyDataChannelManager)
                     }
                 }
+
+                ensureActive()
+                createPublisherDataTrackChannel()
             }
         }
     }
@@ -497,6 +502,7 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
+                    dataTrackPublisherChannel.detach()
                     isSubscriberPrimary = false
                 }
             }
@@ -899,6 +905,29 @@ internal constructor(
         )
     }
 
+    /**
+     * Creates the publisher `_data_track` channel and hands it to [dataTrackPublisherChannel].
+     */
+    private suspend fun createPublisherDataTrackChannel() {
+        val dataTrackInit = DataChannel.Init()
+        dataTrackInit.ordered = false
+        dataTrackInit.maxRetransmits = 0
+        publisher?.withPeerConnection {
+            createDataChannel(
+                DATA_TRACK_DATA_CHANNEL_LABEL,
+                dataTrackInit,
+            ).also { dataChannel ->
+                val dataChannelManager = DataChannelManager(
+                    dataChannel,
+                    DataChannelObserver(dataChannel),
+                    rtcThreadToken,
+                )
+                dataChannel.registerObserver(dataChannelManager)
+                dataTrackPublisherChannel.attach(dataChannelManager, coroutineScope)
+            }
+        }
+    }
+
     private fun dataChannelManagerForKind(kind: LivekitModels.DataPacket.Kind): DataChannelManager? =
         when (kind) {
             LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
@@ -1056,6 +1085,15 @@ internal constructor(
          */
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+
+        /**
+         * Dedicated data channel for LiveKit data-track packets.
+         *
+         * @suppress
+         */
+        @VisibleForTesting
+        const val DATA_TRACK_DATA_CHANNEL_LABEL = "_data_track"
+
         internal const val TARGET_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
 
         /**
@@ -1280,6 +1318,13 @@ internal constructor(
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
         listener?.onLocalTrackUnpublished(trackUnpublished)
+    }
+
+    /**
+     * Queues serialized data-track packets on the dedicated `_data_track` data channel.
+     */
+    internal fun sendDataTrackPackets(packets: List<ByteArray>) {
+        dataTrackPublisherChannel.sendPackets(packets)
     }
 
     // --------------------------------- DataChannel.Observer ------------------------------------//
