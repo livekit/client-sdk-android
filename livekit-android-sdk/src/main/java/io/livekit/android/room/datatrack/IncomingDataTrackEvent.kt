@@ -22,7 +22,7 @@ package io.livekit.android.room.datatrack
  *
  * @suppress
  */
-internal sealed class IncomingDataTrackEvent {
+sealed class IncomingDataTrackEvent {
     /**
      * A remote data track is available to subscribe. The publisher may not be in the room yet.
      */

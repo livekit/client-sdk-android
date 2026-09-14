@@ -22,6 +22,8 @@ import io.livekit.android.room.datastream.incoming.IncomingDataStreamManager
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManagerImpl
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
+import io.livekit.android.room.datatrack.IncomingDataTrackManagerImpl
 
 /**
  * @suppress
@@ -33,4 +35,7 @@ abstract class InternalBindsModule {
 
     @Binds
     abstract fun outgoingDataStreamManager(manager: OutgoingDataStreamManagerImpl): OutgoingDataStreamManager
+
+    @Binds
+    internal abstract fun incomingDataTrackManager(manager: IncomingDataTrackManagerImpl): IncomingDataTrackManager
 }

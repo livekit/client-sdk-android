@@ -99,7 +99,7 @@ constructor(
 
     @Volatile
     private var isReconnecting: Boolean = false
-    var listener: Listener? = null
+    internal var listener: Listener? = null
     internal var serverVersion: Semver? = null
     internal var serverInfo: ServerInfo? = null
     private var lastUrl: String? = null
@@ -1090,7 +1090,7 @@ constructor(
         serverInfo = null
     }
 
-    interface Listener {
+    internal interface Listener {
         fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int)
         fun onServerOffer(sessionDescription: SessionDescription, offerId: Int)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)

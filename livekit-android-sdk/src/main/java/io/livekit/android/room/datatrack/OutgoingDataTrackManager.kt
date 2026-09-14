@@ -36,11 +36,9 @@ import javax.inject.Singleton
  *
  * Signal requests / SFU responses and data-track packets are forwarded through the engine so the
  * Rust manager stays decoupled from WebRTC and WebSocket details.
- *
- * @suppress
  */
 @Singleton
-class OutgoingDataTrackManager
+internal class OutgoingDataTrackManager
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,

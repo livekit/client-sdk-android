@@ -18,6 +18,7 @@ package io.livekit.android.room.datatrack
 
 import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.events.BroadcastEventBus
+import io.livekit.android.events.EventListenable
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.rethrowIfCancellationSignal
@@ -28,6 +29,57 @@ import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
+
+interface IncomingDataTrackManager {
+
+    /**
+     * Publication and unpublication events from the UniFFI remote manager.
+     */
+    val events: EventListenable<IncomingDataTrackEvent>
+
+    /**
+     * Returns a snapshot of the remote data tracks currently known to the
+     * UniFFI manager, including those whose publisher is not yet in the room.
+     */
+    fun snapshotRemoteTracks(): List<RemoteDataTrack>
+
+    /**
+     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `JoinResponse`
+     * to the UniFFI manager so pre-existing remote data tracks are discovered. Pass the
+     * websocket bytes as received; re-encoding a decoded copy can drop newer fields.
+     */
+    fun handleSfuJoinResponse(responseBytes: ByteArray)
+
+    /**
+     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `ParticipantUpdate`
+     * to the UniFFI manager. Pass the websocket bytes as received.
+     */
+    fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String)
+
+    /**
+     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing
+     * `DataTrackSubscriberHandles` to the UniFFI manager. Pass the websocket bytes as received.
+     */
+    fun handleSubscriberHandles(responseBytes: ByteArray)
+
+    /**
+     * Forwards a packet received on the `_data_track` data channel to the UniFFI manager.
+     *
+     * Called on a WebRTC callback thread, so nothing may escape: a throw here takes down the
+     * process rather than surfacing anywhere the app can handle it.
+     */
+    fun handlePacketReceived(packet: ByteArray)
+
+    /**
+     * Resend subscription updates after reconnect so the SFU re-issues subscriber handles.
+     */
+    fun resendSubscriptionUpdates()
+
+    /**
+     * Shuts down the underlying UniFFI manager. A subsequent handle call creates a new one.
+     */
+    fun close()
+}
 
 /**
  * Owns the UniFFI [io.livekit.uniffi.RemoteDataTrackManager] and bridges its transport callbacks
@@ -42,18 +94,15 @@ import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
  * @suppress
  */
 @Singleton
-class IncomingDataTrackManager
+internal class IncomingDataTrackManagerImpl
 @Inject
 constructor(
     private val engineProvider: Provider<RTCEngine>,
     private val remoteDataTrackManagerFactory: RemoteDataTrackManagerFactory,
-) {
+) : IncomingDataTrackManager {
     private val eventBus = BroadcastEventBus<IncomingDataTrackEvent>()
 
-    /**
-     * Publication and unpublication events from the UniFFI remote manager.
-     */
-    internal val events = eventBus.readOnly()
+    override val events: EventListenable<IncomingDataTrackEvent> = eventBus.readOnly()
 
     private val lock = Any()
     private var remoteManager: RemoteDataTrackManagerInterface? = null
@@ -90,22 +139,13 @@ constructor(
         }
     }
 
-    /**
-     * Returns a snapshot of the remote data tracks currently known to the
-     * UniFFI manager, including those whose publisher is not yet in the room.
-     */
-    internal fun snapshotRemoteTracks(): List<RemoteDataTrack> {
+    override fun snapshotRemoteTracks(): List<RemoteDataTrack> {
         synchronized(lock) {
             return remoteTracks.toList()
         }
     }
 
-    /**
-     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `JoinResponse`
-     * to the UniFFI manager so pre-existing remote data tracks are discovered. Pass the
-     * websocket bytes as received; re-encoding a decoded copy can drop newer fields.
-     */
-    fun handleSfuJoinResponse(responseBytes: ByteArray) {
+    override fun handleSfuJoinResponse(responseBytes: ByteArray) {
         val manager = ensureManager() ?: return
         try {
             manager.handleSfuJoinResponse(responseBytes)
@@ -114,11 +154,7 @@ constructor(
         }
     }
 
-    /**
-     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing a `ParticipantUpdate`
-     * to the UniFFI manager. Pass the websocket bytes as received.
-     */
-    fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String) {
+    override fun handleSfuParticipantUpdate(responseBytes: ByteArray, localParticipantIdentity: String) {
         val manager = ensureManager() ?: return
         try {
             manager.handleSfuParticipantUpdate(responseBytes, localParticipantIdentity)
@@ -127,11 +163,7 @@ constructor(
         }
     }
 
-    /**
-     * Forwards a serialized [livekit.LivekitRtc.SignalResponse] containing
-     * `DataTrackSubscriberHandles` to the UniFFI manager. Pass the websocket bytes as received.
-     */
-    fun handleSubscriberHandles(responseBytes: ByteArray) {
+    override fun handleSubscriberHandles(responseBytes: ByteArray) {
         val manager = ensureManager() ?: return
         try {
             manager.handleSubscriberHandles(responseBytes)
@@ -140,13 +172,7 @@ constructor(
         }
     }
 
-    /**
-     * Forwards a packet received on the `_data_track` data channel to the UniFFI manager.
-     *
-     * Called on a WebRTC callback thread, so nothing may escape: a throw here takes down the
-     * process rather than surfacing anywhere the app can handle it.
-     */
-    fun handlePacketReceived(packet: ByteArray) {
+    override fun handlePacketReceived(packet: ByteArray) {
         val manager = ensureManager() ?: return
         try {
             manager.handlePacketReceived(packet)
@@ -156,17 +182,11 @@ constructor(
         }
     }
 
-    /**
-     * Resend subscription updates after reconnect so the SFU re-issues subscriber handles.
-     */
-    fun resendSubscriptionUpdates() {
+    override fun resendSubscriptionUpdates() {
         remoteManager?.resendSubscriptionUpdates()
     }
 
-    /**
-     * Shuts down the underlying UniFFI manager. A subsequent handle call creates a new one.
-     */
-    fun close() {
+    override fun close() {
         synchronized(lock) {
             (remoteManager as? AutoCloseable)?.close()
             remoteManager = null

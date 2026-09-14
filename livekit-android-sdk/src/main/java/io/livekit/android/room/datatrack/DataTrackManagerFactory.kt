@@ -25,10 +25,8 @@ import uniffi.livekit_datatrack.EncryptionProvider
 
 /**
  * Creates UniFFI [io.livekit.uniffi.LocalDataTrackManager] instances.
- *
- * @suppress
  */
-fun interface LocalDataTrackManagerFactory {
+internal fun interface LocalDataTrackManagerFactory {
     fun create(
         delegate: LocalDataTrackManagerDelegate,
         encryptionProvider: EncryptionProvider?,
@@ -37,10 +35,8 @@ fun interface LocalDataTrackManagerFactory {
 
 /**
  * Creates UniFFI [io.livekit.uniffi.RemoteDataTrackManager] instances.
- *
- * @suppress
  */
-fun interface RemoteDataTrackManagerFactory {
+internal fun interface RemoteDataTrackManagerFactory {
     fun create(
         delegate: RemoteDataTrackManagerDelegate,
         decryptionProvider: DecryptionProvider?,
