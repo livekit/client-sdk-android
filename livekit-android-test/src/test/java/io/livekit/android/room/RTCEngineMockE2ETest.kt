@@ -751,6 +751,61 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
     }
 
+    /**
+     * A stale answer ends only its own offer's wait. An ordinary offer opens none, so an answer to
+     * it arriving late must not release the wait an ice restart opened afterwards, or candidates
+     * for the restart land against the credentials it replaced.
+     */
+    @Test
+    fun aStaleAnswerDoesNotEndAnotherOffersWait() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        // Offers go unanswered from here, so the restart's wait is still outstanding below.
+        val heldAnswers: SignalRequestHandler = { request -> request.hasOffer() }
+        wsFactory.registerSignalRequestHandler(heldAnswers)
+        val pubPeerConnection = getPublisherPeerConnection()
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val before = pubPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(staleAnswer())
+        simulateMessageFromServer(publisherTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before, pubPeerConnection.addedIceCandidates.size)
+        wsFactory.unregisterSignalRequestHandler(heldAnswers)
+    }
+
+    /** An answer to the first offer, long since replaced by the ones after it. */
+    private fun staleAnswer(): LivekitRtc.SignalResponse {
+        val answer = LivekitRtc.SessionDescription.newBuilder()
+            .setSdp("remote_answer")
+            .setType("answer")
+            .setId(1)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setAnswer(answer)
+            .build()
+    }
+
+    private fun publisherTrickle(): LivekitRtc.SignalResponse {
+        val trickle = LivekitRtc.TrickleRequest.newBuilder()
+            .setCandidateInit(
+                """{"candidate":"candidate:2 1 UDP 1 127.0.0.1 9 typ host","sdpMLineIndex":0,"sdpMid":"0"}""",
+            )
+            .setTarget(LivekitRtc.SignalTarget.PUBLISHER)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setTrickle(trickle)
+            .build()
+    }
+
     /** An empty description is the one the mock connection refuses. */
     private fun refusedOffer(): LivekitRtc.SignalResponse {
         val offer = LivekitRtc.SessionDescription.newBuilder()
