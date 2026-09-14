@@ -19,19 +19,25 @@ package io.livekit.android.room.datatrack
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.ReconnectType
 import io.livekit.android.room.Room
+import io.livekit.android.room.SignalClient
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.assert.assertIsClass
 import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockDataChannel
+import io.livekit.android.test.mock.SignalRequestHandler
 import io.livekit.android.test.mock.TestData
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import livekit.LivekitRtc
 import livekit.org.webrtc.DataChannel
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,6 +56,32 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         val packets = remoteDataTrackManagerFactory.manager.handledPackets
         assertEquals(1, packets.size)
         assertArrayEquals(payload, packets.single())
+    }
+
+    @Test
+    fun fullReconnectForwardsPacketsOnReplacementSubscriberDataTrackChannel() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+        val original = openSubscriberDataTrackChannel()
+        receiveDataTrackPacket(original, byteArrayOf(1))
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val remote = remoteDataTrackManagerFactory.manager
+        assertFalse(remote.closed)
+
+        val replacement = openSubscriberDataTrackChannel()
+        assertNotSame(original, replacement)
+        receiveDataTrackPacket(replacement, byteArrayOf(2))
+
+        assertEquals(2, remote.handledPackets.size)
+        assertArrayEquals(byteArrayOf(1), remote.handledPackets[0])
+        assertArrayEquals(byteArrayOf(2), remote.handledPackets[1])
     }
 
     @Test
@@ -186,6 +218,72 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         assertTrue(room.remoteParticipants.isEmpty())
     }
 
+    @Test
+    fun fullReconnectDetachesDataTracksWithoutUnpublishEvent() = runTest {
+        connect()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+            sid = "DT_reconnect",
+        )
+        advanceUntilIdle()
+
+        val roomCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onFullReconnecting()
+        advanceUntilIdle()
+
+        val events = roomCollector.stopCollecting()
+        assertTrue(events.none { it is RoomEvent.DataTrackUnpublished })
+    }
+
+    @Test
+    fun softReconnectResendsDataTrackSubscriptions() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        val remote = remoteDataTrackManagerFactory.manager
+        assertEquals(0, remote.resendSubscriptionUpdatesCount)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        assertEquals(1, remote.resendSubscriptionUpdatesCount)
+    }
+
+    /**
+     * Resubscription follows transport connect directly and does not wait on the replacement
+     * subscriber `_data_track` channel, which the SFU opens on its own schedule. Packets on a
+     * channel that arrives later are still routed
+     * ([fullReconnectForwardsPacketsOnReplacementSubscriberDataTrackChannel]).
+     */
+    @Test
+    fun fullReconnectResendsSubscriptionsOnceReconnected() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        wsFactory.registerSignalRequestHandler(publisherOfferHandler)
+        connect()
+        remoteDataTrackManagerFactory.manager.simulateTrackPublished(
+            name = "telemetry",
+            publisherIdentity = TestData.REMOTE_PARTICIPANT.identity,
+        )
+        val remote = remoteDataTrackManagerFactory.manager
+        assertEquals(0, remote.resendSubscriptionUpdatesCount)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        assertEquals(1, remote.resendSubscriptionUpdatesCount)
+        assertEquals(Room.State.CONNECTED, room.state)
+    }
+
     /**
      * The join path and the `_data_track` receive path both build the UniFFI manager on demand,
      * and the receive path runs on a WebRTC callback thread. Neither may let a native-library
@@ -209,6 +307,24 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         assertEquals(Room.State.CONNECTED, room.state)
     }
 
+    private val publisherOfferHandler: SignalRequestHandler = { request ->
+        if (request.hasOffer()) {
+            val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                    sdp = "remote_answer"
+                    type = "answer"
+                    id = request.offer.id
+                    build()
+                }
+                build()
+            }
+            wsFactory.receiveMessage(answer)
+            true
+        } else {
+            false
+        }
+    }
+
     private fun openSubscriberDataTrackChannel(): MockDataChannel {
         val channel = MockDataChannel(RTCEngine.DATA_TRACK_DATA_CHANNEL_LABEL)
         getSubscriberPeerConnection().observer?.onDataChannel(channel)
@@ -219,6 +335,20 @@ class IncomingDataTrackManagerMockE2ETest : MockE2ETest() {
         channel.simulateBufferReceived(
             DataChannel.Buffer(ByteBuffer.wrap(payload), true),
         )
+    }
+
+    private fun reconnectWebsocket() {
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        val softReconnectParam = wsFactory.request.url
+            .queryParameter(SignalClient.CONNECT_QUERY_RECONNECT)
+            ?.toIntOrNull()
+            ?: 0
+
+        if (softReconnectParam == 0) {
+            simulateMessageFromServer(TestData.JOIN)
+        } else {
+            simulateMessageFromServer(TestData.RECONNECT)
+        }
     }
 
     private fun remoteParticipant() =
