@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,6 +92,7 @@ class TokenSourceTest : BaseTest() {
             participantMetadata = "participant-metadata",
             agentName = "agent-name",
             agentMetadata = "agent-metadata",
+            agentAttributes = mapOf("region" to "us-east"),
         )
 
         val response = source.fetch(options).getOrThrow()
@@ -121,6 +122,10 @@ class TokenSourceTest : BaseTest() {
         val agent = agents?.get(0)?.jsonObject
         assertEquals("agent-name", agent?.get("agent_name")?.jsonPrimitive?.content)
         assertEquals("agent-metadata", agent?.get("metadata")?.jsonPrimitive?.content)
+        assertEquals(
+            "us-east",
+            agent?.get("attributes")?.jsonObject?.get("region")?.jsonPrimitive?.content,
+        )
     }
 
     @Test
