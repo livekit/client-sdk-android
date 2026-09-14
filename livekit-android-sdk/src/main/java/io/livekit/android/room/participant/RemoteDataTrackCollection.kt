@@ -38,6 +38,9 @@ internal class RemoteDataTrackCollection(
      */
     val delegate: MutableStateFlowDelegate<Map<String, RemoteDataTrack>> = flowDelegate(emptyMap())
 
+    /**
+     * Keyed by [RemoteDataTrack.name]
+     */
     private var tracks: Map<String, RemoteDataTrack> by delegate
 
     /**
