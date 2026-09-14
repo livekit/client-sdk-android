@@ -56,9 +56,14 @@ class DataTrackStream internal constructor(
     private val coroutineScope = CloseableCoroutineScope(dispatcher + SupervisorJob())
 
     /**
-     * Set once no further frames will arrive, whether because the underlying stream was exhausted
-     * or because [close] was called. Collectors watch this so they complete instead of waiting
-     * for a frame that will never come, including those that arrive afterwards.
+     * Set once [close] has been called. Collectors watch this so they complete instead of
+     * waiting for a frame that will never come.
+     *
+     * This is deliberately *not* set when the drain exhausts the underlying stream: it reaches
+     * collectors out of band, so it would overtake frames still sitting in [sharedFrames]'
+     * buffer and cut collection short. Exhaustion is signalled in band instead — see
+     * [sharedFrames]. Cutting frames short is correct only for [close], where the caller has
+     * asked to stop.
      */
     private val ended = MutableStateFlow(false)
 
@@ -74,17 +79,16 @@ class DataTrackStream internal constructor(
      * Drains the underlying stream while anyone is collecting [flow], so every collector sees
      * every frame.
      *
-     * Emission suspends until every collector has taken the frame, so a slow one holds up the
-     * drain rather than being skipped. While it is held up, frames accumulate in the buffer the
-     * subscription was created with, and once that fills the oldest are dropped for all
-     * collectors at once — see [RemoteDataTrack.subscribe]'s `bufferSize`.
+     * Exhausting the underlying stream emits a `null` terminator rather than setting [ended]:
+     * because it travels the same path as the frames, it cannot overtake the ones still buffered
+     * ahead of it, so collectors see every frame before completing.
      */
-    private val sharedFrames: SharedFlow<DataTrackFrame> = flow {
+    private val sharedFrames: SharedFlow<DataTrackFrame?> = flow {
         while (true) {
             val frame = next() ?: break
             emit(frame)
         }
-        ended.value = true
+        emit(null)
     }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
 
     /**
@@ -92,6 +96,8 @@ class DataTrackStream internal constructor(
      *
      * Concurrent collectors each receive every frame that arrives while they are collecting;
      * frames are not replayed to a collector that starts late.
+     *
+     * Completes when the stream is unpublished, or when [close] is called.
      */
     val flow: Flow<DataTrackFrame> = merge(
         sharedFrames,
@@ -108,8 +114,9 @@ class DataTrackStream internal constructor(
      * Any in-progress collection of [flow] completes.
      */
     override fun close() {
-        // Before cancelling the drain: cancelling it cannot complete the collectors, since it is
-        // this flag rather than the drain finishing that ends them.
+        // Before cancelling the drain: cancelling strands it inside next(), so it never reaches
+        // the in-band terminator that normally ends collectors. On this path the flag is the only
+        // thing that can complete them.
         ended.value = true
         coroutineScope.close()
         (impl as? AutoCloseable)?.close()
