@@ -430,9 +430,10 @@ constructor(
         return newCodecs
     }
 
-    internal fun addSimulcastTrack(codec: VideoCodec, encodings: List<RtpParameters.Encoding>): SimulcastTrackInfo {
+    internal fun addSimulcastTrack(codec: VideoCodec, encodings: List<RtpParameters.Encoding>): SimulcastTrackInfo? {
         if (this.simulcastCodecs.containsKey(codec)) {
-            throw IllegalStateException("$codec already added!")
+            LKLog.w { "$codec already added, skipping." }
+            return null
         }
         val simulcastTrackInfo = SimulcastTrackInfo(
             codec = codec.codecName,

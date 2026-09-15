@@ -341,6 +341,36 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun addSimulcastTrackForAlreadyAddedCodecIsNoOp() = runTest {
+        val videoTrack = createLocalTrack()
+
+        val first = videoTrack.addSimulcastTrack(VideoCodec.VP8, emptyList())
+        val second = videoTrack.addSimulcastTrack(VideoCodec.VP8, emptyList())
+
+        assertNotNull(first)
+        assertNull(second)
+    }
+
+    @Test
+    fun duplicateSubscribedQualityUpdateDoesNotRepublishBackupCodec() = runTest {
+        room.videoTrackPublishDefaults = room.videoTrackPublishDefaults.copy(
+            videoCodec = VideoCodec.VP9.codecName,
+            scalabilityMode = "L3T3",
+            backupCodec = BackupVideoCodec(codec = VideoCodec.VP8.codecName),
+        )
+
+        connect()
+        val videoTrack = createLocalTrack()
+        room.localParticipant.publishVideoTrack(videoTrack)
+
+        val trackSid = room.localParticipant.videoTrackPublications.first().first.sid
+        receiveSubscribedQualityUpdate(trackSid)
+        receiveSubscribedQualityUpdate(trackSid)
+
+        assertEquals(2, getPublisherPeerConnection().transceivers.size)
+    }
+
+    @Test
     fun disposeDisposesVideoSource() {
         val source = mock(VideoSource::class.java)
         val videoTrack = createLocalTrack(source = source)
