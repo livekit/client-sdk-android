@@ -71,6 +71,7 @@ import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.stub
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import uniffi.livekit_telemetry.ReconnectReason
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -229,7 +230,7 @@ class RoomTest {
             callback.onAvailable(network)
         }
 
-        Mockito.verify(rtcEngine).reconnect()
+        Mockito.verify(rtcEngine).reconnect(ReconnectReason.NETWORK_CHANGED)
     }
 
     @Test

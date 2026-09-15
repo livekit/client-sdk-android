@@ -32,7 +32,9 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
-livekit-uniffi = "0.1.12"
+# prototype: local build — `cargo make android-package-local` in rust-sdks/livekit-uniffi publishes 0.0.1 to Maven Local
+livekit-uniffi = "0.0.1"
+jna = "5.16.0"
 
 [libraries]
 livekit-uniffi = { module = "io.livekit:livekit-uniffi-android", version.ref = "livekit-uniffi" }
@@ -103,6 +105,8 @@ mockito-inline = { module = "org.mockito:mockito-inline", version = "4.11.0" }
 byte-buddy = { module = "net.bytebuddy:byte-buddy", version = "1.14.3" }
 
 robolectric = { module = "org.robolectric:robolectric", version = "4.14.1" }
+# JVM natives (libjnidispatch) for the Rust core under Robolectric; the AAR variant only ships Android ABIs.
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 turbine = { module = "app.cash.turbine:turbine", version = "1.0.0" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }

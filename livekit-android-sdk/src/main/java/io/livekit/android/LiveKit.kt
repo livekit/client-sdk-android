@@ -23,8 +23,13 @@ import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
 import io.livekit.android.dagger.create
 import io.livekit.android.room.Room
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.TelemetryOptions
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 /**
  * The main entry point into using LiveKit.
@@ -63,6 +68,22 @@ object LiveKit {
      */
     @JvmStatic
     var enableWebRTCLogging: Boolean = false
+
+    /**
+     * Turn client telemetry on: warn/error records, RTC statistics, operation spans and device
+     * state, shipped out-of-band to an OTLP collector. Process-wide, like [loggingLevel]: call it
+     * before creating Rooms — each Room gets its own scope (see [Room.telemetryTraceId]).
+     * `null` turns telemetry off (the default) after a bounded final flush.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    @JvmStatic
+    fun setTelemetry(appContext: Context, options: TelemetryOptions?) {
+        if (options != null) {
+            Telemetry.configure(appContext, options)
+        } else {
+            GlobalScope.launch { Telemetry.shutdown() }
+        }
+    }
 
     /**
      * Certain WebRTC classes need to be initialized prior to use.

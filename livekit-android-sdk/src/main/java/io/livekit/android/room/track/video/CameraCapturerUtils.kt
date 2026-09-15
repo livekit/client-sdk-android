@@ -22,6 +22,7 @@ import android.content.Context
 import android.hardware.camera2.CameraManager
 import io.livekit.android.room.track.CameraPosition
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.telemetry.TelemetryCameraEvents
 import io.livekit.android.util.LKLog
 import livekit.org.webrtc.Camera1Capturer
 import livekit.org.webrtc.Camera1Enumerator
@@ -98,6 +99,7 @@ object CameraCapturerUtils {
     ): Pair<VideoCapturer, LocalVideoTrackOptions>? {
         val cameraEnumerator = provider.provideEnumerator(context)
         val cameraEventsDispatchHandler = CameraEventsDispatchHandler()
+        cameraEventsDispatchHandler.registerHandler(TelemetryCameraEvents)
         val targetDevice = cameraEnumerator.findCamera(options.deviceId, options.position) ?: return null
         val targetVideoCapturer = provider.provideCapturer(context, options, cameraEventsDispatchHandler)
 
