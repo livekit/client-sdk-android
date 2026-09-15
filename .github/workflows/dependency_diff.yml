@@ -29,7 +29,7 @@ jobs:
 
       - id: dependency-diff
         name: Generate dependency diff
-        uses: usefulness/dependency-tree-diff-action@a9b2aa1567cc3b9c860c373479a24dc60429bfda # v2.3.0
+        uses: usefulness/dependency-tree-diff-action@ff9888adef68e2c4117884a13d36c7fe390b698b # v2.4.0
         with:
           project: 'livekit-android-sdk'
 
