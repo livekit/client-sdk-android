@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,13 +56,15 @@ class SdpMungingTest {
         val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
         val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
 
+        // Use realistic bitrate: 1000 kbps (1 Mbps)
+        // With 0.9 multiplier: startBitrate = 900 kbps (below 1 Mbps cap)
         ensureCodecBitrates(
             mediaDescription,
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
-                        "VP9",
-                        1000000L,
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
                     ),
             ),
         )
@@ -71,7 +73,74 @@ class SdpMungingTest {
             .filter { (_, fmtp) -> fmtp.payload == 98L }
             .first()
 
-        assertEquals("profile-id=0;x-google-start-bitrate=700000;x-google-max-bitrate=1000000", vp9fmtp.config)
+        assertEquals("profile-id=0;x-google-start-bitrate=900", vp9fmtp.config)
+    }
+
+    @Test
+    fun ensureCodecBitratesUsesConnectionStartBitrateTest() {
+        val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
+        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+
+        ensureCodecBitrates(
+            mediaDescription,
+            mapOf(
+                TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
+                    TrackBitrateInfo(
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
+                    ),
+            ),
+            connectionStartBitrate = 1000L,
+        )
+
+        val (_, vp9fmtp) = mediaDescription.getFmtps()
+            .filter { (_, fmtp) -> fmtp.payload == 98L }
+            .first()
+
+        assertEquals("profile-id=0;x-google-start-bitrate=1000", vp9fmtp.config)
+    }
+
+    @Test
+    fun ensureCodecBitratesSkipsStartBitrateTest() {
+        val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
+        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+
+        ensureCodecBitrates(
+            mediaDescription,
+            mapOf(
+                TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
+                    TrackBitrateInfo(
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
+                    ),
+            ),
+            connectionStartBitrate = null,
+        )
+
+        val (_, vp9fmtp) = mediaDescription.getFmtps()
+            .filter { (_, fmtp) -> fmtp.payload == 98L }
+            .first()
+
+        assertEquals("profile-id=0", vp9fmtp.config)
+    }
+
+    @Test
+    fun computeConnectionStartBitrateTest() {
+        val startBitrate = computeConnectionStartBitrate(
+            listOf(
+                TrackBitrateInfo(
+                    codec = "VP8",
+                    targetBitrateKbps = 2310L,
+                ),
+                TrackBitrateInfo(
+                    codec = "VP8",
+                    targetBitrateKbps = 5000L,
+                    isScreenShare = true,
+                ),
+            ),
+        )
+
+        assertEquals(4500L, startBitrate)
     }
 
     companion object {
