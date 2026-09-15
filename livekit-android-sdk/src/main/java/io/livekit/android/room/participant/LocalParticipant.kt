@@ -38,6 +38,12 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.SenderTransceiverHandle
 import io.livekit.android.room.TrackBitrateInfo
 import io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager
+import io.livekit.android.room.datatrack.DataTrackPublishException
+import io.livekit.android.room.datatrack.DataTrackPublishOptions
+import io.livekit.android.room.datatrack.DataTrackSchemaException
+import io.livekit.android.room.datatrack.DataTrackSchemaId
+import io.livekit.android.room.datatrack.LocalDataTrack
+import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
@@ -89,6 +95,8 @@ import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Named
@@ -115,6 +123,7 @@ internal constructor(
     @Named(InjectionNames.SENDER)
     private val capabilitiesGetter: CapabilitiesGetter,
     private val outgoingDataStreamManager: OutgoingDataStreamManager,
+    private val outgoingDataTrackManager: OutgoingDataTrackManager,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
 ) : Participant(Sid(""), null, coroutineDispatcher),
@@ -1051,6 +1060,127 @@ internal constructor(
     }
 
     /**
+     * Publishes a data track, allowing this participant to send frames to subscribers.
+     *
+     * The publication stays live until [LocalDataTrack.unpublish] is called, the SFU unpublishes
+     * the track, or the room disconnects. Dropping the last reference to the returned track
+     * eventually unpublishes it, but only once it is garbage collected — call
+     * [LocalDataTrack.unpublish] to end the publication at a predictable point, or use
+     * [withDataTrack] to scope it to a block.
+     *
+     * ```
+     * val result = room.localParticipant.publishDataTrack("telemetry")
+     * result.onSuccess { track ->
+     *     track.tryPush(DataTrackFrame(payload))
+     *     track.unpublish()
+     * }
+     * ```
+     *
+     * @param name Track name visible to other participants. Must be unique per publisher.
+     * @param options Optional encoding and schema metadata, surfaced to subscribers via
+     * [io.livekit.android.room.datatrack.DataTrackInfo].
+     * @return A successful [Result] containing the published [LocalDataTrack], or a failure
+     * containing [DataTrackPublishException].
+     *
+     * When self-hosting the LiveKit SFU, a [DataTrackPublishException.Timeout] may indicate a
+     * release that predates data track support.
+     */
+    @CheckResult
+    suspend fun publishDataTrack(
+        name: String,
+        options: DataTrackPublishOptions? = null,
+    ): Result<LocalDataTrack> {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            return Result.failure(DataTrackPublishException.Disconnected("Not connected to a room"))
+        }
+        return outgoingDataTrackManager.publishTrack(name, options)
+    }
+
+    /**
+     * Stores the definition of a data track schema, making it available to subscribers.
+     *
+     * Define a schema before publishing any data track that references it, so subscribers can
+     * resolve it by ID via [getSchema]. Treat a definition as write-once — whether redefining an
+     * existing one is rejected is up to the server.
+     *
+     * ```
+     * val schema = DataTrackSchemaId("reading.v1", DataTrackSchemaEncoding.JsonSchema)
+     * room.localParticipant.defineSchema(schema, definition)
+     * room.localParticipant.publishDataTrack(
+     *     "reading",
+     *     DataTrackPublishOptions(DataTrackFrameEncoding.Json, schema),
+     * )
+     * ```
+     *
+     * @param id Identifies the schema; the same ID goes into [DataTrackPublishOptions].
+     * @param definition The definition, stored as-is. It is neither parsed nor validated against
+     * its [DataTrackSchemaId.encoding], so it's up to the caller to keep it well-formed.
+     * @return A successful [Result] if the schema was stored, or a failure containing
+     * [DataTrackSchemaException].
+     */
+    @CheckResult
+    suspend fun defineSchema(id: DataTrackSchemaId, definition: String): Result<Unit> {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            return Result.failure(DataTrackSchemaException.Disconnected("Not connected to a room"))
+        }
+        return engine.client.sendStoreDataBlob(id.blobKey, definition.toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * Retrieves the definition a participant [defineSchema]'d for a schema its data tracks
+     * reference.
+     *
+     * @param id Identifies the schema, as carried by [io.livekit.android.room.datatrack.DataTrackInfo.schema].
+     * @param publishedBy Identity of the participant that defined it.
+     * @return A successful [Result] containing the definition, or a failure containing
+     * [DataTrackSchemaException].
+     */
+    @CheckResult
+    suspend fun getSchema(id: DataTrackSchemaId, publishedBy: Identity): Result<String> {
+        if (engine.connectionState == ConnectionState.DISCONNECTED) {
+            return Result.failure(DataTrackSchemaException.Disconnected("Not connected to a room"))
+        }
+        val bytes = engine.client.sendGetDataBlob(id.blobKey, publishedBy.value)
+            .getOrElse { return Result.failure(it) }
+        return decodeUtf8(bytes)?.let { Result.success(it) }
+            ?: Result.failure(DataTrackSchemaException.InvalidDefinition("Schema definition is not valid UTF-8"))
+    }
+
+    /**
+     * Publishes a data track for the duration of [block], then unpublishes it automatically.
+     *
+     * The track is unpublished when [block] returns, throws, or the calling coroutine is cancelled.
+     *
+     * ```
+     * room.localParticipant.withDataTrack("telemetry") { track ->
+     *     track.tryPush(DataTrackFrame(payload))
+     * }
+     * ```
+     *
+     * @param name Track name visible to other participants. Must be unique per publisher.
+     * @param options Optional encoding and schema metadata; see [publishDataTrack].
+     * @param block Receives the published track; the track is unpublished when it returns or throws.
+     * @return A successful [Result] containing the value returned by [block], or a failure if
+     * the track cannot be published or [block] throws.
+     */
+    @CheckResult
+    suspend fun <T> withDataTrack(
+        name: String,
+        options: DataTrackPublishOptions? = null,
+        block: suspend (LocalDataTrack) -> T,
+    ): Result<T> {
+        val track = publishDataTrack(name, options).getOrElse { return Result.failure(it) }
+        try {
+            return Result.success(block(track))
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            return Result.failure(e)
+        } finally {
+            track.unpublish()
+        }
+    }
+
+    /**
      * Publish a new data payload to the room. Data will be forwarded to each participant in the room.
      * Each payload must not exceed 65535 bytes (64KB - 1) in size.
      *
@@ -1770,6 +1900,17 @@ internal fun VideoTrackPublishOptions.hasBackupCodec(): Boolean {
 
 private val backupCodecs = listOf(VideoCodec.VP8.codecName, VideoCodec.H264.codecName)
 private fun isBackupCodec(codecName: String) = backupCodecs.contains(codecName)
+
+private fun decodeUtf8(bytes: ByteArray): String? {
+    val decoder = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+    return try {
+        decoder.decode(ByteBuffer.wrap(bytes)).toString()
+    } catch (_: CharacterCodingException) {
+        null
+    }
+}
 
 /**
  * Resolves the [Track.Source] a video track is published under: the explicitly requested

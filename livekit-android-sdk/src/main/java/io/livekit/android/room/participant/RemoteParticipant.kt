@@ -23,6 +23,7 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.SignalClient
+import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.track.KIND_AUDIO
 import io.livekit.android.room.track.KIND_VIDEO
 import io.livekit.android.room.track.RemoteAudioTrack
@@ -31,6 +32,7 @@ import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.util.CloseableCoroutineScope
+import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.RTCStatsGetter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -93,6 +95,34 @@ class RemoteParticipant(
         ): RemoteParticipant
     }
     private val coroutineScope = CloseableCoroutineScope(defaultDispatcher + SupervisorJob())
+
+    internal val dataTrackCollection = RemoteDataTrackCollection(
+        onPublished = { track ->
+            eventBus.postEvent(ParticipantEvent.DataTrackPublished(this, track), scope)
+        },
+        onUnpublished = { sid ->
+            eventBus.postEvent(ParticipantEvent.DataTrackUnpublished(this, sid), scope)
+        },
+    )
+
+    /**
+     * Data tracks published by this participant, keyed by track name.
+     *
+     * Names are the stable identifier: a track's SID rotates when the publisher republishes
+     * after a full reconnect (the track object itself survives).
+     *
+     * ```
+     * val track = participant.dataTracks["telemetry"]
+     * track?.subscribe()?.onSuccess { stream ->
+     *     stream.flow.collect { frame -> process(frame.payload) }
+     * }
+     * ```
+     *
+     * Changes can be observed by using [io.livekit.android.util.flow]
+     */
+    @FlowObservable
+    @get:FlowObservable
+    val dataTracks: Map<String, RemoteDataTrack> by dataTrackCollection.delegate
 
     /**
      * Get a track publication with the corresponding sid.
