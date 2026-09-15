@@ -36,6 +36,7 @@ import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
+import io.livekit.uniffi.TelemetrySpan
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -64,6 +65,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import uniffi.livekit_telemetry.SpanStep
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -108,6 +110,9 @@ constructor(
 
     @Volatile
     private var joinContinuation: CancellableContinuation<ConnectResult>? = null
+
+    /** The Room's open `lk.connect` span, for the signaling checkpoints; null outside the user-initiated connect. */
+    internal var connectSpan: TelemetrySpan? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
     /**
@@ -312,6 +317,10 @@ constructor(
     }
 
     // --------------------------------- WebSocket Listener --------------------------------------//
+    override fun onOpen(webSocket: WebSocket, response: Response) {
+        connectSpan?.step(SpanStep.WsOpen)
+    }
+
     override fun onMessage(webSocket: WebSocket, text: String) {
         if (webSocket != currentWs) {
             // Possibly message from old websocket, discard.
@@ -439,6 +448,7 @@ constructor(
     }
 
     fun sendOffer(offer: SessionDescription, offerId: Int) {
+        connectSpan?.step(SpanStep.OfferSent)
         val sd = offer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
@@ -448,6 +458,7 @@ constructor(
     }
 
     fun sendAnswer(answer: SessionDescription, offerId: Int) {
+        connectSpan?.step(SpanStep.AnswerSent)
         val sd = answer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)

@@ -43,6 +43,9 @@ import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.room.util.waitUntilConnected
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.begin
+import io.livekit.android.telemetry.end
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
@@ -65,9 +68,12 @@ import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
+import io.livekit.uniffi.TelemetryScope
+import io.livekit.uniffi.TelemetrySpan
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -100,6 +106,9 @@ import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SessionDescription
+import uniffi.livekit_telemetry.ReconnectReason
+import uniffi.livekit_telemetry.SpanName
+import uniffi.livekit_telemetry.SpanStep
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Named
@@ -128,6 +137,23 @@ internal constructor(
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
+    /** The Room's trace scope, for the `lk.reconnect` span; null when telemetry is off. */
+    internal var telemetryScope: TelemetryScope? = null
+
+    /**
+     * The Room's open `lk.connect` span while the user-initiated connect runs; the checkpoints
+     * are stamped here and in [SignalClient].
+     */
+    internal var connectSpan: TelemetrySpan? = null
+        set(value) {
+            field = value
+            client.connectSpan = value
+        }
+
+    /** Whether the last disconnect was the reconnect policy running out of attempts. */
+    @Volatile
+    internal var reconnectFailed = false
+
     /**
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
@@ -154,7 +180,7 @@ internal constructor(
             ConnectionState.DISCONNECTED -> {
                 LKLog.d { "primary ICE disconnected" }
                 if (oldVal == ConnectionState.CONNECTED) {
-                    reconnect()
+                    reconnect(if (isSubscriberPrimary) ReconnectReason.SUBSCRIBER_FAILED else ReconnectReason.PUBLISHER_FAILED)
                 }
             }
 
@@ -261,6 +287,7 @@ internal constructor(
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         sessionUrl = url
         sessionToken = token
+        reconnectFailed = false
         connectOptions = options
         lastRoomOptions = roomOptions
         return joinImpl(url, token, options, roomOptions)
@@ -276,6 +303,8 @@ internal constructor(
             connectionState = ConnectionState.CONNECTING
         }
         val joinResponse = client.join(url, token, options, roomOptions)
+        connectSpan?.step(SpanStep.Signal)
+        connectSpan?.step(SpanStep.JoinRecv)
         ensureActive()
 
         if (joinResponse.hasParticipant()) {
@@ -298,6 +327,7 @@ internal constructor(
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
         configure(joinResponse, options)
+        connectSpan?.step(SpanStep.PcCreated)
 
         // Subscriber-primary defers the publisher PC until something is published. After a full
         // reconnect `hasPublished` is still set, so re-negotiate here — otherwise the ICE wait
@@ -368,7 +398,7 @@ internal constructor(
                     // Also reconnect on publisher disconnect
                     publisherObserver.connectionChangeListener = { newState ->
                         if (newState.isDisconnected()) {
-                            reconnect()
+                            reconnect(ReconnectReason.PUBLISHER_FAILED)
                         }
                     }
                 } else {
@@ -575,9 +605,12 @@ internal constructor(
     /**
      * reconnect Signal and PeerConnections
      */
-    @Synchronized
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    fun reconnect() {
+    fun reconnect() = reconnect(ReconnectReason.UNKNOWN)
+
+    /** One reconnect cycle = one `lk.reconnect` span; attempts are its checkpoints. */
+    @Synchronized
+    internal fun reconnect(reason: ReconnectReason) {
         if (reconnectingJob?.isActive == true) {
             LKLog.d { "Reconnection is already in progress" }
             return
@@ -595,7 +628,8 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         endSignalSession()
-        val job = coroutineScope.launch {
+        val reconnectSpan = telemetryScope.begin(SpanName.Reconnect(reason))
+        val job = coroutineScope.launch(Telemetry.currentSpan.asContextElement(reconnectSpan)) {
             var hasResumedOnce = false
             var hasReconnectedOnce = false
 
@@ -642,6 +676,7 @@ internal constructor(
                     ReconnectType.FORCE_SOFT_RECONNECT -> false
                     ReconnectType.FORCE_FULL_RECONNECT -> true
                 }
+                reconnectSpan?.step(SpanStep.Attempt((retries + 1).toUInt(), isFullReconnect))
 
                 var lastMessageSeq: Int? = null
                 val connectOptions = connectOptions ?: ConnectOptions()
@@ -754,6 +789,7 @@ internal constructor(
                         outgoingDataTrackManager.republishTracks()
                     }
                     incomingDataTrackManager.resendSubscriptionUpdates()
+                    reconnectSpan?.end()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -765,12 +801,19 @@ internal constructor(
                 }
             }
 
+            if (isClosed) {
+                reconnectSpan?.cancel() // disconnect() or a newer reconnect won
+            } else {
+                reconnectFailed = true
+                reconnectSpan?.fail("ReconnectFailed")
+            }
             close("Failed reconnecting")
             listener?.onEngineDisconnected(DisconnectReason.UNKNOWN_REASON)
         }
 
         reconnectingJob = job
         job.invokeOnCompletion {
+            reconnectSpan?.takeIf { !it.isEnded() }?.cancel()
             if (reconnectingJob == job) {
                 reconnectingJob = null
             }
@@ -1340,7 +1383,7 @@ internal constructor(
         LKLog.i { "received close event: $reason, code: $code" }
         endSignalSession()
         abortPendingPublishTracks()
-        reconnect()
+        reconnect(ReconnectReason.SIGNAL_DISCONNECTED)
     }
 
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {

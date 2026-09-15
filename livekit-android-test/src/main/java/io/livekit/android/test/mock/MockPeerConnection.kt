@@ -209,6 +209,14 @@ class MockPeerConnection(
         callback?.onStatsDelivered(RTCStatsReport(0, emptyMap()))
     }
 
+    override fun getStats(sender: RtpSender?, callback: RTCStatsCollectorCallback?) {
+        callback?.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+    }
+
+    override fun getStats(receiver: RtpReceiver?, callback: RTCStatsCollectorCallback?) {
+        callback?.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+    }
+
     override fun setBitrate(min: Int?, current: Int?, max: Int?): Boolean {
         return true
     }

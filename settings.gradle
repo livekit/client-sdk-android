@@ -14,6 +14,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        mavenLocal() // prototype: local build of livekit-uniffi-android
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }

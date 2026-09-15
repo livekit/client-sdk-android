@@ -14,7 +14,11 @@
  limitations under the License.
 -->
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- prototype: the local livekit-uniffi-android build declares minSdk 24; the published artifact is minSdk 21. -->
+    <uses-sdk tools:overrideLibrary="io.livekit.uniffi" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
