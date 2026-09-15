@@ -93,6 +93,13 @@ object Telemetry {
      */
     internal val currentSpan = ThreadLocal<TelemetrySpan?>()
 
+    /**
+     * The Room's scope the current coroutine works for, if any: bound on the Room's, the engine's
+     * and the signal client's coroutine scopes, so a warn/error record from a Room handler is
+     * filed under that Room's session even with no span in flight.
+     */
+    internal val currentScope = ThreadLocal<TelemetryScope?>()
+
     private var coreLogs: Job? = null
 
     /**
@@ -158,7 +165,8 @@ object Telemetry {
 
     /**
      * A warn/error record from the SDK logger; the core files it under the ambient span's scope,
-     * or the process. Telemetry's own lines never feed back into the pipeline.
+     * else the ambient Room's, else the process. Telemetry's own lines never feed back into the
+     * pipeline.
      */
     @PublishedApi
     internal fun log(level: LoggingLevel, t: Throwable?, message: String) {
@@ -167,18 +175,19 @@ object Telemetry {
             !frame.className.startsWith(LKLog::class.java.name) && !frame.className.startsWith(Telemetry::class.java.name)
         }
         if (caller?.className?.startsWith(OWN_PACKAGE) == true) return
-        telemetryLog(
-            LogRecord(
-                severity = level.severity,
-                source = LogSource.SDK,
-                message = listOfNotNull(message.takeIf { it.isNotEmpty() }, t?.toString()).joinToString(": "),
-                logger = caller?.className?.substringAfterLast('.')?.substringBefore('$'),
-                function = caller?.methodName,
-                file = caller?.fileName,
-                line = caller?.lineNumber?.takeIf { it > 0 }?.toUInt(),
-                spanId = currentSpan.get()?.context()?.spanId,
-            ),
+        val span = currentSpan.get()
+        val record = LogRecord(
+            severity = level.severity,
+            source = LogSource.SDK,
+            message = listOfNotNull(message.takeIf { it.isNotEmpty() }, t?.toString()).joinToString(": "),
+            logger = caller?.className?.substringAfterLast('.')?.substringBefore('$'),
+            function = caller?.methodName,
+            file = caller?.fileName,
+            line = caller?.lineNumber?.takeIf { it > 0 }?.toUInt(),
+            spanId = span?.context()?.spanId,
         )
+        val scope = currentScope.get()
+        if (span == null && scope != null) scope.log(record) else telemetryLog(record)
     }
 
     /** WebRTC's native log lines; the core only lets `error` leave the device. */

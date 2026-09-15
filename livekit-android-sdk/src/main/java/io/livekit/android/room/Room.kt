@@ -226,7 +226,7 @@ constructor(
 
     init {
         engine.listener = this
-        engine.telemetryScope = traceScope
+        engine.telemetryScope = telemetryScope
         audioSwitchHandler?.let { DeviceTelemetry.observe(it) }
 
         // Register SDK-internal text-stream handlers for the RPC v2 transport. These reserve
@@ -550,7 +550,7 @@ constructor(
             Telemetry.setServer(url, token)
             connectSpan = traceScope.begin(SpanName.Connect)
 
-            coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
+            coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob() + Telemetry.currentScope.asContextElement(telemetryScope))
 
             roomOptions = getCurrentRoomOptions()
 

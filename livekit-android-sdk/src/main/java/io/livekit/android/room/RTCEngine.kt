@@ -44,6 +44,7 @@ import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.room.util.waitUntilConnected
 import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.TelemetryOptions
 import io.livekit.android.telemetry.begin
 import io.livekit.android.telemetry.end
 import io.livekit.android.util.CloseableCoroutineScope
@@ -137,8 +138,19 @@ internal constructor(
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
-    /** The Room's trace scope, for the `lk.reconnect` span; null when telemetry is off. */
+    /**
+     * The Room's telemetry scope; null when telemetry is off. Bound on the engine's and the signal
+     * client's coroutines, so the Room handlers they drive log under the Room's session.
+     */
     internal var telemetryScope: TelemetryScope? = null
+        set(value) {
+            field = value
+            client.telemetryScope = value
+        }
+
+    /** The scope for the `lk.reconnect` span, when the `room` instrument is on. */
+    private val traceScope: TelemetryScope?
+        get() = telemetryScope?.takeIf { Telemetry.enabled(TelemetryOptions.Instrument.ROOM) }
 
     /**
      * The Room's open `lk.connect` span while the user-initiated connect runs; the checkpoints
@@ -284,7 +296,7 @@ internal constructor(
         roomOptions: RoomOptions,
     ): JoinResponse {
         coroutineScope.close()
-        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher + Telemetry.currentScope.asContextElement(telemetryScope))
         sessionUrl = url
         sessionToken = token
         reconnectFailed = false
@@ -628,7 +640,7 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         endSignalSession()
-        val reconnectSpan = telemetryScope.begin(SpanName.Reconnect(reason))
+        val reconnectSpan = traceScope.begin(SpanName.Reconnect(reason))
         val job = coroutineScope.launch(Telemetry.currentSpan.asContextElement(reconnectSpan)) {
             var hasResumedOnce = false
             var hasReconnectedOnce = false

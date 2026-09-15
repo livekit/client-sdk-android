@@ -27,6 +27,7 @@ import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.getClientInfo
+import io.livekit.android.telemetry.Telemetry
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
@@ -36,6 +37,7 @@ import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
+import io.livekit.uniffi.TelemetryScope
 import io.livekit.uniffi.TelemetrySpan
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CompletableDeferred
@@ -43,6 +45,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -113,6 +116,9 @@ constructor(
 
     /** The Room's open `lk.connect` span, for the signaling checkpoints; null outside the user-initiated connect. */
     internal var connectSpan: TelemetrySpan? = null
+
+    /** The Room's telemetry scope: signal responses drive the Room's handlers, whose records are filed under it. */
+    internal var telemetryScope: TelemetryScope? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
     /**
@@ -202,7 +208,7 @@ constructor(
 
         LKLog.i { "connecting to $wsUrlString" }
 
-        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher + Telemetry.currentScope.asContextElement(telemetryScope))
         lastUrl = wsUrlString
         lastOptions = options
         lastRoomOptions = roomOptions

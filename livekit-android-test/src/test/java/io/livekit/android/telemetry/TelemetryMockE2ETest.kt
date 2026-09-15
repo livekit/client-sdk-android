@@ -39,6 +39,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import livekit.LivekitRtc
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -121,12 +122,19 @@ class TelemetryMockE2ETest : MockE2ETest() {
         assertEquals(1, room.localParticipant.audioTrackPublications.size)
 
         // A warn/error record emitted inside an operation ends up on that operation's span, in
-        // this Room's trace — the whole path: LKLog → Telemetry → core; outside any span it is
+        // this Room's trace — the whole path: LKLog → Telemetry → core. From a Room handler with
+        // no span in flight it is filed under the Room's session; outside any Room context it is
         // the process scope.
         val op = room.beginSpan("e2e.op")
         withContext(Telemetry.currentSpan.asContextElement(op)) { LKLog.e { marker } }
         op?.end()
-        LKLog.e { "$marker outside" }
+        val unknownSid = "TR_unknown_$marker" // the server unpublishes a track we never had: the Room handler warns
+        simulateMessageFromServer(
+            LivekitRtc.SignalResponse.newBuilder()
+                .setTrackUnpublished(LivekitRtc.TrackUnpublishedResponse.newBuilder().setTrackSid(unknownSid))
+                .build(),
+        )
+        LKLog.e { "$marker process" }
         room.emitTelemetryEvent("e2e.checkpoint", mapOf("e2e.marker" to marker))
 
         Thread.sleep(2500) // stats polls (the mocks yield empty reports, so no windows) and a flush
@@ -164,8 +172,10 @@ class TelemetryMockE2ETest : MockE2ETest() {
         assertEquals("...and therefore lands in this Room's trace", traceId, inSpan.traceId)
         assertEquals("roomname", inSpan.attributes["lk.room.name"])
         assertEquals(TestData.LOCAL_PARTICIPANT.identity, inSpan.attributes["lk.participant.identity"])
-        val outside = logs.firstOrNull { it.body == "$marker outside" }.also { assertNotNull(it) }!!
-        assertTrue("no ambient span: the process scope", outside.spanId.isEmpty() && outside.traceId != traceId)
+        val handler = logs.firstOrNull { it.body?.endsWith(unknownSid) == true }.also { assertNotNull("Room-handler warning reached the collector", it) }!!
+        assertTrue("a Room handler with no span in flight: the Room's session, no span", handler.spanId.isEmpty() && handler.traceId == traceId)
+        val process = logs.firstOrNull { it.body == "$marker process" }.also { assertNotNull(it) }!!
+        assertTrue("outside any Room context: the process scope", process.spanId.isEmpty() && process.traceId != traceId)
         assertTrue(logs.any { it.eventName == "custom.e2e.checkpoint" && it.attributes["e2e.marker"] == marker })
         for (event in listOf("lk.device.thermal.changed", "lk.device.memory.changed", "lk.device.network.changed", "lk.device.low_power.changed")) {
             assertTrue("$event initial value reached the collector", logs.any { it.eventName == event })
