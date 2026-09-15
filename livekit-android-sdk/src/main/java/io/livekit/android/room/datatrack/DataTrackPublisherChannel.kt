@@ -40,6 +40,7 @@ internal class DataTrackPublisherChannel(
     private val rtcThreadToken: RTCThreadToken,
 ) {
     private val frameSender = DataTrackFrameSender()
+
     @Volatile
     private var channelManager: DataChannelManager? = null
     private var pumpJob: Job? = null

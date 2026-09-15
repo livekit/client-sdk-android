@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
@@ -56,14 +57,9 @@ class DataTrackStream internal constructor(
     private val coroutineScope = CloseableCoroutineScope(dispatcher + SupervisorJob())
 
     /**
-     * Set once [close] has been called. Collectors watch this so they complete instead of
-     * waiting for a frame that will never come.
-     *
-     * This is deliberately *not* set when the drain exhausts the underlying stream: it reaches
-     * collectors out of band, so it would overtake frames still sitting in [sharedFrames]'
-     * buffer and cut collection short. Exhaustion is signalled in band instead — see
-     * [sharedFrames]. Cutting frames short is correct only for [close], where the caller has
-     * asked to stop.
+     * Set once no further frames will arrive, whether because the underlying stream was exhausted
+     * or because [close] was called. Collectors watch this so they complete instead of waiting
+     * for a frame that will never come.
      */
     private val ended = MutableStateFlow(false)
 
@@ -79,17 +75,18 @@ class DataTrackStream internal constructor(
      * Drains the underlying stream while anyone is collecting [flow], so every collector sees
      * every frame.
      *
-     * Exhausting the underlying stream emits a `null` terminator rather than setting [ended]:
-     * because it travels the same path as the frames, it cannot overtake the ones still buffered
-     * ahead of it, so collectors see every frame before completing.
+     * Do not give this a buffer. [ended] is set once the loop exits, and it reaches collectors
+     * out of band; buffering would let it complete them while frames the drain had already
+     * produced were still queued undelivered. Rendezvous is what keeps the drain from running
+     * ahead of delivery, so `ended` can never be observed before the frames preceding it.
      */
-    private val sharedFrames: SharedFlow<DataTrackFrame?> = flow {
+    private val sharedFrames: SharedFlow<DataTrackFrame> = flow {
         while (true) {
             val frame = next() ?: break
             emit(frame)
         }
-        emit(null)
-    }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
+        ended.value = true
+    }.buffer(0).shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
 
     /**
      * A [Flow] of incoming frames. Completes normally when the stream ends.
@@ -115,8 +112,7 @@ class DataTrackStream internal constructor(
      */
     override fun close() {
         // Before cancelling the drain: cancelling strands it inside next(), so it never reaches
-        // the in-band terminator that normally ends collectors. On this path the flag is the only
-        // thing that can complete them.
+        // the assignment above. On this path this is the only thing that can complete collectors.
         ended.value = true
         coroutineScope.close()
         (impl as? AutoCloseable)?.close()

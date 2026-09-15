@@ -20,16 +20,16 @@ import io.livekit.android.test.BaseTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
 import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
@@ -197,6 +197,40 @@ class DataTrackStreamTest : BaseTest() {
                 emptyList<List<Int>>(),
                 incomplete,
             )
+        }
+    }
+
+    /**
+     * A collector that arrives after the drain has finished must complete, not wait forever.
+     *
+     * [collectingAfterTheStreamEndedCompletesImmediately] covers the easy case, where the earlier
+     * collector has already finished: the subscriber count reaches zero, so `WhileSubscribed`
+     * restarts the drain, which ends again immediately. This covers the case it misses — a slow
+     * collector still holding the count above zero. No restart happens then, so the end-of-stream
+     * signal has to be state the late collector can still observe rather than an event it missed.
+     */
+    @Test
+    fun aLateCollectorOverlappingASlowOneStillCompletes() = runTest {
+        withContext(Dispatchers.Default) {
+            val fake = FakeFfiStream()
+            val stream = DataTrackStream(fake, Dispatchers.Default)
+
+            val slow = async(Dispatchers.Default) {
+                val got = mutableListOf<DataTrackFrame>()
+                stream.flow.collect { got.add(it); delay(60) }
+                got
+            }
+            delay(50)
+            repeat(10) { fake.offer(it + 1) }
+            fake.end()
+            // The drain is done producing well before the slow collector has worked through it.
+            delay(150)
+
+            val late = async(Dispatchers.Default) { stream.flow.toList() }
+
+            assertEquals(10, withTimeout(5_000) { slow.await() }.size)
+            // Nothing is left to deliver, but it must still complete rather than hang.
+            assertEquals(emptyList<Int>(), payloads(withTimeout(5_000) { late.await() }))
         }
     }
 
