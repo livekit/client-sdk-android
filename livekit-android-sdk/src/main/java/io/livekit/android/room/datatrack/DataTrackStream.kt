@@ -24,12 +24,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.takeWhile
 import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
@@ -57,11 +57,22 @@ class DataTrackStream internal constructor(
     private val coroutineScope = CloseableCoroutineScope(dispatcher + SupervisorJob())
 
     /**
-     * Set once no further frames will arrive, whether because the underlying stream was exhausted
-     * or because [close] was called. Collectors watch this so they complete instead of waiting
-     * for a frame that will never come.
+     * Set once the drain has run the underlying stream to exhaustion.
+     *
+     * This exists only for collectors that arrive too late to see the terminator [sharedFrames]
+     * emits.
      */
-    private val ended = MutableStateFlow(false)
+    private val drained = MutableStateFlow(false)
+
+    /**
+     * Set by [close]. Unlike [drained] this *is* merged into [flow], because closing cancels the
+     * drain mid-[next], so no terminator is ever emitted and nothing in the frame stream would
+     * complete collectors.
+     *
+     * Racing undelivered frames is correct here, and is the documented difference between the two
+     * paths: the caller asked to stop, so collection ends promptly rather than draining first.
+     */
+    private val closed = MutableStateFlow(false)
 
     /**
      * Returns the next frame, or `null` once the stream ends (the track is unpublished or the
@@ -74,19 +85,16 @@ class DataTrackStream internal constructor(
     /**
      * Drains the underlying stream while anyone is collecting [flow], so every collector sees
      * every frame.
-     *
-     * Do not give this a buffer. [ended] is set once the loop exits, and it reaches collectors
-     * out of band; buffering would let it complete them while frames the drain had already
-     * produced were still queued undelivered. Rendezvous is what keeps the drain from running
-     * ahead of delivery, so `ended` can never be observed before the frames preceding it.
      */
-    private val sharedFrames: SharedFlow<DataTrackFrame> = flow {
+    private val sharedFrames: SharedFlow<DataTrackFrame?> = flow {
         while (true) {
             val frame = next() ?: break
             emit(frame)
         }
-        ended.value = true
-    }.buffer(0).shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
+        // Before the terminator, so a collector that misses the terminator sees this instead.
+        drained.value = true
+        emit(null)
+    }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
 
     /**
      * A [Flow] of incoming frames. Completes normally when the stream ends.
@@ -97,8 +105,10 @@ class DataTrackStream internal constructor(
      * Completes when the stream is unpublished, or when [close] is called.
      */
     val flow: Flow<DataTrackFrame> = merge(
-        sharedFrames,
-        ended.filter { it }.map { null },
+        // onSubscription runs after this collector holds a subscription but before it takes any
+        // value, so a `false` reading here means the terminator is still coming to it.
+        sharedFrames.onSubscription { if (drained.value) emit(null) },
+        closed.filter { it }.map { null },
     ).takeWhile { it != null }.filterNotNull()
 
     /**
@@ -111,9 +121,9 @@ class DataTrackStream internal constructor(
      * Any in-progress collection of [flow] completes.
      */
     override fun close() {
-        // Before cancelling the drain: cancelling strands it inside next(), so it never reaches
-        // the assignment above. On this path this is the only thing that can complete collectors.
-        ended.value = true
+        // Before cancelling the drain: cancelling strands it inside next(), so it never emits a
+        // terminator. On this path this is the only thing that can complete collectors.
+        closed.value = true
         coroutineScope.close()
         (impl as? AutoCloseable)?.close()
     }
