@@ -113,14 +113,25 @@ dokkaHtml {
     }
 }
 
-// AGP generates the published javadoc with Dokka 1.4.32, which fails to read the sealed classes
-// in livekit-uniffi-android ("PermittedSubclasses requires ASM9"). Package the javadoc jar from
-// this project's Dokka instead.
-tasks.withType(com.android.build.gradle.tasks.JavaDocGenerationTask).configureEach {
-    enabled = false
+interface InjectedFileSystemOperations {
+    @javax.inject.Inject
+    FileSystemOperations getFs()
 }
-tasks.withType(com.android.build.gradle.tasks.JavaDocJarTask).configureEach {
-    from(tasks.named("dokkaJavadoc"))
+
+// AGP generates the published javadoc with Dokka 1.4.32, which fails to read the sealed classes
+// in livekit-uniffi-android ("PermittedSubclasses requires ASM9"). The generation task fills its
+// output directory from this project's Dokka instead, and the javadoc jar packages that directory.
+tasks.withType(com.android.build.gradle.tasks.JavaDocGenerationTask).configureEach { task ->
+    def fs = objects.newInstance(InjectedFileSystemOperations).fs
+    def dokkaJavadocOutput = files(tasks.named("dokkaJavadoc"))
+    task.inputs.files(dokkaJavadocOutput)
+    task.actions.clear()
+    task.doLast { generationTask ->
+        fs.sync {
+            from(dokkaJavadocOutput)
+            into(generationTask.outputDirectory)
+        }
+    }
 }
 
 dependencies {
