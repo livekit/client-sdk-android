@@ -113,6 +113,16 @@ dokkaHtml {
     }
 }
 
+// AGP generates the published javadoc with Dokka 1.4.32, which fails to read the sealed classes
+// in livekit-uniffi-android ("PermittedSubclasses requires ASM9"). Package the javadoc jar from
+// this project's Dokka instead.
+tasks.withType(com.android.build.gradle.tasks.JavaDocGenerationTask).configureEach {
+    enabled = false
+}
+tasks.withType(com.android.build.gradle.tasks.JavaDocJarTask).configureEach {
+    from(tasks.named("dokkaJavadoc"))
+}
+
 dependencies {
     //api fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
