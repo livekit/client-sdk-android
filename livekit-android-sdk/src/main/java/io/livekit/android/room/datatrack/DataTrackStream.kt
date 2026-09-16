@@ -29,9 +29,10 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.withIndex
 import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
 
 /**
@@ -57,17 +58,8 @@ class DataTrackStream internal constructor(
     private val coroutineScope = CloseableCoroutineScope(dispatcher + SupervisorJob())
 
     /**
-     * Set once the drain has run the underlying stream to exhaustion.
-     *
-     * This exists only for collectors that arrive too late to see the terminator [sharedFrames]
-     * emits.
-     */
-    private val drained = MutableStateFlow(false)
-
-    /**
-     * Set by [close]. Unlike [drained] this *is* merged into [flow], because closing cancels the
-     * drain mid-[next], so no terminator is ever emitted and nothing in the frame stream would
-     * complete collectors.
+     * Set by [close]. Merged into [flow] because closing cancels the drain mid-[next], so it never
+     * emits [DrainItem.Ended] and nothing in the frame stream would complete collectors.
      *
      * Racing undelivered frames is correct here, and is the documented difference between the two
      * paths: the caller asked to stop, so collection ends promptly rather than draining first.
@@ -85,16 +77,21 @@ class DataTrackStream internal constructor(
     /**
      * Drains the underlying stream while anyone is collecting [flow], so every collector sees
      * every frame.
+     *
+     * The last item is replayed, and a collector receives it as part of subscribing, ahead of
+     * everything emitted afterwards. That is how a collector learns where it joined: a replayed
+     * [DrainItem.Frame] was emitted before it subscribed, and a replayed [DrainItem.Ended] means
+     * the stream had already ended. Every drain run starts with [DrainItem.Started], so a
+     * collector that finds nothing to replay receives that first rather than a frame.
      */
-    private val sharedFrames: SharedFlow<DataTrackFrame?> = flow {
+    private val drainItems: SharedFlow<DrainItem> = flow {
+        emit(DrainItem.Started)
         while (true) {
             val frame = next() ?: break
-            emit(frame)
+            emit(DrainItem.Frame(frame))
         }
-        // Before the terminator, so a collector that misses the terminator sees this instead.
-        drained.value = true
-        emit(null)
-    }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 0)
+        emit(DrainItem.Ended)
+    }.shareIn(coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 
     /**
      * A [Flow] of incoming frames. Completes normally when the stream ends.
@@ -105,9 +102,15 @@ class DataTrackStream internal constructor(
      * Completes when the stream is unpublished, or when [close] is called.
      */
     val flow: Flow<DataTrackFrame> = merge(
-        // onSubscription runs after this collector holds a subscription but before it takes any
-        // value, so a `false` reading here means the terminator is still coming to it.
-        sharedFrames.onSubscription { if (drained.value) emit(null) },
+        drainItems.withIndex().transform<IndexedValue<DrainItem>, DataTrackFrame?> { (index, item) ->
+            when (item) {
+                DrainItem.Started -> Unit
+                // A frame at index 0 is the replayed one, emitted before this collector subscribed.
+                is DrainItem.Frame -> if (index > 0) emit(item.frame)
+                // Arrives behind every frame emitted before it, so those are delivered first.
+                DrainItem.Ended -> emit(null)
+            }
+        },
         closed.filter { it }.map { null },
     ).takeWhile { it != null }.filterNotNull()
 
@@ -126,5 +129,11 @@ class DataTrackStream internal constructor(
         closed.value = true
         coroutineScope.close()
         (impl as? AutoCloseable)?.close()
+    }
+
+    private sealed interface DrainItem {
+        object Started : DrainItem
+        class Frame(val frame: DataTrackFrame) : DrainItem
+        object Ended : DrainItem
     }
 }
