@@ -32,6 +32,8 @@
 //   cd ../rust-sdks/livekit-uniffi
 //   CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target <host triple>
 
+import org.gradle.api.tasks.PathSensitivity
+
 ext.resolveUniffiNativeLibDirs = {
     def libNames = ["liblivekit_uniffi.dylib", "liblivekit_uniffi.so"]
     def hasLib = { File dir -> dir.isDirectory() && libNames.any { new File(dir, it).isFile() } }
@@ -91,5 +93,15 @@ ext.configureUniffiForUnitTests = { Test task ->
         }
         return
     }
+    // Add livekit-uniffi to the library search paths so that it can be found.
     task.systemProperty("jna.library.path", dirs.collect { it.absolutePath }.join(File.pathSeparator))
+
+    // The core's *contents* are an input to every test that calls into it, but nothing above
+    // declares them: `jna.library.path` is just a path string, so rebuilding the library in place
+    // leaves the task's cache key unchanged and Gradle serves the previous run's results
+    // FROM-CACHE without executing anything. Registering the files themselves, hashed by content
+    // and not by location, makes a rebuilt core re-run the suite.
+    task.inputs.files(dirs.collect { dir -> fileTree(dir) { include "liblivekit_uniffi.*" } })
+        .withPropertyName("livekitUniffiNativeLib")
+        .withPathSensitivity(PathSensitivity.NONE)
 }
