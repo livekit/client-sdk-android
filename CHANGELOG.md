@@ -1,5 +1,33 @@
 # client-sdk-android
 
+## 2.29.0
+
+### Minor Changes
+
+- Add data tracks, a named channel for streaming structured frames to a room. - [#1004](https://github.com/livekit/client-sdk-android/pull/1004) ([@davidliu](https://github.com/davidliu))
+
+  Publish with `LocalParticipant.publishDataTrack` (or `withDataTrack` to scope a publication to a
+  block), then push frames with `LocalDataTrack.tryPush` or `send`. Subscribers find published tracks
+  through `RemoteParticipant.dataTracks` or the new `RoomEvent.DataTrackPublished` /
+  `DataTrackUnpublished` events, and call `RemoteDataTrack.subscribe` for a `DataTrackStream` of
+  incoming frames.
+
+  Frame formats are declared through `DataTrackPublishOptions` using `DataTrackFrameEncoding`
+  (protobuf, flatbuffer, CDR, ROS 1, CBOR, msgpack, JSON), and schema definitions can be shared
+  with `LocalParticipant.defineSchema` / `getSchema`. Frames are end-to-end encrypted when E2EE
+  is enabled on the room.
+
+  This adds a dependency on `io.livekit:livekit-uniffi-android`, containing the shared Rust core also
+  used by the other native SDKs.
+
+### Patch Changes
+
+- Fixed `DataTrackStream.flow` sometimes completing without delivering the frames that arrived just before the stream ended. - [#1025](https://github.com/livekit/client-sdk-android/pull/1025) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
+- Fix crash when a duplicate SubscribedQualityUpdate requests a backup codec that is already added. addSimulcastTrack now skips the duplicate instead of throwing IllegalStateException ("VP8 already added!"), matching the JS SDK behavior. - [#1010](https://github.com/livekit/client-sdk-android/pull/1010) ([@davibittencourtome](https://github.com/davibittencourtome))
+
+- Fixed data tracks failing to load in apps minified with R8. - [#1023](https://github.com/livekit/client-sdk-android/pull/1023) ([@adrian-niculescu](https://github.com/adrian-niculescu))
+
 ## 2.28.2
 
 ### Patch Changes
