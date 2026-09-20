@@ -29,6 +29,10 @@ import io.livekit.android.e2ee.E2EEManager
 import io.livekit.android.e2ee.EncryptedPacket
 import io.livekit.android.events.DisconnectReason
 import io.livekit.android.events.convert
+import io.livekit.android.room.datatrack.DataTrackPublishException
+import io.livekit.android.room.datatrack.DataTrackPublisherChannel
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
+import io.livekit.android.room.datatrack.OutgoingDataTrackManager
 import io.livekit.android.room.network.DefaultReconnectPolicy
 import io.livekit.android.room.network.ReconnectContext
 import io.livekit.android.room.network.ReconnectPolicy
@@ -119,6 +123,8 @@ internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val rtcThreadToken: RTCThreadToken,
     private val dataPacketCryptorFactory: DataPacketCryptorManager.Factory,
+    private val outgoingDataTrackManager: OutgoingDataTrackManager,
+    private val incomingDataTrackManager: IncomingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
 
@@ -184,6 +190,7 @@ internal constructor(
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
     private var participantSid: String? = null
+    private var localParticipantIdentity: String? = null
 
     internal val serverVersion: Semver?
         get() = client.serverVersion
@@ -201,6 +208,8 @@ internal constructor(
     private var reliableDataChannelSub: DataChannel? = null
     private var lossyDataChannel: DataChannel? = null
     private var lossyDataChannelSub: DataChannel? = null
+    private var dataTrackDataChannelSub: DataChannel? = null
+    private val dataTrackPublisherChannel = DataTrackPublisherChannel(rtcThreadToken)
     private var reliableDataChannelManager: DataChannelManager? = null
     private var reliableBufferedAmountJob: Job? = null
     private var reliableDataChannelSubManager: DataChannelManager? = null
@@ -269,7 +278,20 @@ internal constructor(
         val joinResponse = client.join(url, token, options, roomOptions)
         ensureActive()
 
+        if (joinResponse.hasParticipant()) {
+            localParticipantIdentity = joinResponse.participant.identity
+        }
+        // Participants first, then the original join bytes (Swift order): UniFFI discovers
+        // tracks once publishers are registered, and re-encoding would drop newer fields.
         listener?.onJoinResponse(joinResponse)
+        incomingDataTrackManager.handleSfuJoinResponse(
+            client.lastJoinEncoded
+                ?: LivekitRtc.SignalResponse.newBuilder()
+                    .setJoin(joinResponse)
+                    .build()
+                    .toByteArray(),
+        )
+        listener?.reattachRemoteDataTracks()
         isClosed = false
         listener?.onSignalConnected(false)
 
@@ -277,8 +299,10 @@ internal constructor(
 
         configure(joinResponse, options)
 
-        // create offer
-        if (!isSubscriberPrimary || joinResponse.fastPublish) {
+        // Subscriber-primary defers the publisher PC until something is published. After a full
+        // reconnect `hasPublished` is still set, so re-negotiate here — otherwise the ICE wait
+        // stalls and data-track republish never runs.
+        if (!isSubscriberPrimary || joinResponse.fastPublish || hasPublished) {
             negotiatePublisher()
         }
         client.onReadyForResponses()
@@ -334,6 +358,7 @@ internal constructor(
                         when (dataChannel.label()) {
                             RELIABLE_DATA_CHANNEL_LABEL -> reliableDataChannelSub = dataChannel
                             LOSSY_DATA_CHANNEL_LABEL -> lossyDataChannelSub = dataChannel
+                            DATA_TRACK_DATA_CHANNEL_LABEL -> dataTrackDataChannelSub = dataChannel
                             else -> return@onDataChannel
                         }
                         dataChannel.registerObserver(DataChannelObserver(dataChannel))
@@ -387,6 +412,9 @@ internal constructor(
                         dataChannel.registerObserver(lossyDataChannelManager)
                     }
                 }
+
+                ensureActive()
+                createPublisherDataTrackChannel()
             }
         }
     }
@@ -473,10 +501,13 @@ internal constructor(
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
+        localParticipantIdentity = null
         regionUrlProvider = null
         endSignalSession()
         abortPendingPublishTracks()
         closeResources(reason)
+        outgoingDataTrackManager.close()
+        incomingDataTrackManager.close()
         connectionState = ConnectionState.DISCONNECTED
 
         synchronized(reliableStateLock) {
@@ -511,6 +542,8 @@ internal constructor(
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
+                    dataTrackPublisherChannel.detach()
+                    dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
                 }
             }
@@ -717,6 +750,10 @@ internal constructor(
                     // Is connected, notify and return.
                     regionUrlProvider?.clearAttemptedRegions()
                     client.onPCConnected()
+                    if (isFullReconnect) {
+                        outgoingDataTrackManager.republishTracks()
+                    }
+                    incomingDataTrackManager.resendSubscriptionUpdates()
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -926,6 +963,64 @@ internal constructor(
         )
     }
 
+    /**
+     * Negotiates the publisher if needed and waits until the `_data_track` channel is open.
+     *
+     * Data-track publish must not proceed until then: [sendDataTrackPackets] queues at most one
+     * frame while the channel is not [DataChannel.State.OPEN].
+     *
+     * [DataTrackPublisherChannel] re-reads its manager each pass rather than capturing it, so a
+     * publish in flight when a full reconnect swaps the transport waits for the replacement
+     * channel instead of failing against a disposed one. A real [close] fails it as a disconnect.
+     */
+    @Throws(exceptionClasses = [DataTrackPublishException::class])
+    internal suspend fun ensureDataTrackPublisherConnected() {
+        // Always mark publish intent so a full reconnect's joinImpl renegotiates even if this
+        // wait started against a torn-down publisher transport.
+        if (isSubscriberPrimary) {
+            val publisherTransport = publisher
+            val iceChecking = publisherTransport?.iceConnectionState() ==
+                PeerConnection.IceConnectionState.CHECKING
+            if (publisherTransport?.isConnected() != true && !iceChecking) {
+                negotiatePublisher()
+            }
+        }
+
+        val opened = dataTrackPublisherChannel.awaitOpen(MAX_ICE_CONNECT_TIMEOUT_MS.toLong()) { isClosed }
+        when (opened) {
+            true -> return
+            false -> throw DataTrackPublishException.Disconnected(
+                "Lost the connection while establishing the publisher data track channel",
+            )
+            null -> throw DataTrackPublishException.Timeout(
+                "Timed out establishing the publisher data track channel",
+            )
+        }
+    }
+
+    /**
+     * Creates the publisher `_data_track` channel and hands it to [dataTrackPublisherChannel].
+     */
+    private suspend fun createPublisherDataTrackChannel() {
+        val dataTrackInit = DataChannel.Init()
+        dataTrackInit.ordered = false
+        dataTrackInit.maxRetransmits = 0
+        publisher?.withPeerConnection {
+            createDataChannel(
+                DATA_TRACK_DATA_CHANNEL_LABEL,
+                dataTrackInit,
+            ).also { dataChannel ->
+                val dataChannelManager = DataChannelManager(
+                    dataChannel,
+                    DataChannelObserver(dataChannel),
+                    rtcThreadToken,
+                )
+                dataChannel.registerObserver(dataChannelManager)
+                dataTrackPublisherChannel.attach(dataChannelManager, coroutineScope)
+            }
+        }
+    }
+
     private fun dataChannelManagerForKind(kind: LivekitModels.DataPacket.Kind): DataChannelManager? =
         when (kind) {
             LivekitModels.DataPacket.Kind.RELIABLE -> reliableDataChannelManager
@@ -1047,6 +1142,7 @@ internal constructor(
         fun onEngineDisconnected(reason: DisconnectReason)
         fun onFailToConnect(error: Throwable)
         fun onJoinResponse(response: JoinResponse)
+        fun reattachRemoteDataTracks() {}
         fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>)
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
@@ -1059,7 +1155,7 @@ internal constructor(
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
-        fun onSignalConnected(isResume: Boolean)
+        suspend fun onSignalConnected(isResume: Boolean)
         fun onFullReconnecting()
         suspend fun onPostReconnect(isFullReconnect: Boolean)
         fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse)
@@ -1082,6 +1178,15 @@ internal constructor(
          */
         @VisibleForTesting
         const val LOSSY_DATA_CHANNEL_LABEL = "_lossy"
+
+        /**
+         * Dedicated data channel for LiveKit data-track packets.
+         *
+         * @suppress
+         */
+        @VisibleForTesting
+        const val DATA_TRACK_DATA_CHANNEL_LABEL = "_data_track"
+
         internal const val TARGET_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
 
         /**
@@ -1218,8 +1323,13 @@ internal constructor(
         listener?.onLocalTrackSubscribed(trackSubscribed)
     }
 
-    override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>) {
+    override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>, encoded: ByteArray) {
         listener?.onUpdateParticipants(updates)
+        val identity = localParticipantIdentity
+        if (identity != null) {
+            incomingDataTrackManager.handleSfuParticipantUpdate(encoded, identity)
+        }
+        listener?.reattachRemoteDataTracks()
     }
 
     override fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>) {
@@ -1310,6 +1420,40 @@ internal constructor(
         listener?.onLocalTrackUnpublished(trackUnpublished)
     }
 
+    override fun onPublishDataTrackResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuPublishResponse(encoded)
+    }
+
+    override fun onUnpublishDataTrackResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuUnpublishResponse(encoded)
+    }
+
+    override fun onRequestResponse(encoded: ByteArray) {
+        outgoingDataTrackManager.handleSfuRequestResponse(encoded)
+    }
+
+    override fun onDataTrackSubscriberHandles(encoded: ByteArray) {
+        incomingDataTrackManager.handleSubscriberHandles(encoded)
+    }
+
+    /**
+     * Forwards an encoded [LivekitRtc.SignalRequest] produced by a UniFFI data track manager.
+     */
+    internal fun sendDataTrackSignalRequest(requestBytes: ByteArray) {
+        // Data-track publish / subscribe signaling requires the publisher PC / `_data_track` DC.
+        if (!hasPublished) {
+            negotiatePublisher()
+        }
+        client.sendEncodedRequest(requestBytes)
+    }
+
+    /**
+     * Queues serialized data-track packets on the dedicated `_data_track` data channel.
+     */
+    internal fun sendDataTrackPackets(packets: List<ByteArray>) {
+        dataTrackPublisherChannel.sendPackets(packets)
+    }
+
     // --------------------------------- DataChannel.Observer ------------------------------------//
 
     fun onBufferedAmountChange(dataChannel: DataChannel, previousAmount: Long) {
@@ -1320,6 +1464,10 @@ internal constructor(
 
     fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?) {
         if (buffer == null) {
+            return
+        }
+        if (dataChannel.label() == DATA_TRACK_DATA_CHANNEL_LABEL) {
+            incomingDataTrackManager.handlePacketReceived(ByteString.copyFrom(buffer.data).toByteArray())
             return
         }
         var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
@@ -1424,7 +1572,7 @@ internal constructor(
         }
     }
 
-    fun sendSyncState(
+    suspend fun sendSyncState(
         subscription: LivekitRtc.UpdateSubscription,
         publishedTracks: List<LivekitRtc.TrackPublishedResponse>,
     ) {
@@ -1457,6 +1605,16 @@ internal constructor(
             }
         }
 
+        val publishDataTracks = outgoingDataTrackManager.publishResponsesForSyncState().mapNotNull { bytes ->
+            try {
+                LivekitRtc.PublishDataTrackResponse.parseFrom(bytes)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to parse PublishDataTrackResponse for sync state" }
+                null
+            }
+        }
+
         val syncState = with(LivekitRtc.SyncState.newBuilder()) {
             if (answer != null) {
                 setAnswer(answer)
@@ -1466,6 +1624,7 @@ internal constructor(
             }
             setSubscription(subscription)
             addAllPublishTracks(publishedTracks)
+            addAllPublishDataTracks(publishDataTracks)
             addAllDataChannels(dataChannelInfos)
             addAllDatachannelReceiveStates(dataChannelReceiveStates)
             build()
