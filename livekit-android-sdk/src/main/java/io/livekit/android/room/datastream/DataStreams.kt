@@ -126,6 +126,7 @@ internal constructor(
      * Confining all of it here keeps both hazards off callers, including SDK users whose own tests
      * may run the SDK on a test dispatcher.
      */
+    @Suppress("InjectDispatcher") // Injecting this breaks the FFI, per the reasons above.
     private val ffiDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + ffiDispatcher)
@@ -360,6 +361,9 @@ internal constructor(
      * delegate from a static root.
      */
     private inner class OutgoingDelegate : FfiOutgoingDelegate {
+        // The catch below converts into a uniffi-generated error, whose only field is a string:
+        // nothing can carry the cause across the FFI boundary, so the original is logged instead.
+        @Suppress("SwallowedException")
         override suspend fun onPacketsAvailable(packets: List<ByteArray>) {
             try {
                 // Confined to ffiDispatcher per this class's threading rules: waiting out
