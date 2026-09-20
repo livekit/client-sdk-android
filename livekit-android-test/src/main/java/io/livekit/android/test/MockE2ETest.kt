@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.dagger.DaggerTestLiveKitComponent
 import io.livekit.android.test.mock.dagger.TestCoroutinesModule
 import io.livekit.android.test.mock.dagger.TestLiveKitComponent
+import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
+import io.livekit.android.test.mock.room.datatrack.MockRemoteDataTrackManagerFactory
 import io.livekit.android.util.flow
 import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,6 +53,8 @@ abstract class MockE2ETest : BaseTest() {
     lateinit var context: Context
     lateinit var room: Room
     lateinit var wsFactory: MockWebSocketFactory
+    lateinit var localDataTrackManagerFactory: MockLocalDataTrackManagerFactory
+    lateinit var remoteDataTrackManagerFactory: MockRemoteDataTrackManagerFactory
 
     @Before
     fun mocksSetup() {
@@ -65,6 +69,8 @@ abstract class MockE2ETest : BaseTest() {
                 enableMetrics = false
             }
         wsFactory = component.websocketFactory()
+        localDataTrackManagerFactory = component.localDataTrackManagerFactory()
+        remoteDataTrackManagerFactory = component.remoteDataTrackManagerFactory()
     }
 
     @After

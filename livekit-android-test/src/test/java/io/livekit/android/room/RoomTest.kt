@@ -31,6 +31,8 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.datastream.DataStreams
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
+import io.livekit.android.room.datatrack.IncomingDataTrackEvent
+import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.test.assert.assertIsClassList
@@ -92,6 +94,9 @@ class RoomTest {
     @Mock
     lateinit var regionUrlProviderFactory: RegionUrlProvider.Factory
 
+    @Mock
+    lateinit var incomingDataTrackManager: IncomingDataTrackManager
+
     lateinit var networkCallbackRegistry: MockNetworkCallbackRegistry
 
     var eglBase: EglBase = MockEglBase()
@@ -120,6 +125,12 @@ class RoomTest {
             engine = rtcEngine,
             closeableManager = CloseableManager(),
         )
+        whenever(incomingDataTrackManager.events).thenReturn(
+            object : EventListenable<IncomingDataTrackEvent> {
+                override val events: SharedFlow<IncomingDataTrackEvent> = MutableSharedFlow()
+            },
+        )
+        whenever(incomingDataTrackManager.snapshotRemoteTracks()).thenReturn(emptyList())
         room = Room(
             context = context,
             engine = rtcEngine,
@@ -143,6 +154,7 @@ class RoomTest {
             audioRecordPrewarmer = NoAudioRecordPrewarmer(),
             incomingDataStreamManager = IncomingDataStreamManagerImpl(dataStreams),
             dataStreams = dataStreams,
+            incomingDataTrackManager = incomingDataTrackManager,
             rpcClientManager = io.livekit.android.room.rpc.RpcClientManager(
                 engine = rtcEngine,
                 outgoingDataStreamManager = Mockito.mock(io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager::class.java),

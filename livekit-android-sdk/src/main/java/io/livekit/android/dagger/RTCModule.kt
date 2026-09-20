@@ -36,6 +36,8 @@ import io.livekit.android.audio.NoAudioRecordPrewarmer
 import io.livekit.android.e2ee.DataPacketCryptorManager
 import io.livekit.android.e2ee.DataPacketCryptorManagerImpl
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
+import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
@@ -46,6 +48,8 @@ import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.RTCThreadTokenImpl
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
+import io.livekit.uniffi.LocalDataTrackManager
+import io.livekit.uniffi.RemoteDataTrackManager
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.Logging
@@ -103,7 +107,6 @@ internal object RTCModule {
         if (!hasInitializedWebrtc) {
             executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) {
                 if (!hasInitializedWebrtc) {
-                    hasInitializedWebrtc = true
                     PeerConnectionFactory.initialize(
                         PeerConnectionFactory.InitializationOptions
                             .builder(appContext)
@@ -128,6 +131,12 @@ internal object RTCModule {
                             )
                             .createInitializationOptions(),
                     )
+                    // Only latch after initialize succeeds. If it throws (e.g. the native
+                    // library fails to load), latching beforehand would permanently skip
+                    // initialization for the process, and the next native call would crash
+                    // with an uncatchable-by-catch(Exception) UnsatisfiedLinkError instead
+                    // of a catchable failure at the call site.
+                    hasInitializedWebrtc = true
                 }
             }
         }
@@ -382,6 +391,20 @@ internal object RTCModule {
     @Provides
     fun dataPacketCryptorManagerFactory(): DataPacketCryptorManager.Factory {
         return DataPacketCryptorManagerImpl.Factory
+    }
+
+    @Provides
+    fun localDataTrackManagerFactory(): LocalDataTrackManagerFactory {
+        return LocalDataTrackManagerFactory { delegate, encryptionProvider ->
+            LocalDataTrackManager(delegate, encryptionProvider)
+        }
+    }
+
+    @Provides
+    fun remoteDataTrackManagerFactory(): RemoteDataTrackManagerFactory {
+        return RemoteDataTrackManagerFactory { delegate, decryptionProvider ->
+            RemoteDataTrackManager(delegate, decryptionProvider)
+        }
     }
 
     @Provides

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import io.livekit.android.dagger.MemoryModule
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.MockWebSocketFactory
+import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
+import io.livekit.android.test.mock.room.datatrack.MockRemoteDataTrackManagerFactory
 import javax.inject.Singleton
 
 @Singleton
@@ -47,6 +49,10 @@ interface TestLiveKitComponent : LiveKitComponent {
     fun rtcEngine(): RTCEngine
 
     fun networkCallbackRegistry(): MockNetworkCallbackRegistry
+
+    fun localDataTrackManagerFactory(): MockLocalDataTrackManagerFactory
+
+    fun remoteDataTrackManagerFactory(): MockRemoteDataTrackManagerFactory
 
     @Component.Factory
     interface Factory {

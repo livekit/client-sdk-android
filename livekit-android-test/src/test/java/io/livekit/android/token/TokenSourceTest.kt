@@ -92,6 +92,7 @@ class TokenSourceTest : BaseTest() {
             participantMetadata = "participant-metadata",
             agentName = "agent-name",
             agentMetadata = "agent-metadata",
+            agentAttributes = mapOf("region" to "us-east"),
         )
 
         val response = source.fetch(options).getOrThrow()
@@ -121,6 +122,10 @@ class TokenSourceTest : BaseTest() {
         val agent = agents?.get(0)?.jsonObject
         assertEquals("agent-name", agent?.get("agent_name")?.jsonPrimitive?.content)
         assertEquals("agent-metadata", agent?.get("metadata")?.jsonPrimitive?.content)
+        assertEquals(
+            "us-east",
+            agent?.get("attributes")?.jsonObject?.get("region")?.jsonPrimitive?.content,
+        )
     }
 
     @Test
