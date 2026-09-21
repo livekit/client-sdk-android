@@ -562,10 +562,20 @@ constructor(
                     if (nextUrl != null) {
                         LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
                     } else {
+                        // The attempted set belongs to this failover cycle, which ends here. The
+                        // provider outlives it — `connect` reuses an existing one for the same
+                        // url — so leaving the set full would make the next connect exhaust
+                        // immediately, failing without trying a single region.
+                        regionUrlProvider?.clearAttemptedRegions()
                         throw e // rethrow since no more regions to try.
                     }
                 }
             }
+
+            // Connected, so the failover cycle is over. A region that failed transiently before
+            // this one succeeded must be eligible again next time, and only a successful
+            // *reconnect* cleared the set until now.
+            regionUrlProvider?.clearAttemptedRegions()
 
             ensureActive()
             networkCallbackManager.registerCallback()
