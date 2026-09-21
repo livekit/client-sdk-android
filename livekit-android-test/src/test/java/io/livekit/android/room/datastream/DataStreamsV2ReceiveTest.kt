@@ -31,6 +31,7 @@ import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.DataStream
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -42,6 +43,7 @@ import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.zip.Deflater
+import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
 
 /**
  * The v2 receive path through [DataStreams].
@@ -634,6 +636,64 @@ class DataStreamsV2ReceiveTest : BaseTest() {
         dataStreams.handleIncoming(header(text = true, inlineContent = "ok".toByteArray()))
 
         assertEquals("ok", awaitTextStream().readAll().joinToString(""))
+    }
+
+    // endregion
+
+    // region Teardown races
+
+    /**
+     * Reproduces the state the teardown race leaves behind: a manager that is still installed but
+     * whose handle has been destroyed.
+     *
+     * The race itself is a few instructions wide -- Room's disconnect cleanup runs
+     * `clearOpenStreams()` -> [DataStreams.endSession] while packets are still arriving, and a
+     * caller that read the manager just before the destroy calls it just after -- so it is not
+     * reachable by timing. Reaching into the field reproduces the *outcome* deterministically,
+     * which is what the guards have to survive.
+     */
+    private fun destroyTheInstalledIncomingManager() {
+        val field = DataStreams::class.java.getDeclaredField("incoming")
+        field.isAccessible = true
+        val manager = field.get(dataStreams) as? FfiIncomingDataStreamManager
+        assertNotNull("expected handleIncoming to have built an incoming manager", manager)
+        manager!!.destroy()
+    }
+
+    /**
+     * uniffi raises `IllegalStateException` on any call that starts after its handle was destroyed.
+     * [DataStreams.handleIncoming] runs on the data channel callback thread, where an escaping
+     * exception goes into WebRTC's JNI and aborts the process, so it has to absorb that rather than
+     * propagate it.
+     */
+    @Test
+    fun aPacketArrivingAfterTheManagerWasDestroyedIsDroppedNotThrown() {
+        dataStreams.handleIncoming(header(text = true, inlineContent = "first".toByteArray()))
+        destroyTheInstalledIncomingManager()
+
+        dataStreams.handleIncoming(header(text = true, streamId = "stream-2"))
+    }
+
+    /**
+     * Same hazard on the other entry point: `abortStreamsFrom` runs from
+     * `handleParticipantDisconnect`, partway through the same disconnect cleanup that destroys the
+     * manager, and a throw there abandons the rest of the cleanup.
+     */
+    @Test
+    fun abortingStreamsAfterTheManagerWasDestroyedDoesNotThrow() {
+        dataStreams.handleIncoming(header(text = true, inlineContent = "first".toByteArray()))
+        destroyTheInstalledIncomingManager()
+
+        dataStreams.abortStreamsFrom(Participant.Identity(SENDER))
+    }
+
+    /** `endSession` destroys under the lock, so its own teardown must tolerate the same state. */
+    @Test
+    fun endingTheSessionAfterTheManagerWasDestroyedDoesNotThrow() {
+        dataStreams.handleIncoming(header(text = true, inlineContent = "first".toByteArray()))
+        destroyTheInstalledIncomingManager()
+
+        dataStreams.endSession()
     }
 
     // endregion

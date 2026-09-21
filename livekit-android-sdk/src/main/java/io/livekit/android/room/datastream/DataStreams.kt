@@ -32,6 +32,7 @@ import io.livekit.android.room.datastream.outgoing.TextStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.UniffiNativeLibrary
+import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -277,14 +278,40 @@ internal constructor(
         packet: LivekitModels.DataPacket,
         encryptionType: LivekitModels.Encryption.Type = LivekitModels.Encryption.Type.NONE,
     ) {
-        val manager = incomingManager()
-        if (manager == null) {
+        val handled = withIncomingManager("handle a data stream packet") { manager ->
+            manager.handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
+        }
+        if (!handled) {
             // Either closed, or the native library is unavailable -- which incomingManager has
             // already logged at error level, once.
             LKLog.d { "Dropping a data stream packet: no incoming manager." }
-            return
         }
-        manager.handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
+    }
+
+    /**
+     * Runs [block] on the incoming manager under [ffiLock]. Returns false if there is none.
+     *
+     * [buildIfAbsent] builds one on first use; callers that only tidy up streams that already exist
+     * pass false, so a room that never opened one does not load the native library to abort nothing.
+     *
+     * The lock spans the [block]: [endSession] and [close] destroy the manager, and uniffi
+     * throws `IllegalStateException` on a call that starts after its handle is destroyed.
+     */
+    private fun withIncomingManager(
+        action: String,
+        buildIfAbsent: Boolean = true,
+        block: (FfiIncomingDataStreamManager) -> Unit,
+    ): Boolean {
+        synchronized(ffiLock) {
+            val manager = (if (buildIfAbsent) incomingManager() else incoming) ?: return false
+            try {
+                block(manager)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to $action." }
+            }
+            return true
+        }
     }
 
     /**
@@ -297,11 +324,22 @@ internal constructor(
      * so streams arriving after a reconnect are still delivered.
      */
     fun endSession() {
-        val old = synchronized(ffiLock) {
-            incoming.also { incoming = null }
-        } ?: return
-        old.abortAllStreams()
-        old.destroy()
+        // Aborting and destroying stay under the lock so that a packet or abort that read the
+        // manager cannot call it after this destroys it. See [withIncomingManager].
+        synchronized(ffiLock) {
+            val old = incoming ?: return
+            incoming = null
+            try {
+                old.abortAllStreams()
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                // This runs from Room's disconnect cleanup, which has more to do afterwards, so a
+                // failure here must not abandon the rest of it. destroy() below is unconditional:
+                // it goes nowhere near the FFI unless it is the last reference, and is idempotent.
+                LKLog.w(e) { "Failed to abort open data streams while ending the session." }
+            }
+            old.destroy()
+        }
     }
 
     /**
@@ -309,7 +347,9 @@ internal constructor(
      * mid-send. Without this their readers would wait forever for chunks that will never arrive.
      */
     fun abortStreamsFrom(identity: Participant.Identity) {
-        synchronized(ffiLock) { incoming }?.abortStreamsFrom(identity.value)
+        withIncomingManager("abort data streams from ${identity.value}", buildIfAbsent = false) { manager ->
+            manager.abortStreamsFrom(identity.value)
+        }
     }
 
     /**
@@ -319,7 +359,15 @@ internal constructor(
     @VisibleForTesting
     internal suspend fun openStreamCount(): ULong {
         val manager = synchronized(ffiLock) { incoming } ?: return 0u
-        return withContext(ffiDispatcher) { manager.openStreamCount() }
+        // Deliberately not under ffiLock, unlike the calls above: withContext suspends, and a
+        // monitor must not be held across a suspension point. The manager can therefore be
+        // destroyed between the read and the call, which is what the catch is for.
+        return try {
+            withContext(ffiDispatcher) { manager.openStreamCount() }
+        } catch (e: IllegalStateException) {
+            LKLog.d(e) { "Incoming manager was destroyed while counting open streams." }
+            0u
+        }
     }
 
     // endregion
