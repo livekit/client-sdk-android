@@ -52,6 +52,7 @@ import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
 import io.livekit.uniffi.ByteStreamWriter as FfiByteStreamWriter
 import io.livekit.uniffi.ClientCapability as FfiClientCapability
 import io.livekit.uniffi.DataStreamException as FfiDataStreamException
+import io.livekit.uniffi.Disposable as FfiDisposable
 import io.livekit.uniffi.EncryptionType as FfiEncryptionType
 import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
 import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
@@ -596,7 +597,7 @@ internal constructor(
      * stream ends, or with a [StreamException] when it fails.
      */
     private fun pumpBytes(reader: FfiByteStreamReader): Channel<ByteArray> {
-        return pump { reader.next() }
+        return pump(reader) { reader.next() }
     }
 
     /**
@@ -607,10 +608,15 @@ internal constructor(
      * valid UTF-8. Round-tripping keeps [TextStreamReceiver]'s public constructor untouched.
      */
     private fun pumpText(reader: FfiTextStreamReader): Channel<ByteArray> {
-        return pump { reader.next()?.toByteArray(Charsets.UTF_8) }
+        return pump(reader) { reader.next()?.toByteArray(Charsets.UTF_8) }
     }
 
-    private fun pump(next: suspend () -> ByteArray?): Channel<ByteArray> {
+    /**
+     * [reader] is released once drained, however that happens. Uniffi's handle map owns the core's
+     * reader until then, and leaving it to the cleaner ties a native object to a JVM object far too
+     * small for the GC to feel any urgency about.
+     */
+    private fun pump(reader: FfiDisposable, next: suspend () -> ByteArray?): Channel<ByteArray> {
         val channel = Channel<ByteArray>(capacity = Channel.UNLIMITED)
         coroutineScope.launch {
             try {
@@ -635,6 +641,8 @@ internal constructor(
                 throw e
             } catch (e: Exception) {
                 channel.close(e)
+            } finally {
+                reader.destroy()
             }
         }
         return channel
@@ -652,6 +660,14 @@ internal constructor(
      * [isOpen] is a snapshot rather than a query. The interface exposes it as a non-suspending
      * property while the FFI's is a suspending call, so it is tracked locally: set false on close,
      * and on a failed write, since a write only fails once the stream is finished.
+     *
+     * The writer is released whenever [open] goes false, which is every path that reaches the core:
+     * nothing calls the FFI afterwards, since [write] is gated on [isOpen] and [close] returns
+     * early. Leaving it to the cleaner would be worse here than for readers -- the core's writer
+     * sends a closing trailer when dropped, and that drop needs a runtime thread it will never get
+     * from a JVM cleaner, so an abandoned writer's stream is simply left open on the remote. Which
+     * is why callers are expected to [close] their senders (see `useStreamSender`) rather than let
+     * them fall out of scope, exactly as before the core took over.
      */
     private abstract inner class WriterDestination<T> : StreamDestination<T> {
         @Volatile
@@ -662,6 +678,7 @@ internal constructor(
 
         protected abstract suspend fun writeToFfi(data: T)
         protected abstract suspend fun closeFfi(reason: String?)
+        protected abstract fun destroyFfi()
 
         override suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit> {
             return try {
@@ -669,6 +686,7 @@ internal constructor(
                 Result.success(Unit)
             } catch (e: FfiDataStreamException) {
                 open = false
+                destroyFfi()
                 Result.failure(e.toStreamException())
             }
         }
@@ -682,6 +700,10 @@ internal constructor(
                 withContext(ffiDispatcher) { closeFfi(reason) }
             } catch (e: FfiDataStreamException) {
                 throw e.toStreamException()
+            } finally {
+                // The core marks the stream closed before it sends the trailer, so this is right
+                // even when the close failed: there is nothing left for the writer to do.
+                destroyFfi()
             }
         }
     }
@@ -696,6 +718,8 @@ internal constructor(
         override suspend fun closeFfi(reason: String?) {
             if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
         }
+
+        override fun destroyFfi() = writer.destroy()
     }
 
     private inner class ByteWriterDestination(
@@ -705,6 +729,8 @@ internal constructor(
         override suspend fun closeFfi(reason: String?) {
             if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
         }
+
+        override fun destroyFfi() = writer.destroy()
     }
 
     // endregion

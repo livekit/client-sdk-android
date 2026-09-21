@@ -20,6 +20,7 @@ import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.datastream.outgoing.TextStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.BaseTest
 import io.livekit.android.util.UniffiNativeLibrary
@@ -42,6 +43,7 @@ import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
+import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
 
 /**
  * The v2 send path, end to end through [DataStreams] and out to a stubbed engine.
@@ -390,6 +392,35 @@ class DataStreamsV2SendTest : BaseTest() {
         assertTrue(packets[0].header.hasByteHeader())
         assertEquals(DataStream.CompressionType.NONE, packets[0].header.compression)
         assertArrayEqualsBytes(byteArrayOf(0, 1, 2, 3), packets[1].streamChunk.content.toByteArray())
+    }
+
+    /**
+     * The core's writer sends a closing trailer when it is dropped, so a handle left to the JVM's
+     * cleaner is worse than untidy -- the drop lands on a thread with no runtime to send it from,
+     * and the remote is left with the stream open. Hence the explicit release on close.
+     *
+     * Reaching for the writer directly is the only way to observe this: every public path stops
+     * short of the FFI once the sender is closed.
+     */
+    @Test
+    fun closingASenderReleasesItsWriterHandle() = runTest {
+        remotes = ALL_V2
+
+        val sender = dataStreams.streamText(StreamTextOptions(topic = TOPIC))
+        val writer = ffiWriterOf(sender)
+        writer.info() // Still usable while the stream is open.
+
+        sender.close()
+
+        val error = runCatching { writer.info() }.exceptionOrNull()
+        assertTrue("expected the handle to have been destroyed, got $error", error is IllegalStateException)
+    }
+
+    private fun ffiWriterOf(sender: TextStreamSender): FfiTextStreamWriter {
+        val destination = sender.destination
+        val field = destination.javaClass.getDeclaredField("writer")
+        field.isAccessible = true
+        return field.get(destination) as FfiTextStreamWriter
     }
 
     /** A non-null close reason travels in the trailer, which the receiver reads as an error. */
