@@ -625,8 +625,6 @@ internal constructor(
                     channel.send(chunk)
                 }
                 channel.close()
-            } catch (e: FfiDataStreamException) {
-                channel.close(e.toStreamException())
             } catch (e: CancellationException) {
                 // The scope is cancelled by close() with readers possibly still open. The
                 // cancellation must not become the channel's failure cause: receiveAsFlow
@@ -640,7 +638,7 @@ internal constructor(
                 )
                 throw e
             } catch (e: Exception) {
-                channel.close(e)
+                channel.close(e.toStreamExceptionOrInternal())
             } finally {
                 reader.destroy()
             }
@@ -684,10 +682,11 @@ internal constructor(
             return try {
                 withContext(ffiDispatcher) { writeToFfi(data) }
                 Result.success(Unit)
-            } catch (e: FfiDataStreamException) {
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
                 open = false
                 destroyFfi()
-                Result.failure(e.toStreamException())
+                Result.failure(e.toStreamExceptionOrInternal())
             }
         }
 
@@ -698,8 +697,9 @@ internal constructor(
             open = false
             try {
                 withContext(ffiDispatcher) { closeFfi(reason) }
-            } catch (e: FfiDataStreamException) {
-                throw e.toStreamException()
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                throw e.toStreamExceptionOrInternal()
             } finally {
                 // The core marks the stream closed before it sends the trailer, so this is right
                 // even when the close failed: there is nothing left for the writer to do.
@@ -736,13 +736,35 @@ internal constructor(
     // endregion
 
     /**
+     * Maps anything a call into the core can raise onto this SDK's [StreamException].
+     *
+     * The FFI's own errors convert exactly. Everything else is a bug or a lifecycle race -- most
+     * often the `IllegalStateException` uniffi raises for a call that starts after its handle was
+     * destroyed -- and becomes an [StreamException.InternalException] carrying the original as its
+     * cause, because every public entry point on this path is documented to fail with a
+     * [StreamException] and nothing else. Cancellation is not an error and must be rethrown before
+     * this is reached.
+     */
+    private fun Exception.toStreamExceptionOrInternal(): StreamException {
+        return when (this) {
+            is StreamException -> this
+            is FfiDataStreamException -> toStreamException()
+            else -> {
+                val cause = this
+                StreamException.InternalException("Data stream call failed: $cause").apply { initCause(cause) }
+            }
+        }
+    }
+
+    /**
      * Runs a suspending call into the core on [ffiDispatcher], translating its errors.
      */
     private suspend fun <T> onFfi(body: suspend () -> T): T {
         try {
             return withContext(ffiDispatcher) { body() }
-        } catch (e: FfiDataStreamException) {
-            throw e.toStreamException()
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            throw e.toStreamExceptionOrInternal()
         }
     }
 }
