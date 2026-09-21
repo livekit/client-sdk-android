@@ -31,6 +31,7 @@ import livekit.LivekitModels.DataStream
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -43,6 +44,7 @@ import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
+import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
 import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
 
 /**
@@ -603,6 +605,62 @@ class DataStreamsV2SendTest : BaseTest() {
         val error = runCatching {
             dataStreams.sendText("hello", StreamTextOptions(topic = TOPIC))
         }.exceptionOrNull()
+
+        assertTrue("expected a StreamException, got $error", error is StreamException)
+    }
+
+    // endregion
+
+    // region Destroyed handles
+    //
+    // Every uniffi handle here can be destroyed out from under an in-flight call -- close() races
+    // a send, close() races a write on another thread -- and uniffi answers a call that starts
+    // after the destroy with IllegalStateException. The incoming side takes the lock across the
+    // call to rule that out; the outgoing calls all suspend, so they cannot, and these pin down
+    // that the exception arrives as the StreamException every caller is told to expect.
+    //
+    // The race window is a few instructions wide and unreachable by timing, so these destroy the
+    // handle directly and assert on the outcome rather than trying to provoke it.
+
+    private fun destroyTheInstalledOutgoingManager() {
+        val field = DataStreams::class.java.getDeclaredField("outgoing")
+        field.isAccessible = true
+        val manager = field.get(dataStreams) as? FfiOutgoingDataStreamManager
+        assertNotNull("expected a send to have built an outgoing manager", manager)
+        manager!!.destroy()
+    }
+
+    @Test
+    fun openingAStreamAfterTheManagerWasDestroyedFailsWithAStreamException() = runTest {
+        remotes = ALL_V2
+        dataStreams.streamText(StreamTextOptions(topic = TOPIC)).close()
+        destroyTheInstalledOutgoingManager()
+
+        val error = runCatching { dataStreams.streamText(StreamTextOptions(topic = TOPIC)) }.exceptionOrNull()
+
+        assertTrue("expected a StreamException, got $error", error is StreamException)
+    }
+
+    @Test
+    fun writingAfterTheWriterWasDestroyedFailsTheResultRatherThanThrowing() = runTest {
+        remotes = ALL_V2
+        val sender = dataStreams.streamText(StreamTextOptions(topic = TOPIC))
+        ffiWriterOf(sender).destroy()
+
+        val outcome = runCatching { sender.write("hello") }
+
+        assertTrue("write is declared to return a Result, but threw ${outcome.exceptionOrNull()}", outcome.isSuccess)
+        val error = outcome.getOrThrow().exceptionOrNull()
+        assertTrue("expected a StreamException, got $error", error is StreamException)
+    }
+
+    @Test
+    fun closingAfterTheWriterWasDestroyedFailsWithAStreamException() = runTest {
+        remotes = ALL_V2
+        val sender = dataStreams.streamText(StreamTextOptions(topic = TOPIC))
+        ffiWriterOf(sender).destroy()
+
+        val error = runCatching { sender.close() }.exceptionOrNull()
 
         assertTrue("expected a StreamException, got $error", error is StreamException)
     }
