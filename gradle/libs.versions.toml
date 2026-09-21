@@ -32,14 +32,10 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
-# Data streams v2 core. Unreleased: build it from rust-sdks with
-# `cargo make android-package-local` and it resolves from mavenLocal(). Switch to a published
-# version once livekit-uniffi ships this API.
-livekit-uniffi = "0.0.1"
-# livekit-uniffi's AAR pins jna 5.16.0, whose libjnidispatch.so fails to dlopen on 16 KB
-# page-size devices ("program alignment (8192) cannot be smaller than system page size").
-# 5.19.1 loads correctly there, so the SDK overrides the transitive pin. Also used for the
-# desktop JNA dispatch library on the unit-test classpath; see gradle/uniffi-native-lib.gradle.
+livekit-uniffi = "0.1.12"
+# Desktop JNA for the host unit-test classpath only: livekit-uniffi pulls in jna's *aar*, which
+# ships Android .so dispatch libs, while Robolectric runs on the host JVM and needs the plain
+# jar. Keep in step with the version livekit-uniffi resolves to; see gradle/uniffi-native-lib.gradle.
 jna = "5.19.1"
 
 [libraries]
