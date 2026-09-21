@@ -557,6 +557,27 @@ class DataStreamsV2SendTest : BaseTest() {
 
     // endregion
 
+    // region Manager lifecycle
+
+    /**
+     * Sends after close report a [StreamException], not the raw `IllegalStateException` the FFI
+     * raises on a destroyed handle. `streamText`/`sendText` are documented to throw
+     * [StreamException], and callers wrap them expecting exactly that.
+     */
+    @Test
+    fun sendingAfterCloseFailsWithAStreamException() = runTest {
+        remotes = PRE_V2
+        dataStreams.close()
+
+        val error = runCatching {
+            dataStreams.sendText("hello", StreamTextOptions(topic = TOPIC))
+        }.exceptionOrNull()
+
+        assertTrue("expected a StreamException, got $error", error is StreamException)
+    }
+
+    // endregion
+
     private fun assertArrayEqualsBytes(expected: ByteArray, actual: ByteArray) {
         assertEquals(expected.toList(), actual.toList())
     }
