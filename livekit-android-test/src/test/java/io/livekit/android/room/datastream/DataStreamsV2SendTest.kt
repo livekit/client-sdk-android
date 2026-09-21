@@ -22,6 +22,7 @@ import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.BaseTest
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
@@ -97,7 +98,7 @@ class DataStreamsV2SendTest : BaseTest() {
             onBlocking { waitForBufferStatusLow(any()) } doReturn Unit
             on { e2EEManager } doReturn null
         }
-        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager())
+        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager(), nativeLibrary = UniffiNativeLibrary())
         dataStreams.remoteIdentities = { remotes.keys.map { Participant.Identity(it) } }
         dataStreams.remoteClientProtocol = { id -> remotes[id.value]?.first ?: ClientProtocolVersion.DEFAULT.value }
         dataStreams.remoteCapabilities = { id -> remotes[id.value]?.second ?: emptyList() }

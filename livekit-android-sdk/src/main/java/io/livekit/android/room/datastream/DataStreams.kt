@@ -31,6 +31,7 @@ import io.livekit.android.room.datastream.outgoing.StreamDestination
 import io.livekit.android.room.datastream.outgoing.TextStreamSender
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +66,17 @@ import io.livekit.uniffi.TextStreamReader as FfiTextStreamReader
 import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
 
 /**
+ * Carried by the [StreamException] a send raises when `liblivekit_uniffi` is missing for the
+ * device's ABI, or otherwise fails to load.
+ *
+ * The matching log line, with the underlying [LinkageError] attached, comes from
+ * [io.livekit.android.util.UniffiNativeLibrary] at the point of failure -- this is only what the
+ * caller catching the send sees.
+ */
+private const val NATIVE_UNAVAILABLE_MESSAGE =
+    "Data streams are unavailable: the LiveKit native library failed to load."
+
+/**
  * Owns the livekit-uniffi data stream managers and the topic to handler registry, and routes
  * packets between them and [RTCEngine].
  *
@@ -81,12 +93,16 @@ import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
  *
  * @suppress
  */
+// The FFI facade is wide by nature: every public data stream entry point, both managers' lifecycles
+// and the delegate plumbing land here so that nothing above this class touches the FFI.
+@Suppress("TooManyFunctions")
 @Singleton
 class DataStreams
 @Inject
 internal constructor(
     private val engine: RTCEngine,
     closeableManager: CloseableManager,
+    private val nativeLibrary: UniffiNativeLibrary,
 ) : Closeable {
 
     /**
@@ -134,14 +150,12 @@ internal constructor(
     private val textStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, TextStreamHandler>())
     private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
 
-    private val outgoing: FfiOutgoingDataStreamManager =
-        FfiOutgoingDataStreamManager(OutgoingDelegate(), RegistryDelegate())
-
-    private val incomingLock = Any()
+    private val ffiLock = Any()
+    private var outgoing: FfiOutgoingDataStreamManager? = null
     private var incoming: FfiIncomingDataStreamManager? = null
 
     /**
-     * Set by [close], guarded by [incomingLock]. Ending a session leaves [incoming] null so the
+     * Set by [close], guarded by [ffiLock]. Ending a session leaves [incoming] null so the
      * next packet can rebuild it; closing must not: the scope the delegate needs is already
      * cancelled, so a manager built after close could never deliver anything -- and nothing would
      * ever destroy it.
@@ -153,26 +167,57 @@ internal constructor(
     }
 
     /**
-     * The incoming manager, built on first use.
+     * The incoming manager, built on first use, or null if it cannot be built.
      *
      * Deliberately not built in `init`: its payload cap comes from the room options, which are not
      * final until `connect` -- after this class is constructed. The first inbound packet can only
      * arrive after connecting, so reading the cap here picks up a value passed to `connect`.
      */
     private fun incomingManager(): FfiIncomingDataStreamManager? {
-        synchronized(incomingLock) {
+        synchronized(ffiLock) {
             if (closed) {
                 return null
             }
             incoming?.let { return it }
-            val manager = FfiIncomingDataStreamManager(
-                delegate = IncomingDelegate(),
-                maxPayloadByteLength = maxPayloadByteLength()?.toULong(),
-            )
-            incoming = manager
+            return buildFfiManager {
+                FfiIncomingDataStreamManager(
+                    delegate = IncomingDelegate(),
+                    maxPayloadByteLength = maxPayloadByteLength()?.toULong(),
+                )
+            }?.also { incoming = it }
+        }
+    }
+
+    /**
+     * The outgoing manager, built on first use.
+     *
+     * @throws StreamException if data streams are closed, or the native library cannot be loaded.
+     */
+    private fun requireOutgoingManager(): FfiOutgoingDataStreamManager {
+        synchronized(ffiLock) {
+            if (closed) {
+                throw StreamException.InternalException("Data streams have been closed.")
+            }
+            outgoing?.let { return it }
+            val manager = buildFfiManager { FfiOutgoingDataStreamManager(OutgoingDelegate(), RegistryDelegate()) }
+                ?: throw StreamException.InternalException(NATIVE_UNAVAILABLE_MESSAGE)
+            outgoing = manager
             return manager
         }
     }
+
+    /**
+     * Builds an FFI manager, returning null if the native library is missing or unloadable.
+     *
+     * The library is only loaded when the FFI is first touched, so this is where an ABI with no
+     * `liblivekit_uniffi` surfaces -- as a [LinkageError] rather than an exception. Remembering
+     * that is [UniffiNativeLibrary]'s job, and the instance is shared with data tracks so one
+     * failed load is enough for all of them.
+     *
+     * Called holding [ffiLock], which guards the manager fields this feeds.
+     */
+    private fun <T> buildFfiManager(build: () -> T): T? =
+        nativeLibrary.createOrNull(subsystem = "Data streams", create = build)
 
     // region Handler registration
 
@@ -221,6 +266,11 @@ internal constructor(
      * Cheap and non-blocking: the packet is queued and processed on the core's own loop, so this is
      * safe to call from a data channel callback. Packets that are not data stream packets, or do
      * not decode, are ignored by the core.
+     *
+     * The one exception is the very first call, which builds the incoming manager and so may pay
+     * for loading the native library. As in
+     * [io.livekit.android.room.datatrack.IncomingDataTrackManagerImpl], that is a one-off, and is
+     * the cost of not loading it while the room is still being constructed.
      */
     @JvmOverloads
     fun handleIncoming(
@@ -229,7 +279,9 @@ internal constructor(
     ) {
         val manager = incomingManager()
         if (manager == null) {
-            LKLog.d { "Dropping a data stream packet received after close." }
+            // Either closed, or the native library is unavailable -- which incomingManager has
+            // already logged at error level, once.
+            LKLog.d { "Dropping a data stream packet: no incoming manager." }
             return
         }
         manager.handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
@@ -245,7 +297,7 @@ internal constructor(
      * so streams arriving after a reconnect are still delivered.
      */
     fun endSession() {
-        val old = synchronized(incomingLock) {
+        val old = synchronized(ffiLock) {
             incoming.also { incoming = null }
         } ?: return
         old.abortAllStreams()
@@ -257,7 +309,7 @@ internal constructor(
      * mid-send. Without this their readers would wait forever for chunks that will never arrive.
      */
     fun abortStreamsFrom(identity: Participant.Identity) {
-        synchronized(incomingLock) { incoming }?.abortStreamsFrom(identity.value)
+        synchronized(ffiLock) { incoming }?.abortStreamsFrom(identity.value)
     }
 
     /**
@@ -266,7 +318,7 @@ internal constructor(
      */
     @VisibleForTesting
     internal suspend fun openStreamCount(): ULong {
-        val manager = synchronized(incomingLock) { incoming } ?: return 0u
+        val manager = synchronized(ffiLock) { incoming } ?: return 0u
         return withContext(ffiDispatcher) { manager.openStreamCount() }
     }
 
@@ -275,7 +327,7 @@ internal constructor(
     // region Outgoing
 
     suspend fun streamText(options: StreamTextOptions): TextStreamSender {
-        val writer = onFfi { outgoing.streamText(options.toFfi()) }
+        val writer = onFfi { requireOutgoingManager().streamText(options.toFfi()) }
         return TextStreamSender(
             info = writer.info().toSdk(currentEncryptionType()),
             destination = TextWriterDestination(writer),
@@ -283,7 +335,7 @@ internal constructor(
     }
 
     suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender {
-        val writer = onFfi { outgoing.streamBytes(options.toFfi()) }
+        val writer = onFfi { requireOutgoingManager().streamBytes(options.toFfi()) }
         return ByteStreamSender(
             info = writer.info().toSdk(currentEncryptionType()),
             destination = ByteWriterDestination(writer),
@@ -291,12 +343,12 @@ internal constructor(
     }
 
     suspend fun sendText(text: String, options: StreamTextOptions): TextStreamInfo {
-        return onFfi { outgoing.sendText(text, options.toFfi()) }
+        return onFfi { requireOutgoingManager().sendText(text, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
     suspend fun sendBytes(data: ByteArray, options: StreamBytesOptions): ByteStreamInfo {
-        return onFfi { outgoing.sendBytes(data, options.toFfi()) }
+        return onFfi { requireOutgoingManager().sendBytes(data, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
@@ -307,7 +359,7 @@ internal constructor(
      * the core reads the bytes but does not inspect the file's metadata.
      */
     suspend fun sendFile(path: String, options: StreamBytesOptions): ByteStreamInfo {
-        return onFfi { outgoing.sendFile(path, options.toFfi()) }
+        return onFfi { requireOutgoingManager().sendFile(path, options.toFfi()) }
             .toSdk(currentEncryptionType())
     }
 
@@ -334,12 +386,13 @@ internal constructor(
         // Releases the native handles, and with them the core's reference to our delegates. Those
         // delegates are held by a static handle map on the way in, so skipping this would keep this
         // object -- and through it the engine -- reachable for the life of the process.
-        synchronized(incomingLock) {
+        synchronized(ffiLock) {
             closed = true
             incoming?.destroy()
             incoming = null
+            outgoing?.destroy()
+            outgoing = null
         }
-        outgoing.destroy()
     }
 
     // region FFI delegates
