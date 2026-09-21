@@ -289,6 +289,26 @@ class DataStreamsV2ReceiveTest : BaseTest() {
         assertEquals("stream-2", textStreams.first().first.info.id)
     }
 
+    /**
+     * The inline stream above is complete on arrival and never registers as open. A chunked one
+     * does, and stays open -- accumulating the sender's chunks in the core -- until its reader is
+     * released. The core notices on the next chunk it tries to hand over; the delegate that
+     * releases it runs on the core's forwarding task rather than its run loop, so which chunk that
+     * is is not fixed and this feeds several.
+     */
+    @Test
+    fun aChunkedStreamOnAnUnhandledTopicIsReleased() = runTest {
+        dataStreams.handleIncoming(header(text = true, totalLength = 100, topic = "other-topic"))
+        assertEquals(1uL, dataStreams.openStreamCount())
+
+        var index = 0L
+        while (index < 10 && dataStreams.openStreamCount() != 0uL) {
+            dataStreams.handleIncoming(chunk("x".toByteArray(), index = index++))
+        }
+
+        assertEquals(0uL, dataStreams.openStreamCount())
+    }
+
     @Test
     fun senderIdentityIsSurfacedToTheHandler() = runTest {
         dataStreams.handleIncoming(header(text = true, inlineContent = "hi".toByteArray()))

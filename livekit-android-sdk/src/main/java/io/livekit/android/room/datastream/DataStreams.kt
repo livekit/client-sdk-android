@@ -491,6 +491,11 @@ internal constructor(
      *
      * The core surfaces every stream regardless of topic; matching topics to handlers, and
      * discarding streams nobody is listening for, is this SDK's job.
+     *
+     * Discarding one means destroying its reader. The core keeps a stream open for as long as its
+     * reader exists, so a reader merely dropped on the floor leaves the stream open and its chunks
+     * piling up in the core until the payload cap (5 GB by default) ends it. The Rust SDK gets this
+     * from ownership; here the FFI handle outlives the Kotlin object unless `destroy` is called.
      */
     private inner class IncomingDelegate : FfiIncomingDelegate {
         override fun onTextStreamOpened(reader: FfiTextStreamReader, identity: String) {
@@ -505,6 +510,7 @@ internal constructor(
                     "Received text stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
                         "(stream ${info.id} from $identity)"
                 }
+                reader.destroy()
                 return
             }
             deliver {
@@ -524,6 +530,7 @@ internal constructor(
                     "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
                         "(stream ${info.id} from $identity)"
                 }
+                reader.destroy()
                 return
             }
             deliver {
