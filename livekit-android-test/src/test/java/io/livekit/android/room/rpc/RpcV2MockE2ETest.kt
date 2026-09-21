@@ -129,17 +129,6 @@ class RpcV2MockE2ETest : MockE2ETest() {
     }
 
     /**
-     * Simulate an inbound v2 RPC request stream landing on the subscriber data channel.
-     */
-    /**
-     * Waits for in-flight data stream work to finish.
-     *
-     * Replaces advancing the test scheduler: data streams are now handled by the Rust core on its
-     * own threads, which no amount of virtual time will drive. Waiting for the sent-packet count to
-     * go quiet keeps the tests that assert a packet was *not* produced honest, which a fixed sleep
-     * would not.
-     */
-    /**
      * Waits for the caller's outgoing RPC request stream header to reach the mock channel.
      *
      * Publishing a request now goes through the Rust core on its own threads, so the header is not
@@ -182,6 +171,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         }
     }
 
+    /**
+     * Simulate an inbound v2 RPC request stream landing on the subscriber data channel.
+     */
     private fun simulateIncomingRequestStream(
         requestId: String,
         method: String,
