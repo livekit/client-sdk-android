@@ -24,6 +24,7 @@ import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
 import io.livekit.android.room.datastream.incoming.TextStreamReceiver
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.BaseTest
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
@@ -73,7 +74,7 @@ class DataStreamsV2ReceiveTest : BaseTest() {
     @Before
     fun setup() {
         engine.stub { on { e2EEManager } doReturn null }
-        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager())
+        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager(), nativeLibrary = UniffiNativeLibrary())
         dataStreams.registerTextStreamHandler(TOPIC) { reader, identity -> textStreams.add(reader to identity) }
         dataStreams.registerByteStreamHandler(TOPIC) { reader, identity -> byteStreams.add(reader to identity) }
     }

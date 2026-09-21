@@ -87,8 +87,25 @@ class RpcV2MockE2ETest : MockE2ETest() {
      * Find the v2 RPC request stream in the buffers sent by the local participant.
      * Returns the request attributes and the assembled UTF-8 payload, or null if no such
      * stream is present.
+     *
+     * @param expectStream waits for a header on [topic] before collecting. Waiting for output to
+     *   go quiet is not enough on its own: the first send of a test class also builds the outgoing
+     *   FFI manager, which loads the native library, and that can easily outlast the quiet period
+     *   -- leaving nothing sent yet and this returning null. Callers asserting that no such stream
+     *   was produced pass false and get the quiet wait alone, which is the only thing that can
+     *   establish a negative.
      */
-    private suspend fun collectOutgoingV2Stream(topic: String): Pair<Map<String, String>, String>? {
+    private suspend fun collectOutgoingV2Stream(
+        topic: String,
+        expectStream: Boolean = true,
+    ): Pair<Map<String, String>, String>? {
+        if (expectStream) {
+            awaitCondition(message = "No outgoing stream was published on topic $topic") {
+                pubDataChannel.sentBuffers
+                    .map { parsePacket(it) }
+                    .any { it.hasStreamHeader() && it.streamHeader.topic == topic }
+            }
+        }
         // Sending a stream now crosses into the Rust core and back on its own threads, so the
         // packets are not on the mock channel the instant the calling coroutine yields. Waiting for
         // them, then letting the test dispatcher run, also gets the sender past its send and into
@@ -111,17 +128,6 @@ class RpcV2MockE2ETest : MockE2ETest() {
         return header.streamHeader.attributesMap to payload
     }
 
-    /**
-     * Simulate an inbound v2 RPC request stream landing on the subscriber data channel.
-     */
-    /**
-     * Waits for in-flight data stream work to finish.
-     *
-     * Replaces advancing the test scheduler: data streams are now handled by the Rust core on its
-     * own threads, which no amount of virtual time will drive. Waiting for the sent-packet count to
-     * go quiet keeps the tests that assert a packet was *not* produced honest, which a fixed sleep
-     * would not.
-     */
     /**
      * Waits for the caller's outgoing RPC request stream header to reach the mock channel.
      *
@@ -165,6 +171,9 @@ class RpcV2MockE2ETest : MockE2ETest() {
         }
     }
 
+    /**
+     * Simulate an inbound v2 RPC request stream landing on the subscriber data channel.
+     */
     private fun simulateIncomingRequestStream(
         requestId: String,
         method: String,
@@ -410,7 +419,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
             RpcError.BuiltinRpcError.UNSUPPORTED_METHOD.create(),
             RpcError.fromProto(errorResponse!!.rpcResponse.error),
         )
-        assertNull(collectOutgoingV2Stream(RPC_RESPONSE_DATA_STREAM_TOPIC))
+        assertNull(collectOutgoingV2Stream(RPC_RESPONSE_DATA_STREAM_TOPIC, expectStream = false))
     }
 
     @Test
@@ -779,7 +788,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         val rpcRequest = packets.firstOrNull { it.hasRpcRequest() }
         assertNotNull("expected a v1 RpcRequest packet to a v1 remote", rpcRequest)
-        assertNull(collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC))
+        assertNull(collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC, expectStream = false))
 
         val requestId = rpcRequest!!.rpcRequest.id
         subDataChannel.simulateBufferReceived(createAck(requestId))
@@ -822,7 +831,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         }
         assertNotNull(response)
         assertEquals("world", response!!.rpcResponse.payload)
-        assertNull(collectOutgoingV2Stream(RPC_RESPONSE_DATA_STREAM_TOPIC))
+        assertNull(collectOutgoingV2Stream(RPC_RESPONSE_DATA_STREAM_TOPIC, expectStream = false))
     }
 
     @Test
@@ -845,7 +854,7 @@ class RpcV2MockE2ETest : MockE2ETest() {
         // No packet or stream should have been produced.
         val packets = pubDataChannel.sentBuffers.map { parsePacket(it) }
         assertFalse(packets.any { it.hasRpcRequest() })
-        assertNull(collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC))
+        assertNull(collectOutgoingV2Stream(RPC_REQUEST_DATA_STREAM_TOPIC, expectStream = false))
     }
 
     /** Build a v1 `RpcRequest` packet from a v1 caller. */

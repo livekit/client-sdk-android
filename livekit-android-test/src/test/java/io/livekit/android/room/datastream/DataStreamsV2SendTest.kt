@@ -22,6 +22,7 @@ import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.test.BaseTest
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
@@ -97,7 +98,7 @@ class DataStreamsV2SendTest : BaseTest() {
             onBlocking { waitForBufferStatusLow(any()) } doReturn Unit
             on { e2EEManager } doReturn null
         }
-        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager())
+        dataStreams = DataStreams(engine = engine, closeableManager = CloseableManager(), nativeLibrary = UniffiNativeLibrary())
         dataStreams.remoteIdentities = { remotes.keys.map { Participant.Identity(it) } }
         dataStreams.remoteClientProtocol = { id -> remotes[id.value]?.first ?: ClientProtocolVersion.DEFAULT.value }
         dataStreams.remoteCapabilities = { id -> remotes[id.value]?.second ?: emptyList() }
@@ -552,6 +553,27 @@ class DataStreamsV2SendTest : BaseTest() {
         assertEquals("b", info.attributes["a"])
         assertEquals(5L, info.totalSize)
         assertEquals(LivekitModels.Encryption.Type.NONE, info.encryptionType)
+    }
+
+    // endregion
+
+    // region Manager lifecycle
+
+    /**
+     * Sends after close report a [StreamException], not the raw `IllegalStateException` the FFI
+     * raises on a destroyed handle. `streamText`/`sendText` are documented to throw
+     * [StreamException], and callers wrap them expecting exactly that.
+     */
+    @Test
+    fun sendingAfterCloseFailsWithAStreamException() = runTest {
+        remotes = PRE_V2
+        dataStreams.close()
+
+        val error = runCatching {
+            dataStreams.sendText("hello", StreamTextOptions(topic = TOPIC))
+        }.exceptionOrNull()
+
+        assertTrue("expected a StreamException, got $error", error is StreamException)
     }
 
     // endregion

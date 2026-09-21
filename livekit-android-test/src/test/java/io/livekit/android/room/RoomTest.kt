@@ -46,6 +46,7 @@ import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.room.participant.TestRemoteParticipantFactory
 import io.livekit.android.test.mock.room.util.MockConnectionWarmer
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -124,6 +125,7 @@ class RoomTest {
         dataStreams = DataStreams(
             engine = rtcEngine,
             closeableManager = CloseableManager(),
+            nativeLibrary = UniffiNativeLibrary(),
         )
         whenever(incomingDataTrackManager.events).thenReturn(
             object : EventListenable<IncomingDataTrackEvent> {

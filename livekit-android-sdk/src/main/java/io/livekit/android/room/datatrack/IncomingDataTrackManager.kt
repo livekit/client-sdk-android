@@ -22,6 +22,7 @@ import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.EventListenable
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.UniffiNativeLibrary
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.RemoteDataTrackManagerDelegate
 import io.livekit.uniffi.RemoteDataTrackManagerInterface
@@ -100,6 +101,7 @@ class IncomingDataTrackManagerImpl
 constructor(
     private val engineProvider: Provider<RTCEngine>,
     private val remoteDataTrackManagerFactory: RemoteDataTrackManagerFactory,
+    private val nativeLibrary: UniffiNativeLibrary,
 ) : IncomingDataTrackManager {
     private val eventBus = BroadcastEventBus<IncomingDataTrackEvent>()
 
@@ -107,7 +109,6 @@ constructor(
 
     private val lock = Any()
     private var remoteManager: RemoteDataTrackManagerInterface? = null
-    private var nativeUnavailable = false
     private val remoteTracks = mutableListOf<RemoteDataTrack>()
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
@@ -210,22 +211,15 @@ constructor(
      * Loading can fail on a device the packaged APK has no ABI for, among other reasons. Data
      * tracks are then unavailable — but this runs on every connect and on the WebRTC receive
      * path, so a failure must not fail [io.livekit.android.room.Room.connect] or crash the
-     * process for apps that never publish or subscribe to one. The failure is latched so the
-     * load is not retried per call, and every entry point above degrades to a no-op.
+     * process for apps that never publish or subscribe to one. The failure is latched in
+     * [UniffiNativeLibrary] so that future failures are a no-op.
      */
     private fun ensureManager(): RemoteDataTrackManagerInterface? {
         synchronized(lock) {
             remoteManager?.let { return it }
-            if (nativeUnavailable) {
-                return null
-            }
-            return try {
-                remoteDataTrackManagerFactory.create(delegate, cryptor).also { remoteManager = it }
-            } catch (e: LinkageError) {
-                nativeUnavailable = true
-                LKLog.e(e) { "Data tracks are unavailable: the native library failed to load." }
-                null
-            }
+            return nativeLibrary.createOrNull(subsystem = "Data tracks") {
+                remoteDataTrackManagerFactory.create(delegate, cryptor)
+            }?.also { remoteManager = it }
         }
     }
 }
