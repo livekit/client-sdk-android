@@ -38,7 +38,22 @@ ext.resolveUniffiNativeLibDirs = {
     def libNames = ["liblivekit_uniffi.dylib", "liblivekit_uniffi.so"]
     def hasLib = { File dir -> dir.isDirectory() && libNames.any { new File(dir, it).isFile() } }
 
-    def explicit = System.getenv("LIVEKIT_UNIFFI_LIB_DIR") ?: project.findProperty("livekitUniffiLibDir")
+    def envDir = System.getenv("LIVEKIT_UNIFFI_LIB_DIR")
+    def propDir = project.findProperty("livekitUniffiLibDir")
+
+    // Set but empty means whatever was supposed to produce the path failed quietly -- a CI step
+    // whose command substitution swallowed an error, say. Falling through to auto-discovery would
+    // run the FFI tests against no core at all, so treat it as the failure it is.
+    [envDir, propDir].each {
+        if (it != null && it.toString().trim().isEmpty()) {
+            throw new GradleException(
+                "LIVEKIT_UNIFFI_LIB_DIR/livekitUniffiLibDir is set but empty; expected a " +
+                    "directory holding a host build of liblivekit_uniffi.",
+            )
+        }
+    }
+
+    def explicit = envDir ?: propDir
     if (explicit) {
         def dir = file(explicit)
         if (!hasLib(dir)) {

@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -x
 
 # Prints the rust-sdks git tag matching the livekit-uniffi version this SDK builds against,
 # e.g. `livekit-uniffi/v0.1.12`. Use it to check out the core that produced the published

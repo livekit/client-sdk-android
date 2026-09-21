@@ -19,7 +19,7 @@ OUT_DIR=${1:-./build/livekit-uniffi-cdylib}
 mkdir -p "$OUT_DIR"
 OUT_DIR=$(cd "$OUT_DIR" && pwd)
 
-TAG=$(./ci/get_uniffi_tag.sh 2>/dev/null)
+TAG=$(./ci/get_uniffi_tag.sh)
 
 # Host triple, derived without rustc -- avoiding a Rust install is the point of this script.
 case "$(uname -s)" in
