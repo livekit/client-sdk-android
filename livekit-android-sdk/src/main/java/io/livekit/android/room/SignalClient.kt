@@ -27,6 +27,7 @@ import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.getClientInfo
+import io.livekit.android.telemetry.Telemetry
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
@@ -36,12 +37,15 @@ import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
+import io.livekit.uniffi.TelemetryScope
+import io.livekit.uniffi.TelemetrySpan
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -64,6 +68,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import uniffi.livekit_telemetry.SpanStep
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -108,6 +113,12 @@ constructor(
 
     @Volatile
     private var joinContinuation: CancellableContinuation<ConnectResult>? = null
+
+    /** The Room's open `lk.connect` span, for the signaling checkpoints; null outside the user-initiated connect. */
+    internal var connectSpan: TelemetrySpan? = null
+
+    /** The Room's telemetry scope: signal responses drive the Room's handlers, whose records are filed under it. */
+    internal var telemetryScope: TelemetryScope? = null
     private lateinit var coroutineScope: CloseableCoroutineScope
 
     /**
@@ -197,7 +208,7 @@ constructor(
 
         LKLog.i { "connecting to $wsUrlString" }
 
-        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher + Telemetry.currentScope.asContextElement(telemetryScope))
         lastUrl = wsUrlString
         lastOptions = options
         lastRoomOptions = roomOptions
@@ -312,6 +323,10 @@ constructor(
     }
 
     // --------------------------------- WebSocket Listener --------------------------------------//
+    override fun onOpen(webSocket: WebSocket, response: Response) {
+        connectSpan?.step(SpanStep.WsOpen)
+    }
+
     override fun onMessage(webSocket: WebSocket, text: String) {
         if (webSocket != currentWs) {
             // Possibly message from old websocket, discard.
@@ -439,6 +454,7 @@ constructor(
     }
 
     fun sendOffer(offer: SessionDescription, offerId: Int) {
+        connectSpan?.step(SpanStep.OfferSent)
         val sd = offer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setOffer(sd)
@@ -448,6 +464,7 @@ constructor(
     }
 
     fun sendAnswer(answer: SessionDescription, offerId: Int) {
+        connectSpan?.step(SpanStep.AnswerSent)
         val sd = answer.toProtoSessionDescription(offerId)
         val request = LivekitRtc.SignalRequest.newBuilder()
             .setAnswer(sd)

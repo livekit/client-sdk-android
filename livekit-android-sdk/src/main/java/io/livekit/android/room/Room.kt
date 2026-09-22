@@ -82,6 +82,14 @@ import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.toSDKType
 import io.livekit.android.room.util.ConnectionWarmer
+import io.livekit.android.telemetry.DeviceTelemetry
+import io.livekit.android.telemetry.RTCTelemetry
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.TelemetryOptions
+import io.livekit.android.telemetry.begin
+import io.livekit.android.telemetry.end
+import io.livekit.android.telemetry.lowered
+import io.livekit.android.telemetry.telemetry
 import io.livekit.android.util.FlowObservable
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
@@ -89,11 +97,14 @@ import io.livekit.android.util.flowDelegate
 import io.livekit.android.util.invoke
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.getFilteredStats
+import io.livekit.uniffi.TelemetryScope
+import io.livekit.uniffi.TelemetrySpan
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
@@ -115,6 +126,10 @@ import livekit.org.webrtc.RendererCommon
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.SurfaceViewRenderer
 import livekit.org.webrtc.audio.AudioDeviceModule
+import uniffi.livekit_telemetry.ReconnectReason
+import uniffi.livekit_telemetry.RoomIdentity
+import uniffi.livekit_telemetry.SpanName
+import uniffi.livekit_telemetry.SpanStep
 import java.net.URI
 import java.util.Date
 import javax.inject.Named
@@ -168,8 +183,51 @@ constructor(
     private val eventBus = BroadcastEventBus<RoomEvent>()
     val events = eventBus.readOnly()
 
+    /**
+     * This Room's scope on the process telemetry pipeline — one trace for the Room's lifetime —
+     * or null when telemetry is off. Taken at creation, so pre-connect work is part of the call.
+     */
+    internal val telemetryScope: TelemetryScope? = Telemetry.scope()
+
+    /** The scope for this Room's spans, when the `room` instrument is on. */
+    internal val traceScope: TelemetryScope?
+        get() = if (Telemetry.enabled(TelemetryOptions.Instrument.ROOM)) telemetryScope else null
+
+    private val rtcTelemetry: RTCTelemetry? =
+        telemetryScope?.takeIf { Telemetry.enabled(TelemetryOptions.Instrument.RTC) }?.let { RTCTelemetry(this, it) }
+
+    /** The user-initiated connect, open from [connect] to [onEngineConnected]; the engine stamps its checkpoints. */
+    private var connectSpan: TelemetrySpan? = null
+        set(value) {
+            field = value
+            engine.connectSpan = value
+        }
+
+    /**
+     * The telemetry trace id of this Room's scope (32 hex characters), or null when telemetry is
+     * off. Show it to users or attach it to support tickets: it opens the full client-side
+     * timeline of the call, including connect attempts that never reached a server.
+     */
+    val telemetryTraceId: String?
+        get() = telemetryScope?.traceId()
+
+    /**
+     * Record an app-defined telemetry event alongside the SDK's own, in this Room's trace. The
+     * name is namespaced under `custom.` (`"checkout.started"` ships as `custom.checkout.started`);
+     * attributes keep their names and types (strings, numbers, booleans). A no-op when telemetry
+     * is off.
+     */
+    fun emitTelemetryEvent(name: String, attributes: Map<String, Any> = emptyMap()) {
+        telemetryScope?.emitCustom(name, attributes.lowered())
+    }
+
+    /** An app-defined span in this Room's trace; a no-op when telemetry is off. */
+    internal fun beginSpan(label: String): TelemetrySpan? = traceScope.begin(SpanName.Custom(label))
+
     init {
         engine.listener = this
+        engine.telemetryScope = telemetryScope
+        audioSwitchHandler?.let { DeviceTelemetry.observe(it) }
 
         // Register SDK-internal text-stream handlers for the RPC v2 transport. These reserve
         // the topics `lk.rpc_request` and `lk.rpc_response` from user-level handler registration.
@@ -365,6 +423,7 @@ constructor(
      */
     val localParticipant: LocalParticipant = localParticipantFactory.create(dynacast = false).apply {
         internalListener = this@Room
+        telemetryScope = this@Room.traceScope
     }
 
     private var mutableRemoteParticipants by flowDelegate(emptyMap<Participant.Identity, RemoteParticipant>())
@@ -488,7 +547,10 @@ constructor(
             state = State.CONNECTING
             connectOptions = options
 
-            coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob())
+            Telemetry.setServer(url, token)
+            connectSpan = traceScope.begin(SpanName.Connect)
+
+            coroutineScope = CoroutineScope(defaultDispatcher + SupervisorJob() + Telemetry.currentScope.asContextElement(telemetryScope))
 
             roomOptions = getCurrentRoomOptions()
 
@@ -513,7 +575,7 @@ constructor(
         // rethrow all throwables from the connect job.
         val emptyCoroutineExceptionHandler = CoroutineExceptionHandler { _, _ -> }
         val connectJob = coroutineScope.launch(
-            ioDispatcher + emptyCoroutineExceptionHandler,
+            ioDispatcher + emptyCoroutineExceptionHandler + Telemetry.currentSpan.asContextElement(connectSpan),
         ) {
             if (audioProcessingController is AuthedAudioProcessingController) {
                 audioProcessingController.authenticate(url, token)
@@ -592,6 +654,7 @@ constructor(
                     collectMetrics(room = this@Room, rtcEngine = engine)
                 }
             }
+            rtcTelemetry?.let { rtc -> coroutineScope.launch { rtc.run() } }
         }
 
         val outerHandler = coroutineContext.job.invokeOnCompletion { cause ->
@@ -609,6 +672,7 @@ constructor(
         connectJob.join()
 
         error?.let {
+            connectSpan?.end(it)
             if (it !is CancellationException) {
                 handleDisconnect(DisconnectReason.JOIN_FAILURE)
             }
@@ -702,12 +766,25 @@ constructor(
 
         localParticipant.updateFromInfo(response.participant)
         localParticipant.setEnabledPublishCodecs(response.enabledPublishCodecsList)
+        updateTelemetryRoom()
 
         if (response.otherParticipantsList.isNotEmpty()) {
             response.otherParticipantsList.forEach { info ->
                 getOrCreateRemoteParticipant(Participant.Identity(info.identity), info)
             }
         }
+    }
+
+    /** The room and local participant on every telemetry record of this session from now on. */
+    private fun updateTelemetryRoom() {
+        telemetryScope?.setRoom(
+            RoomIdentity(
+                sid = sid?.sid?.takeIf { it.isNotEmpty() },
+                name = name,
+                participantSid = localParticipant.sid.value.takeIf { it.isNotEmpty() },
+                participantIdentity = localParticipant.identity?.value,
+            ),
+        )
     }
 
     private fun setupLocalParticipantEventHandling() {
@@ -1053,7 +1130,7 @@ constructor(
         if (state == State.RECONNECTING) {
             return
         }
-        engine.reconnect()
+        engine.reconnect(ReconnectReason.NETWORK_CHANGED)
     }
 
     private fun handleDisconnect(reason: DisconnectReason) {
@@ -1069,6 +1146,10 @@ constructor(
                 hasLostConnectivity = false
 
                 state = State.DISCONNECTED
+                connectSpan?.fail(reason.name)
+                connectSpan = null
+                // Once per real session: never on a reconnect.
+                telemetryScope?.disconnected(reason.telemetry(engine.reconnectFailed))
                 cleanupRoom()
                 engine.close()
 
@@ -1234,6 +1315,13 @@ constructor(
      */
     override fun onEngineConnected() {
         state = State.CONNECTED
+        connectSpan?.run {
+            step(SpanStep.Engine)
+            step(SpanStep.PcConnected)
+            step(SpanStep.RoomConnected)
+            end()
+        }
+        connectSpan = null
         eventBus.postEvent(RoomEvent.Connected(this), coroutineScope)
     }
 
@@ -1345,6 +1433,7 @@ constructor(
     override fun onRoomUpdate(update: LivekitModels.Room) {
         if (update.sid != null) {
             sid = Sid(update.sid)
+            updateTelemetryRoom()
         }
         val oldMetadata = metadata
         metadata = update.metadata

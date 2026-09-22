@@ -16,6 +16,7 @@
 
 package io.livekit.android.util
 
+import io.livekit.android.telemetry.Telemetry
 import io.livekit.android.util.LoggingLevel.DEBUG
 import io.livekit.android.util.LoggingLevel.ERROR
 import io.livekit.android.util.LoggingLevel.INFO
@@ -109,8 +110,14 @@ class LKLog {
 
         /** @suppress */
         inline fun log(loggingLevel: LoggingLevel, t: Throwable? = null, crossinline message: (() -> String)) {
-            if (loggingLevel >= LKLog.loggingLevel) {
-                logger?.log(loggingLevel, t, message())
+            val console = loggingLevel >= LKLog.loggingLevel
+            // Telemetry captures warnings and errors whatever the console level.
+            if (console || Telemetry.captures(loggingLevel)) {
+                val text = message()
+                if (console) {
+                    logger?.log(loggingLevel, t, text)
+                }
+                Telemetry.log(loggingLevel, t, text)
             }
         }
     }
