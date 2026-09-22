@@ -560,17 +560,24 @@ constructor(
             // reuses an existing one for the same url. Regions left behind would be skipped by a
             // later failover even once they recovered, and a set left full would make the next
             // connect resolve no region at all.
+            //
+            // Captured once for the whole cycle rather than read from the field each time:
+            // `regionUrlProvider` is mutable and `prepareConnection` replaces it without holding
+            // `stateLock`, so re-reading could hand one instance to the engine and clear a
+            // different one — leaving the engine's provider holding regions it would then skip.
+            val cycleRegionUrlProvider = regionUrlProvider
+
             try {
                 while (nextUrl != null) {
                     val connectUrl = nextUrl
                     nextUrl = null
                     try {
-                        engine.regionUrlProvider = regionUrlProvider
+                        engine.regionUrlProvider = cycleRegionUrlProvider
                         engine.join(connectUrl, token, options, roomOptions)
                     } catch (e: Exception) {
                         e.rethrowIfCancellationSignal()
 
-                        nextUrl = regionUrlProvider?.getNextBestRegionUrl()
+                        nextUrl = cycleRegionUrlProvider?.getNextBestRegionUrl()
                         if (nextUrl != null) {
                             LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
                         } else {
@@ -579,7 +586,7 @@ constructor(
                     }
                 }
             } finally {
-                regionUrlProvider?.clearAttemptedRegions()
+                cycleRegionUrlProvider?.clearAttemptedRegions()
             }
 
             ensureActive()
