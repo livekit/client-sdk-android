@@ -549,33 +549,38 @@ constructor(
             var nextUrl: String? = regionUrl ?: url
             regionUrl = null
 
-            while (nextUrl != null) {
-                val connectUrl = nextUrl
-                nextUrl = null
-                try {
-                    engine.regionUrlProvider = regionUrlProvider
-                    engine.join(connectUrl, token, options, roomOptions)
-                } catch (e: Exception) {
-                    e.rethrowIfCancellationSignal()
+            // The attempted set scopes one failover cycle, and every way out of this loop ends
+            // that cycle: connected, out of regions, a region-settings refresh that threw, or
+            // cancellation. Clearing in `finally` covers all of them rather than one exit at a
+            // time — `getNextBestRegionUrl` refreshes settings after the cache expires and
+            // propagates request and decoding failures, so an exception can leave the loop from
+            // inside the catch.
+            //
+            // It has to be cleared somewhere, because the provider outlives the cycle: `connect`
+            // reuses an existing one for the same url. Regions left behind would be skipped by a
+            // later failover even once they recovered, and a set left full would make the next
+            // connect resolve no region at all.
+            try {
+                while (nextUrl != null) {
+                    val connectUrl = nextUrl
+                    nextUrl = null
+                    try {
+                        engine.regionUrlProvider = regionUrlProvider
+                        engine.join(connectUrl, token, options, roomOptions)
+                    } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
 
-                    nextUrl = regionUrlProvider?.getNextBestRegionUrl()
-                    if (nextUrl != null) {
-                        LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
-                    } else {
-                        // The attempted set belongs to this failover cycle, which ends here. The
-                        // provider outlives it — `connect` reuses an existing one for the same
-                        // url — so leaving the set full would make the next connect exhaust
-                        // immediately, failing without trying a single region.
-                        regionUrlProvider?.clearAttemptedRegions()
-                        throw e // rethrow since no more regions to try.
+                        nextUrl = regionUrlProvider?.getNextBestRegionUrl()
+                        if (nextUrl != null) {
+                            LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
+                        } else {
+                            throw e // rethrow since no more regions to try.
+                        }
                     }
                 }
+            } finally {
+                regionUrlProvider?.clearAttemptedRegions()
             }
-
-            // Connected, so the failover cycle is over. A region that failed transiently before
-            // this one succeeded must be eligible again next time, and only a successful
-            // *reconnect* cleared the set until now.
-            regionUrlProvider?.clearAttemptedRegions()
 
             ensureActive()
             networkCallbackManager.registerCallback()
