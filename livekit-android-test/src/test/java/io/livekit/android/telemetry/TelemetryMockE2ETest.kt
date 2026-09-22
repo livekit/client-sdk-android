@@ -83,7 +83,13 @@ class TelemetryMockE2ETest : MockE2ETest() {
                 startNs = System.currentTimeMillis() * 1_000_000
                 Telemetry.configure(
                     ApplicationProvider.getApplicationContext(),
-                    TelemetryOptions(endpoint = COLLECTOR_ENDPOINT, storageDirectory = null, flushInterval = 1.seconds, statsWindow = 2.seconds),
+                    TelemetryOptions(
+                        endpoint = COLLECTOR_ENDPOINT,
+                        headers = COLLECTOR_HEADERS,
+                        storageDirectory = null,
+                        flushInterval = 1.seconds,
+                        statsWindow = 2.seconds,
+                    ),
                 )
                 assumeTrue("telemetry pipeline started (is livekit_uniffi on jna.library.path?)", Telemetry.options != null)
                 try {
@@ -143,6 +149,20 @@ class TelemetryMockE2ETest : MockE2ETest() {
         val diagnostics = Telemetry.diagnostics()
         println("telemetry: trace $traceId — $diagnostics")
 
+        // A cloud run has no local file to read — the records are asserted out of the ingest
+        // afterwards (`telemetry-staging/verify.py --service livekit-client-android`). What the
+        // test itself can still say is that the pipeline believes every batch left: anything
+        // retried, rejected or dropped shows up here.
+        if (CLOUD_ENDPOINT != null) {
+            repeat(3) {
+                Thread.sleep(2_000)
+                println("telemetry cloud: trace $traceId — ${Telemetry.diagnostics()}")
+            }
+            val cloud = Telemetry.diagnostics()
+            assertTrue("every batch left the device: $cloud", cloud.contains("failed 0") && cloud.contains("lost 0"))
+            return@runTest
+        }
+
         val otlp = OtlpFile(File(COLLECTOR_OUTPUT), since = startNs)
         val spans = otlp.spans.filter { it.traceId == traceId }
 
@@ -198,11 +218,22 @@ class TelemetryMockE2ETest : MockE2ETest() {
     }
 
     companion object {
-        const val COLLECTOR_ENDPOINT = "http://127.0.0.1:4319/v1/logs"
+        /**
+         * Points the session at a real collector — LiveKit Cloud — instead of the local one:
+         * a `…/observability/client/logs/otlp/v0` URL and a token carrying an `observability:write`
+         * grant. Such a run has no collector file to read, so it reports the pipeline's own account
+         * of the upload policy instead of asserting.
+         */
+        val CLOUD_ENDPOINT: String? = System.getenv("LIVEKIT_TELEMETRY_ENDPOINT")
+        val COLLECTOR_ENDPOINT = CLOUD_ENDPOINT ?: "http://127.0.0.1:4319/v1/logs"
+        val COLLECTOR_HEADERS = System.getenv("LIVEKIT_TELEMETRY_TOKEN")
+            ?.let { mapOf("Authorization" to "Bearer $it") }
+            ?: emptyMap()
         const val COLLECTOR_OUTPUT = "/tmp/livekit-telemetry-otlp.jsonl"
         private const val SEVERITY_WARN = 13
 
-        private fun collectorReachable() = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", 4319), 500) } }.isSuccess
+        private fun collectorReachable() = CLOUD_ENDPOINT != null ||
+            runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", 4319), 500) } }.isSuccess
     }
 }
 
