@@ -208,7 +208,7 @@ constructor(
                 // cookie exchange). libwebrtc only emits them when the acceleration is actually in
                 // use, so this reports what went on the wire.
                 LKLog.i {
-                    "WARP: SPED ${if (sdpOffer.description.contains("a=goog-sped-v1")) "enabled" else "disabled"}, " +
+                    "WARP: SPED ${if (sdpOffer.description.contains("goog-sped-v1")) "enabled" else "disabled"}, " +
                         "SNAP ${if (sdpOffer.description.contains("a=sctp-init")) "enabled" else "disabled"}"
                 }
 
