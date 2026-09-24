@@ -32,7 +32,7 @@ noise = "2.0.0"
 lifecycleProcess = "2.8.7"
 agp = "8.7.2"
 kotlin = "1.9.25"
-livekit-uniffi = "0.1.12"
+livekit-uniffi = "0.2.0"
 # Desktop JNA for the host unit-test classpath only: livekit-uniffi pulls in jna's *aar*, which
 # ships Android .so dispatch libs, while Robolectric runs on the host JVM and needs the plain
 # jar. Keep in step with the version livekit-uniffi resolves to; see gradle/uniffi-native-lib.gradle.
