@@ -25,7 +25,20 @@ import livekit.LivekitModels
 import livekit.LivekitModels.DataStream
 import javax.inject.Inject
 
+/**
+ * Handles an incoming byte stream.
+ *
+ * Called on a background thread, and concurrently with itself when streams overlap, so it must be
+ * safe to run on any thread and alongside its own earlier invocations.
+ */
 typealias ByteStreamHandler = (reader: ByteStreamReceiver, fromIdentity: Participant.Identity) -> Unit
+
+/**
+ * Handles an incoming text stream.
+ *
+ * Called on a background thread, and concurrently with itself when streams overlap, so it must be
+ * safe to run on any thread and alongside its own earlier invocations.
+ */
 typealias TextStreamHandler = (reader: TextStreamReceiver, fromIdentity: Participant.Identity) -> Unit
 
 interface IncomingDataStreamManager {
