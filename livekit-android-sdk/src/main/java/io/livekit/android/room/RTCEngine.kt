@@ -123,6 +123,12 @@ internal constructor(
     internal var listener: Listener? = null
 
     /**
+     * When the current connection attempt began, taken at the top of [joinImpl]. Cleared once the
+     * primary transport connects, so the attempt is timed exactly once.
+     */
+    private var connectStartedAtMs: Long? = null
+
+    /**
      * Reflects the combined connection state of SignalClient and primary PeerConnection.
      */
     @FlowObservable
@@ -134,6 +140,9 @@ internal constructor(
         when (newVal) {
             ConnectionState.CONNECTED -> {
                 signalSessionState = SignalSessionState(ended = false)
+                if (oldVal != ConnectionState.RESUMING) {
+                    recordConnectionSetupTime()
+                }
                 if (oldVal == ConnectionState.DISCONNECTED || oldVal == ConnectionState.CONNECTING) {
                     LKLog.d { "primary ICE connected" }
                     listener?.onEngineConnected()
@@ -257,12 +266,29 @@ internal constructor(
         return joinImpl(url, token, options, roomOptions)
     }
 
+    /**
+     * Hands the time from the start of [joinImpl] to the primary transport connecting to the
+     * publisher, which lowers the start bitrate hint for a slow connection. Runs for the initial
+     * join and for a full reconnect, which both go through [joinImpl] and build a new publisher;
+     * a resume keeps its peer connections and their estimator, so it never records one. The
+     * publisher also knows when the attempt began, so a video offer created before this fires
+     * (an app publishing as soon as the join completes) uses the time elapsed so far.
+     */
+    private fun recordConnectionSetupTime() {
+        val startedAtMs = connectStartedAtMs ?: return
+        connectStartedAtMs = null
+        val setupTime = (SystemClock.elapsedRealtime() - startedAtMs).milliseconds
+        LKLog.i { "connection setup took ${setupTime.inWholeMilliseconds} ms" }
+        publisher?.setConnectionSetupTime(setupTime)
+    }
+
     suspend fun joinImpl(
         url: String,
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): JoinResponse = coroutineScope {
+        connectStartedAtMs = SystemClock.elapsedRealtime()
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
@@ -311,7 +337,9 @@ internal constructor(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
-                )
+                ).also { publisher ->
+                    connectStartedAtMs?.let(publisher::setConnectStartedAt)
+                }
                 subscriber?.close()
                 subscriber = pctFactory.create(
                     rtcConfig,

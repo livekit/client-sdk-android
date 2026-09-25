@@ -18,6 +18,7 @@ package io.livekit.android.room
 
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
+import android.os.SystemClock
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -63,6 +64,8 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.math.roundToLong
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * @suppress
@@ -99,6 +102,15 @@ constructor(
     // available through data-channel/audio-only offers and consume it only after a
     // local video m-section successfully gets the hint.
     private var hasAppliedVideoStartBitrate = false
+
+    // When the connection attempt that created this transport began, and how long it took to
+    // set up once the primary transport connected. computeTrackStartBitrate lowers the hint for
+    // slow connections; until the setup completes, the time elapsed so far stands in for it.
+    @Volatile
+    private var connectStartedAtMs: Long? = null
+
+    @Volatile
+    private var connectionSetupTime: Duration? = null
     private var isClosed = AtomicBoolean(false)
 
     private val latestOfferId = AtomicInteger(0)
@@ -217,10 +229,19 @@ constructor(
                 // consume the video start hint. When the first video offer is created, use
                 // one connection-level value across all video m-sections so libwebrtc's
                 // last-writer-wins handling cannot depend on SDP m-section order.
+                val setupCompleted = connectionSetupTime != null
+                val connectionSetupTime = connectionSetupTimeForOffer()
                 val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
-                    computeConnectionStartBitrate(mediaDescs, trackBitrates)
+                    computeConnectionStartBitrate(mediaDescs, trackBitrates, connectionSetupTime)
                 } else {
                     null
+                }
+                if (connectionStartBitrate != null) {
+                    LKLog.i {
+                        "Applying x-google-start-bitrate=$connectionStartBitrate kbps " +
+                            "(connection setup ${connectionSetupTime?.inWholeMilliseconds} ms" +
+                            "${if (setupCompleted) "" else ", still connecting"})"
+                    }
                 }
                 var appliedVideoStartBitrate = false
                 for (mediaDesc in mediaDescs) {
@@ -356,6 +377,35 @@ constructor(
         trackBitrates[TrackBitrateInfoKey.Transceiver(transceiver)] = trackBitrateInfo
     }
 
+    /**
+     * Records when the connection attempt that created this transport began, as
+     * [android.os.SystemClock.elapsedRealtime] milliseconds. A video offer created before the
+     * setup completes uses the time elapsed since then as the setup time.
+     */
+    fun setConnectStartedAt(elapsedRealtimeMs: Long) {
+        connectStartedAtMs = elapsedRealtimeMs
+    }
+
+    /**
+     * Records how long this peer connection took to set up. Called once, after the initial
+     * connect succeeds; resumes and ICE restarts keep the estimator and never call this.
+     */
+    fun setConnectionSetupTime(setupTime: Duration) {
+        connectionSetupTime = setupTime
+    }
+
+    /**
+     * The setup time the start bitrate hint is derived from: the completed setup time once the
+     * primary transport has connected, or, for a video offer created before then (an app that
+     * publishes as soon as the join completes), the time the connection has been setting up so
+     * far. That is a lower bound on the eventual setup time, so it can only err toward the
+     * 1 Mbps ceiling.
+     */
+    private fun connectionSetupTimeForOffer(): Duration? {
+        return connectionSetupTime
+            ?: connectStartedAtMs?.let { startedAtMs -> (SystemClock.elapsedRealtime() - startedAtMs).milliseconds }
+    }
+
     suspend fun isConnected(): Boolean {
         return launchRTCIfNotClosed {
             peerConnection.isConnected()
@@ -477,8 +527,23 @@ private const val startBitrateMultiplier = 0.9
 /** Maximum x-google-start-bitrate in kbps. 1 Mbps prevents BWE from starting too aggressively. */
 private const val maxStartBitrateKbps = 1000L
 
-/** Minimum target bitrate in kbps to apply start bitrate hint. Below this, the hint hurts more than it helps. */
+/**
+ * Minimum x-google-start-bitrate in kbps: libwebrtc's own default starting estimate. A target
+ * below this gets no hint, since seeding above the real capacity costs more than the ramp it
+ * saves, and a slow connection is seeded no higher than this.
+ */
 private const val minTargetBitrateKbps = 300L
+
+/**
+ * Connection setup times bounding the ramp in [computeTrackStartBitrate]: at or below the first
+ * the hint is capped at [maxStartBitrateKbps], at or above the second at [minTargetBitrateKbps].
+ * Measured on shaped links (CLT-3380): healthy links set up in under 860 ms, a 1 Mbps link with
+ * 150 ms RTT took 1.1–1.7 s, a 500 kbps link ~2.3 s at the median, and a 300 kbps link never
+ * under 3 s. The first sits above the 1 Mbps link, which a lower seed only slows down, and the
+ * second above the 500 kbps link's median, so only links that cannot carry more land at the floor.
+ */
+private val setupTimeForMaxBitrate = 1500.milliseconds
+private val setupTimeForMinBitrate = 3500.milliseconds
 
 @VisibleForTesting
 internal fun ensureCodecBitrates(
@@ -553,6 +618,7 @@ internal fun ensureCodecBitrates(
 private fun computeConnectionStartBitrate(
     mediaDescriptions: Collection<MediaDescription>,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
+    connectionSetupTime: Duration?,
 ): Long? {
     // Use only video m-sections in the current SDP. trackBitrates can contain
     // stale entries after unpublish, and those must not affect the connection hint.
@@ -560,7 +626,7 @@ private fun computeConnectionStartBitrate(
         .asSequence()
         .filter { media -> media.media.mediaType == "video" }
         .mapNotNull { media -> findTrackCodecBitrateInfo(media, trackBitrates)?.trackBitrateInfo }
-        .mapNotNull(::computeTrackStartBitrate)
+        .mapNotNull { trackBitrateInfo -> computeTrackStartBitrate(trackBitrateInfo, connectionSetupTime) }
         .maxOrNull()
 }
 
@@ -568,8 +634,13 @@ private fun computeConnectionStartBitrate(
  * @suppress
  */
 @VisibleForTesting
-internal fun computeConnectionStartBitrate(trackBitrates: Collection<TrackBitrateInfo>): Long? {
-    return trackBitrates.mapNotNull(::computeTrackStartBitrate).maxOrNull()
+internal fun computeConnectionStartBitrate(
+    trackBitrates: Collection<TrackBitrateInfo>,
+    connectionSetupTime: Duration? = null,
+): Long? {
+    return trackBitrates
+        .mapNotNull { trackBitrateInfo -> computeTrackStartBitrate(trackBitrateInfo, connectionSetupTime) }
+        .maxOrNull()
 }
 
 private data class TrackCodecBitrateInfo(
@@ -600,18 +671,31 @@ private fun findTrackCodecBitrateInfo(
     return null
 }
 
-private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo): Long? {
+private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo, connectionSetupTime: Duration?): Long? {
     if (trackBr.targetBitrateKbps < minTargetBitrateKbps) {
         return null
     }
 
-    // TODO: dynamically adjust start bitrate based on network conditions, such as
-    // using the previous BWE estimate.
+    // Connection setup time (signaling join plus ICE/DTLS) is the only network signal there is
+    // before the first video offer, since libwebrtc cannot probe the path until a video sender
+    // exists. It grows with round-trip time and loss, which also mark the links where a 1 Mbps
+    // seed overshoots, so the cap ramps linearly from maxStartBitrateKbps at
+    // setupTimeForMaxBitrate down to minTargetBitrateKbps at setupTimeForMinBitrate. Without a
+    // setup time (an offer before the connect completed) the cap stays at the 1 Mbps ceiling.
+    val capKbps = connectionSetupTime?.let { setupTime ->
+        val fast = setupTimeForMaxBitrate.inWholeMilliseconds.toDouble()
+        val slow = setupTimeForMinBitrate.inWholeMilliseconds.toDouble()
+        val ramp = ((setupTime.inWholeMilliseconds - fast) / (slow - fast)).coerceIn(0.0, 1.0)
+        (maxStartBitrateKbps - ramp * (maxStartBitrateKbps - minTargetBitrateKbps)).roundToLong()
+    } ?: maxStartBitrateKbps
+
     val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
-    return if (trackBr.isScreenShare) {
+    // Screen share is exempt from the 1 Mbps ceiling, but once the cap is below it, a connection
+    // that slow cannot carry an uncapped screen-share seed either.
+    return if (trackBr.isScreenShare && capKbps >= maxStartBitrateKbps) {
         calculatedStartBitrate
     } else {
-        minOf(calculatedStartBitrate, maxStartBitrateKbps)
+        minOf(calculatedStartBitrate, capKbps)
     }
 }
 
