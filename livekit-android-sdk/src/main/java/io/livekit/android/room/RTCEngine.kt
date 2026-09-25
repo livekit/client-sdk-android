@@ -268,10 +268,11 @@ internal constructor(
 
     /**
      * Hands the time from the start of [joinImpl] to the primary transport connecting to the
-     * publisher, which lowers the start bitrate hint for a slow connection before the first video
-     * offer. Runs for the initial join and for a full reconnect, which both go through [joinImpl]
-     * and build a new publisher; a resume keeps its peer connections and their estimator, so it
-     * never records one.
+     * publisher, which lowers the start bitrate hint for a slow connection. Runs for the initial
+     * join and for a full reconnect, which both go through [joinImpl] and build a new publisher;
+     * a resume keeps its peer connections and their estimator, so it never records one. The
+     * publisher also knows when the attempt began, so a video offer created before this fires
+     * (an app publishing as soon as the join completes) uses the time elapsed so far.
      */
     private fun recordConnectionSetupTime() {
         val startedAtMs = connectStartedAtMs ?: return
@@ -336,7 +337,9 @@ internal constructor(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
-                )
+                ).also { publisher ->
+                    connectStartedAtMs?.let(publisher::setConnectStartedAt)
+                }
                 subscriber?.close()
                 subscriber = pctFactory.create(
                     rtcConfig,

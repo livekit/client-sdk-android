@@ -18,6 +18,7 @@ package io.livekit.android.room
 
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
+import android.os.SystemClock
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -102,8 +103,12 @@ constructor(
     // local video m-section successfully gets the hint.
     private var hasAppliedVideoStartBitrate = false
 
-    // How long this peer connection took to set up, set once the initial connect succeeds.
-    // computeTrackStartBitrate lowers the hint for slow connections.
+    // When the connection attempt that created this transport began, and how long it took to
+    // set up once the primary transport connected. computeTrackStartBitrate lowers the hint for
+    // slow connections; until the setup completes, the time elapsed so far stands in for it.
+    @Volatile
+    private var connectStartedAtMs: Long? = null
+
     @Volatile
     private var connectionSetupTime: Duration? = null
     private var isClosed = AtomicBoolean(false)
@@ -224,7 +229,8 @@ constructor(
                 // consume the video start hint. When the first video offer is created, use
                 // one connection-level value across all video m-sections so libwebrtc's
                 // last-writer-wins handling cannot depend on SDP m-section order.
-                val connectionSetupTime = connectionSetupTime
+                val setupCompleted = connectionSetupTime != null
+                val connectionSetupTime = connectionSetupTimeForOffer()
                 val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
                     computeConnectionStartBitrate(mediaDescs, trackBitrates, connectionSetupTime)
                 } else {
@@ -233,7 +239,8 @@ constructor(
                 if (connectionStartBitrate != null) {
                     LKLog.i {
                         "Applying x-google-start-bitrate=$connectionStartBitrate kbps " +
-                            "(connection setup ${connectionSetupTime?.inWholeMilliseconds} ms)"
+                            "(connection setup ${connectionSetupTime?.inWholeMilliseconds} ms" +
+                            "${if (setupCompleted) "" else ", still connecting"})"
                     }
                 }
                 var appliedVideoStartBitrate = false
@@ -371,11 +378,32 @@ constructor(
     }
 
     /**
+     * Records when the connection attempt that created this transport began, as
+     * [android.os.SystemClock.elapsedRealtime] milliseconds. A video offer created before the
+     * setup completes uses the time elapsed since then as the setup time.
+     */
+    fun setConnectStartedAt(elapsedRealtimeMs: Long) {
+        connectStartedAtMs = elapsedRealtimeMs
+    }
+
+    /**
      * Records how long this peer connection took to set up. Called once, after the initial
      * connect succeeds; resumes and ICE restarts keep the estimator and never call this.
      */
     fun setConnectionSetupTime(setupTime: Duration) {
         connectionSetupTime = setupTime
+    }
+
+    /**
+     * The setup time the start bitrate hint is derived from: the completed setup time once the
+     * primary transport has connected, or, for a video offer created before then (an app that
+     * publishes as soon as the join completes), the time the connection has been setting up so
+     * far. That is a lower bound on the eventual setup time, so it can only err toward the
+     * 1 Mbps ceiling.
+     */
+    private fun connectionSetupTimeForOffer(): Duration? {
+        return connectionSetupTime
+            ?: connectStartedAtMs?.let { startedAtMs -> (SystemClock.elapsedRealtime() - startedAtMs).milliseconds }
     }
 
     suspend fun isConnected(): Boolean {
