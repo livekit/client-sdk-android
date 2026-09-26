@@ -207,6 +207,16 @@ constructor(
                 if (isClosed()) {
                     return@launchRTCIfNotClosed
                 }
+
+                // WARP (draft-uberti-tsvwg-warp) shows up as a=goog-sped-v1 (DTLS handshake carried
+                // in the ICE exchange) and a=sctp-init (SCTP INIT params in the SDP, skipping the
+                // cookie exchange). libwebrtc only emits them when the acceleration is actually in
+                // use, so this reports what went on the wire.
+                LKLog.i {
+                    "WARP: SPED ${if (sdpOffer.description.contains("goog-sped-v1")) "enabled" else "disabled"}, " +
+                        "SNAP ${if (sdpOffer.description.contains("a=sctp-init")) "enabled" else "disabled"}"
+                }
+
                 // munge sdp
                 val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
 

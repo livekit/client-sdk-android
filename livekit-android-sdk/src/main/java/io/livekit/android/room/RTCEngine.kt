@@ -1107,6 +1107,12 @@ internal constructor(
                     PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
             }
 
+        // WARP: SNAP (SCTP Negotiation Acceleration Protocol) puts this side's SCTP INIT parameters
+        // into the SDP data m-section, letting a data channel skip SCTP's cookie exchange and saving
+        // up to two round trips on setup. It's negotiated with the server and falls back to plain
+        // SCTP when unsupported, so it's enabled unconditionally, even over a user-provided config.
+        rtcConfig.enableSctpSnap = true
+
         val clientConfig = when (serverResponse) {
             is Either.Left -> {
                 if (serverResponse.value.hasClientConfiguration()) {
