@@ -222,24 +222,23 @@ constructor(
                 } else {
                     null
                 }
-                var appliedVideoStartBitrate = false
                 for (mediaDesc in mediaDescs) {
                     if (mediaDesc.media.mediaType == "audio") {
                         // TODO
                     } else if (mediaDesc.media.mediaType == "video") {
                         ensureVideoDDExtensionForSVC(mediaDesc)
-                        appliedVideoStartBitrate = ensureCodecBitrates(
+                        ensureCodecBitrates(
                             mediaDesc,
                             trackBitrates = trackBitrates,
                             connectionStartBitrate = connectionStartBitrate,
-                        ) || appliedVideoStartBitrate
+                        )
                     }
                 }
                 val mungedDescription = sdpDescription.toString()
                 finalSdp = setMungedSdp(sdpOffer, mungedDescription)
                 // setMungedSdp may fall back to the original SDP. Only mark the one-shot
                 // hint as used after the SDP with the hint is accepted locally.
-                if (appliedVideoStartBitrate && finalSdp?.description == mungedDescription) {
+                if (connectionStartBitrate != null && finalSdp?.description == mungedDescription) {
                     hasAppliedVideoStartBitrate = true
                 }
             }
@@ -520,11 +519,9 @@ internal fun ensureCodecBitrates(
     media: MediaDescription,
     trackBitrates: Map<TrackBitrateInfoKey, TrackBitrateInfo>,
     connectionStartBitrate: Long?,
-): Boolean {
-    // Returns true when this media section maps to a local video track and has or
-    // receives the connection-level start hint.
-    val startBitrate = connectionStartBitrate ?: return false
-    val (_, codecPayload) = findTrackCodecBitrateInfo(media, trackBitrates) ?: return false
+) {
+    val startBitrate = connectionStartBitrate ?: return
+    val (_, codecPayload) = findTrackCodecBitrateInfo(media, trackBitrates) ?: return
 
     val fmtps = media.getFmtps()
     var fmtpFound = false
@@ -532,7 +529,7 @@ internal fun ensureCodecBitrates(
         if (fmtp.payload == codecPayload) {
             fmtpFound = true
             if (fmtp.config.contains("x-google-start-bitrate")) {
-                return true
+                return
             }
             attribute.value = "${fmtp.payload} ${fmtp.config};x-google-start-bitrate=$startBitrate"
             break
@@ -547,7 +544,6 @@ internal fun ensureCodecBitrates(
             ).toAttributeField(),
         )
     }
-    return true
 }
 
 private fun computeConnectionStartBitrate(
