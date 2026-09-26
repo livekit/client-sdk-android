@@ -18,6 +18,7 @@ package io.livekit.android
 
 import io.livekit.android.e2ee.E2EEOptions
 import io.livekit.android.room.Room
+import io.livekit.android.room.datastream.DataStreamOptions
 import io.livekit.android.room.network.ReconnectPolicy
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
 import io.livekit.android.room.participant.VideoTrackPublishDefaults
@@ -51,4 +52,9 @@ data class RoomOptions(
      * @see [Room.reconnectPolicy]
      */
     val reconnectPolicy: ReconnectPolicy? = null,
+
+    /**
+     * Room-wide data stream settings.
+     */
+    val dataStreamOptions: DataStreamOptions = DataStreamOptions(),
 )

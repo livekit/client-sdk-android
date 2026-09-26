@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,22 @@ data class StreamTextOptions(
     val replyToStreamId: String? = null,
     /**
      * The total exact size in bytes when encoded to UTF-8, if known.
+     *
+     * Ignored when opening an incremental stream with
+     * [io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager.streamText], which is
+     * always announced as unknown-length.
      */
     val totalSize: Long? = null,
+    /**
+     * Whether the payload may be compressed, when every recipient supports it.
+     *
+     * Only applies to whole-payload sends such as
+     * [io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager.sendText]; incremental
+     * streams are never compressed. Compression is additionally skipped unless every recipient
+     * advertises [io.livekit.android.room.ClientCapability.COMPRESSION_DEFLATE_RAW], and is only
+     * kept when it actually makes the payload smaller, so leaving this on is safe.
+     */
+    val compress: Boolean = true,
 )
 
 data class StreamBytesOptions(
@@ -51,4 +65,10 @@ data class StreamBytesOptions(
      * The total exact size in bytes, if known.
      */
     val totalSize: Long? = null,
+    /**
+     * Whether the payload may be compressed, when every recipient supports it.
+     *
+     * @see StreamTextOptions.compress
+     */
+    val compress: Boolean = true,
 )

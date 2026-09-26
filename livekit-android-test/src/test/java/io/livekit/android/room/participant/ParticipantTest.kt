@@ -17,6 +17,7 @@
 package io.livekit.android.room.participant
 
 import io.livekit.android.events.ParticipantEvent
+import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.AgentInput
 import io.livekit.android.room.types.AgentOutput
@@ -279,6 +280,59 @@ class ParticipantTest {
         val timestamp = Date().time
         assertNotNull(lastSpokeAt)
         assertTrue(abs(lastSpokeAt!! - timestamp) < 1000)
+    }
+
+    @Test
+    fun capabilitiesDefaultToEmpty() = runTest {
+        participant.updateFromInfo(INFO)
+
+        assertEquals(emptyList<ClientCapability>(), participant.capabilities)
+    }
+
+    @Test
+    fun capabilitiesFromInfo() = runTest {
+        participant.updateFromInfo(
+            INFO.toBuilder()
+                .addCapabilities(LivekitModels.ClientInfo.Capability.CAP_COMPRESSION_DEFLATE_RAW)
+                .addCapabilities(LivekitModels.ClientInfo.Capability.CAP_PACKET_TRAILER)
+                .build(),
+        )
+
+        assertEquals(
+            listOf(ClientCapability.COMPRESSION_DEFLATE_RAW, ClientCapability.PACKET_TRAILER),
+            participant.capabilities,
+        )
+    }
+
+    /**
+     * Capabilities are an open set, so a peer running a newer SDK than us must be tolerated
+     * rather than throwing (which is what most of this SDK's other `fromProto` helpers do).
+     */
+    @Test
+    fun capabilitiesDropUnknownValues() = runTest {
+        participant.updateFromInfo(
+            INFO.toBuilder()
+                .addCapabilities(LivekitModels.ClientInfo.Capability.CAP_UNUSED)
+                .addCapabilitiesValue(9999)
+                .addCapabilities(LivekitModels.ClientInfo.Capability.CAP_COMPRESSION_DEFLATE_RAW)
+                .build(),
+        )
+
+        assertEquals(listOf(ClientCapability.COMPRESSION_DEFLATE_RAW), participant.capabilities)
+    }
+
+    @Test
+    fun capabilitiesClearedByLaterUpdate() = runTest {
+        participant.updateFromInfo(
+            INFO.toBuilder()
+                .addCapabilities(LivekitModels.ClientInfo.Capability.CAP_COMPRESSION_DEFLATE_RAW)
+                .build(),
+        )
+        assertEquals(1, participant.capabilities.size)
+
+        participant.updateFromInfo(INFO)
+
+        assertEquals(emptyList<ClientCapability>(), participant.capabilities)
     }
 
     companion object {
