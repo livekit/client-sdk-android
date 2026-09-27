@@ -297,7 +297,8 @@ internal constructor(
         options: ConnectOptions,
         roomOptions: RoomOptions,
     ): JoinResponse = coroutineScope {
-        connectStartedAtMs = SystemClock.elapsedRealtime()
+        val startedAtMs = SystemClock.elapsedRealtime()
+        connectStartedAtMs = startedAtMs
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
@@ -324,6 +325,9 @@ internal constructor(
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
         configure(joinResponse, options)
+        // The publisher created above needs the attempt's start time before its first offer, in
+        // case video is published before the primary transport connects.
+        publisher?.setConnectStartedAt(startedAtMs)
 
         // Subscriber-primary defers the publisher PC until something is published. After a full
         // reconnect `hasPublished` is still set, so re-negotiate here — otherwise the ICE wait
@@ -361,9 +365,7 @@ internal constructor(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
-                ).also { publisher ->
-                    connectStartedAtMs?.let(publisher::setConnectStartedAt)
-                }
+                )
                 subscriber?.close()
                 subscriber = pctFactory.create(
                     rtcConfig,
