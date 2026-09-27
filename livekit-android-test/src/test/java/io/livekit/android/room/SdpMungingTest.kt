@@ -25,6 +25,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class SdpMungingTest {
 
@@ -141,6 +142,56 @@ class SdpMungingTest {
         )
 
         assertEquals(4500L, startBitrate)
+    }
+
+    @Test
+    fun startBitrateRampsDownWithConnectionSetupTimeTest() {
+        // A 3 Mbps camera target, so only the cap moves.
+        val camera = listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L))
+        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(camera, setupMs.milliseconds)
+
+        assertEquals("instant setup keeps the ceiling", 1000L, startBitrateAt(0))
+        assertEquals("unshaped baseline keeps the ceiling", 1000L, startBitrateAt(471))
+        assertEquals("1 Mbps link median keeps the ceiling", 1000L, startBitrateAt(1273))
+        assertEquals("the fast anchor keeps the ceiling", 1000L, startBitrateAt(1500))
+        assertEquals("1 Mbps link slow attempt barely moves", 922L, startBitrateAt(1724))
+        assertEquals("500 kbps link median lands mid-ramp", 708L, startBitrateAt(2334))
+        assertEquals("midpoint of the ramp", 650L, startBitrateAt(2500))
+        assertEquals("300 kbps link fastest attempt", 442L, startBitrateAt(3093))
+        assertEquals("the slow anchor reaches the floor", 300L, startBitrateAt(3500))
+        assertEquals("anything slower stays at the floor", 300L, startBitrateAt(18_131))
+
+        assertEquals(
+            "90% of the target still wins when it is lower than the cap",
+            450L,
+            computeConnectionStartBitrate(
+                listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 500L)),
+                2500.milliseconds,
+            ),
+        )
+        assertEquals(
+            "the hint is still written at the floor rather than skipped",
+            270L,
+            computeConnectionStartBitrate(
+                listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 300L)),
+                3500.milliseconds,
+            ),
+        )
+        assertEquals(
+            "no setup time keeps today's cap",
+            1000L,
+            computeConnectionStartBitrate(camera, connectionSetupTime = null),
+        )
+    }
+
+    @Test
+    fun slowConnectionSetupCapsScreenShareTooTest() {
+        val screenShare = listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L, isScreenShare = true))
+        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(screenShare, setupMs.milliseconds)
+
+        assertEquals("a fast setup leaves screen share uncapped", 2700L, startBitrateAt(1273))
+        assertEquals("below the ceiling the cap applies to it too", 650L, startBitrateAt(2500))
+        assertEquals("the slowest setups seed it at the floor", 300L, startBitrateAt(4061))
     }
 
     companion object {
