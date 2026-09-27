@@ -567,7 +567,7 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             assertTrue("Retry should have succeeded, got $secondFailure", secondFailure == null)
             assertEquals(
                 TestData.LOCAL_TRACK_PUBLISHED.trackPublished.track.sid,
-                secondPublish.getCompleted().sid,
+                secondPublish.getCompleted().trackInfo.sid,
             )
         } finally {
             supervisor.cancel()
