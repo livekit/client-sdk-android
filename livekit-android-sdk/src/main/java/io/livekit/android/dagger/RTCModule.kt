@@ -82,6 +82,17 @@ internal object RTCModule {
     private var hasInitializedWebrtc = false
 
     /**
+     * libwebrtc field trials that LiveKit enables by default.
+     *
+     * `WebRTC-IceHandshakeDtls` carries the DTLS handshake inside the ICE STUN binding exchange
+     * (draft-uberti-tsvwg-warp), so DTLS and ICE negotiate in parallel rather than one after the
+     * other. Together with `RTCConfiguration.enableSctpSnap` this is the client half of WARP; it
+     * is negotiated with the server and falls back to plain DTLS when the server doesn't support
+     * it.
+     */
+    private const val DEFAULT_FIELD_TRIALS = "WebRTC-IceHandshakeDtls/Enabled/"
+
+    /**
      * Certain classes require libwebrtc to be initialized prior to use.
      *
      * If your provision depends on libwebrtc initialization, just add it
@@ -111,6 +122,7 @@ internal object RTCModule {
                         PeerConnectionFactory.InitializationOptions
                             .builder(appContext)
                             .setNativeLibraryName("lkjingle_peerconnection_so")
+                            .setFieldTrials(DEFAULT_FIELD_TRIALS)
                             .setInjectableLogger(
                                 { s, severity, s2 ->
                                     if (!LiveKit.enableWebRTCLogging) {
