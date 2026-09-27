@@ -55,8 +55,12 @@ jobs:
         git fetch origin main --depth 1
         ./gradlew spotlessCheck
 
+    - name: Fetch livekit-uniffi host library
+      id: uniffi
+      run: echo "lib_dir=$(./ci/fetch_uniffi_cdylib.sh)" >> "$GITHUB_OUTPUT"
+
     - name: Build and test with Gradle
-      run: ./gradlew assembleRelease livekit-android-test:testRelease
+      run: ./gradlew assembleRelease livekit-android-test:testRelease -PlivekitUniffiLibDir=${{ steps.uniffi.outputs.lib_dir }}
 
     - name: Run Detekt
       run: ./gradlew livekit-android-sdk:detektRelease

@@ -18,12 +18,13 @@ package io.livekit.android.stats
 
 import android.os.Build
 import io.livekit.android.BuildConfig
+import io.livekit.android.room.ADVERTISED_CLIENT_CAPABILITIES
 import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.SignalClient
 import livekit.LivekitModels
 
 internal fun getClientInfo(
-    clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_RPC,
+    clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_V2,
 ) = with(LivekitModels.ClientInfo.newBuilder()) {
     sdk = LivekitModels.ClientInfo.SDK.ANDROID
     version = BuildConfig.VERSION_NAME
@@ -34,5 +35,6 @@ internal fun getClientInfo(
     val model = Build.MODEL ?: ""
     deviceModel = ("$vendor $model").trim()
     this.clientProtocol = clientProtocol.value
+    addAllCapabilities(ADVERTISED_CLIENT_CAPABILITIES.map { it.toProto() })
     build()
 }

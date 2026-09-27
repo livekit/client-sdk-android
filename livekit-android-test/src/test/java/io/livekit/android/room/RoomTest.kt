@@ -29,6 +29,7 @@ import io.livekit.android.events.EventListenable
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.datastream.DataStreams
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.room.datatrack.IncomingDataTrackEvent
 import io.livekit.android.room.datatrack.IncomingDataTrackManager
@@ -114,11 +115,16 @@ class RoomTest {
     }
 
     lateinit var room: Room
+    lateinit var dataStreams: DataStreams
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         networkCallbackRegistry = MockNetworkCallbackRegistry()
+        dataStreams = DataStreams(
+            engine = rtcEngine,
+            closeableManager = CloseableManager(),
+        )
         whenever(incomingDataTrackManager.events).thenReturn(
             object : EventListenable<IncomingDataTrackEvent> {
                 override val events: SharedFlow<IncomingDataTrackEvent> = MutableSharedFlow()
@@ -146,7 +152,8 @@ class RoomTest {
             regionUrlProviderFactory = regionUrlProviderFactory,
             connectionWarmer = MockConnectionWarmer(),
             audioRecordPrewarmer = NoAudioRecordPrewarmer(),
-            incomingDataStreamManager = IncomingDataStreamManagerImpl(),
+            incomingDataStreamManager = IncomingDataStreamManagerImpl(dataStreams),
+            dataStreams = dataStreams,
             incomingDataTrackManager = incomingDataTrackManager,
             rpcClientManager = io.livekit.android.room.rpc.RpcClientManager(
                 engine = rtcEngine,
