@@ -683,4 +683,150 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             )
         }
     }
+
+    /**
+     * A resume must leave the subscriber able to take the paths the server proposes. It used to
+     * enter an ice restart state that only a remote description clears, and the server re-offers
+     * the subscriber only when the reconnect moved us to another node, so after an ordinary resume
+     * every later candidate was queued and never added. Same defect as client-sdk-js#2054.
+     */
+    @Test
+    fun softReconnectKeepsSubscriberApplyingRemoteCandidates() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val subPeerConnection = getSubscriberPeerConnection()
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(subscriberTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
+    /**
+     * A candidate belonging to a server offer waits for that offer to be applied. Offer handling is
+     * launched rather than run inline, so without the hold the candidate would land against the
+     * description the offer replaces and be rejected against its ice credentials.
+     */
+    @Test
+    fun candidateArrivingWithAServerOfferWaitsForItsDescription() = runTest {
+        connect()
+
+        val subPeerConnection = getSubscriberPeerConnection()
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(TestData.OFFER)
+        simulateMessageFromServer(subscriberTrickle())
+
+        assertEquals(before, subPeerConnection.addedIceCandidates.size)
+
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
+    /**
+     * A refused offer ends its own wait. The description it would have installed never came into
+     * being, so the connection carries on with the one in force and later candidates reach it
+     * rather than piling up behind an offer that is never going to land.
+     */
+    @Test
+    fun aRefusedOfferStopsHoldingCandidates() = runTest {
+        connect()
+        val subPeerConnection = getSubscriberPeerConnection()
+
+        simulateMessageFromServer(refusedOffer())
+        advanceUntilIdle()
+
+        val before = subPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(subscriberTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
+    }
+
+    /**
+     * A stale answer ends only its own offer's wait. An ordinary offer opens none, so an answer to
+     * it arriving late must not release the wait an ice restart opened afterwards, or candidates
+     * for the restart land against the credentials it replaced.
+     */
+    @Test
+    fun aStaleAnswerDoesNotEndAnotherOffersWait() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        // Offers go unanswered from here, so the restart's wait is still outstanding below.
+        val heldAnswers: SignalRequestHandler = { request -> request.hasOffer() }
+        wsFactory.registerSignalRequestHandler(heldAnswers)
+        val pubPeerConnection = getPublisherPeerConnection()
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
+        simulateMessageFromServer(TestData.RECONNECT)
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val before = pubPeerConnection.addedIceCandidates.size
+        simulateMessageFromServer(staleAnswer())
+        simulateMessageFromServer(publisherTrickle())
+        advanceUntilIdle()
+
+        assertEquals(before, pubPeerConnection.addedIceCandidates.size)
+        wsFactory.unregisterSignalRequestHandler(heldAnswers)
+    }
+
+    /** An answer to the first offer, long since replaced by the ones after it. */
+    private fun staleAnswer(): LivekitRtc.SignalResponse {
+        val answer = LivekitRtc.SessionDescription.newBuilder()
+            .setSdp("remote_answer")
+            .setType("answer")
+            .setId(1)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setAnswer(answer)
+            .build()
+    }
+
+    private fun publisherTrickle(): LivekitRtc.SignalResponse {
+        val trickle = LivekitRtc.TrickleRequest.newBuilder()
+            .setCandidateInit(
+                """{"candidate":"candidate:2 1 UDP 1 127.0.0.1 9 typ host","sdpMLineIndex":0,"sdpMid":"0"}""",
+            )
+            .setTarget(LivekitRtc.SignalTarget.PUBLISHER)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setTrickle(trickle)
+            .build()
+    }
+
+    /** An empty description is the one the mock connection refuses. */
+    private fun refusedOffer(): LivekitRtc.SignalResponse {
+        val offer = LivekitRtc.SessionDescription.newBuilder()
+            .setSdp("")
+            .setType("offer")
+            .setId(100)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setOffer(offer)
+            .build()
+    }
+
+    private fun subscriberTrickle(): LivekitRtc.SignalResponse {
+        val trickle = LivekitRtc.TrickleRequest.newBuilder()
+            .setCandidateInit(
+                """{"candidate":"candidate:1 1 UDP 1 127.0.0.1 9 typ host","sdpMLineIndex":0,"sdpMid":"0"}""",
+            )
+            .setTarget(LivekitRtc.SignalTarget.SUBSCRIBER)
+            .build()
+        return LivekitRtc.SignalResponse.newBuilder()
+            .setTrickle(trickle)
+            .build()
+    }
 }
