@@ -38,6 +38,8 @@ import io.livekit.android.e2ee.DataPacketCryptorManagerImpl
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
 import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.telemetryMicrophoneFailed
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
@@ -113,6 +115,9 @@ internal object RTCModule {
                             .setNativeLibraryName("lkjingle_peerconnection_so")
                             .setInjectableLogger(
                                 { s, severity, s2 ->
+                                    if (severity == Logging.Severity.LS_ERROR) {
+                                        Telemetry.logWebRtc(s2, s)
+                                    }
                                     if (!LiveKit.enableWebRTCLogging) {
                                         return@setInjectableLogger
                                     }
@@ -125,7 +130,8 @@ internal object RTCModule {
                                         else -> LoggingLevel.OFF
                                     }
 
-                                    LKLog.log(loggingLevel, null) { "$s2: $s" }
+                                    // The console only: telemetry already has WebRTC's errors, above.
+                                    if (loggingLevel >= LKLog.loggingLevel) LKLog.logger?.log(loggingLevel, null, "$s2: $s")
                                 },
                                 Logging.Severity.LS_VERBOSE,
                             )
@@ -182,6 +188,7 @@ internal object RTCModule {
         val audioRecordErrorCallback = object : JavaAudioDeviceModule.AudioRecordErrorCallback {
             override fun onWebRtcAudioRecordInitError(errorMessage: String?) {
                 LKLog.e { "onWebRtcAudioRecordInitError: $errorMessage" }
+                telemetryMicrophoneFailed()
             }
 
             override fun onWebRtcAudioRecordStartError(
@@ -189,10 +196,12 @@ internal object RTCModule {
                 errorMessage: String?,
             ) {
                 LKLog.e { "onWebRtcAudioRecordStartError: $errorCode. $errorMessage" }
+                telemetryMicrophoneFailed()
             }
 
             override fun onWebRtcAudioRecordError(errorMessage: String?) {
                 LKLog.e { "onWebRtcAudioRecordError: $errorMessage" }
+                telemetryMicrophoneFailed()
             }
         }
 
