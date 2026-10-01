@@ -200,6 +200,36 @@ constructor(
             engine.connectSpan = value
         }
 
+    /**
+     * Records an app event in this Room's telemetry, exported as `custom.<name>` next to the SDK's
+     * own records, with this Room's correlation attributes.
+     *
+     * ```
+     * room.emitTelemetryEvent("checkout.started", mapOf("cart.items" to "3"))
+     * ```
+     *
+     * Names and keys up to 128 bytes, values up to 1024 bytes, at most 64 attributes and no `lk.`
+     * keys; anything else is dropped, never truncated.
+     */
+    @JvmOverloads
+    fun emitTelemetryEvent(name: String, attributes: Map<String, String> = emptyMap()) {
+        guarded { telemetryScope?.emitCustom(name, attributes) }
+    }
+
+    /**
+     * Sets a correlation attribute on every telemetry record this Room captures from now on, to
+     * match them with your own data (an order id, a tenant); `null` removes it.
+     *
+     * ```
+     * room.setTelemetryAttribute("app.order_id", order.id)
+     * ```
+     *
+     * Same limits as [emitTelemetryEvent], at most 64 per Room.
+     */
+    fun setTelemetryAttribute(key: String, value: String?) {
+        guarded { telemetryScope?.setAttribute(key, value) }
+    }
+
     init {
         engine.listener = this
         engine.telemetryScope = telemetryScope
