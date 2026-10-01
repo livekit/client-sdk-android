@@ -1,0 +1,11 @@
+# Layered on otelcol.yaml for local testing: also forwards every batch to a local LGTM backend.
+#   otelcol-contrib --config otelcol.yaml --config otelcol-lgtm.yaml
+exporters:
+  otlphttp:
+    endpoint: http://localhost:4318
+service:
+  pipelines:
+    logs:
+      exporters: [file, otlphttp]
+    traces:
+      exporters: [file, otlphttp]
