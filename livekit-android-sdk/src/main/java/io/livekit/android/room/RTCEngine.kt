@@ -43,6 +43,9 @@ import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.createAnswer
 import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.room.util.waitUntilConnected
+import io.livekit.android.telemetry.RTCTelemetry
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.guarded
 import io.livekit.android.util.CloseableCoroutineScope
 import io.livekit.android.util.Either
 import io.livekit.android.util.FlowObservable
@@ -65,9 +68,14 @@ import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
 import io.livekit.android.webrtc.toProtoSessionDescription
+import io.livekit.uniffi.TelemetryScope
+import io.livekit.uniffi.TelemetrySpan
+import io.livekit.uniffi.telemetryDisconnectReason
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -100,6 +108,10 @@ import livekit.org.webrtc.RtpSender
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SessionDescription
+import uniffi.livekit_telemetry.ReconnectReason
+import uniffi.livekit_telemetry.SpanName
+import uniffi.livekit_telemetry.SpanOutcome
+import uniffi.livekit_telemetry.SpanStep
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Named
@@ -109,6 +121,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import uniffi.livekit_telemetry.DisconnectReason as FfiDisconnectReason
 
 /**
  * @suppress
@@ -127,6 +140,37 @@ internal constructor(
     private val incomingDataTrackManager: IncomingDataTrackManager,
 ) : SignalClient.Listener {
     internal var listener: Listener? = null
+
+    /**
+     * The Room's telemetry scope; null when telemetry is off. Bound on the engine's and the signal
+     * client's coroutines, so the Room handlers they drive log under the Room's session.
+     */
+    internal var telemetryScope: TelemetryScope? = null
+        set(value) {
+            field = value
+            client.telemetryScope = value
+        }
+
+    /**
+     * The Room's open `lk.connect` span while the user-initiated connect runs; the checkpoints
+     * are stamped here and in [SignalClient].
+     */
+    internal var connectSpan: TelemetrySpan? = null
+        set(value) {
+            field = value
+            client.connectSpan = value
+        }
+
+    /** The Room's RTC instrument; the signal client hands it a manual subscribe's intent. */
+    internal var rtcTelemetry: RTCTelemetry?
+        get() = client.rtcTelemetry
+        set(value) {
+            client.rtcTelemetry = value
+        }
+
+    /** Why this session ended, for telemetry, when the SDK's enum says less: the server's Leave reason, or a reconnect that gave up. */
+    @Volatile
+    internal var disconnectReasonForTelemetry: FfiDisconnectReason? = null
 
     /**
      * When the current connection attempt began, taken at the top of [joinImpl]. Cleared once the
@@ -163,7 +207,7 @@ internal constructor(
             ConnectionState.DISCONNECTED -> {
                 LKLog.d { "primary ICE disconnected" }
                 if (oldVal == ConnectionState.CONNECTED) {
-                    reconnect()
+                    reconnect(if (isSubscriberPrimary) ReconnectReason.SUBSCRIBER_FAILED else ReconnectReason.PUBLISHER_FAILED)
                 }
             }
 
@@ -267,9 +311,11 @@ internal constructor(
         roomOptions: RoomOptions,
     ): JoinResponse {
         coroutineScope.close()
-        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
+        coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher + Telemetry.currentScope.asContextElement(telemetryScope))
         sessionUrl = url
         sessionToken = token
+        disconnectReasonForTelemetry = null
+        updateTelemetryServer()
         connectOptions = options
         lastRoomOptions = roomOptions
         return joinImpl(url, token, options, roomOptions)
@@ -303,6 +349,10 @@ internal constructor(
             connectionState = ConnectionState.CONNECTING
         }
         val joinResponse = client.join(url, token, options, roomOptions)
+        guarded {
+            connectSpan?.step(SpanStep.Signal)
+            connectSpan?.step(SpanStep.JoinRecv)
+        }
         ensureActive()
 
         if (joinResponse.hasParticipant()) {
@@ -325,6 +375,7 @@ internal constructor(
         isSubscriberPrimary = joinResponse.subscriberPrimary
 
         configure(joinResponse, options)
+        guarded { connectSpan?.step(SpanStep.PcCreated) }
         // The publisher created above needs the attempt's start time before its first offer, in
         // case video is published before the primary transport connects.
         publisher?.setConnectStartedAt(startedAtMs)
@@ -398,7 +449,7 @@ internal constructor(
                     // Also reconnect on publisher disconnect
                     publisherObserver.connectionChangeListener = { newState ->
                         if (newState.isDisconnected()) {
-                            reconnect()
+                            reconnect(ReconnectReason.PUBLISHER_FAILED)
                         }
                     }
                 } else {
@@ -605,9 +656,12 @@ internal constructor(
     /**
      * reconnect Signal and PeerConnections
      */
-    @Synchronized
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    fun reconnect() {
+    fun reconnect() = reconnect(ReconnectReason.UNKNOWN)
+
+    /** One reconnect cycle = one `lk.reconnect` span; attempts are its checkpoints. */
+    @Synchronized
+    internal fun reconnect(reason: ReconnectReason) {
         if (reconnectingJob?.isActive == true) {
             LKLog.d { "Reconnection is already in progress" }
             return
@@ -625,7 +679,8 @@ internal constructor(
         val forceFullReconnect = fullReconnectOnNext
         fullReconnectOnNext = false
         endSignalSession()
-        val job = coroutineScope.launch {
+        val reconnectSpan = guarded { telemetryScope?.start(SpanName.Reconnect(reason), null) }
+        val job = coroutineScope.launch(Telemetry.currentSpan.asContextElement(reconnectSpan)) {
             var hasResumedOnce = false
             var hasReconnectedOnce = false
 
@@ -672,6 +727,7 @@ internal constructor(
                     ReconnectType.FORCE_SOFT_RECONNECT -> false
                     ReconnectType.FORCE_FULL_RECONNECT -> true
                 }
+                guarded { reconnectSpan?.step(SpanStep.Attempt((retries + 1).toUInt(), isFullReconnect)) }
 
                 var lastMessageSeq: Int? = null
                 val connectOptions = connectOptions ?: ConnectOptions()
@@ -784,6 +840,7 @@ internal constructor(
                         outgoingDataTrackManager.republishTracks()
                     }
                     incomingDataTrackManager.resendSubscriptionUpdates()
+                    guarded { reconnectSpan?.end(SpanOutcome.OK, null) }
                     listener?.onPostReconnect(isFullReconnect)
                     return@launch
                 }
@@ -795,12 +852,16 @@ internal constructor(
                 }
             }
 
+            val gaveUp = !isClosed // else disconnect() won
+            guarded { if (gaveUp) reconnectSpan?.fail("ReconnectFailed") else reconnectSpan?.cancel() }
+            if (gaveUp) disconnectReasonForTelemetry = FfiDisconnectReason.RECONNECT_FAILED
             close("Failed reconnecting")
             listener?.onEngineDisconnected(DisconnectReason.UNKNOWN_REASON)
         }
 
         reconnectingJob = job
         job.invokeOnCompletion {
+            guarded { reconnectSpan?.takeIf { !it.isEnded() }?.cancel() }
             if (reconnectingJob == job) {
                 reconnectingJob = null
             }
@@ -1219,6 +1280,9 @@ internal constructor(
 
         internal const val TARGET_DATA_PACKET_SIZE = 15 * 1024 // 15 KB
 
+        /** A report WebRTC never delivers (its connection closed meanwhile) is skipped after this long. */
+        private const val STATS_TIMEOUT_MS = 5_000L
+
         /**
          * Corresponds to the max-message-size in SDP. Attempting to send packets
          * over this size will cause the data channel to close, so this must be enforced
@@ -1370,7 +1434,7 @@ internal constructor(
         LKLog.i { "received close event: $reason, code: $code" }
         endSignalSession()
         abortPendingPublishTracks()
-        reconnect()
+        reconnect(ReconnectReason.SIGNAL_DISCONNECTED)
     }
 
     override fun onRemoteMuteChanged(trackSid: String, muted: Boolean) {
@@ -1412,6 +1476,7 @@ internal constructor(
 
             else -> {
                 close()
+                disconnectReasonForTelemetry = guarded { telemetryDisconnectReason(leave.reason.number) }
                 val disconnectReason = leave.reason.convert()
                 listener?.onEngineDisconnected(disconnectReason)
             }
@@ -1444,6 +1509,14 @@ internal constructor(
     override fun onRefreshToken(token: String) {
         sessionToken = token
         regionUrlProvider?.token = token
+        updateTelemetryServer()
+    }
+
+    /** Telemetry uploads with the Room's latest token, at join and on every refresh, to the URL the app gave. */
+    private fun updateTelemetryServer() {
+        val url = regionUrlProvider?.serverUrl?.toString() ?: sessionUrl ?: return
+        val token = sessionToken ?: return
+        guarded { telemetryScope?.setServer(url, token) }
     }
 
     override fun onLocalTrackUnpublished(trackUnpublished: LivekitRtc.TrackUnpublishedResponse) {
@@ -1661,6 +1734,24 @@ internal constructor(
         }
 
         client.sendSyncState(syncState)
+    }
+
+    /** Runs [action] on the RTC thread, suspending rather than blocking the caller. */
+    internal suspend fun <T> onRTCThread(action: () -> T): T? = launchBlockingOnRTCThread(rtcThreadToken) { action() }
+
+    /**
+     * Each peer connection's whole report, publisher first, suspending rather than blocking.
+     * [request] makes each getStats() call, or refuses it (false): then no further one is made.
+     */
+    internal suspend fun peerStats(request: (() -> Unit) -> Boolean): List<RTCStatsReport> {
+        val reports = mutableListOf<RTCStatsReport>()
+        for (transport in listOfNotNull(publisher, subscriber)) {
+            val report = CompletableDeferred<RTCStatsReport>()
+            val requested = transport.withPeerConnection { request { getStats { report.complete(it) } } } ?: continue
+            if (!requested) break
+            withTimeoutOrNull(STATS_TIMEOUT_MS) { report.await() }?.let(reports::add)
+        }
+        return reports
     }
 
     fun getPublisherRTCStats(callback: RTCStatsCollectorCallback) {
