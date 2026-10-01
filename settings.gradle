@@ -11,9 +11,27 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+// Development wiring for unreleased Rust bindings: `-PlivekitUniffiVersion=<version>` (or the
+// LIVEKIT_UNIFFI_VERSION environment variable) resolves livekit-uniffi-android at that version from
+// Maven Local, where `cargo make android-package-local` in rust-sdks/livekit-uniffi publishes it.
+// Unset, the released artifact from gradle/libs.versions.toml is used.
+def localUniffi = providers.gradleProperty('livekitUniffiVersion')
+        .orElse(providers.environmentVariable('LIVEKIT_UNIFFI_VERSION')).getOrNull()
+if (localUniffi) {
+    gradle.beforeProject { project ->
+        project.configurations.configureEach {
+            resolutionStrategy.eachDependency {
+                if (requested.group == 'io.livekit' && requested.name == 'livekit-uniffi-android') useVersion(localUniffi)
+            }
+        }
+    }
+}
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        if (localUniffi) {
+            mavenLocal { content { includeModule('io.livekit', 'livekit-uniffi-android') } }
+        }
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }

@@ -65,16 +65,24 @@ import io.livekit.android.room.track.VideoPreset
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
+import io.livekit.android.telemetry.Telemetry
+import io.livekit.android.telemetry.end
+import io.livekit.android.telemetry.guarded
+import io.livekit.android.telemetry.spanTrack
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.flow
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
+import io.livekit.uniffi.TelemetryScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -95,6 +103,8 @@ import livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit
 import livekit.org.webrtc.SurfaceTextureHelper
 import livekit.org.webrtc.VideoCapturer
 import livekit.org.webrtc.VideoProcessor
+import uniffi.livekit_telemetry.SpanName
+import uniffi.livekit_telemetry.SpanOutcome
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.Collections
@@ -151,6 +161,9 @@ internal constructor(
     private val sourcePubLocks = Track.Source.entries.associateWith { Mutex() }
 
     internal val enabledPublishVideoCodecs = Collections.synchronizedList(mutableListOf<Codec>())
+
+    /** The Room's telemetry scope, for the `lk.publish` span; null when telemetry is off. */
+    internal var telemetryScope: TelemetryScope? = null
 
     private var defaultAudioTrack: LocalAudioTrack? = null
     private var defaultVideoTrack: LocalVideoTrack? = null
@@ -500,7 +513,7 @@ internal constructor(
         )
         var publication: LocalTrackPublication? = null
         try {
-            publication = publishTrackImpl(
+            publication = publishTrackSpanned(
                 track = track,
                 options = options,
                 requestConfig = {
@@ -595,7 +608,7 @@ internal constructor(
 
         var publication: LocalTrackPublication? = null
         try {
-            publication = publishTrackImpl(
+            publication = publishTrackSpanned(
                 track = track,
                 options = options,
                 requestConfig = {
@@ -652,11 +665,15 @@ internal constructor(
     }
 
     /**
+     * One publish = one `lk.publish` span, under a still-running ambient span (the connect span
+     * for a pre-connect microphone), and ambient itself while [publishTrackImpl] runs, so the
+     * publish's own warnings point at it.
+     *
      * @throws TrackException.PublishException thrown when the publish fails. see [TrackException.PublishException.message] for details.
      * @return true if the track publish was successful.
      */
     @Throws(TrackException.PublishException::class)
-    private suspend fun publishTrackImpl(
+    private suspend fun publishTrackSpanned(
         track: Track,
         options: TrackPublishOptions,
         requestConfig: AddTrackRequest.Builder.() -> Unit,
@@ -667,8 +684,30 @@ internal constructor(
             LKLog.w { "Attempting to publish a disposed track, ignoring." }
             return null
         }
+        val parent = Telemetry.currentSpan.get()?.takeIf { guarded { !it.isEnded() } == true }
+        val span = guarded { telemetryScope?.start(SpanName.Publish, parent) }
+        try {
+            return withContext(Telemetry.currentSpan.asContextElement(span)) {
+                publishTrackImpl(track, options, requestConfig, encodings, publishListener)
+            }
+        } finally {
+            // A cancellation that wins before withContext runs the publish leaves the span to us.
+            val active = currentCoroutineContext().isActive
+            guarded { span?.takeIf { !it.isEnded() }?.run { if (active) fail("PublishException") else cancel() } }
+        }
+    }
 
+    @Throws(TrackException.PublishException::class)
+    private suspend fun publishTrackImpl(
+        track: Track,
+        options: TrackPublishOptions,
+        requestConfig: AddTrackRequest.Builder.() -> Unit,
+        encodings: List<RtpParameters.Encoding> = emptyList(),
+        publishListener: PublishListener? = null,
+    ): LocalTrackPublication? {
+        val span = Telemetry.currentSpan.get() // this publish's own, from publishTrackSpanned
         fun onPublishFailure(e: TrackException.PublishException, triggerEvent: Boolean = true) {
+            guarded { span?.end(e) }
             publishListener?.onPublishFailure(e)
             if (triggerEvent) {
                 eventBus.postEvent(ParticipantEvent.LocalTrackPublicationFailed(this, track, e), scope)
@@ -680,6 +719,7 @@ internal constructor(
         }
 
         val trackSource = Track.Source.fromProto(addTrackRequestBuilder.source ?: LivekitModels.TrackSource.UNRECOGNIZED)
+        guarded { spanTrack(track.kind, trackSource)?.let { span?.setTrack(it) } }
         if (!hasPermissionsToPublish(trackSource)) {
             val exception = TrackException.PublishException("Failed to publish track, insufficient permissions")
             onPublishFailure(exception)
@@ -856,6 +896,10 @@ internal constructor(
                     participant = this,
                     options = options,
                 )
+                guarded {
+                    spanTrack(track.kind, trackSource, publication.sid)?.let { span?.setTrack(it) }
+                    span?.end(SpanOutcome.OK, null)
+                }
                 addTrackPublication(publication)
                 LKLog.v { "add track publication $publication" }
 
@@ -864,6 +908,8 @@ internal constructor(
                 eventBus.postEvent(ParticipantEvent.LocalTrackPublished(this, publication), scope)
             }
         } finally {
+            val active = currentCoroutineContext().isActive
+            guarded { span?.takeIf { !it.isEnded() }?.run { if (active) fail("PublishException") else cancel() } }
             if (publication == null) {
                 // Negotiation can win the race against a failed or cancelled add track request.
                 // Without a publication there is no unpublish to stop the transceiver, so it
