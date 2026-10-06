@@ -549,22 +549,8 @@ constructor(
             var nextUrl: String? = regionUrl ?: url
             regionUrl = null
 
-            // The attempted set scopes one failover cycle, and every way out of this loop ends
-            // that cycle: connected, out of regions, a region-settings refresh that threw, or
-            // cancellation. Clearing in `finally` covers all of them rather than one exit at a
-            // time — `getNextBestRegionUrl` refreshes settings after the cache expires and
-            // propagates request and decoding failures, so an exception can leave the loop from
-            // inside the catch.
-            //
-            // It has to be cleared somewhere, because the provider outlives the cycle: `connect`
-            // reuses an existing one for the same url. Regions left behind would be skipped by a
-            // later failover even once they recovered, and a set left full would make the next
-            // connect resolve no region at all.
-            //
-            // Captured once for the whole cycle rather than read from the field each time:
-            // `regionUrlProvider` is mutable and `prepareConnection` replaces it without holding
-            // `stateLock`, so re-reading could hand one instance to the engine and clear a
-            // different one — leaving the engine's provider holding regions it would then skip.
+            // Attempted regions are scoped to this failover cycle, since the provider is reused
+            // across connects. Captured locally as prepareConnection can replace the field.
             val cycleRegionUrlProvider = regionUrlProvider
 
             try {
