@@ -32,11 +32,32 @@
 //   cd ../rust-sdks/livekit-uniffi
 //   CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target <host triple>
 
+import org.gradle.api.tasks.PathSensitivity
+
 ext.resolveUniffiNativeLibDirs = {
     def libNames = ["liblivekit_uniffi.dylib", "liblivekit_uniffi.so"]
     def hasLib = { File dir -> dir.isDirectory() && libNames.any { new File(dir, it).isFile() } }
 
-    def explicit = System.getenv("LIVEKIT_UNIFFI_LIB_DIR") ?: project.findProperty("livekitUniffiLibDir")
+    def rawEnv = System.getenv("LIVEKIT_UNIFFI_LIB_DIR")
+    def rawProp = project.findProperty("livekitUniffiLibDir")?.toString()
+
+    // Blank means whatever was supposed to produce the path failed quietly -- a CI step whose
+    // command substitution swallowed an error, say. Trimmed rather than left to Groovy's
+    // truthiness, which counts a whitespace-only string as set and would hand `file()` a junk
+    // path.
+    def explicit = rawEnv?.trim() ?: rawProp?.trim()
+
+    // Blank is unset for the purpose of precedence above, so a valid lower-priority source still
+    // wins. It is not unset here: falling through to auto-discovery when a path was asked for and
+    // nothing came back would run the FFI tests against whatever core happens to be lying around,
+    // or none at all.
+    if (!explicit && (rawEnv != null || rawProp != null)) {
+        throw new GradleException(
+            "LIVEKIT_UNIFFI_LIB_DIR/livekitUniffiLibDir is set but empty; expected a " +
+                "directory holding a host build of liblivekit_uniffi.",
+        )
+    }
+
     if (explicit) {
         def dir = file(explicit)
         if (!hasLib(dir)) {
@@ -91,5 +112,15 @@ ext.configureUniffiForUnitTests = { Test task ->
         }
         return
     }
+    // Add livekit-uniffi to the library search paths so that it can be found.
     task.systemProperty("jna.library.path", dirs.collect { it.absolutePath }.join(File.pathSeparator))
+
+    // The core's *contents* are an input to every test that calls into it, but nothing above
+    // declares them: `jna.library.path` is just a path string, so rebuilding the library in place
+    // leaves the task's cache key unchanged and Gradle serves the previous run's results
+    // FROM-CACHE without executing anything. Registering the files themselves, hashed by content
+    // and not by location, makes a rebuilt core re-run the suite.
+    task.inputs.files(dirs.collect { dir -> fileTree(dir) { include "liblivekit_uniffi.*" } })
+        .withPropertyName("livekitUniffiNativeLib")
+        .withPathSensitivity(PathSensitivity.NONE)
 }
