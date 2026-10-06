@@ -111,10 +111,6 @@ dependencies {
     implementation libs.livekit.uniffi
     implementation libs.coroutines.lib
     implementation libs.kotlinx.serialization.json
-    // The SDK keeps livekit-uniffi as `implementation` so the FFI types stay out of its public
-    // API. Tests here drive the FFI managers directly (capturing delegates, stub registries), so
-    // they need it on their own classpath.
-    implementation libs.livekit.uniffi
     api libs.okhttp.lib
     api libs.audioswitch
     implementation libs.androidx.annotation
@@ -142,8 +138,6 @@ dependencies {
 
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.espresso
-    // Instrumented tests drive the FFI directly to prove the native library works on a real
-    // device; see DataStreamsOnDeviceTest.
     androidTestImplementation libs.livekit.uniffi
     androidTestImplementation libs.coroutines.lib
     androidTestImplementation libs.protobuf.javalite
