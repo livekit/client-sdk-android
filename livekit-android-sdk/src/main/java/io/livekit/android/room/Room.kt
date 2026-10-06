@@ -549,22 +549,30 @@ constructor(
             var nextUrl: String? = regionUrl ?: url
             regionUrl = null
 
-            while (nextUrl != null) {
-                val connectUrl = nextUrl
-                nextUrl = null
-                try {
-                    engine.regionUrlProvider = regionUrlProvider
-                    engine.join(connectUrl, token, options, roomOptions)
-                } catch (e: Exception) {
-                    e.rethrowIfCancellationSignal()
+            // Attempted regions are scoped to this failover cycle, since the provider is reused
+            // across connects. Captured locally as prepareConnection can replace the field.
+            val cycleRegionUrlProvider = regionUrlProvider
 
-                    nextUrl = regionUrlProvider?.getNextBestRegionUrl()
-                    if (nextUrl != null) {
-                        LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
-                    } else {
-                        throw e // rethrow since no more regions to try.
+            try {
+                while (nextUrl != null) {
+                    val connectUrl = nextUrl
+                    nextUrl = null
+                    try {
+                        engine.regionUrlProvider = cycleRegionUrlProvider
+                        engine.join(connectUrl, token, options, roomOptions)
+                    } catch (e: Exception) {
+                        e.rethrowIfCancellationSignal()
+
+                        nextUrl = cycleRegionUrlProvider?.getNextBestRegionUrl()
+                        if (nextUrl != null) {
+                            LKLog.d(e) { "Connection to $connectUrl failed, retrying with another region: $nextUrl" }
+                        } else {
+                            throw e // rethrow since no more regions to try.
+                        }
                     }
                 }
+            } finally {
+                cycleRegionUrlProvider?.clearAttemptedRegions()
             }
 
             ensureActive()

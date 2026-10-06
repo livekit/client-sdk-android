@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,29 @@ class RegionUrlProviderTest : BaseTest() {
         assertNull(regionUrlProvider.getNextBestRegionUrl())
 
         // Check that only one request was needed.
+        assertEquals(1, server.requestCount)
+    }
+
+    /**
+     * The attempted set scopes one failover cycle. Once it is cleared the whole region list is
+     * eligible again, so a region that failed transiently is retried on the next cycle rather
+     * than being skipped for the life of the provider.
+     */
+    @Test
+    fun clearAttemptedRegionsMakesEveryRegionEligibleAgain() = runTest {
+        server = MockWebServer()
+        server.enqueue(MockResponse().setBody(regionResponse))
+        val regionUrlProvider = RegionUrlProvider(server.url("").toUri(), "token", OkHttpClient.Builder().build(), Json { ignoreUnknownKeys = true })
+
+        assertEquals("https://regiona.livekit.cloud", regionUrlProvider.getNextBestRegionUrl())
+        assertEquals("https://regionb.livekit.cloud", regionUrlProvider.getNextBestRegionUrl())
+
+        regionUrlProvider.clearAttemptedRegions()
+
+        // Back to the best region, not the next unattempted one.
+        assertEquals("https://regiona.livekit.cloud", regionUrlProvider.getNextBestRegionUrl())
+
+        // Still served from the cached settings.
         assertEquals(1, server.requestCount)
     }
 }
