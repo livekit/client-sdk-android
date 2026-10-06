@@ -185,13 +185,25 @@ class SdpMungingTest {
     }
 
     @Test
-    fun slowConnectionSetupCapsScreenShareTooTest() {
-        val screenShare = listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L, isScreenShare = true))
-        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(screenShare, setupMs.milliseconds)
+    fun slowConnectionSetupLeavesScreenShareUncappedTest() {
+        val screenShare = TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L, isScreenShare = true)
+        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(listOf(screenShare), setupMs.milliseconds)
 
-        assertEquals("a fast setup leaves screen share uncapped", 2700L, startBitrateAt(1273))
-        assertEquals("below the ceiling the cap applies to it too", 650L, startBitrateAt(2500))
-        assertEquals("the slowest setups seed it at the floor", 300L, startBitrateAt(4061))
+        assertEquals("a fast setup", 2700L, startBitrateAt(1273))
+        assertEquals("mid-ramp", 2700L, startBitrateAt(2500))
+        assertEquals("past the slow anchor", 2700L, startBitrateAt(4061))
+
+        val camera = TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L)
+        assertEquals(
+            "a slow setup lowers only the camera's hint",
+            2700L,
+            computeConnectionStartBitrate(listOf(camera, screenShare), 2500.milliseconds),
+        )
+        assertEquals(
+            "the camera alone is still ramped",
+            650L,
+            computeConnectionStartBitrate(listOf(camera), 2500.milliseconds),
+        )
     }
 
     companion object {
