@@ -672,11 +672,6 @@ private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo, connectionSetupT
         return null
     }
 
-    val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
-    if (trackBr.isScreenShare) {
-        return calculatedStartBitrate
-    }
-
     // Connection setup time (signaling join plus ICE/DTLS) is the only network signal there is
     // before the first video offer, since libwebrtc cannot probe the path until a video sender
     // exists. It grows with round-trip time and loss, which also mark the links where a 1 Mbps
@@ -690,7 +685,14 @@ private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo, connectionSetupT
         (maxStartBitrateKbps - ramp * (maxStartBitrateKbps - minTargetBitrateKbps)).roundToLong()
     } ?: maxStartBitrateKbps
 
-    return minOf(calculatedStartBitrate, capKbps)
+    val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
+    // Screen share is exempt from the cap, because its content needs the bitrate immediately to
+    // stay legible.
+    return if (trackBr.isScreenShare) {
+        calculatedStartBitrate
+    } else {
+        minOf(calculatedStartBitrate, capKbps)
+    }
 }
 
 internal fun isSVCCodec(codec: String?): Boolean {
