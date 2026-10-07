@@ -479,6 +479,96 @@ class LocalParticipantMockE2ETest : MockE2ETest() {
         )
     }
 
+    /**
+     * Disables the high layer for the track's publishing codec, leaving the lower layers enabled.
+     */
+    private fun receiveSubscribedCodecUpdateDisablingHighLayer(trackSid: String) {
+        wsFactory.receiveMessage(
+            with(LivekitRtc.SignalResponse.newBuilder()) {
+                subscribedQualityUpdate = with(LivekitRtc.SubscribedQualityUpdate.newBuilder()) {
+                    this.trackSid = trackSid
+                    addAllSubscribedCodecs(
+                        listOf(
+                            with(SubscribedCodec.newBuilder()) {
+                                codec = VideoCodec.VP8.codecName
+                                addAllQualities(
+                                    listOf(
+                                        LivekitModels.VideoQuality.HIGH to false,
+                                        LivekitModels.VideoQuality.MEDIUM to true,
+                                        LivekitModels.VideoQuality.LOW to true,
+                                    ).map { (quality, enabled) ->
+                                        SubscribedQuality.newBuilder()
+                                            .setQuality(quality)
+                                            .setEnabled(enabled)
+                                            .build()
+                                    },
+                                )
+                                build()
+                            },
+                        ),
+                    )
+                    build()
+                }
+                build().toOkioByteString()
+            },
+        )
+    }
+
+    /**
+     * Answers any publisher offer, echoing back the offer id so the answer is not discarded as stale.
+     */
+    private fun answerPublisherOffers() {
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasOffer()) {
+                wsFactory.receiveMessage(
+                    with(LivekitRtc.SignalResponse.newBuilder()) {
+                        answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                            sdp = "remote_answer"
+                            type = "answer"
+                            id = request.offer.id
+                            build()
+                        }
+                        build()
+                    },
+                )
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    @Test
+    fun publisherAnswerRestatesPausedLayers() = runTest {
+        connect()
+        room.dynacast = true
+        answerPublisherOffers()
+
+        room.localParticipant.publishVideoTrack(track = createLocalTrack(width = 1280, height = 720))
+        testScheduler.advanceUntilIdle()
+
+        receiveSubscribedCodecUpdateDisablingHighLayer(
+            room.localParticipant.videoTrackPublications.first().first.sid,
+        )
+        testScheduler.advanceUntilIdle()
+
+        val encodings = getPublisherPeerConnection().transceivers.first().sender.parameters.encodings
+        val highEncoding = encodings.first { it.rid == "f" }
+        val lowEncoding = encodings.first { it.rid == "q" }
+        assertFalse(highEncoding.active)
+        assertTrue(lowEncoding.active)
+
+        // The SFU's answer no longer carries the RFC 8853 pause markers, so applying it re-enables
+        // the layer that dynacast paused.
+        highEncoding.active = true
+
+        getPublisherPeerConnection().observer?.onRenegotiationNeeded()
+        testScheduler.advanceUntilIdle()
+
+        assertFalse(highEncoding.active)
+        assertTrue(lowEncoding.active)
+    }
+
     private fun createLocalTrack(
         width: Int = 1280,
         height: Int = 720,

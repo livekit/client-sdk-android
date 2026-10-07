@@ -25,13 +25,16 @@ import org.mockito.kotlin.whenever
 import java.util.UUID
 
 object MockRtpSender {
-    fun create(id: String = "sender_id"): RtpSender {
+    fun create(
+        id: String = "sender_id",
+        encodings: List<RtpParameters.Encoding> = emptyList(),
+    ): RtpSender {
         var rtpParameters: RtpParameters = MockRtpParameters(
             transactionId = UUID.randomUUID().toString(),
             degradationPreference = null,
             rtcp = MockRtpParameters.MockRtcp("", false),
             headerExtensions = mutableListOf(),
-            encodings = mutableListOf(),
+            encodings = encodings.toMutableList(),
             codecs = mutableListOf(),
         )
         return Mockito.mock(RtpSender::class.java).apply {

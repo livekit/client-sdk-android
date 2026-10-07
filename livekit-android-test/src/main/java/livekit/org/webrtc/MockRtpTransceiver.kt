@@ -41,7 +41,7 @@ object MockRtpTransceiver {
 
         when (direction) {
             RtpTransceiverDirection.SEND_RECV, RtpTransceiverDirection.SEND_ONLY -> {
-                val sender = MockRtpSender.create(id = id)
+                val sender = MockRtpSender.create(id = id, encodings = init.sendEncodings)
                 Mockito.`when`(mock.sender)
                     .then { sender }
             }
