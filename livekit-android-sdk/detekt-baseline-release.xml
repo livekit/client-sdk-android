@@ -21,7 +21,7 @@
     <ID>CyclomaticComplexMethod:PreconnectAudioBuffer.kt$@Deprecated("Set AudioTrackPublishDefaults.preconnect = true on the RoomOptions instead.") suspend fun &lt;T> Room.withPreconnectAudio( timeout: Duration = TIMEOUT, topic: String = DEFAULT_TOPIC, onError: ((e: Exception) -> Unit)? = null, operation: suspend () -> T, )</ID>
     <ID>CyclomaticComplexMethod:PreconnectAudioBuffer.kt$internal suspend fun Room.startPreconnectAudioJob( roomScope: CoroutineScope, timeout: Duration = TIMEOUT, topic: String = DEFAULT_TOPIC ): () -> Unit</ID>
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@CheckResult internal suspend fun sendData(dataPacket: LivekitModels.DataPacket): Result&lt;Unit></ID>
-    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@Synchronized internal fun reconnect(reason: ReconnectReason)</ID>
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?)</ID>
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
     <ID>CyclomaticComplexMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
@@ -36,7 +36,7 @@
     <ID>LargeClass:RTCEngine.kt$RTCEngine : Listener</ID>
     <ID>LargeClass:Room.kt$Room : ListenerParticipantListenerRpcManagerIncomingDataStreamManager</ID>
     <ID>LargeClass:SignalClient.kt$SignalClient : WebSocketListener</ID>
-    <ID>LongMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
+    <ID>LongMethod:RTCEngine.kt$RTCEngine$@Synchronized internal fun reconnect(reason: ReconnectReason)</ID>
     <ID>LongMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
     <ID>LongMethod:SignalClient.kt$SignalClient$private fun handleSignalResponseImpl(ws: WebSocket, response: LivekitRtc.SignalResponse, encoded: ByteArray)</ID>
     <ID>LongParameterList:AudioBufferCallbackDispatcher.kt$AudioBufferCallback$(buffer: ByteBuffer, audioFormat: Int, channelCount: Int, sampleRate: Int, bytesRead: Int, captureTimeNs: Long)</ID>
