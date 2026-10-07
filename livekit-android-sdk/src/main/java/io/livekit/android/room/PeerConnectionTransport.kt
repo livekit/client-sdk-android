@@ -686,9 +686,9 @@ private fun computeTrackStartBitrate(trackBr: TrackBitrateInfo, connectionSetupT
     } ?: maxStartBitrateKbps
 
     val calculatedStartBitrate = (trackBr.targetBitrateKbps * startBitrateMultiplier).roundToLong()
-    // Screen share is exempt from the 1 Mbps ceiling, but once the cap is below it, a connection
-    // that slow cannot carry an uncapped screen-share seed either.
-    return if (trackBr.isScreenShare && capKbps >= maxStartBitrateKbps) {
+    // Screen share is exempt from the cap, because its content needs the bitrate immediately to
+    // stay legible.
+    return if (trackBr.isScreenShare) {
         calculatedStartBitrate
     } else {
         minOf(calculatedStartBitrate, capKbps)
@@ -713,8 +713,9 @@ internal fun isSVCCodec(codec: String?): Boolean {
  *   single encoding's bitrate; for simulcast it is the sum across layers, since the bandwidth
  *   estimator has to carry all of them.
  * @param isScreenShare Whether the track is a screen share. Screen shares are exempt from the
- *   [maxStartBitrateKbps] cap: they are typically published at high bitrates for text legibility,
- *   and unlike camera content a conservative start is more costly than a brief overshoot.
+ *   [maxStartBitrateKbps] cap and from its connection-setup-time ramp: they are typically published
+ *   at high bitrates for text legibility, and unlike camera content a conservative start is more
+ *   costly than a brief overshoot.
  */
 internal data class TrackBitrateInfo(
     val codec: String,
