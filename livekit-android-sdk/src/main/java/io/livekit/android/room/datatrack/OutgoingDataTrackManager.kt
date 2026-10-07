@@ -21,6 +21,7 @@ import androidx.annotation.VisibleForTesting
 import io.livekit.android.e2ee.DataTrackCryptor
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.UniffiNativeLibrary
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.uniffi.DataTrackOptions
 import io.livekit.uniffi.LocalDataTrackManagerDelegate
@@ -48,10 +49,10 @@ class OutgoingDataTrackManager
 constructor(
     private val engineProvider: Provider<RTCEngine>,
     private val localDataTrackManagerFactory: LocalDataTrackManagerFactory,
+    private val nativeLibrary: UniffiNativeLibrary,
 ) {
     private val lock = Any()
     private var localManager: LocalDataTrackManagerInterface? = null
-    private var nativeUnavailable = false
     private val cryptor = DataTrackCryptor { engineProvider.get().e2EEManager }
 
     /**
@@ -200,9 +201,6 @@ constructor(
     private fun ensureManager(): LocalDataTrackManagerInterface? {
         synchronized(lock) {
             localManager?.let { return it }
-            if (nativeUnavailable) {
-                return null
-            }
             // Whether frames are encrypted is fixed when the manager is built: unlike data
             // channel payloads (a per-message property), data track encryption is a track-level
             // protocol property that subscribers key their decryption on. The cryptor is passed
@@ -211,14 +209,9 @@ constructor(
             val encryptionProvider = cryptor.takeIf {
                 engineProvider.get().e2EEManager?.isDataTrackEncryptionEnabled() == true
             }
-            return try {
+            return nativeLibrary.createOrNull(subsystem = "Data tracks") {
                 localDataTrackManagerFactory.create(delegate, encryptionProvider)
-                    .also { localManager = it }
-            } catch (e: LinkageError) {
-                nativeUnavailable = true
-                LKLog.e(e) { "Data tracks are unavailable: the native library failed to load." }
-                null
-            }
+            }?.also { localManager = it }
         }
     }
 }
