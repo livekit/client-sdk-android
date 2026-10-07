@@ -20,6 +20,7 @@ import io.livekit.android.room.track.DataPublishReliability
 import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.mock.MockAudioStreamTrack
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockMediaStream
 import io.livekit.android.test.mock.MockRtpReceiver
@@ -30,15 +31,23 @@ import io.livekit.android.test.mock.createMediaStreamId
 import io.livekit.android.test.mock.room.track.createMockLocalAudioTrack
 import io.livekit.android.test.util.toPBByteString
 import io.livekit.android.util.toOkioByteString
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import livekit.LivekitRtc
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * For tests that only target one reconnection type.
@@ -283,5 +292,199 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
 
         println(sentRequests)
         assertTrue(sentAddTrack)
+    }
+
+    @Test
+    fun softReconnectKeepsFeatureUpdatesFromPublication() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+        connect()
+
+        val audioTrack = createMockLocalAudioTrack()
+        room.localParticipant.publishAudioTrack(track = audioTrack)
+
+        disconnectPeerConnection()
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        advanceUntilIdle()
+
+        val baseline = countAudioTrackFeatureUpdates()
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(echoCancellation = false)).isSuccess)
+        advanceUntilIdle()
+
+        assertEquals(1, countAudioTrackFeatureUpdates() - baseline)
+    }
+
+    @Test
+    fun fullReconnectStopsFeatureUpdatesFromOldPublication() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        connect()
+
+        val audioTrack = createMockLocalAudioTrack()
+        room.localParticipant.publishAudioTrack(track = audioTrack)
+
+        disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+        testScheduler.advanceUntilIdle()
+
+        val baseline = countAudioTrackFeatureUpdates()
+
+        // A features change should be reported once, by the republished publication.
+        // A second update means the old publication's feature collector is still
+        // running and reporting a stale track sid.
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(echoCancellation = false)).isSuccess)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, countAudioTrackFeatureUpdates() - baseline)
+    }
+
+    @Test
+    fun fullReconnectStopsFeatureUpdatesFromPublishCompletingDuringPreparation() = runTest {
+        connect()
+
+        var deferredAddTrack: LivekitRtc.AddTrackRequest? = null
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasAddTrack() && deferredAddTrack == null) {
+                deferredAddTrack = request.addTrack
+                true
+            } else {
+                false
+            }
+        }
+
+        val audioTrack = createMockLocalAudioTrack()
+        val publish = async(StandardTestDispatcher(testScheduler)) {
+            room.localParticipant.publishAudioTrack(audioTrack)
+        }
+        runCurrent()
+
+        val addTrack = requireNotNull(deferredAddTrack)
+        wsFactory.receiveMessage(
+            LivekitRtc.SignalResponse.newBuilder()
+                .setTrackPublished(
+                    LivekitRtc.TrackPublishedResponse.newBuilder()
+                        .setCid(addTrack.cid)
+                        .setTrack(TestData.LOCAL_AUDIO_TRACK),
+                )
+                .build(),
+        )
+        // The old session accepted the response, but the publish continuation has
+        // not created its publication or feature collector yet.
+        room.localParticipant.prepareForFullReconnect()
+        runCurrent()
+        assertTrue(publish.await())
+
+        val baseline = countAudioTrackFeatureUpdates()
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(echoCancellation = false)).isSuccess)
+        runCurrent()
+
+        assertEquals(0, countAudioTrackFeatureUpdates() - baseline)
+    }
+
+    @Test
+    fun fullReconnectStopsFeatureUpdatesFromPublishAcceptedByOldSessionAfterPreparation() = runTest {
+        connect()
+
+        var deferredAddTrack: LivekitRtc.AddTrackRequest? = null
+        wsFactory.registerSignalRequestHandler { request ->
+            if (request.hasAddTrack() && deferredAddTrack == null) {
+                deferredAddTrack = request.addTrack
+                true
+            } else {
+                false
+            }
+        }
+
+        val audioTrack = createMockLocalAudioTrack()
+        val publish = async(StandardTestDispatcher(testScheduler)) {
+            room.localParticipant.publishAudioTrack(audioTrack)
+        }
+        runCurrent()
+
+        room.localParticipant.prepareForFullReconnect()
+
+        // The old signal session can still deliver responses until its replacement starts.
+        val addTrack = requireNotNull(deferredAddTrack)
+        wsFactory.receiveMessage(
+            LivekitRtc.SignalResponse.newBuilder()
+                .setTrackPublished(
+                    LivekitRtc.TrackPublishedResponse.newBuilder()
+                        .setCid(addTrack.cid)
+                        .setTrack(TestData.LOCAL_AUDIO_TRACK),
+                )
+                .build(),
+        )
+        advanceUntilIdle()
+        assertTrue(publish.getCompleted())
+
+        val baseline = countAudioTrackFeatureUpdates()
+        assertTrue(audioTrack.applyOptions(audioTrack.options.copy(echoCancellation = false)).isSuccess)
+        advanceUntilIdle()
+
+        assertEquals(0, countAudioTrackFeatureUpdates() - baseline)
+    }
+
+    @Test
+    fun fullReconnectKeepsFeatureUpdatesFromPublishAcceptedByNewSession() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_FULL_RECONNECT)
+        connect()
+
+        val oldWebSocket = wsFactory.ws
+        val idRequested = CountDownLatch(1)
+        val resumeId = CountDownLatch(1)
+        val publishCompleted = CountDownLatch(1)
+        val mediaTrack = Mockito.spy(
+            MockAudioStreamTrack(id = TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid),
+        )
+        Mockito.doAnswer {
+            idRequested.countDown()
+            check(resumeId.await(5, TimeUnit.SECONDS)) { "Timed out waiting for full reconnect" }
+            TestData.LOCAL_TRACK_PUBLISHED.trackPublished.cid
+        }.`when`(mediaTrack).id()
+
+        val audioTrack = createMockLocalAudioTrack(mediaTrack = mediaTrack)
+        val publish = async(Dispatchers.Default) {
+            room.localParticipant.publishAudioTrack(audioTrack)
+        }
+        // Completion handlers run after the Deferred reaches its final state, so the
+        // latch guarantees getCompleted() below cannot race the state transition. The
+        // test body must not suspend on publish.await(): it would resume inside the
+        // publish coroutine's frame, where the unconfined event loop defers the
+        // applyOptions feature propagation past the assertions.
+        publish.invokeOnCompletion { publishCompleted.countDown() }
+
+        try {
+            // The publish has passed its connection-state check but has not called addTrack.
+            assertTrue(idRequested.await(5, TimeUnit.SECONDS))
+
+            disconnectPeerConnection()
+            testScheduler.advanceTimeBy(1000)
+            assertNotSame(oldWebSocket, wsFactory.ws)
+            reconnectWebsocket()
+            connectPeerConnection()
+
+            // addTrack is sent through the replacement signal session and accepted there.
+            resumeId.countDown()
+            assertTrue(publishCompleted.await(5, TimeUnit.SECONDS))
+            assertTrue(publish.getCompleted())
+
+            val baseline = countAudioTrackFeatureUpdates()
+            assertTrue(audioTrack.applyOptions(audioTrack.options.copy(echoCancellation = false)).isSuccess)
+            advanceUntilIdle()
+
+            assertEquals(1, countAudioTrackFeatureUpdates() - baseline)
+        } finally {
+            resumeId.countDown()
+        }
+    }
+
+    private fun countAudioTrackFeatureUpdates() = wsFactory.ws.sentRequests.count { requestString ->
+        LivekitRtc.SignalRequest.newBuilder()
+            .mergeFrom(requestString.toPBByteString())
+            .build()
+            .hasUpdateAudioTrack()
     }
 }

@@ -23,7 +23,7 @@ import livekit.org.webrtc.audio.AudioProcessingOptionsResult
 class MockAudioStreamTrack(
     val id: String = "id",
     val kind: String = AUDIO_TRACK_KIND,
-    var enabled: Boolean = true,
+    private var enabled: Boolean = true,
     var state: State = State.LIVE,
 ) : AudioTrack(1L) {
 
