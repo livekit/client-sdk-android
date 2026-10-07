@@ -430,6 +430,18 @@ constructor(
         return newCodecs
     }
 
+    /**
+     * Re-applies the most recently received subscribed codecs.
+     *
+     * Applying a publisher answer re-enables simulcast layers that dynacast had paused, and the
+     * server only sends a subscribed codec update when the set changes, so the pause is restated
+     * here instead.
+     */
+    internal fun refreshSubscribedCodecs() {
+        val codecs = subscribedCodecs ?: return
+        setPublishingCodecs(codecs)
+    }
+
     internal fun addSimulcastTrack(codec: VideoCodec, encodings: List<RtpParameters.Encoding>): SimulcastTrackInfo? {
         if (this.simulcastCodecs.containsKey(codec)) {
             LKLog.w { "$codec already added, skipping." }

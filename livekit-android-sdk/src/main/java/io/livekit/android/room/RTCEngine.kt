@@ -1183,6 +1183,7 @@ internal constructor(
         fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
+        fun onRequestSubscribedCodecRefresh() {}
         fun onSubscriptionPermissionUpdate(subscriptionPermissionUpdate: LivekitRtc.SubscriptionPermissionUpdate)
         fun onSubscriptionError(subscriptionResponse: LivekitRtc.SubscriptionResponse)
         suspend fun onSignalConnected(isResume: Boolean)
@@ -1251,7 +1252,7 @@ internal constructor(
         coroutineScope.launch {
             when (val outcome = publisher?.setRemoteDescription(sessionDescription, offerId).nullSafe()) {
                 is Either.Left -> {
-                    // do nothing.
+                    listener?.onRequestSubscribedCodecRefresh()
                 }
 
                 is Either.Right -> {
