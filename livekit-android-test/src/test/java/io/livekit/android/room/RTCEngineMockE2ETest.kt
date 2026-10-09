@@ -150,6 +150,22 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun setPublisherInitialVideoBitrate() = runTest {
+        connect()
+
+        val applied = room.setPublisherInitialVideoBitrate(
+            initialBitrateBps = 1_500_000,
+            maxBitrateBps = 3_500_000,
+        )
+
+        assertTrue(applied)
+        assertEquals(
+            Triple(null, 1_500_000, 3_500_000),
+            getPublisherPeerConnection().lastBitrateSettings,
+        )
+    }
+
+    @Test
     fun iceSubscriberConnect() = runTest {
         connect()
         assertEquals(
