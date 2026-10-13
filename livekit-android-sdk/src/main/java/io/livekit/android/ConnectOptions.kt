@@ -38,7 +38,8 @@ data class ConnectOptions(
      * A user-provided RTCConfiguration to override options.
      *
      * Note: LiveKit requires [PeerConnection.SdpSemantics.UNIFIED_PLAN] and
-     * [PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY].
+     * [PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY], and always enables
+     * `enableSctpSnap`. These are overwritten even if set otherwise here.
      */
     val rtcConfig: PeerConnection.RTCConfiguration? = null,
     /**
