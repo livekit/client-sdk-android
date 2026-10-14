@@ -721,11 +721,18 @@ class RTCEngineMockE2ETest : MockE2ETest() {
 
         val subPeerConnection = getSubscriberPeerConnection()
         val before = subPeerConnection.addedIceCandidates.size
+
+        // The gap a real connection has between an offer arriving and its description landing.
+        // Signal responses are handled from a queue, so without holding the description here the
+        // offer would be applied before the candidate is even read and there would be no gap.
+        subPeerConnection.holdsRemoteDescriptions = true
         simulateMessageFromServer(TestData.OFFER)
         simulateMessageFromServer(subscriberTrickle())
+        advanceUntilIdle()
 
         assertEquals(before, subPeerConnection.addedIceCandidates.size)
 
+        subPeerConnection.releaseRemoteDescriptions()
         advanceUntilIdle()
 
         assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
@@ -758,53 +765,46 @@ class RTCEngineMockE2ETest : MockE2ETest() {
      */
     @Test
     fun aStaleAnswerDoesNotEndAnotherOffersWait() = runTest {
-        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
         connect()
 
-        // Offers go unanswered from here, so the restart's wait is still outstanding below.
-        val heldAnswers: SignalRequestHandler = { request -> request.hasOffer() }
-        wsFactory.registerSignalRequestHandler(heldAnswers)
-        val pubPeerConnection = getPublisherPeerConnection()
+        val subPeerConnection = getSubscriberPeerConnection()
+        val before = subPeerConnection.addedIceCandidates.size
 
-        disconnectPeerConnection()
-        testScheduler.advanceTimeBy(1000)
-        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(wsFactory.request))
-        simulateMessageFromServer(TestData.RECONNECT)
-        connectPeerConnection()
+        // Two offers in flight, the second replacing the first. A candidate arriving now belongs
+        // to the description still to land, so it waits for that one and not for either answer.
+        subPeerConnection.holdsRemoteDescriptions = true
+        simulateMessageFromServer(TestData.OFFER)
+        simulateMessageFromServer(secondOffer())
+        simulateMessageFromServer(subscriberTrickle())
         advanceUntilIdle()
 
-        val before = pubPeerConnection.addedIceCandidates.size
-        simulateMessageFromServer(staleAnswer())
-        simulateMessageFromServer(publisherTrickle())
+        assertEquals(before, subPeerConnection.addedIceCandidates.size)
+
+        // The first offer's description lands; the second is still owed, so the wait stands.
+        subPeerConnection.releaseHeldRemoteDescription()
         advanceUntilIdle()
 
-        assertEquals(before, pubPeerConnection.addedIceCandidates.size)
-        wsFactory.unregisterSignalRequestHandler(heldAnswers)
+        assertEquals(before, subPeerConnection.addedIceCandidates.size)
+
+        subPeerConnection.releaseRemoteDescriptions()
+        advanceUntilIdle()
+
+        assertEquals(before + 1, subPeerConnection.addedIceCandidates.size)
     }
 
-    /** An answer to the first offer, long since replaced by the ones after it. */
-    private fun staleAnswer(): LivekitRtc.SignalResponse {
-        val answer = LivekitRtc.SessionDescription.newBuilder()
-            .setSdp("remote_answer")
-            .setType("answer")
-            .setId(1)
+    /** A second server offer, replacing the one before it. */
+    private fun secondOffer(): LivekitRtc.SignalResponse {
+        val offer = LivekitRtc.SessionDescription.newBuilder()
+            .setSdp("remote_offer_2")
+            .setType("offer")
+            .setId(100)
             .build()
         return LivekitRtc.SignalResponse.newBuilder()
-            .setAnswer(answer)
+            .setOffer(offer)
             .build()
     }
 
-    private fun publisherTrickle(): LivekitRtc.SignalResponse {
-        val trickle = LivekitRtc.TrickleRequest.newBuilder()
-            .setCandidateInit(
-                """{"candidate":"candidate:2 1 UDP 1 127.0.0.1 9 typ host","sdpMLineIndex":0,"sdpMid":"0"}""",
-            )
-            .setTarget(LivekitRtc.SignalTarget.PUBLISHER)
-            .build()
-        return LivekitRtc.SignalResponse.newBuilder()
-            .setTrickle(trickle)
-            .build()
-    }
+
 
     /** An empty description is the one the mock connection refuses. */
     private fun refusedOffer(): LivekitRtc.SignalResponse {
