@@ -804,8 +804,6 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             .build()
     }
 
-
-
     /** An empty description is the one the mock connection refuses. */
     private fun refusedOffer(): LivekitRtc.SignalResponse {
         val offer = LivekitRtc.SessionDescription.newBuilder()
