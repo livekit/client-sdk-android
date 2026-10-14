@@ -20,6 +20,7 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.test.BaseTest
 import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
 import io.livekit.android.test.mock.room.datatrack.MockRemoteDataTrackManagerFactory
+import io.livekit.android.util.UniffiNativeLibrary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -51,7 +52,7 @@ class DataTrackManagerDestroyedMidCallTest : BaseTest() {
         val factory = MockLocalDataTrackManagerFactory()
         val engine = mock<RTCEngine>()
         whenever(engine.e2EEManager).thenReturn(null)
-        val manager = OutgoingDataTrackManager(Provider { engine }, factory)
+        val manager = OutgoingDataTrackManager(Provider { engine }, factory, UniffiNativeLibrary())
 
         // Build the underlying manager, so republishTracks() has one to resolve.
         assertTrue(manager.publishTrack("telemetry").isSuccess)
@@ -73,7 +74,7 @@ class DataTrackManagerDestroyedMidCallTest : BaseTest() {
         val factory = MockLocalDataTrackManagerFactory()
         val engine = mock<RTCEngine>()
         whenever(engine.e2EEManager).thenReturn(null)
-        val manager = OutgoingDataTrackManager(Provider { engine }, factory)
+        val manager = OutgoingDataTrackManager(Provider { engine }, factory, UniffiNativeLibrary())
 
         assertTrue(manager.publishTrack("telemetry").isSuccess)
         factory.manager.close()
@@ -85,7 +86,7 @@ class DataTrackManagerDestroyedMidCallTest : BaseTest() {
     @Test
     fun resendSubscriptionUpdatesSurvivesManagerDestroyedMidCall() {
         val factory = MockRemoteDataTrackManagerFactory()
-        val manager = IncomingDataTrackManagerImpl(Provider { mock<RTCEngine>() }, factory)
+        val manager = IncomingDataTrackManagerImpl(Provider { mock<RTCEngine>() }, factory, UniffiNativeLibrary())
 
         // Build the underlying manager, so resendSubscriptionUpdates() has one to resolve.
         manager.handleSfuJoinResponse(ByteArray(0))
