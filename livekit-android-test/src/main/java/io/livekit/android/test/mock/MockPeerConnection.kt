@@ -46,6 +46,7 @@ class MockPeerConnection(
     private var closed = false
     var localDesc: SessionDescription? = null
     var remoteDesc: SessionDescription? = null
+    var lastBitrateSettings: Triple<Int?, Int?, Int?>? = null
 
     private val signalStateMachine = SignalStateMachine { newState ->
         observer?.onSignalingChange(newState)
@@ -210,6 +211,7 @@ class MockPeerConnection(
     }
 
     override fun setBitrate(min: Int?, current: Int?, max: Int?): Boolean {
+        lastBitrateSettings = Triple(min, current, max)
         return true
     }
 
