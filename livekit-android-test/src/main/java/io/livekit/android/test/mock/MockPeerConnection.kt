@@ -205,8 +205,14 @@ class MockPeerConnection(
         return true
     }
 
+    /** What [getStats] delivers, how often it was asked, and how it answers (a test can hold the answer back). */
+    var statsReport = RTCStatsReport(0, emptyMap())
+    var statsRequests = 0
+    var statsAnswer: (RTCStatsCollectorCallback) -> Unit = { it.onStatsDelivered(statsReport) }
+
     override fun getStats(callback: RTCStatsCollectorCallback?) {
-        callback?.onStatsDelivered(RTCStatsReport(0, emptyMap()))
+        statsRequests++
+        callback?.let(statsAnswer)
     }
 
     override fun setBitrate(min: Int?, current: Int?, max: Int?): Boolean {

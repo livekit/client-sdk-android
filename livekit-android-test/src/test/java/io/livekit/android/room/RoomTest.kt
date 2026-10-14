@@ -71,6 +71,7 @@ import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.stub
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import uniffi.livekit_telemetry.ReconnectReason
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -104,6 +105,8 @@ class RoomTest {
         override fun create(dynacast: Boolean): LocalParticipant {
             return Mockito.mock(LocalParticipant::class.java)
                 .apply {
+                    // A real participant's sid is empty until the join; the mock's value class getter would be null.
+                    doReturn("").whenever(this).sid
                     whenever(this.events).thenReturn(
                         object : EventListenable<ParticipantEvent> {
                             override val events: SharedFlow<ParticipantEvent> = MutableSharedFlow()
@@ -229,7 +232,7 @@ class RoomTest {
             callback.onAvailable(network)
         }
 
-        Mockito.verify(rtcEngine).reconnect()
+        Mockito.verify(rtcEngine).reconnect(ReconnectReason.NETWORK_CHANGED)
     }
 
     @Test

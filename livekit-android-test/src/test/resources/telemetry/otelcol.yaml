@@ -1,0 +1,22 @@
+# Collector for the telemetry end-to-end test (TelemetryMockE2ETest): accepts OTLP/HTTP on :4319 and
+# writes every request as one JSON line the test reads back. Run:
+#   otelcol-contrib --config livekit-android-test/src/test/resources/telemetry/otelcol.yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4319
+exporters:
+  file:
+    path: /tmp/livekit-telemetry-otlp.jsonl
+service:
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [file]
+    traces:
+      receivers: [otlp]
+      exporters: [file]
