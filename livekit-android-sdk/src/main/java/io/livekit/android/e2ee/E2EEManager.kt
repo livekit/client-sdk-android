@@ -242,6 +242,25 @@ constructor(
         LKLog.d { "ratchetSharedKey: newKey: $newKey" }
     }
 
+    /**
+     * Sets the key index for the frame cryptors of a participant.
+     *
+     * Cryptors created afterwards pick up the latest index automatically via
+     * [KeyProvider.getLatestKeyIndex]; this re-points cryptors that already
+     * exist (for example after a mid-call key rotation).
+     *
+     * @param keyIndex the key index to set
+     * @param participantId the participant identity, or the local participant if null
+     */
+    fun setKeyIndex(keyIndex: Int, participantId: Participant.Identity? = null) {
+        val identity = participantId ?: room?.localParticipant?.identity ?: return
+        for ((key, frameCryptor) in frameCryptors) {
+            if (key.second == identity) {
+                frameCryptor.keyIndex = keyIndex
+            }
+        }
+    }
+
     internal fun cleanup() {
         for (frameCryptor in frameCryptors.values) {
             frameCryptor.dispose()
