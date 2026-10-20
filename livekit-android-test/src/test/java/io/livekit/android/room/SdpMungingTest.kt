@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class SdpMungingTest {
 
@@ -56,13 +57,15 @@ class SdpMungingTest {
         val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
         val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
 
+        // Use realistic bitrate: 1000 kbps (1 Mbps)
+        // With 0.9 multiplier: startBitrate = 900 kbps (below 1 Mbps cap)
         ensureCodecBitrates(
             mediaDescription,
             mapOf(
                 TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
                     TrackBitrateInfo(
-                        "VP9",
-                        1000000L,
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
                     ),
             ),
         )
@@ -71,7 +74,136 @@ class SdpMungingTest {
             .filter { (_, fmtp) -> fmtp.payload == 98L }
             .first()
 
-        assertEquals("profile-id=0;x-google-start-bitrate=700000;x-google-max-bitrate=1000000", vp9fmtp.config)
+        assertEquals("profile-id=0;x-google-start-bitrate=900", vp9fmtp.config)
+    }
+
+    @Test
+    fun ensureCodecBitratesUsesConnectionStartBitrateTest() {
+        val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
+        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+
+        ensureCodecBitrates(
+            mediaDescription,
+            mapOf(
+                TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
+                    TrackBitrateInfo(
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
+                    ),
+            ),
+            connectionStartBitrate = 1000L,
+        )
+
+        val (_, vp9fmtp) = mediaDescription.getFmtps()
+            .filter { (_, fmtp) -> fmtp.payload == 98L }
+            .first()
+
+        assertEquals("profile-id=0;x-google-start-bitrate=1000", vp9fmtp.config)
+    }
+
+    @Test
+    fun ensureCodecBitratesSkipsStartBitrateTest() {
+        val sdp = SdpFactory.getInstance().createSessionDescription(JainSdpUtilsTest.DESCRIPTION)
+        val mediaDescription = sdp.getMediaDescriptions(true).filterIsInstance<MediaDescription>()[1]
+
+        ensureCodecBitrates(
+            mediaDescription,
+            mapOf(
+                TrackBitrateInfoKey.Cid("PA_Qwqk4y9fcD3G") to
+                    TrackBitrateInfo(
+                        codec = "VP9",
+                        targetBitrateKbps = 1000L,
+                    ),
+            ),
+            connectionStartBitrate = null,
+        )
+
+        val (_, vp9fmtp) = mediaDescription.getFmtps()
+            .filter { (_, fmtp) -> fmtp.payload == 98L }
+            .first()
+
+        assertEquals("profile-id=0", vp9fmtp.config)
+    }
+
+    @Test
+    fun computeConnectionStartBitrateTest() {
+        val startBitrate = computeConnectionStartBitrate(
+            listOf(
+                TrackBitrateInfo(
+                    codec = "VP8",
+                    targetBitrateKbps = 2310L,
+                ),
+                TrackBitrateInfo(
+                    codec = "VP8",
+                    targetBitrateKbps = 5000L,
+                    isScreenShare = true,
+                ),
+            ),
+        )
+
+        assertEquals(4500L, startBitrate)
+    }
+
+    @Test
+    fun startBitrateRampsDownWithConnectionSetupTimeTest() {
+        // A 3 Mbps camera target, so only the cap moves.
+        val camera = listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L))
+        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(camera, setupMs.milliseconds)
+
+        assertEquals("instant setup keeps the ceiling", 1000L, startBitrateAt(0))
+        assertEquals("unshaped baseline keeps the ceiling", 1000L, startBitrateAt(471))
+        assertEquals("1 Mbps link median keeps the ceiling", 1000L, startBitrateAt(1273))
+        assertEquals("the fast anchor keeps the ceiling", 1000L, startBitrateAt(1500))
+        assertEquals("1 Mbps link slow attempt barely moves", 922L, startBitrateAt(1724))
+        assertEquals("500 kbps link median lands mid-ramp", 708L, startBitrateAt(2334))
+        assertEquals("midpoint of the ramp", 650L, startBitrateAt(2500))
+        assertEquals("300 kbps link fastest attempt", 442L, startBitrateAt(3093))
+        assertEquals("the slow anchor reaches the floor", 300L, startBitrateAt(3500))
+        assertEquals("anything slower stays at the floor", 300L, startBitrateAt(18_131))
+
+        assertEquals(
+            "90% of the target still wins when it is lower than the cap",
+            450L,
+            computeConnectionStartBitrate(
+                listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 500L)),
+                2500.milliseconds,
+            ),
+        )
+        assertEquals(
+            "the hint is still written at the floor rather than skipped",
+            270L,
+            computeConnectionStartBitrate(
+                listOf(TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 300L)),
+                3500.milliseconds,
+            ),
+        )
+        assertEquals(
+            "no setup time keeps today's cap",
+            1000L,
+            computeConnectionStartBitrate(camera, connectionSetupTime = null),
+        )
+    }
+
+    @Test
+    fun slowConnectionSetupLeavesScreenShareUncappedTest() {
+        val screenShare = TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L, isScreenShare = true)
+        fun startBitrateAt(setupMs: Long) = computeConnectionStartBitrate(listOf(screenShare), setupMs.milliseconds)
+
+        assertEquals("a fast setup", 2700L, startBitrateAt(1273))
+        assertEquals("mid-ramp", 2700L, startBitrateAt(2500))
+        assertEquals("past the slow anchor", 2700L, startBitrateAt(4061))
+
+        val camera = TrackBitrateInfo(codec = "VP8", targetBitrateKbps = 3000L)
+        assertEquals(
+            "a slow setup lowers only the camera's hint",
+            2700L,
+            computeConnectionStartBitrate(listOf(camera, screenShare), 2500.milliseconds),
+        )
+        assertEquals(
+            "the camera alone is still ramped",
+            650L,
+            computeConnectionStartBitrate(listOf(camera), 2500.milliseconds),
+        )
     }
 
     companion object {

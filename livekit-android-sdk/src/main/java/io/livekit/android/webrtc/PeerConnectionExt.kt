@@ -64,6 +64,7 @@ fun RTCConfiguration.copyFrom(config: RTCConfiguration) {
     enableDscp = config.enableDscp
     enableIceGatheringOnAnyAddressPorts = config.enableIceGatheringOnAnyAddressPorts
     enableImplicitRollback = config.enableImplicitRollback
+    enableSctpSnap = config.enableSctpSnap
     iceBackupCandidatePairPingInterval = config.iceBackupCandidatePairPingInterval
     iceCandidatePoolSize = config.iceCandidatePoolSize
     iceCheckIntervalStrongConnectivityMs = config.iceCheckIntervalStrongConnectivityMs
