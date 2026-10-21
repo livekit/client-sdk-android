@@ -35,6 +35,17 @@ android {
     testOptions {
         unitTests {
             includeAndroidResources = true
+            all { test ->
+                // Robolectric runs the real Rust core (livekit_uniffi) through JNA; point it at a host
+                // build of the library: -PlivekitUniffiLibraryPath=… or LIVEKIT_UNIFFI_LIBRARY_PATH.
+                def uniffiLibraryPath = project.findProperty('livekitUniffiLibraryPath') ?: System.getenv('LIVEKIT_UNIFFI_LIBRARY_PATH')
+                if (uniffiLibraryPath) {
+                    test.systemProperty 'jna.library.path', uniffiLibraryPath
+                }
+                // UniFFI objects register with android.system.SystemCleaner (API 34+), which Robolectric
+                // implements on top of a JDK-internal cleaner.
+                test.jvmArgs '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED'
+            }
         }
     }
     lint {
@@ -129,6 +140,7 @@ dependencies {
 
     testImplementation libs.junit
     testImplementation libs.robolectric
+    testImplementation libs.jna
     testImplementation libs.okhttp.mockwebserver
     testImplementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     kaptTest libs.dagger.compiler
