@@ -438,9 +438,10 @@ constructor(
     /**
      * Re-applies the most recently received subscribed codecs.
      *
-     * Applying a publisher answer re-enables simulcast layers that dynacast had paused, and the
-     * server only sends a subscribed codec update when the set changes, so the pause is restated
-     * here instead.
+     * Applying a publisher answer re-enables simulcast layers that dynacast had paused. Servers
+     * before v1.13.8 only send a subscribed codec update when the set changes, and newer ones
+     * restate it a few seconds after the answer (livekit/livekit#4907), so the pause is restated
+     * here right away instead.
      */
     internal fun refreshSubscribedCodecs() {
         val codecs = subscribedCodecs ?: return
