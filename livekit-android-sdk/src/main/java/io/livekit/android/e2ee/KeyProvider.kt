@@ -54,6 +54,7 @@ class BaseKeyProvider(
 ) : KeyProvider {
 
     private val latestSetIndex = mutableMapOf<String, Int>()
+    private var latestSharedKeyIndex = 0
 
     override val rtcKeyProvider: FrameCryptorKeyProvider = FrameCryptorFactory.createFrameCryptorKeyProvider(
         enableSharedKey,
@@ -67,7 +68,9 @@ class BaseKeyProvider(
     )
 
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
-        return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
+        return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray()).also { succeeded ->
+            if (succeeded) latestSharedKeyIndex = keyIndex ?: 0
+        }
     }
 
     override fun ratchetSharedKey(keyIndex: Int?): ByteArray {
@@ -113,6 +116,10 @@ class BaseKeyProvider(
     }
 
     override fun getLatestKeyIndex(participantId: String): Int {
-        return latestSetIndex[participantId] ?: 0
+        return if (enableSharedKey) {
+            latestSharedKeyIndex
+        } else {
+            latestSetIndex[participantId] ?: 0
+        }
     }
 }
