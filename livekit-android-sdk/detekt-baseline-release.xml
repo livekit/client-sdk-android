@@ -80,6 +80,7 @@
     <ID>TooManyFunctions:CommunicationWorkaround.kt$CommunicationWorkaroundImpl : CommunicationWorkaround</ID>
     <ID>TooManyFunctions:E2EEManager.kt$E2EEManager</ID>
     <ID>TooManyFunctions:IncomingDataStreamManager.kt$IncomingDataStreamManagerImpl : IncomingDataStreamManager</ID>
+    <ID>TooManyFunctions:KeyProvider.kt$BaseKeyProvider : KeyProviderKeyIndexObservable</ID>
     <ID>TooManyFunctions:LKLog.kt$LKLog$Companion</ID>
     <ID>TooManyFunctions:LocalParticipant.kt$LocalParticipant : ParticipantOutgoingDataStreamManagerRpcManager</ID>
     <ID>TooManyFunctions:LocalVideoTrack.kt$LocalVideoTrack : VideoTrack</ID>

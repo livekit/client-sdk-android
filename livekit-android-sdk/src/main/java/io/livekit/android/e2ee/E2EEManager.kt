@@ -32,6 +32,8 @@ import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.util.LKLog
+import io.livekit.android.webrtc.peerconnection.RTCThreadToken
+import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
 import livekit.LivekitModels.Encryption
 import livekit.org.webrtc.FrameCryptor
 import livekit.org.webrtc.FrameCryptor.FrameCryptionState
@@ -40,6 +42,7 @@ import livekit.org.webrtc.FrameCryptorFactory
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.RtpSender
+import java.util.Collections
 
 class E2EEManager
 @AssistedInject
@@ -47,9 +50,10 @@ constructor(
     @Assisted val keyProvider: KeyProvider,
     val peerConnectionFactory: PeerConnectionFactory,
     dataPacketCryptorManagerFactory: DataPacketCryptorManager.Factory,
+    private val rtcThreadToken: RTCThreadToken,
 ) {
     private var room: Room? = null
-    private val frameCryptors = mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>()
+    private val frameCryptors = Collections.synchronizedMap(mutableMapOf<Pair<String, Participant.Identity>, FrameCryptor>())
     private var algorithm: FrameCryptorAlgorithm = FrameCryptorAlgorithm.AES_GCM
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
 
@@ -58,9 +62,11 @@ constructor(
     var enabled: Boolean = false
         set(value) {
             field = value
-            for (item in frameCryptors.entries) {
-                val frameCryptor = item.value
-                frameCryptor.isEnabled = enabled
+            synchronized(frameCryptors) {
+                for (item in frameCryptors.entries) {
+                    val frameCryptor = item.value
+                    frameCryptor.isEnabled = enabled
+                }
             }
         }
 
@@ -96,6 +102,7 @@ constructor(
         this.enabled = true
         this.room = room
         this.emitEvent = emitEvent
+        observeKeyIndex()
         this.room?.localParticipant?.trackPublications?.forEach { item ->
             val participant = this.room!!.localParticipant
             val publication = item.value
@@ -242,14 +249,42 @@ constructor(
         LKLog.d { "ratchetSharedKey: newKey: $newKey" }
     }
 
-    internal fun cleanup() {
-        for (frameCryptor in frameCryptors.values) {
-            frameCryptor.dispose()
+    /**
+     * Re-stamps the frame cryptors of every track the local participant has
+     * already published with the provider's latest key index. Runs on the
+     * RTC thread like all other frame cryptor calls.
+     */
+    internal fun setSenderKeyIndex(keyIndex: Int) {
+        val localIdentity = room?.localParticipant?.identity ?: return
+        executeOnRTCThread(rtcThreadToken) {
+            synchronized(frameCryptors) {
+                for ((key, frameCryptor) in frameCryptors) {
+                    if (key.second == localIdentity) {
+                        frameCryptor.keyIndex = keyIndex
+                    }
+                }
+            }
         }
-        frameCryptors.clear()
+    }
+
+    private fun observeKeyIndex() {
+        (keyProvider as? KeyIndexObservable)?.addKeyIndexObserver(this) { index ->
+            setSenderKeyIndex(index)
+        }
+    }
+
+    internal fun cleanup() {
+        (keyProvider as? KeyIndexObservable)?.removeKeyIndexObserver(this)
+        synchronized(frameCryptors) {
+            for (frameCryptor in frameCryptors.values) {
+                frameCryptor.dispose()
+            }
+            frameCryptors.clear()
+        }
     }
 
     internal fun dispose() {
+        (keyProvider as? KeyIndexObservable)?.removeKeyIndexObserver(this)
         dataPacketCryptorManager.dispose()
     }
 
