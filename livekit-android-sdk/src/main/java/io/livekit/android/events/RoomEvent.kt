@@ -247,6 +247,19 @@ sealed class RoomEvent(val room: Room) : Event() {
     /**
      * Received data published by another participant
      *
+     * [participant] is null when the sender is not in the room, such as data published through
+     * the Server API or by a participant that has already left. Use [participantIdentity] to
+     * attribute the data in that case.
+     *
+     * ```
+     * room.events.collect { event ->
+     *     if (event is RoomEvent.DataReceived) {
+     *         val sender = event.participant?.identity?.value ?: event.participantIdentity
+     *         println("$sender sent ${event.data.size} bytes")
+     *     }
+     * }
+     * ```
+     *
      * @param data the published data
      * @param participant the participant if available
      */
@@ -262,7 +275,21 @@ sealed class RoomEvent(val room: Room) : Event() {
          */
         val participantIdentity: String = "",
     ) :
-        RoomEvent(room)
+        RoomEvent(room) {
+        /**
+         * Retains the pre-[participantIdentity] JVM constructor signature, so modules compiled
+         * against an earlier SDK keep linking. A Kotlin default argument alone would not: it
+         * emits the full-arity constructor plus a synthetic one, and the old five-argument
+         * signature would disappear.
+         */
+        constructor(
+            room: Room,
+            data: ByteArray,
+            participant: RemoteParticipant?,
+            topic: String?,
+            encryptionType: LivekitModels.Encryption.Type,
+        ) : this(room, data, participant, topic, encryptionType, "")
+    }
 
     /**
      * The connection quality for a participant has changed.
