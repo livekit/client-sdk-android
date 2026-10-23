@@ -1186,7 +1186,7 @@ internal constructor(
         fun onRoomUpdate(update: LivekitModels.Room)
         fun onConnectionQuality(updates: List<LivekitRtc.ConnectionQualityInfo>)
         fun onSpeakersChanged(speakers: List<LivekitModels.SpeakerInfo>)
-        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type)
+        fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type, participantIdentity: String)
         fun onStreamStateUpdate(streamStates: List<LivekitRtc.StreamStateInfo>)
         fun onSubscribedQualityUpdate(subscribedQualityUpdate: LivekitRtc.SubscribedQualityUpdate)
         fun onRequestSubscribedCodecRefresh() {}
@@ -1550,7 +1550,7 @@ internal constructor(
             }
 
             LivekitModels.DataPacket.ValueCase.USER -> {
-                listener?.onUserPacket(dp.user, dp.kind, encryptionType)
+                listener?.onUserPacket(dp.user, dp.kind, encryptionType, dp.participantIdentity)
             }
 
             LivekitModels.DataPacket.ValueCase.SIP_DTMF -> {
