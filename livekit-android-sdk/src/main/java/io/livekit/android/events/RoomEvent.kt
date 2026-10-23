@@ -256,6 +256,11 @@ sealed class RoomEvent(val room: Room) : Event() {
         val participant: RemoteParticipant?,
         val topic: String?,
         val encryptionType: LivekitModels.Encryption.Type,
+        /**
+         * Identity of the sender. Reported even when [participant] is null because the
+         * sender is not (or is no longer) a participant in this room.
+         */
+        val participantIdentity: String = "",
     ) :
         RoomEvent(room)
 

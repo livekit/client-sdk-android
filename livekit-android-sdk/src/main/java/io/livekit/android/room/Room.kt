@@ -1391,7 +1391,7 @@ constructor(
     /**
      * @suppress
      */
-    override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type) {
+    override fun onUserPacket(packet: LivekitModels.UserPacket, kind: LivekitModels.DataPacket.Kind, encryptionType: LivekitModels.Encryption.Type, participantIdentity: String) {
         val participant = getParticipantBySid(packet.participantSid) as? RemoteParticipant
         val data = packet.payload.toByteArray()
         val topic = if (packet.hasTopic()) {
@@ -1400,7 +1400,7 @@ constructor(
             null
         }
 
-        val event = RoomEvent.DataReceived(this, data, participant, topic, encryptionType)
+        val event = RoomEvent.DataReceived(this, data, participant, topic, encryptionType, participantIdentity)
         eventBus.postEvent(event, coroutineScope)
         participant?.onDataReceived(event)
     }
