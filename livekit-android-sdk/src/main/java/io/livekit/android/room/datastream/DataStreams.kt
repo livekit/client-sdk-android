@@ -1,0 +1,903 @@
+/*
+ * Copyright 2026 LiveKit, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.livekit.android.room.datastream
+
+import androidx.annotation.VisibleForTesting
+import io.livekit.android.memory.CloseableManager
+import io.livekit.android.room.ClientCapability
+import io.livekit.android.room.ClientProtocolVersion
+import io.livekit.android.room.RTCEngine
+import io.livekit.android.room.datastream.incoming.ByteStreamHandler
+import io.livekit.android.room.datastream.incoming.ByteStreamReceiver
+import io.livekit.android.room.datastream.incoming.TextStreamHandler
+import io.livekit.android.room.datastream.incoming.TextStreamReceiver
+import io.livekit.android.room.datastream.outgoing.ByteStreamSender
+import io.livekit.android.room.datastream.outgoing.DataChunker
+import io.livekit.android.room.datastream.outgoing.StreamDestination
+import io.livekit.android.room.datastream.outgoing.TextStreamSender
+import io.livekit.android.room.participant.Participant
+import io.livekit.android.util.LKLog
+import io.livekit.android.util.UniffiNativeLibrary
+import io.livekit.android.util.rethrowIfCancellationSignal
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import livekit.LivekitModels
+import java.io.Closeable
+import java.util.Collections
+import javax.inject.Inject
+import javax.inject.Singleton
+import io.livekit.uniffi.ByteStreamInfo as FfiByteStreamInfo
+import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
+import io.livekit.uniffi.ByteStreamWriter as FfiByteStreamWriter
+import io.livekit.uniffi.ClientCapability as FfiClientCapability
+import io.livekit.uniffi.DataStreamException as FfiDataStreamException
+import io.livekit.uniffi.Disposable as FfiDisposable
+import io.livekit.uniffi.EncryptionType as FfiEncryptionType
+import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
+import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
+import io.livekit.uniffi.OperationType as FfiOperationType
+import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
+import io.livekit.uniffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
+import io.livekit.uniffi.PacketDeliveryException as FfiPacketDeliveryException
+import io.livekit.uniffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
+import io.livekit.uniffi.StreamByteOptions as FfiStreamByteOptions
+import io.livekit.uniffi.StreamTextOptions as FfiStreamTextOptions
+import io.livekit.uniffi.TextStreamInfo as FfiTextStreamInfo
+import io.livekit.uniffi.TextStreamReader as FfiTextStreamReader
+import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
+
+/**
+ * Carried by the [StreamException] a send raises when `liblivekit_uniffi` is missing for the
+ * device's ABI, or otherwise fails to load.
+ *
+ * The matching log line, with the underlying [LinkageError] attached, comes from
+ * [io.livekit.android.util.UniffiNativeLibrary] at the point of failure -- this is only what the
+ * caller catching the send sees.
+ */
+private const val NATIVE_UNAVAILABLE_MESSAGE =
+    "Data streams are unavailable: the LiveKit native library failed to load."
+
+/**
+ * Owns the livekit-uniffi data stream managers and the topic to handler registry, and routes
+ * packets between them and [RTCEngine].
+ *
+ * This is the single place the FFI is touched. Everything above it -- the
+ * [io.livekit.android.room.datastream.incoming.IncomingDataStreamManager] and
+ * [io.livekit.android.room.datastream.outgoing.OutgoingDataStreamManager] implementations, the
+ * public sender and receiver types -- deals only in this SDK's own types.
+ *
+ * Room-scoped rather than session-scoped: stream handlers are registered before connecting (and by
+ * internal RPC wiring on every connect), so they and the managers holding them have to survive
+ * reconnects. Neither FFI manager holds a channel handle -- inbound packets are pushed in via
+ * [handleIncoming] and outbound ones are pulled out through a delegate -- so there is nothing
+ * transport-shaped to reopen when the connection changes.
+ *
+ * @suppress
+ */
+// The FFI facade is wide by nature: every public data stream entry point, both managers' lifecycles
+// and the delegate plumbing land here so that nothing above this class touches the FFI.
+@Suppress("TooManyFunctions")
+@Singleton
+class DataStreams
+@Inject
+internal constructor(
+    private val engine: RTCEngine,
+    closeableManager: CloseableManager,
+    private val nativeLibrary: UniffiNativeLibrary,
+) : Closeable {
+
+    /**
+     * Room state the send path needs, assigned by [io.livekit.android.room.Room] after
+     * construction.
+     *
+     * Injecting Room here would be a Dagger cycle, so these follow the same
+     * assign-a-lambda-afterwards pattern Room already uses for the RPC managers'
+     * `getRemoteClientProtocol`.
+     */
+    internal var remoteIdentities: () -> List<Participant.Identity> = { emptyList() }
+    internal var remoteClientProtocol: (Participant.Identity) -> Int = { ClientProtocolVersion.DEFAULT.value }
+    internal var remoteCapabilities: (Participant.Identity) -> List<ClientCapability> = { emptyList() }
+
+    /**
+     * Cap on the size of a reassembled incoming payload, from
+     * [io.livekit.android.RoomOptions.dataStreamOptions]. Read lazily -- see [incomingManager].
+     */
+    internal var maxPayloadByteLength: () -> Long? = { null }
+
+    /**
+     * The dispatcher for everything on the FFI boundary: calls into the core, and the coroutines
+     * that react to its callbacks.
+     *
+     * Deliberately a real dispatcher, and deliberately not the injected one. Two reasons, both of
+     * which have bitten:
+     *
+     *  - The core resumes a suspended call from a thread on its own runtime, so the continuation
+     *    has to land on a dispatcher actually backed by threads. On a virtual-time test dispatcher
+     *    it is queued for a scheduler nobody is advancing and the call never completes.
+     *  - The core invokes our delegates synchronously on its runtime threads. An unconfined
+     *    dispatcher resumes waiting coroutines *inline on the calling thread*, so the work those
+     *    coroutines do -- awaiting a publisher connection, waiting out data channel backpressure --
+     *    would run on, and block, a core runtime thread. Enough of those and the core's runtime
+     *    deadlocks and every stream stops.
+     *
+     * Confining all of it here keeps both hazards off callers, including SDK users whose own tests
+     * may run the SDK on a test dispatcher.
+     */
+    @Suppress("InjectDispatcher") // Injecting this breaks the FFI, per the reasons above.
+    private val ffiDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    private val coroutineScope = CoroutineScope(SupervisorJob() + ffiDispatcher)
+
+    private val textStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, TextStreamHandler>())
+    private val byteStreamHandlers = Collections.synchronizedMap(mutableMapOf<String, ByteStreamHandler>())
+
+    private val ffiLock = Any()
+    private var outgoing: FfiOutgoingDataStreamManager? = null
+    private var incoming: FfiIncomingDataStreamManager? = null
+
+    /**
+     * Set by [close], guarded by [ffiLock]. Ending a session leaves [incoming] null so the
+     * next packet can rebuild it; closing must not: the scope the delegate needs is already
+     * cancelled, so a manager built after close could never deliver anything -- and nothing would
+     * ever destroy it.
+     */
+    private var closed = false
+
+    init {
+        closeableManager.registerClosable(this)
+    }
+
+    /**
+     * The incoming manager, built on first use, or null if it cannot be built.
+     *
+     * Deliberately not built in `init`: its payload cap comes from the room options, which are not
+     * final until `connect` -- after this class is constructed. The first inbound packet can only
+     * arrive after connecting, so reading the cap here picks up a value passed to `connect`.
+     */
+    private fun incomingManager(): FfiIncomingDataStreamManager? {
+        synchronized(ffiLock) {
+            if (closed) {
+                return null
+            }
+            incoming?.let { return it }
+            return buildFfiManager {
+                FfiIncomingDataStreamManager(
+                    delegate = IncomingDelegate(),
+                    maxPayloadByteLength = maxPayloadByteLength()?.toULong(),
+                )
+            }?.also { incoming = it }
+        }
+    }
+
+    /**
+     * The outgoing manager, built on first use.
+     *
+     * @throws StreamException if data streams are closed, or the native library cannot be loaded.
+     */
+    private fun requireOutgoingManager(): FfiOutgoingDataStreamManager {
+        synchronized(ffiLock) {
+            if (closed) {
+                throw StreamException.InternalException("Data streams have been closed.")
+            }
+            outgoing?.let { return it }
+            val manager = buildFfiManager { FfiOutgoingDataStreamManager(OutgoingDelegate(), RegistryDelegate()) }
+                ?: throw StreamException.InternalException(NATIVE_UNAVAILABLE_MESSAGE)
+            outgoing = manager
+            return manager
+        }
+    }
+
+    /**
+     * Builds an FFI manager, returning null if the native library is missing or unloadable.
+     *
+     * The library is only loaded when the FFI is first touched, so this is where an ABI with no
+     * `liblivekit_uniffi` surfaces -- as a [LinkageError] rather than an exception. Remembering
+     * that is [UniffiNativeLibrary]'s job, and the instance is shared with data tracks so one
+     * failed load is enough for all of them.
+     *
+     * Called holding [ffiLock], which guards the manager fields this feeds.
+     */
+    private fun <T> buildFfiManager(build: () -> T): T? =
+        nativeLibrary.createOrNull(subsystem = "Data streams", create = build)
+
+    // region Handler registration
+
+    fun registerTextStreamHandler(topic: String, handler: TextStreamHandler) {
+        synchronized(textStreamHandlers) {
+            if (textStreamHandlers.containsKey(topic)) {
+                throw IllegalArgumentException("A text stream handler for topic $topic has already been set.")
+            }
+            textStreamHandlers[topic] = handler
+        }
+    }
+
+    fun unregisterTextStreamHandler(topic: String) {
+        synchronized(textStreamHandlers) {
+            textStreamHandlers.remove(topic)
+        }
+    }
+
+    fun registerByteStreamHandler(topic: String, handler: ByteStreamHandler) {
+        synchronized(byteStreamHandlers) {
+            if (byteStreamHandlers.containsKey(topic)) {
+                throw IllegalArgumentException("A byte stream handler for topic $topic has already been set.")
+            }
+            byteStreamHandlers[topic] = handler
+        }
+    }
+
+    fun unregisterByteStreamHandler(topic: String) {
+        synchronized(byteStreamHandlers) {
+            byteStreamHandlers.remove(topic)
+        }
+    }
+
+    // endregion
+
+    // region Incoming
+
+    /**
+     * Feeds a received data stream packet to the core, which re-decodes it itself.
+     *
+     * [encryptionType] is how this packet actually arrived, as determined by [RTCEngine]: `NONE`
+     * unless it came wrapped in an encrypted packet. The core holds every stream to the encryption
+     * its header arrived under, failing it with an encryption type mismatch if a later packet
+     * disagrees.
+     *
+     * Cheap and non-blocking: the packet is queued and processed on the core's own loop, so this is
+     * safe to call from a data channel callback. Packets that are not data stream packets, or do
+     * not decode, are ignored by the core.
+     *
+     * The one exception is the very first call, which builds the incoming manager and so may pay
+     * for loading the native library. As in
+     * [io.livekit.android.room.datatrack.IncomingDataTrackManagerImpl], that is a one-off, and is
+     * the cost of not loading it while the room is still being constructed.
+     */
+    @JvmOverloads
+    fun handleIncoming(
+        packet: LivekitModels.DataPacket,
+        encryptionType: LivekitModels.Encryption.Type = LivekitModels.Encryption.Type.NONE,
+    ) {
+        val handled = withIncomingManager("handle a data stream packet") { manager ->
+            manager.handlePacketReceived(packet.toByteArray(), encryptionType.toFfi())
+        }
+        if (!handled) {
+            // Either closed, or the native library is unavailable -- which incomingManager has
+            // already logged at error level, once.
+            LKLog.d { "Dropping a data stream packet: no incoming manager." }
+        }
+    }
+
+    /**
+     * Runs [block] on the incoming manager under [ffiLock]. Returns false if there is none.
+     *
+     * [buildIfAbsent] builds one on first use; callers that only tidy up streams that already exist
+     * pass false, so a room that never opened one does not load the native library to abort nothing.
+     *
+     * The lock spans the [block]: [endSession] and [close] destroy the manager, and uniffi
+     * throws `IllegalStateException` on a call that starts after its handle is destroyed.
+     */
+    private fun withIncomingManager(
+        action: String,
+        buildIfAbsent: Boolean = true,
+        block: (FfiIncomingDataStreamManager) -> Unit,
+    ): Boolean {
+        synchronized(ffiLock) {
+            val manager = (if (buildIfAbsent) incomingManager() else incoming) ?: return false
+            try {
+                block(manager)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                LKLog.w(e) { "Failed to $action." }
+            }
+            return true
+        }
+    }
+
+    /**
+     * Ends the incoming side of the current session: fails every open incoming stream so blocked
+     * readers raise instead of hanging, and discards the manager so the next session builds a
+     * fresh one.
+     *
+     * Since the manager's payload cap is fixed at its construction, reusing the manager would
+     * silently pin the first session's cap. Handler registrations live on this class and survive,
+     * so streams arriving after a reconnect are still delivered.
+     */
+    fun endSession() {
+        // Aborting and destroying stay under the lock so that a packet or abort that read the
+        // manager cannot call it after this destroys it. See [withIncomingManager].
+        synchronized(ffiLock) {
+            val old = incoming ?: return
+            incoming = null
+            try {
+                old.abortAllStreams()
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                // This runs from Room's disconnect cleanup, which has more to do afterwards, so a
+                // failure here must not abandon the rest of it. destroy() below is unconditional:
+                // it goes nowhere near the FFI unless it is the last reference, and is idempotent.
+                LKLog.w(e) { "Failed to abort open data streams while ending the session." }
+            }
+            old.destroy()
+        }
+    }
+
+    /**
+     * Fails open incoming streams sent by [identity], for when that participant disconnects
+     * mid-send. Without this their readers would wait forever for chunks that will never arrive.
+     */
+    fun abortStreamsFrom(identity: Participant.Identity) {
+        withIncomingManager("abort data streams from ${identity.value}", buildIfAbsent = false) { manager ->
+            manager.abortStreamsFrom(identity.value)
+        }
+    }
+
+    /**
+     * Number of incoming streams currently open: announced by a header and still awaiting more
+     * packets. Inline single-packet streams complete during header handling and are never counted.
+     */
+    @VisibleForTesting
+    internal suspend fun openStreamCount(): ULong {
+        val manager = synchronized(ffiLock) { incoming } ?: return 0u
+        // Deliberately not under ffiLock, unlike the calls above: withContext suspends, and a
+        // monitor must not be held across a suspension point. The manager can therefore be
+        // destroyed between the read and the call, which is what the catch is for.
+        return try {
+            withContext(ffiDispatcher) { manager.openStreamCount() }
+        } catch (e: IllegalStateException) {
+            LKLog.d(e) { "Incoming manager was destroyed while counting open streams." }
+            0u
+        }
+    }
+
+    // endregion
+
+    // region Outgoing
+
+    suspend fun streamText(options: StreamTextOptions): TextStreamSender {
+        val writer = onFfi { requireOutgoingManager().streamText(options.toFfi()) }
+        return TextStreamSender(
+            info = writer.info().toSdk(currentEncryptionType()),
+            destination = TextWriterDestination(writer),
+        )
+    }
+
+    suspend fun streamBytes(options: StreamBytesOptions): ByteStreamSender {
+        val writer = onFfi { requireOutgoingManager().streamBytes(options.toFfi()) }
+        return ByteStreamSender(
+            info = writer.info().toSdk(currentEncryptionType()),
+            destination = ByteWriterDestination(writer),
+        )
+    }
+
+    suspend fun sendText(text: String, options: StreamTextOptions): TextStreamInfo {
+        return onFfi { requireOutgoingManager().sendText(text, options.toFfi()) }
+            .toSdk(currentEncryptionType())
+    }
+
+    suspend fun sendBytes(data: ByteArray, options: StreamBytesOptions): ByteStreamInfo {
+        return onFfi { requireOutgoingManager().sendBytes(data, options.toFfi()) }
+            .toSdk(currentEncryptionType())
+    }
+
+    /**
+     * Sends [path] as a byte stream, read from disk by the core rather than buffered in memory.
+     *
+     * [options] is expected to already carry the name, MIME type and size resolved from the file:
+     * the core reads the bytes but does not inspect the file's metadata.
+     */
+    suspend fun sendFile(path: String, options: StreamBytesOptions): ByteStreamInfo {
+        return onFfi { requireOutgoingManager().sendFile(path, options.toFfi()) }
+            .toSdk(currentEncryptionType())
+    }
+
+    // endregion
+
+    /**
+     * The room's data channel encryption type, for streams this room sends.
+     *
+     * Outgoing only: payload encryption happens in [RTCEngine] on the whole packet, after the
+     * core, so the core stamps outgoing streams `NONE` and the room's real value is applied here.
+     * Incoming streams need no such fixup -- the core stamps them with the encryption their
+     * header actually arrived under, as passed to [handleIncoming].
+     */
+    private fun currentEncryptionType(): LivekitModels.Encryption.Type {
+        return if (engine.e2EEManager?.isDataChannelEncryptionEnabled() == true) {
+            LivekitModels.Encryption.Type.GCM
+        } else {
+            LivekitModels.Encryption.Type.NONE
+        }
+    }
+
+    override fun close() {
+        coroutineScope.cancel()
+        // Releases the native handles, and with them the core's reference to our delegates. Those
+        // delegates are held by a static handle map on the way in, so skipping this would keep this
+        // object -- and through it the engine -- reachable for the life of the process.
+        synchronized(ffiLock) {
+            closed = true
+            incoming?.destroy()
+            incoming = null
+            outgoing?.destroy()
+            outgoing = null
+        }
+    }
+
+    // region FFI delegates
+
+    /**
+     * Receives encoded `DataPacket`s from the core and sends them on the reliable data channel,
+     * returning only once every one has been handed to it.
+     *
+     * This is the back-pressure point by design. The core dedicates a single task to this delegate
+     * and does not pull the next batch until the call returns, which keeps packets in the order the
+     * core emitted them and the originating `send*`/`write` call pending until its packets have
+     * actually reached the transport. Throwing fails that call with a send failure and closes the
+     * affected stream; the binding runs this in a coroutine of its own (not on a core runtime
+     * thread), and cancels it if the core drops the originating send.
+     *
+     * Unlike the Swift implementation this holds a strong reference to its owner: the JVM collects
+     * reference cycles, so the weak back-reference Swift needs to break an ARC cycle would buy
+     * nothing here. What does matter is [close] running, since the FFI's handle map holds this
+     * delegate from a static root.
+     */
+    private inner class OutgoingDelegate : FfiOutgoingDelegate {
+        // The catch below converts into a uniffi-generated error, whose only field is a string:
+        // nothing can carry the cause across the FFI boundary, so the original is logged instead.
+        @Suppress("SwallowedException")
+        override suspend fun onPacketsAvailable(packets: List<ByteArray>) {
+            try {
+                // Confined to ffiDispatcher per this class's threading rules: waiting out
+                // publisher connection and data channel backpressure must not resume on core
+                // runtime threads.
+                withContext(ffiDispatcher) {
+                    for (bytes in packets) {
+                        val packet = LivekitModels.DataPacket.parseFrom(bytes)
+                        engine.waitForBufferStatusLow(packet.kind)
+                        engine.sendData(packet).getOrThrow()
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LKLog.w(e) { "Failed to send data stream packets." }
+                throw FfiPacketDeliveryException.Failed(e.message ?: "Unable to deliver data stream packets.")
+            }
+        }
+    }
+
+    /**
+     * Receives opened incoming streams from the core and routes them to a handler by topic.
+     *
+     * The core surfaces every stream regardless of topic; matching topics to handlers, and
+     * discarding streams nobody is listening for, is this SDK's job.
+     *
+     * Discarding one means destroying its reader. The core keeps a stream open for as long as its
+     * reader exists, so a reader merely dropped on the floor leaves the stream open and its chunks
+     * piling up in the core until the payload cap (5 GB by default) ends it. The Rust SDK gets this
+     * from ownership; here the FFI handle outlives the Kotlin object unless `destroy` is called.
+     */
+    private inner class IncomingDelegate : FfiIncomingDelegate {
+        override fun onTextStreamOpened(reader: FfiTextStreamReader, identity: String) {
+            val ffiInfo = reader.info()
+            // The core stamps the info with the encryption the stream's header arrived under, as
+            // passed to handlePacketReceived -- a plaintext stream is reported as plaintext even
+            // in a room with encryption enabled.
+            val info = ffiInfo.toSdk(ffiInfo.encryptionType.toSdk())
+            val handler = textStreamHandlers[info.topic]
+            if (handler == null) {
+                LKLog.w {
+                    "Received text stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
+                        "(stream ${info.id} from $identity)"
+                }
+                reader.destroy()
+                return
+            }
+            deliver {
+                handler.invoke(
+                    TextStreamReceiver(info, pumpText(reader)),
+                    Participant.Identity(identity),
+                )
+            }
+        }
+
+        override fun onByteStreamOpened(reader: FfiByteStreamReader, identity: String) {
+            val ffiInfo = reader.info()
+            val info = ffiInfo.toSdk(ffiInfo.encryptionType.toSdk())
+            val handler = byteStreamHandlers[info.topic]
+            if (handler == null) {
+                LKLog.w {
+                    "Received byte stream for topic \"${info.topic}\", but no handler was found. Ignoring. " +
+                        "(stream ${info.id} from $identity)"
+                }
+                reader.destroy()
+                return
+            }
+            deliver {
+                handler.invoke(
+                    ByteStreamReceiver(info, pumpBytes(reader)),
+                    Participant.Identity(identity),
+                )
+            }
+        }
+
+        /**
+         * Nothing to do yet: readers observe their own stream ending, so nothing here needs the
+         * signal. It exists for ordered per-topic delivery -- gating the next stream's handler on
+         * the previous stream closing -- which this SDK does not implement yet.
+         */
+        override fun onStreamClosed(streamId: String, identity: String) {}
+    }
+
+    /**
+     * Read access to the room's remote participants, used by the core to resolve a broadcast's
+     * recipients and to decide per-recipient whether an inline or compressed framing is safe.
+     *
+     * Read live rather than cached: eligibility has to reflect who is in the room at send time.
+     */
+    private inner class RegistryDelegate : FfiRegistryDelegate {
+        override fun remoteIdentities(): List<String> {
+            return this@DataStreams.remoteIdentities().map { it.value }
+        }
+
+        override fun remoteClientProtocol(identity: String): Int {
+            return this@DataStreams.remoteClientProtocol(Participant.Identity(identity))
+        }
+
+        override fun remoteCapabilities(identity: String): List<FfiClientCapability> {
+            return this@DataStreams.remoteCapabilities(Participant.Identity(identity))
+                .map { it.toFfi() }
+        }
+    }
+
+    // endregion
+
+    /**
+     * Runs a stream handler off the FFI callback thread.
+     *
+     * Handlers are app code and are not required to return promptly, so running them inline would
+     * let one of them stall the core's runtime thread and with it every other incoming stream.
+     */
+    private fun deliver(block: () -> Unit) {
+        coroutineScope.launch {
+            try {
+                block()
+            } catch (e: Exception) {
+                LKLog.e(e) { "Unhandled exception when invoking stream handler!" }
+            }
+        }
+    }
+
+    /**
+     * Drains an FFI reader into the channel the public receivers are built on.
+     *
+     * Keeps [io.livekit.android.room.datastream.incoming.BaseStreamReceiver] and its `flow` /
+     * `readNext` / `readAll` surface exactly as it was: the channel closes normally when the
+     * stream ends, or with a [StreamException] when it fails.
+     */
+    private fun pumpBytes(reader: FfiByteStreamReader): Channel<ByteArray> {
+        return pump(reader) { reader.next() }
+    }
+
+    /**
+     * As [pumpBytes], re-encoding each piece to UTF-8 because the public [TextStreamReceiver]
+     * decodes from a byte channel.
+     *
+     * Lossless: the core splits text on character boundaries, so every piece is independently
+     * valid UTF-8. Round-tripping keeps [TextStreamReceiver]'s public constructor untouched.
+     */
+    private fun pumpText(reader: FfiTextStreamReader): Channel<ByteArray> {
+        return pump(reader) { reader.next()?.toByteArray(Charsets.UTF_8) }
+    }
+
+    /**
+     * [reader] is released once drained, however that happens. Uniffi's handle map owns the core's
+     * reader until then, and leaving it to the cleaner ties a native object to a JVM object far too
+     * small for the GC to feel any urgency about.
+     */
+    private fun pump(reader: FfiDisposable, next: suspend () -> ByteArray?): Channel<ByteArray> {
+        val channel = Channel<ByteArray>(capacity = Channel.UNLIMITED)
+        coroutineScope.launch {
+            try {
+                while (true) {
+                    val chunk = withContext(ffiDispatcher) { next() } ?: break
+                    channel.send(chunk)
+                }
+                channel.close()
+            } catch (e: CancellationException) {
+                // The scope is cancelled by close() with readers possibly still open. The
+                // cancellation must not become the channel's failure cause: receiveAsFlow
+                // rethrows it, and a CancellationException silently cancels the collecting
+                // coroutine instead of reaching the app's catch blocks. Fail the reader with a
+                // real stream error, then let the cancellation proceed.
+                channel.close(
+                    StreamException.TerminatedException(
+                        "Data streams were closed while the stream was still open.",
+                    ),
+                )
+                throw e
+            } catch (e: Exception) {
+                channel.close(e.toStreamExceptionOrInternal())
+            } finally {
+                reader.destroy()
+            }
+        }
+        return channel
+    }
+
+    // region Writer destinations
+
+    /**
+     * Bridges a public sender onto an FFI writer.
+     *
+     * The [DataChunker] handed in by [io.livekit.android.room.datastream.outgoing.BaseStreamSender]
+     * is deliberately ignored: chunking (including splitting text on character boundaries) now
+     * happens in the core, which also needs the whole write to decide on framing.
+     *
+     * [isOpen] is a snapshot rather than a query. The interface exposes it as a non-suspending
+     * property while the FFI's is a suspending call, so it is tracked locally: set false on close,
+     * and on a failed write, since a write only fails once the stream is finished.
+     *
+     * The writer is released whenever [open] goes false, which is every path that reaches the core:
+     * nothing calls the FFI afterwards, since [write] is gated on [isOpen] and [close] returns
+     * early. Leaving it to the cleaner would be worse here than for readers -- the core's writer
+     * sends a closing trailer when dropped, and that drop needs a runtime thread it will never get
+     * from a JVM cleaner, so an abandoned writer's stream is simply left open on the remote. Which
+     * is why callers are expected to [close] their senders (see `useStreamSender`) rather than let
+     * them fall out of scope, exactly as before the core took over.
+     */
+    private abstract inner class WriterDestination<T> : StreamDestination<T> {
+        @Volatile
+        private var open = true
+
+        override val isOpen: Boolean
+            get() = open
+
+        protected abstract suspend fun writeToFfi(data: T)
+        protected abstract suspend fun closeFfi(reason: String?)
+        protected abstract fun destroyFfi()
+
+        override suspend fun write(data: T, chunker: DataChunker<T>): Result<Unit> {
+            return try {
+                withContext(ffiDispatcher) { writeToFfi(data) }
+                Result.success(Unit)
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                open = false
+                destroyFfi()
+                Result.failure(e.toStreamExceptionOrInternal())
+            }
+        }
+
+        override suspend fun close(reason: String?) {
+            if (!open) {
+                return
+            }
+            open = false
+            try {
+                withContext(ffiDispatcher) { closeFfi(reason) }
+            } catch (e: Exception) {
+                e.rethrowIfCancellationSignal()
+                throw e.toStreamExceptionOrInternal()
+            } finally {
+                // The core marks the stream closed before it sends the trailer, so this is right
+                // even when the close failed: there is nothing left for the writer to do.
+                destroyFfi()
+            }
+        }
+    }
+
+    private inner class TextWriterDestination(
+        private val writer: FfiTextStreamWriter,
+    ) : WriterDestination<String>() {
+        override suspend fun writeToFfi(data: String) = writer.write(data)
+
+        // closeStream, not close: the latter is the AutoCloseable one uniffi generates for
+        // releasing the handle. See the rename in livekit-uniffi's uniffi.toml.
+        override suspend fun closeFfi(reason: String?) {
+            if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
+        }
+
+        override fun destroyFfi() = writer.destroy()
+    }
+
+    private inner class ByteWriterDestination(
+        private val writer: FfiByteStreamWriter,
+    ) : WriterDestination<ByteArray>() {
+        override suspend fun writeToFfi(data: ByteArray) = writer.write(data)
+        override suspend fun closeFfi(reason: String?) {
+            if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
+        }
+
+        override fun destroyFfi() = writer.destroy()
+    }
+
+    // endregion
+
+    /**
+     * Maps anything a call into the core can raise onto this SDK's [StreamException].
+     *
+     * The FFI's own errors convert exactly. Everything else is a bug or a lifecycle race -- most
+     * often the `IllegalStateException` uniffi raises for a call that starts after its handle was
+     * destroyed -- and becomes an [StreamException.InternalException] carrying the original as its
+     * cause, because every public entry point on this path is documented to fail with a
+     * [StreamException] and nothing else. Cancellation is not an error and must be rethrown before
+     * this is reached.
+     */
+    private fun Exception.toStreamExceptionOrInternal(): StreamException {
+        return when (this) {
+            is StreamException -> this
+            is FfiDataStreamException -> toStreamException()
+            else -> {
+                val cause = this
+                StreamException.InternalException("Data stream call failed: $cause").apply { initCause(cause) }
+            }
+        }
+    }
+
+    /**
+     * Runs a suspending call into the core on [ffiDispatcher], translating its errors.
+     */
+    private suspend fun <T> onFfi(body: suspend () -> T): T {
+        try {
+            return withContext(ffiDispatcher) { body() }
+        } catch (e: Exception) {
+            e.rethrowIfCancellationSignal()
+            throw e.toStreamExceptionOrInternal()
+        }
+    }
+}
+
+// region FFI type conversions
+
+internal fun FfiTextStreamInfo.toSdk(encryptionType: LivekitModels.Encryption.Type) = TextStreamInfo(
+    id = id,
+    topic = topic,
+    timestampMs = timestampMs,
+    totalSize = totalLength?.toLong(),
+    attributes = attributes,
+    operationType = operationType.toSdk(),
+    version = version,
+    replyToStreamId = replyToStreamId,
+    attachedStreamIds = attachedStreamIds,
+    generated = generated,
+    encryptionType = encryptionType,
+)
+
+internal fun FfiByteStreamInfo.toSdk(encryptionType: LivekitModels.Encryption.Type) = ByteStreamInfo(
+    id = id,
+    topic = topic,
+    timestampMs = timestampMs,
+    totalSize = totalLength?.toLong(),
+    attributes = attributes,
+    mimeType = mimeType,
+    name = name,
+    encryptionType = encryptionType,
+)
+
+internal fun FfiOperationType.toSdk(): TextStreamInfo.OperationType = when (this) {
+    FfiOperationType.CREATE -> TextStreamInfo.OperationType.CREATE
+    FfiOperationType.UPDATE -> TextStreamInfo.OperationType.UPDATE
+    FfiOperationType.DELETE -> TextStreamInfo.OperationType.DELETE
+    FfiOperationType.REACTION -> TextStreamInfo.OperationType.REACTION
+}
+
+internal fun TextStreamInfo.OperationType.toFfi(): FfiOperationType = when (this) {
+    TextStreamInfo.OperationType.CREATE -> FfiOperationType.CREATE
+    TextStreamInfo.OperationType.UPDATE -> FfiOperationType.UPDATE
+    TextStreamInfo.OperationType.DELETE -> FfiOperationType.DELETE
+    TextStreamInfo.OperationType.REACTION -> FfiOperationType.REACTION
+}
+
+internal fun LivekitModels.Encryption.Type.toFfi(): FfiEncryptionType = when (this) {
+    LivekitModels.Encryption.Type.NONE -> FfiEncryptionType.NONE
+    LivekitModels.Encryption.Type.GCM -> FfiEncryptionType.GCM
+    LivekitModels.Encryption.Type.CUSTOM -> FfiEncryptionType.CUSTOM
+    // Unknown schemes from a newer peer must not compare equal to plaintext, so they travel as
+    // the closest thing to "encrypted, but not something this SDK understands".
+    LivekitModels.Encryption.Type.UNRECOGNIZED -> FfiEncryptionType.CUSTOM
+}
+
+internal fun FfiEncryptionType.toSdk(): LivekitModels.Encryption.Type = when (this) {
+    FfiEncryptionType.NONE -> LivekitModels.Encryption.Type.NONE
+    FfiEncryptionType.GCM -> LivekitModels.Encryption.Type.GCM
+    FfiEncryptionType.CUSTOM -> LivekitModels.Encryption.Type.CUSTOM
+}
+
+internal fun ClientCapability.toFfi(): FfiClientCapability = when (this) {
+    ClientCapability.PACKET_TRAILER -> FfiClientCapability.PACKET_TRAILER
+    ClientCapability.COMPRESSION_DEFLATE_RAW -> FfiClientCapability.COMPRESSION_DEFLATE_RAW
+}
+
+/**
+ * `totalSize` is intentionally not carried over: the core opens an incremental text stream as
+ * unknown-length, and its options have no field for a declared total.
+ */
+internal fun StreamTextOptions.toFfi() = FfiStreamTextOptions(
+    topic = topic,
+    attributes = attributes,
+    destinationIdentities = destinationIdentities.map { it.value },
+    id = streamId,
+    operationType = operationType.toFfi(),
+    version = version,
+    replyToStreamId = replyToStreamId,
+    attachedStreamIds = attachedStreamIds,
+    generated = null,
+    compress = compress,
+    senderIdentity = null,
+)
+
+internal fun StreamBytesOptions.toFfi() = FfiStreamByteOptions(
+    topic = topic,
+    attributes = attributes,
+    destinationIdentities = destinationIdentities.map { it.value },
+    id = streamId,
+    mimeType = mimeType,
+    name = name,
+    totalLength = totalSize?.toULong(),
+    compress = compress,
+    senderIdentity = null,
+)
+
+/**
+ * Maps a core error onto this SDK's [StreamException] hierarchy, one to one.
+ *
+ * Every case the core can report is distinguishable here, either by its own exception type or by
+ * [StreamException.TerminatedException.Reason]. The size failures are modelled as subclasses of
+ * [StreamException.LengthExceededException] so that existing code catching that still catches them.
+ */
+internal fun FfiDataStreamException.toStreamException(): StreamException = when (this) {
+    is FfiDataStreamException.AbnormalEnd -> StreamException.AbnormalEndException(reason)
+    is FfiDataStreamException.Utf8 -> StreamException.DecodeFailedException(reason)
+    is FfiDataStreamException.Decompression -> StreamException.DecodeFailedException("Decompression failed")
+    is FfiDataStreamException.LengthExceeded -> StreamException.LengthExceededException(message)
+    is FfiDataStreamException.HeaderTooLarge -> StreamException.HeaderTooLargeException(message)
+    is FfiDataStreamException.PayloadTooLarge -> StreamException.PayloadTooLargeException(message)
+    is FfiDataStreamException.Incomplete -> StreamException.IncompleteException()
+    is FfiDataStreamException.EncryptionTypeMismatch -> StreamException.EncryptionTypeMismatch(message)
+    is FfiDataStreamException.Internal -> StreamException.InternalException(message)
+
+    // No dedicated type; told apart by their reason.
+    is FfiDataStreamException.AlreadyClosed ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.ALREADY_CLOSED)
+
+    is FfiDataStreamException.InvalidHeader ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.INVALID_HEADER)
+
+    is FfiDataStreamException.MissedChunk ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.MISSED_CHUNK)
+
+    is FfiDataStreamException.SendFailed ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.SEND_FAILED)
+
+    is FfiDataStreamException.InvalidFileName ->
+        StreamException.TerminatedException(message, StreamException.TerminatedException.Reason.INVALID_FILE_NAME)
+
+    // A local file read or write failing is not the remote closing on us, so this is terminated
+    // rather than an abnormal end.
+    is FfiDataStreamException.Io ->
+        StreamException.TerminatedException(reason, StreamException.TerminatedException.Reason.IO)
+}
+
+// endregion

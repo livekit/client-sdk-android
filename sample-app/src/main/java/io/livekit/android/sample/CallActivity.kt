@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xwray.groupie.GroupieAdapter
 import io.livekit.android.sample.common.R
 import io.livekit.android.sample.databinding.CallActivityBinding
+import io.livekit.android.sample.dialog.DataStreamsDialogFragment
 import io.livekit.android.sample.dialog.RpcTestDialogFragment
 import io.livekit.android.sample.dialog.showAudioProcessorSwitchDialog
 import io.livekit.android.sample.dialog.showDebugMenuDialog
@@ -223,6 +224,10 @@ class CallActivity : AppCompatActivity() {
 
         binding.rpcTest.setOnClickListener {
             RpcTestDialogFragment().show(supportFragmentManager, "rpc_test")
+        }
+
+        binding.dataStreams.setOnClickListener {
+            DataStreamsDialogFragment().show(supportFragmentManager, "data_streams")
         }
     }
 
