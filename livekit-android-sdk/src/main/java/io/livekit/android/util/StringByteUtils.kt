@@ -43,5 +43,11 @@ internal fun String.truncateBytes(maxBytes: Int): String {
         }
     }
 
+    // Never end on the first half of a surrogate pair: it would be encoded as a replacement
+    // character, and the truncated string would no longer round trip.
+    if (low > 0 && this[low - 1].isHighSurrogate()) {
+        low--
+    }
+
     return substring(0, low)
 }
