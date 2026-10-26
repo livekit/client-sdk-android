@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,12 @@ internal fun String.truncateBytes(maxBytes: Int): String {
         } else {
             high = mid - 1
         }
+    }
+
+    // Never end on the first half of a surrogate pair: it would be encoded as a replacement
+    // character, and the truncated string would no longer round trip.
+    if (low > 0 && this[low - 1].isHighSurrogate()) {
+        low--
     }
 
     return substring(0, low)
