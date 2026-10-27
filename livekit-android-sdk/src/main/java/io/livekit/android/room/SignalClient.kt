@@ -25,6 +25,7 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.datatrack.DataTrackSchemaException
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.util.SignalUrlBuilder
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
@@ -32,7 +33,6 @@ import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.TimeoutException
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
@@ -361,10 +361,9 @@ constructor(
         var reason: String? = null
         try {
             val lastToken = webSocket.request().header("Authorization")
-            lastUrl?.let {
-                val validationUrl = it.toHttpUrl().replaceFirst("/rtc?", "/rtc/validate?")
+            SignalUrlBuilder.toValidateUrl(lastUrl).getOrNull()?.let {
                 val request = Request.Builder()
-                    .url(validationUrl)
+                    .url(it)
                     .apply {
                         if (lastToken != null) {
                             addHeader("Authorization", lastToken)
