@@ -23,6 +23,7 @@ import io.livekit.android.dagger.DaggerLiveKitComponent
 import io.livekit.android.dagger.RTCModule
 import io.livekit.android.dagger.create
 import io.livekit.android.room.Room
+import io.livekit.android.telemetry.Telemetry
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 
@@ -63,6 +64,17 @@ object LiveKit {
      */
     @JvmStatic
     var enableWebRTCLogging: Boolean = false
+
+    /**
+     * Opts this process out of client telemetry, in effect when this returns. Collection stops,
+     * and everything not yet sent — queued, open or cached on disk — is deleted; Rooms created
+     * afterwards collect nothing, and the first of them deletes what a previous launch left cached.
+     * Call it at every launch, before creating a Room, to collect nothing at all.
+     *
+     * TODO: final shape pending the token/consent discussion.
+     */
+    @JvmStatic
+    fun disableTelemetry() = Telemetry.disable()
 
     /**
      * Certain WebRTC classes need to be initialized prior to use.
