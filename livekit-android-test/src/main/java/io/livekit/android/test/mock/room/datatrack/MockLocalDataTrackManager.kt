@@ -17,13 +17,13 @@
 package io.livekit.android.test.mock.room.datatrack
 
 import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
-import io.livekit.uniffi.DataTrackFrame
-import io.livekit.uniffi.DataTrackInfo
-import io.livekit.uniffi.DataTrackOptions
-import io.livekit.uniffi.LocalDataTrack
-import io.livekit.uniffi.LocalDataTrackManagerDelegate
-import io.livekit.uniffi.LocalDataTrackManagerInterface
-import io.livekit.uniffi.NoHandle
+import io.livekit.ffi.DataTrackFrame
+import io.livekit.ffi.DataTrackInfo
+import io.livekit.ffi.DataTrackOptions
+import io.livekit.ffi.LocalDataTrack
+import io.livekit.ffi.LocalDataTrackManagerDelegate
+import io.livekit.ffi.LocalDataTrackManagerInterface
+import io.livekit.ffi.NoHandle
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import uniffi.livekit_datatrack.EncryptionProvider

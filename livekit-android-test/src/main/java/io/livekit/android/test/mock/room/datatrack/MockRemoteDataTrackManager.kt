@@ -17,13 +17,13 @@
 package io.livekit.android.test.mock.room.datatrack
 
 import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
-import io.livekit.uniffi.DataTrackInfo
-import io.livekit.uniffi.DataTrackStream
-import io.livekit.uniffi.DataTrackSubscribeOptions
-import io.livekit.uniffi.NoHandle
-import io.livekit.uniffi.RemoteDataTrack
-import io.livekit.uniffi.RemoteDataTrackManagerDelegate
-import io.livekit.uniffi.RemoteDataTrackManagerInterface
+import io.livekit.ffi.DataTrackInfo
+import io.livekit.ffi.DataTrackStream
+import io.livekit.ffi.DataTrackSubscribeOptions
+import io.livekit.ffi.NoHandle
+import io.livekit.ffi.RemoteDataTrack
+import io.livekit.ffi.RemoteDataTrackManagerDelegate
+import io.livekit.ffi.RemoteDataTrackManagerInterface
 import uniffi.livekit_datatrack.DecryptionProvider
 
 class MockRemoteDataTrackManagerFactory : RemoteDataTrackManagerFactory {
