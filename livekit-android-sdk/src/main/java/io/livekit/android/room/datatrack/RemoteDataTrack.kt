@@ -20,8 +20,8 @@ import androidx.annotation.CheckResult
 import androidx.annotation.IntRange
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.uniffi.DataTrackSubscribeOptions
-import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
+import io.livekit.ffi.DataTrackSubscribeOptions
+import io.livekit.ffi.RemoteDataTrack as FfiRemoteDataTrack
 import uniffi.livekit_datatrack.DataTrackSubscribeException as FfiSubscribeException
 
 /**

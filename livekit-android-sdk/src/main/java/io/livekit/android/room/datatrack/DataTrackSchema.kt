@@ -18,7 +18,7 @@ package io.livekit.android.room.datatrack
 
 import livekit.LivekitModels
 import livekit.LivekitModels.DataTrackSchemaEncoding.WellKnownSchemaEncoding
-import io.livekit.uniffi.DataTrackSchemaId as FfiSchemaId
+import io.livekit.ffi.DataTrackSchemaId as FfiSchemaId
 import uniffi.livekit_datatrack.DataTrackFrameEncoding as FfiFrameEncoding
 import uniffi.livekit_datatrack.DataTrackSchemaEncoding as FfiSchemaEncoding
 

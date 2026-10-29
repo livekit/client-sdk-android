@@ -44,8 +44,8 @@ import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
-import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
-import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
+import io.livekit.ffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
+import io.livekit.ffi.TextStreamWriter as FfiTextStreamWriter
 
 /**
  * The v2 send path, end to end through [DataStreams] and out to a stubbed engine.

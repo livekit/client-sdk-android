@@ -43,7 +43,7 @@ import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.zip.Deflater
-import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
+import io.livekit.ffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
 
 /**
  * The v2 receive path through [DataStreams].

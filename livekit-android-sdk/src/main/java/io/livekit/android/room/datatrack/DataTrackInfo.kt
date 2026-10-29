@@ -16,7 +16,7 @@
 
 package io.livekit.android.room.datatrack
 
-import io.livekit.uniffi.DataTrackInfo as FfiDataTrackInfo
+import io.livekit.ffi.DataTrackInfo as FfiDataTrackInfo
 
 /**
  * Metadata describing a published data track.

@@ -20,7 +20,7 @@ import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
-import io.livekit.uniffi.buildVersion
+import io.livekit.ffi.buildVersion
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import livekit.LivekitModels
@@ -34,16 +34,16 @@ import org.junit.runner.RunWith
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
-import io.livekit.uniffi.ClientCapability as FfiClientCapability
-import io.livekit.uniffi.EncryptionType as FfiEncryptionType
-import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
-import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
-import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
-import io.livekit.uniffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
-import io.livekit.uniffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
-import io.livekit.uniffi.StreamTextOptions as FfiStreamTextOptions
-import io.livekit.uniffi.TextStreamReader as FfiTextStreamReader
+import io.livekit.ffi.ByteStreamReader as FfiByteStreamReader
+import io.livekit.ffi.ClientCapability as FfiClientCapability
+import io.livekit.ffi.EncryptionType as FfiEncryptionType
+import io.livekit.ffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
+import io.livekit.ffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
+import io.livekit.ffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
+import io.livekit.ffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
+import io.livekit.ffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
+import io.livekit.ffi.StreamTextOptions as FfiStreamTextOptions
+import io.livekit.ffi.TextStreamReader as FfiTextStreamReader
 
 /**
  * Runs the data stream core on a real Android device.
@@ -133,7 +133,7 @@ class DataStreamsOnDeviceTest {
     fun nativeLibraryLoadsOnDevice() {
         val version = buildVersion()
 
-        assertTrue("livekit-uniffi reported an empty build version", version.isNotEmpty())
+        assertTrue("livekit-ffi reported an empty build version", version.isNotEmpty())
     }
 
     /**
@@ -343,11 +343,11 @@ class DataStreamsOnDeviceTest {
 
     @Test
     fun errorMappingWorksOnDevice() {
-        val header = io.livekit.uniffi.DataStreamException.HeaderTooLarge().toStreamException()
+        val header = io.livekit.ffi.DataStreamException.HeaderTooLarge().toStreamException()
         assertTrue(header is StreamException.HeaderTooLargeException)
         assertTrue("must stay catchable as the older type", header is StreamException.LengthExceededException)
 
-        val terminated = io.livekit.uniffi.DataStreamException.MissedChunk().toStreamException()
+        val terminated = io.livekit.ffi.DataStreamException.MissedChunk().toStreamException()
         assertEquals(
             StreamException.TerminatedException.Reason.MISSED_CHUNK,
             (terminated as StreamException.TerminatedException).reason,

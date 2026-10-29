@@ -38,7 +38,7 @@ import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 
 /**
- * What happens on a device where `liblivekit_uniffi` cannot be loaded -- an ABI the packaged APK
+ * What happens on a device where `liblivekit_ffi` cannot be loaded -- an ABI the packaged APK
  * has no `.so` for, or an app whose `abiFilters` dropped it.
  *
  * [UniffiNativeLibrary] is injected and shared by every FFI subsystem in a Room, so these drive an
@@ -81,7 +81,7 @@ class NativeLibraryUnavailableTest : BaseTest() {
     /** Simulates the library having already failed to load, as a first caller would find it. */
     private fun latchUnavailable() {
         val result = nativeLibrary.createOrNull<Any>(subsystem = "Test") {
-            throw UnsatisfiedLinkError("no liblivekit_uniffi for this ABI")
+            throw UnsatisfiedLinkError("no liblivekit_ffi for this ABI")
         }
         assertNull(result)
         assertTrue(nativeLibrary.isUnavailable)

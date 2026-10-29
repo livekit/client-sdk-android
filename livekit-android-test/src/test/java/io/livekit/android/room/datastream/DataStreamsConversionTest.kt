@@ -24,12 +24,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import io.livekit.uniffi.ByteStreamInfo as FfiByteStreamInfo
-import io.livekit.uniffi.ClientCapability as FfiClientCapability
-import io.livekit.uniffi.DataStreamException as FfiDataStreamException
-import io.livekit.uniffi.EncryptionType as FfiEncryptionType
-import io.livekit.uniffi.OperationType as FfiOperationType
-import io.livekit.uniffi.TextStreamInfo as FfiTextStreamInfo
+import io.livekit.ffi.ByteStreamInfo as FfiByteStreamInfo
+import io.livekit.ffi.ClientCapability as FfiClientCapability
+import io.livekit.ffi.DataStreamException as FfiDataStreamException
+import io.livekit.ffi.EncryptionType as FfiEncryptionType
+import io.livekit.ffi.OperationType as FfiOperationType
+import io.livekit.ffi.TextStreamInfo as FfiTextStreamInfo
 
 /**
  * The pure translation layer between the core's types and this SDK's.

@@ -19,7 +19,7 @@ package io.livekit.android.util
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Remembers whether `liblivekit_uniffi` could be loaded, for every subsystem built on it.
+ * Remembers whether `liblivekit_ffi` could be loaded, for every subsystem built on it.
  *
  * Injected from [io.livekit.android.dagger.UniffiModule] and scoped to the component, so data
  * streams and both data track managers in a [io.livekit.android.room.Room] share one instance.

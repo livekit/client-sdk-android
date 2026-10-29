@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-// Points JNA at a *host* build of liblivekit_uniffi for local unit tests.
+// Points JNA at a *host* build of liblivekit_ffi for local unit tests.
 //
 // Data streams are implemented in the Rust core, so any test that exercises them has to load
 // the native library. Unit tests here run on the host JVM (Robolectric), but the
-// livekit-uniffi AAR only ships Android .so files -- so the host build has to be supplied
+// livekit-ffi AAR only ships Android .so files -- so the host build has to be supplied
 // separately. This mirrors how client-sdk-swift's tests link the real xcframework rather than
 // faking the core.
 //
@@ -29,13 +29,17 @@
 //      already assume for local uniffi development
 //
 // To produce the host library:
-//   cd ../rust-sdks/livekit-uniffi
-//   CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target <host triple>
+//   cd ../rust-sdks/livekit-ffi
+//   CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --no-default-features \
+//     --features core-modules --target <host triple>
+//
+// The default (room-apis) build also produces liblivekit_ffi, but without these bindings; a
+// leftover one in ../rust-sdks/target is picked up all the same, and the FFI tests can't load it.
 
 import org.gradle.api.tasks.PathSensitivity
 
 ext.resolveUniffiNativeLibDirs = {
-    def libNames = ["liblivekit_uniffi.dylib", "liblivekit_uniffi.so"]
+    def libNames = ["liblivekit_ffi.dylib", "liblivekit_ffi.so"]
     def hasLib = { File dir -> dir.isDirectory() && libNames.any { new File(dir, it).isFile() } }
 
     def rawEnv = System.getenv("LIVEKIT_UNIFFI_LIB_DIR")
@@ -54,7 +58,7 @@ ext.resolveUniffiNativeLibDirs = {
     if (!explicit && (rawEnv != null || rawProp != null)) {
         throw new GradleException(
             "LIVEKIT_UNIFFI_LIB_DIR/livekitUniffiLibDir is set but empty; expected a " +
-                "directory holding a host build of liblivekit_uniffi.",
+                "directory holding a host build of liblivekit_ffi.",
         )
     }
 
@@ -63,7 +67,7 @@ ext.resolveUniffiNativeLibDirs = {
         if (!hasLib(dir)) {
             throw new GradleException(
                 "LIVEKIT_UNIFFI_LIB_DIR/livekitUniffiLibDir is set to '${dir}' but no " +
-                    "liblivekit_uniffi.{dylib,so} was found there.",
+                    "liblivekit_ffi.{dylib,so} was found there.",
             )
         }
         return [dir]
@@ -102,17 +106,18 @@ ext.configureUniffiForUnitTests = { Test task ->
     if (dirs.isEmpty()) {
         task.doFirst {
             logger.warn(
-                "[livekit] No host build of liblivekit_uniffi found. Tests that exercise data " +
+                "[livekit] No host build of liblivekit_ffi found. Tests that exercise data " +
                     "streams will fail to load the native library.\n" +
-                    "  Build it:  cd ../rust-sdks/livekit-uniffi && " +
-                    "CARGO_PROFILE_RELEASE_STRIP=false cargo build --release --target \$(rustc -vV | " +
+                    "  Build it:  cd ../rust-sdks/livekit-ffi && " +
+                    "CARGO_PROFILE_RELEASE_STRIP=false cargo build --release " +
+                    "--no-default-features --features core-modules --target \$(rustc -vV | " +
                     "sed -n 's/^host: //p')\n" +
                     "  Or point at one:  -PlivekitUniffiLibDir=/path/to/dir",
             )
         }
         return
     }
-    // Add livekit-uniffi to the library search paths so that it can be found.
+    // Add livekit-ffi to the library search paths so that it can be found.
     task.systemProperty("jna.library.path", dirs.collect { it.absolutePath }.join(File.pathSeparator))
 
     // The core's *contents* are an input to every test that calls into it, but nothing above
@@ -120,7 +125,7 @@ ext.configureUniffiForUnitTests = { Test task ->
     // leaves the task's cache key unchanged and Gradle serves the previous run's results
     // FROM-CACHE without executing anything. Registering the files themselves, hashed by content
     // and not by location, makes a rebuilt core re-run the suite.
-    task.inputs.files(dirs.collect { dir -> fileTree(dir) { include "liblivekit_uniffi.*" } })
+    task.inputs.files(dirs.collect { dir -> fileTree(dir) { include "liblivekit_ffi.*" } })
         .withPropertyName("livekitUniffiNativeLib")
         .withPathSensitivity(PathSensitivity.NONE)
 }

@@ -55,7 +55,7 @@ jobs:
         git fetch origin main --depth 1
         ./gradlew spotlessCheck
 
-    - name: Fetch livekit-uniffi host library
+    - name: Fetch livekit-ffi host library
       id: uniffi
       run: |
         lib_dir=$(./ci/fetch_uniffi_cdylib.sh)

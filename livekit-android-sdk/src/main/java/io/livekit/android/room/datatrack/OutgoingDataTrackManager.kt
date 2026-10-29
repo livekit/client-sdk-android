@@ -23,16 +23,16 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.UniffiNativeLibrary
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.uniffi.DataTrackOptions
-import io.livekit.uniffi.LocalDataTrackManagerDelegate
-import io.livekit.uniffi.LocalDataTrackManagerInterface
+import io.livekit.ffi.DataTrackOptions
+import io.livekit.ffi.LocalDataTrackManagerDelegate
+import io.livekit.ffi.LocalDataTrackManagerInterface
 import uniffi.livekit_datatrack.PublishException
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * Owns the UniFFI [io.livekit.uniffi.LocalDataTrackManager] and bridges its transport callbacks
+ * Owns the UniFFI [io.livekit.ffi.LocalDataTrackManager] and bridges its transport callbacks
  * into [RTCEngine].
  *
  * Signal requests / SFU responses and data-track packets are forwarded through the engine so the

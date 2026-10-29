@@ -22,7 +22,7 @@ import io.livekit.android.util.UniffiNativeLibrary
 import javax.inject.Singleton
 
 /**
- * Wiring for the livekit-uniffi native library.
+ * Wiring for the livekit-ffi native library.
  *
  * @suppress
  */

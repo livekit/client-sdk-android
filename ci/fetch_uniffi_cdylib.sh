@@ -1,18 +1,18 @@
 #!/bin/bash
 set -e
 
-# Downloads the prebuilt livekit-uniffi core for the host platform and prints the directory
+# Downloads the prebuilt livekit-ffi core for the host platform and prints the directory
 # holding it, for `-PlivekitUniffiLibDir`.
 #
 # Unit tests in livekit-android-test call the Rust core through JNA, which needs a *host* build
-# of it -- the livekit-uniffi AAR carries only Android .so files. rust-sdks attaches host cdylibs
-# to each livekit-uniffi release, so CI can fetch one instead of installing a Rust toolchain and
+# of it -- the livekit-ffi AAR carries only Android .so files. rust-sdks attaches host cdylibs
+# to each livekit-ffi release, so CI can fetch one instead of installing a Rust toolchain and
 # building the core from source.
 #
 # Local development doesn't need this: gradle/uniffi-native-lib.gradle finds a build in a sibling
 # rust-sdks checkout on its own.
 
-OUT_DIR=${1:-./build/livekit-uniffi-cdylib}
+OUT_DIR=${1:-./build/livekit-ffi-cdylib}
 
 # Absolute from here on. Gradle resolves `-PlivekitUniffiLibDir` against the *subproject*
 # (livekit-android-test), so a path relative to the repo root would silently miss.
@@ -41,12 +41,12 @@ DEST="$OUT_DIR/$TRIPLE"
 # Already fetched for this tag: the marker records which tag the contents came from, so a
 # version bump re-downloads rather than silently testing against the previous core.
 if [ -f "$DEST/.tag" ] && [ "$(cat "$DEST/.tag")" = "$TAG" ]; then
-  >&2 echo "livekit-uniffi $TAG for $TRIPLE already present"
+  >&2 echo "livekit-ffi $TAG for $TRIPLE already present"
   echo "$DEST"
   exit 0
 fi
 
->&2 echo "fetching livekit-uniffi $TAG for $TRIPLE"
+>&2 echo "fetching livekit-ffi $TAG for $TRIPLE"
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT

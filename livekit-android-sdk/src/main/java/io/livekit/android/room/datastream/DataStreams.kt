@@ -47,28 +47,28 @@ import java.io.Closeable
 import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
-import io.livekit.uniffi.ByteStreamInfo as FfiByteStreamInfo
-import io.livekit.uniffi.ByteStreamReader as FfiByteStreamReader
-import io.livekit.uniffi.ByteStreamWriter as FfiByteStreamWriter
-import io.livekit.uniffi.ClientCapability as FfiClientCapability
-import io.livekit.uniffi.DataStreamException as FfiDataStreamException
-import io.livekit.uniffi.Disposable as FfiDisposable
-import io.livekit.uniffi.EncryptionType as FfiEncryptionType
-import io.livekit.uniffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
-import io.livekit.uniffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
-import io.livekit.uniffi.OperationType as FfiOperationType
-import io.livekit.uniffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
-import io.livekit.uniffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
-import io.livekit.uniffi.PacketDeliveryException as FfiPacketDeliveryException
-import io.livekit.uniffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
-import io.livekit.uniffi.StreamByteOptions as FfiStreamByteOptions
-import io.livekit.uniffi.StreamTextOptions as FfiStreamTextOptions
-import io.livekit.uniffi.TextStreamInfo as FfiTextStreamInfo
-import io.livekit.uniffi.TextStreamReader as FfiTextStreamReader
-import io.livekit.uniffi.TextStreamWriter as FfiTextStreamWriter
+import io.livekit.ffi.ByteStreamInfo as FfiByteStreamInfo
+import io.livekit.ffi.ByteStreamReader as FfiByteStreamReader
+import io.livekit.ffi.ByteStreamWriter as FfiByteStreamWriter
+import io.livekit.ffi.ClientCapability as FfiClientCapability
+import io.livekit.ffi.DataStreamException as FfiDataStreamException
+import io.livekit.ffi.Disposable as FfiDisposable
+import io.livekit.ffi.EncryptionType as FfiEncryptionType
+import io.livekit.ffi.IncomingDataStreamManager as FfiIncomingDataStreamManager
+import io.livekit.ffi.IncomingDataStreamManagerDelegate as FfiIncomingDelegate
+import io.livekit.ffi.OperationType as FfiOperationType
+import io.livekit.ffi.OutgoingDataStreamManager as FfiOutgoingDataStreamManager
+import io.livekit.ffi.OutgoingDataStreamManagerDelegate as FfiOutgoingDelegate
+import io.livekit.ffi.PacketDeliveryException as FfiPacketDeliveryException
+import io.livekit.ffi.RemoteParticipantRegistryDelegate as FfiRegistryDelegate
+import io.livekit.ffi.StreamByteOptions as FfiStreamByteOptions
+import io.livekit.ffi.StreamTextOptions as FfiStreamTextOptions
+import io.livekit.ffi.TextStreamInfo as FfiTextStreamInfo
+import io.livekit.ffi.TextStreamReader as FfiTextStreamReader
+import io.livekit.ffi.TextStreamWriter as FfiTextStreamWriter
 
 /**
- * Carried by the [StreamException] a send raises when `liblivekit_uniffi` is missing for the
+ * Carried by the [StreamException] a send raises when `liblivekit_ffi` is missing for the
  * device's ABI, or otherwise fails to load.
  *
  * The matching log line, with the underlying [LinkageError] attached, comes from
@@ -79,7 +79,7 @@ private const val NATIVE_UNAVAILABLE_MESSAGE =
     "Data streams are unavailable: the LiveKit native library failed to load."
 
 /**
- * Owns the livekit-uniffi data stream managers and the topic to handler registry, and routes
+ * Owns the livekit-ffi data stream managers and the topic to handler registry, and routes
  * packets between them and [RTCEngine].
  *
  * This is the single place the FFI is touched. Everything above it -- the
@@ -212,7 +212,7 @@ internal constructor(
      * Builds an FFI manager, returning null if the native library is missing or unloadable.
      *
      * The library is only loaded when the FFI is first touched, so this is where an ABI with no
-     * `liblivekit_uniffi` surfaces -- as a [LinkageError] rather than an exception. Remembering
+     * `liblivekit_ffi` surfaces -- as a [LinkageError] rather than an exception. Remembering
      * that is [UniffiNativeLibrary]'s job, and the instance is shared with data tracks so one
      * failed load is enough for all of them.
      *
@@ -714,7 +714,7 @@ internal constructor(
         override suspend fun writeToFfi(data: String) = writer.write(data)
 
         // closeStream, not close: the latter is the AutoCloseable one uniffi generates for
-        // releasing the handle. See the rename in livekit-uniffi's uniffi.toml.
+        // releasing the handle. See the rename in livekit-ffi's uniffi.toml.
         override suspend fun closeFfi(reason: String?) {
             if (reason == null) writer.closeStream() else writer.closeWithReason(reason)
         }

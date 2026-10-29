@@ -24,12 +24,12 @@ import io.livekit.android.room.RTCEngine
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.UniffiNativeLibrary
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.uniffi.RemoteDataTrackManagerDelegate
-import io.livekit.uniffi.RemoteDataTrackManagerInterface
+import io.livekit.ffi.RemoteDataTrackManagerDelegate
+import io.livekit.ffi.RemoteDataTrackManagerInterface
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
-import io.livekit.uniffi.RemoteDataTrack as FfiRemoteDataTrack
+import io.livekit.ffi.RemoteDataTrack as FfiRemoteDataTrack
 
 interface IncomingDataTrackManager {
 
@@ -83,7 +83,7 @@ interface IncomingDataTrackManager {
 }
 
 /**
- * Owns the UniFFI [io.livekit.uniffi.RemoteDataTrackManager] and bridges its transport callbacks
+ * Owns the UniFFI [io.livekit.ffi.RemoteDataTrackManager] and bridges its transport callbacks
  * into [RTCEngine].
  *
  * SFU participant / subscriber-handle responses and `_data_track` channel packets are forwarded

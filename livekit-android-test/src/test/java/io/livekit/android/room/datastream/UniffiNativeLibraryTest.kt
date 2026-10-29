@@ -17,14 +17,14 @@
 package io.livekit.android.room.datastream
 
 import io.livekit.android.test.BaseTest
-import io.livekit.uniffi.buildVersion
+import io.livekit.ffi.buildVersion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Guards the one piece of infrastructure every other data stream test depends on: that the
- * livekit-uniffi native library can be found and loaded from a host JVM test run.
+ * livekit-ffi native library can be found and loaded from a host JVM test run.
  *
  * When this fails, every data stream test fails with an inscrutable
  * [UnsatisfiedLinkError]/`NoClassDefFoundError` from deep inside JNA. Failing here first, with a
@@ -40,7 +40,7 @@ class UniffiNativeLibraryTest : BaseTest() {
         val version = buildVersion()
 
         assertTrue(
-            "livekit-uniffi reported an empty build version",
+            "livekit-ffi reported an empty build version",
             version.isNotEmpty(),
         )
     }
