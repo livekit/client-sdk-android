@@ -20,6 +20,7 @@ import android.os.SystemClock
 import androidx.annotation.CheckResult
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
+import com.google.protobuf.InvalidProtocolBufferException
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
@@ -1536,7 +1537,12 @@ internal constructor(
                 LKLog.i { "Failed to decrypt data packet." }
                 return
             }
-            val payload = LivekitModels.EncryptedPacketPayload.parseFrom(decryptedData)
+            val payload = try {
+                LivekitModels.EncryptedPacketPayload.parseFrom(decryptedData)
+            } catch (e: InvalidProtocolBufferException) {
+                LKLog.w(e) { "Failed to parse decrypted data packet, dropping." }
+                return
+            }
 
             dp = with(dp.toBuilder()) {
                 setFromEncryptedPayload(payload)
