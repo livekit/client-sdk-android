@@ -1497,6 +1497,10 @@ constructor(
         localParticipant.handleSubscribedQualityUpdate(subscribedQualityUpdate)
     }
 
+    override fun onRequestSubscribedCodecRefresh() {
+        localParticipant.handleSubscribedCodecRefresh()
+    }
+
     /**
      * @suppress
      */
