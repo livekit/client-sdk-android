@@ -716,7 +716,7 @@ internal constructor(
         var senderTransceiver: SenderTransceiverHandle? = null
         var previousTrackTransceiver: RtpTransceiver? = null
         suspend fun negotiate() {
-            if (this.engine.publisher == null) {
+            if (this.engine.transport?.publisher == null) {
                 throw IllegalStateException("publisher is not configured yet!")
             }
 
