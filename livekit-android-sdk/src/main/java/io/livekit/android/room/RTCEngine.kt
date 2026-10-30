@@ -1508,7 +1508,12 @@ internal constructor(
             incomingDataTrackManager.handlePacketReceived(ByteString.copyFrom(buffer.data).toByteArray())
             return
         }
-        var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+        var dp = try {
+            LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+        } catch (e: InvalidProtocolBufferException) {
+            LKLog.w(e) { "Failed to parse data packet, dropping." }
+            return
+        }
 
         if (dp.sequence > 0 && dp.participantSid.isNotEmpty()) {
             synchronized(reliableStateLock) {

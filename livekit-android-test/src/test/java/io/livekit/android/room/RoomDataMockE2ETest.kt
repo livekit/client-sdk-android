@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,5 +61,21 @@ class RoomDataMockE2ETest : MockE2ETest() {
 
         val event = events[0] as RoomEvent.DataReceived
         assertEquals("hello", event.data.decodeToString())
+    }
+
+    @Test
+    fun dropsUndecodableDataPacket() = runTest {
+        connect()
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val collector = EventCollector(room.events, coroutineRule.scope)
+
+        // A truncated protobuf field rather than a DataPacket.
+        subDataChannel.observer?.onMessage(DataChannel.Buffer(ByteBuffer.wrap(byteArrayOf(0x0A, 0x7F)), true))
+        val events = collector.stopCollecting()
+
+        assertEquals(0, events.size)
     }
 }
