@@ -20,6 +20,7 @@ import android.os.SystemClock
 import androidx.annotation.CheckResult
 import androidx.annotation.VisibleForTesting
 import com.google.protobuf.ByteString
+import com.google.protobuf.InvalidProtocolBufferException
 import com.vdurmont.semver4j.Semver
 import io.livekit.android.ConnectOptions
 import io.livekit.android.RoomOptions
@@ -1507,7 +1508,12 @@ internal constructor(
             incomingDataTrackManager.handlePacketReceived(ByteString.copyFrom(buffer.data).toByteArray())
             return
         }
-        var dp = LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+        var dp = try {
+            LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffer.data))
+        } catch (e: InvalidProtocolBufferException) {
+            LKLog.w(e) { "Failed to parse data packet, dropping." }
+            return
+        }
 
         if (dp.sequence > 0 && dp.participantSid.isNotEmpty()) {
             synchronized(reliableStateLock) {
@@ -1536,7 +1542,12 @@ internal constructor(
                 LKLog.i { "Failed to decrypt data packet." }
                 return
             }
-            val payload = LivekitModels.EncryptedPacketPayload.parseFrom(decryptedData)
+            val payload = try {
+                LivekitModels.EncryptedPacketPayload.parseFrom(decryptedData)
+            } catch (e: InvalidProtocolBufferException) {
+                LKLog.w(e) { "Failed to parse decrypted data packet, dropping." }
+                return
+            }
 
             dp = with(dp.toBuilder()) {
                 setFromEncryptedPayload(payload)

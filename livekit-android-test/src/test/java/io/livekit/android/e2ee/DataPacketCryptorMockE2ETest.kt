@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 LiveKit, Inc.
+ * Copyright 2025-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,5 +122,37 @@ class DataPacketCryptorMockE2ETest : MockE2ETest() {
 
         assertTrue(data.contentEquals(event.data))
         assertEquals(LivekitModels.Encryption.Type.CUSTOM, event.encryptionType)
+    }
+
+    @Test
+    fun dropsUndecodableDecryptedData() = runTest {
+        room.e2eeOptions = E2EEOptions(
+            keyProvider = NoopKeyProvider(),
+        )
+
+        connect()
+
+        // Decrypts successfully, but the plaintext is a truncated protobuf field rather than an
+        // EncryptedPacketPayload.
+        val dataCryptor = ReversingDataPacketCryptorManager()
+        val encrypted = dataCryptor.encrypt(Participant.Identity(""), 0, byteArrayOf(0x0A, 0x7F))!!
+        val dataPacket = with(DataPacket.newBuilder()) {
+            encryptedPacket = with(LivekitModels.EncryptedPacket.newBuilder()) {
+                encryptedValue = ByteString.copyFrom(encrypted.payload)
+                iv = ByteString.copyFrom(encrypted.iv)
+                keyIndex = encrypted.keyIndex
+                encryptionType = LivekitModels.Encryption.Type.CUSTOM
+                build()
+            }
+            build()
+        }
+
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+
+        subDataChannel.simulateBufferReceived(DataChannel.Buffer(ByteBuffer.wrap(dataPacket.toByteArray()), true))
+
+        val events = eventCollector.stopCollecting()
+
+        assertEquals(0, events.size)
     }
 }

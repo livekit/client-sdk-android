@@ -333,9 +333,12 @@ constructor(
             return
         }
         val byteArray = bytes.toByteArray()
-        val signalResponseBuilder = LivekitRtc.SignalResponse.newBuilder()
-            .mergeFrom(byteArray)
-        val response = signalResponseBuilder.build()
+        val response = try {
+            LivekitRtc.SignalResponse.parseFrom(byteArray)
+        } catch (e: InvalidProtocolBufferException) {
+            LKLog.w(e) { "Failed to parse signal response, dropping." }
+            return
+        }
 
         handleSignalResponse(webSocket, response, byteArray)
     }
