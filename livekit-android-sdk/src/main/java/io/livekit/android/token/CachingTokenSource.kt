@@ -146,18 +146,21 @@ private val defaultValidator: TokenValidator = { options, response ->
 
 /**
  * Validates whether the JWT token is still valid.
+ *
+ * @param tolerance a token expiring within this duration is treated as already
+ * expired, so a fresh one is fetched before it is used to connect.
+ * @param date the point in time to validate against.
  */
 fun TokenSourceResponse.hasValidToken(tolerance: Duration = 60.seconds, date: Date = Date()): Boolean {
     try {
         val jwt = TokenPayload(participantToken)
-        val now = Date()
         // First-party minters always set exp. A signed JWT with no exp would
         // otherwise stay cached forever (livekit/client-sdk-js#2057).
         val expiresAt = jwt.expiresAt ?: return false
         val nbf = jwt.notBefore
 
-        val isBefore = nbf != null && now.before(nbf)
-        val hasExpired = now.after(Date(expiresAt.time + tolerance.inWholeMilliseconds))
+        val isBefore = nbf != null && date.before(nbf)
+        val hasExpired = date.time >= expiresAt.time - tolerance.inWholeMilliseconds
 
         return !isBefore && !hasExpired
     } catch (e: Exception) {

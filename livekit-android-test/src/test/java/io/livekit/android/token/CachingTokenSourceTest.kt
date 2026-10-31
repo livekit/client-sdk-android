@@ -51,7 +51,7 @@ class CachingTokenSourceTest : BaseTest() {
             TokenPayloadTest.TEST_TOKEN,
         )
 
-        assertTrue(tokenResponse.hasValidToken(date = Date(0)))
+        assertFalse(tokenResponse.hasValidToken(date = Date(0)))
     }
 
     @Test
@@ -61,7 +61,27 @@ class CachingTokenSourceTest : BaseTest() {
             TokenPayloadTest.TEST_TOKEN,
         )
 
-        assertTrue(tokenResponse.hasValidToken(date = Date(9999999990000)))
+        assertFalse(tokenResponse.hasValidToken(date = Date(9999999990000)))
+    }
+
+    @Test
+    fun tokenExpiringWithinToleranceIsInvalid() {
+        val tokenResponse = TokenSourceResponse(
+            "wss://www.example.com",
+            TokenPayloadTest.TEST_TOKEN,
+        )
+
+        assertFalse(tokenResponse.hasValidToken(date = Date(TEST_TOKEN_EXP_MILLIS - 30_000)))
+    }
+
+    @Test
+    fun tokenExpiringAfterToleranceIsValid() {
+        val tokenResponse = TokenSourceResponse(
+            "wss://www.example.com",
+            TokenPayloadTest.TEST_TOKEN,
+        )
+
+        assertTrue(tokenResponse.hasValidToken(date = Date(TEST_TOKEN_EXP_MILLIS - 90_000)))
     }
 
     @Test
@@ -145,6 +165,9 @@ class CachingTokenSourceTest : BaseTest() {
     }
 
     companion object {
+        // exp claim of TokenPayloadTest.TEST_TOKEN (Fri Dec 22 2282).
+        const val TEST_TOKEN_EXP_MILLIS = 9_876_543_210_000L
+
         // Token with an nbf and exp of 0 seconds.
         const val EXPIRED_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiIsImtpZCI6IjlhMzJiZTg2NzkyZTM3Nm" +
             "I3ZTBlMmIyNjVjMjY1YTA5In0.eyJpYXQiOjAsIm5iZiI6MCwiZXhwIjowfQ.8oV9K-CeULScAjFIK2O7sxEGUD7" +
