@@ -18,7 +18,7 @@ package io.livekit.android.room.datatrack
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
+import io.livekit.ffi.DataTrackFrame as FfiDataTrackFrame
 
 /**
  * A single unit of application data sent or received over a data track.

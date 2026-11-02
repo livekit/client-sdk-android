@@ -179,6 +179,27 @@ class RoomMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun participantConnectedWithMalformedAgentAttributes() = runTest {
+        connect()
+
+        val participantJoin = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
+            update = with(update.toBuilder()) {
+                setParticipants(
+                    0,
+                    TestData.REMOTE_PARTICIPANT.toBuilder()
+                        .putAttributes("lk.agent.inputs", "not json")
+                        .build(),
+                )
+                build()
+            }
+            build()
+        }
+        simulateMessageFromServer(participantJoin)
+
+        assertNotNull(room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid))
+    }
+
+    @Test
     fun participantSubscribesRemoteTrack() = runTest {
         connect()
 

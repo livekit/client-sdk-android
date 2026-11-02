@@ -31,8 +31,8 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import io.livekit.uniffi.DataTrackFrame as FfiDataTrackFrame
-import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
+import io.livekit.ffi.DataTrackFrame as FfiDataTrackFrame
+import io.livekit.ffi.DataTrackStreamInterface as FfiDataTrackStream
 
 /**
  * A stand-in for the UniFFI stream, so frame delivery can be driven from the test rather than

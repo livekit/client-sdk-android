@@ -96,4 +96,19 @@ class RoomDataMockE2ETest : MockE2ETest() {
         assertNull(event.participant)
         assertEquals("server-api-sender", event.participantIdentity)
     }
+
+    @Test
+    fun dropsUndecodableDataPacket() = runTest {
+        connect()
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        // A truncated protobuf field rather than a DataPacket.
+        subDataChannel.observer?.onMessage(DataChannel.Buffer(ByteBuffer.wrap(byteArrayOf(0x0A, 0x7F)), true))
+        val events = collector.stopCollecting()
+
+        assertEquals(0, events.size)
+    }
 }

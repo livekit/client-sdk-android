@@ -1,5 +1,43 @@
 # client-sdk-android
 
+## 2.30.0
+
+### Minor Changes
+
+- Data streams v2: Data streams are now backed by the shared Rust core (`livekit-ffi`), which adds the v2 wire format: a small, known-size payload is sent as a single packet with the content inline in the header, and payloads can be `deflate-raw` compressed. Both are negotiated per recipient, so rooms with older peers keep working. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  - `ConnectOptions.clientProtocol` now defaults to `ClientProtocolVersion.DATA_STREAM_V2`.
+  - New `ClientCapability` enum and `Participant.capabilities`, mirroring the capabilities each peer's client advertises.
+  - New `RoomOptions.dataStreamOptions` / `Room.dataStreamOptions`, with `DataStreamOptions.maxPayloadByteLength` to cap the size of a reassembled incoming payload.
+  - New `compress` flag on `StreamTextOptions` and `StreamBytesOptions` (default `true`). Only applies to whole-payload sends such as `sendText`/`sendBytes`; incremental streams are never compressed.
+  - New `OutgoingDataStreamManager.sendBytes` convenience for sending a whole byte array.
+  - New `StreamException` types: `HeaderTooLargeException` and `PayloadTooLargeException` (both subclasses of `LengthExceededException`), and `InternalException`. `TerminatedException` gains a `reason`. An exhaustive `when` over `StreamException` needs a branch for the new cases.
+  - Incoming streams are held to the encryption type their header arrived with; a mismatching chunk or trailer fails the reader with `EncryptionTypeMismatch`.
+
+### Patch Changes
+
+- Fix a crash when a participant's `lk.agent.inputs` or `lk.agent.outputs` attribute is not a valid JSON array. The attribute is now logged as a warning and the participant's agent attributes are left unchanged. - [#1053](https://github.com/livekit/client-sdk-android/pull/1053) ([@1egoman](https://github.com/1egoman))
+
+- Fix crashes when a data channel packet, a decrypted end-to-end encrypted payload, or a signal message cannot be parsed. The message is now logged and dropped. - [#1054](https://github.com/livekit/client-sdk-android/pull/1054) ([@1egoman](https://github.com/1egoman))
+
+- Update protocol to v1.53.1 - [#1049](https://github.com/livekit/client-sdk-android/pull/1049) ([@changt](https://github.com/changt))
+
+- Validate region URLs before failing over to them. Regions returned by `/settings/regions` or reported by the server were previously used as-is. Each URL must now name a LiveKit Cloud host and use an encrypted scheme (`wss`/`https`); entries that do not are logged and dropped. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+## 2.29.2
+
+### Patch Changes
+
+- Keep dynacast-paused simulcast layers paused across publisher renegotiations. Previously a paused layer started to upload again after any renegotiation of the publisher connection. Publishing a track, unpublishing one, a codec change, and an ICE restart all caused this. With servers before v1.13.8, the layer stayed on until the next subscribed-quality change. Newer servers restate the pause a few seconds after the answer (livekit/livekit#4907), so there it stayed on for that window. - [#1037](https://github.com/livekit/client-sdk-android/pull/1037) ([@lukasIO](https://github.com/lukasIO))
+
+  The server's answer to a publisher offer no longer carries the RFC 8853 pause markers. Applying that answer re-enables every layer the client paused. Directly after it applies a publisher answer, the SDK now re-applies the last known subscribed codecs.
+
+  One frame per layer can still escape, because the encoders restart during the apply. This matches the JavaScript and Rust SDKs.
+
+- Update libwebrtc to 150.7871.04, which removes the AAA Certificate Services root from the TURN/TLS trust anchors so certificates from the compromised eMudhra intermediates are rejected. - [#1043](https://github.com/livekit/client-sdk-android/pull/1043) ([@erikhortsch](https://github.com/erikhortsch))
+
+  This version also passes the TLS hostname to the Android platform certificate verifier, so the fallback to the OS trust store no longer fails when the app's `network_security_config` has a `domain-config`.
+
 ## 2.29.1
 
 ### Patch Changes
