@@ -1,5 +1,29 @@
 # client-sdk-android
 
+## 2.30.0
+
+### Minor Changes
+
+- Data streams v2: Data streams are now backed by the shared Rust core (`livekit-ffi`), which adds the v2 wire format: a small, known-size payload is sent as a single packet with the content inline in the header, and payloads can be `deflate-raw` compressed. Both are negotiated per recipient, so rooms with older peers keep working. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  - `ConnectOptions.clientProtocol` now defaults to `ClientProtocolVersion.DATA_STREAM_V2`.
+  - New `ClientCapability` enum and `Participant.capabilities`, mirroring the capabilities each peer's client advertises.
+  - New `RoomOptions.dataStreamOptions` / `Room.dataStreamOptions`, with `DataStreamOptions.maxPayloadByteLength` to cap the size of a reassembled incoming payload.
+  - New `compress` flag on `StreamTextOptions` and `StreamBytesOptions` (default `true`). Only applies to whole-payload sends such as `sendText`/`sendBytes`; incremental streams are never compressed.
+  - New `OutgoingDataStreamManager.sendBytes` convenience for sending a whole byte array.
+  - New `StreamException` types: `HeaderTooLargeException` and `PayloadTooLargeException` (both subclasses of `LengthExceededException`), and `InternalException`. `TerminatedException` gains a `reason`. An exhaustive `when` over `StreamException` needs a branch for the new cases.
+  - Incoming streams are held to the encryption type their header arrived with; a mismatching chunk or trailer fails the reader with `EncryptionTypeMismatch`.
+
+### Patch Changes
+
+- Fix a crash when a participant's `lk.agent.inputs` or `lk.agent.outputs` attribute is not a valid JSON array. The attribute is now logged as a warning and the participant's agent attributes are left unchanged. - [#1053](https://github.com/livekit/client-sdk-android/pull/1053) ([@1egoman](https://github.com/1egoman))
+
+- Fix crashes when a data channel packet, a decrypted end-to-end encrypted payload, or a signal message cannot be parsed. The message is now logged and dropped. - [#1054](https://github.com/livekit/client-sdk-android/pull/1054) ([@1egoman](https://github.com/1egoman))
+
+- Update protocol to v1.53.1 - [#1049](https://github.com/livekit/client-sdk-android/pull/1049) ([@changt](https://github.com/changt))
+
+- Validate region URLs before failing over to them. Regions returned by `/settings/regions` or reported by the server were previously used as-is. Each URL must now name a LiveKit Cloud host and use an encrypted scheme (`wss`/`https`); entries that do not are logged and dropped. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
 ## 2.29.2
 
 ### Patch Changes
