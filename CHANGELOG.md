@@ -1,5 +1,25 @@
 # client-sdk-android
 
+## 2.30.1
+
+### Patch Changes
+
+- Expose `participantIdentity` on `RoomEvent.DataReceived`. The event's `participant` is nullable and is null whenever the sender is not in the room — data sent through the Server API, or by a participant that has already left. In that case the receiver had no way to tell who sent the data, because the engine dropped the identity before building the event: `onUserPacket` was handed only the inner `UserPacket`, while the authoritative identity lives on the enclosing `DataPacket`. - [#1046](https://github.com/livekit/client-sdk-android/pull/1046) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  The internal engine listener now forwards that identity, and it is reported on every `DataReceived` event whether or not the sender resolves to a `RemoteParticipant`.
+
+  This matches the JavaScript SDK (livekit/client-sdk-js#2092).
+
+- Add proportional jitter to the default reconnect delays. `DefaultReconnectPolicy` returned a fixed delay for each retry count, so every client disconnected by the same event — a server restart, a region failover, a dropped uplink — waited exactly 100ms, then 300ms, then 300ms, and so on, in lockstep. They retried as one herd and could keep re-synchronising across attempts. - [#1045](https://github.com/livekit/client-sdk-android/pull/1045) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  Each delay is now scaled by a random factor between 0.5 and 1.5, spreading clients further apart with every retry. A first retry whose configured delay is zero instead draws from a fixed 0–500ms window, since there is no base delay to scale; a zero at any later index still means retry immediately.
+
+  This matches the JavaScript SDK (livekit/client-sdk-js#2124).
+
+- Fix not truncating outgoing `RpcError` messages to 256 bytes and data to 15 KB. - [#1044](https://github.com/livekit/client-sdk-android/pull/1044) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+- Fix long RPC error messages and data sometimes ending in a garbled character when truncated in the middle of an emoji or similar character. - [#1044](https://github.com/livekit/client-sdk-android/pull/1044) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
 ## 2.30.0
 
 ### Minor Changes
