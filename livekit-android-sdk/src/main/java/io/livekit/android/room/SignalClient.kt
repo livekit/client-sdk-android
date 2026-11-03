@@ -192,8 +192,13 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(options.clientProtocol), options, roomOptions)}"
+        var wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(options.clientProtocol), options, roomOptions)}"
         isReconnecting = options.reconnect
+
+        if (options.singlePeerConnection) {
+            wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType())
+                .getOrElse { wsUrlString }
+        }
 
         LKLog.i { "connecting to $wsUrlString" }
 

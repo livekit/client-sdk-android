@@ -205,7 +205,7 @@ internal constructor(
     internal val serverInfo: ServerInfo?
         get() = client.serverInfo
 
-    private val publisherObserver = PublisherTransportObserver(this, client, rtcThreadToken)
+    private var publisherObserver: PublisherTransportObserver? = null
     private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
     internal var transport: Transport? = null
@@ -318,7 +318,7 @@ internal constructor(
         isClosed = false
         listener?.onSignalConnected(false)
 
-        isSubscriberPrimary = joinResponse.subscriberPrimary
+        isSubscriberPrimary = !options.singlePeerConnection && joinResponse.subscriberPrimary
 
         configure(joinResponse, options)
         // The publisher created above needs the attempt's start time before its first offer, in
@@ -347,6 +347,13 @@ internal constructor(
                     }
                 },
             ) {
+                val publisherObserver = if (connectOptions.singlePeerConnection) {
+                    DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
+                } else {
+                    PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
+                }
+                this@RTCEngine.publisherObserver = publisherObserver
+
                 participantSid = if (joinResponse.hasParticipant()) {
                     joinResponse.participant.sid
                 } else {
@@ -360,9 +367,6 @@ internal constructor(
                     publisherObserver,
                     publisherObserver,
                 )
-                val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
-                    .onFailure { publisher.close() }
-                    .getOrThrow()
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
@@ -373,7 +377,7 @@ internal constructor(
                     }
                 }
 
-                if (joinResponse.subscriberPrimary) {
+                if (this@RTCEngine.isSubscriberPrimary) {
                     // in subscriber primary mode, server side opens sub data channels.
                     subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
                         when (dataChannel.label()) {
@@ -396,14 +400,25 @@ internal constructor(
                     publisherObserver.connectionChangeListener = connectionStateListener
                 }
 
-                transport = DualPeerConnectionTransport(
-                    publisher,
-                    subscriber,
-                    publisherObserver,
-                    subscriberObserver,
-                    joinResponse.subscriberPrimary,
-                    joinResponse.fastPublish,
-                )
+                if (connectOptions.singlePeerConnection) {
+                    transport = SinglePeerConnectionTransport(
+                        publisher,
+                        publisherObserver,
+                    )
+                } else {
+                    val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
+                        .onFailure { publisher.close() }
+                        .getOrThrow()
+
+                    transport = DualPeerConnectionTransport(
+                        publisher,
+                        subscriber,
+                        publisherObserver,
+                        subscriberObserver,
+                        joinResponse.subscriberPrimary,
+                        joinResponse.fastPublish,
+                    )
+                }
 
                 ensureActive()
                 // data channels
@@ -551,7 +566,7 @@ internal constructor(
         executeBlockingOnRTCThread(rtcThreadToken) {
             runBlocking {
                 configurationLock.withLock {
-                    publisherObserver.connectionChangeListener = null
+                    publisherObserver?.connectionChangeListener = null
                     subscriberObserver.connectionChangeListener = null
                     transport?.close()
                     transport = null
@@ -969,7 +984,7 @@ internal constructor(
         }
 
         throw RoomException.ConnectException(
-            "could not establish publisher connection: publisher state: ${publisherObserver.connectionState}, channel state: ${channelManager.state}",
+            "could not establish publisher connection: publisher state: ${publisherObserver?.connectionState}, channel state: ${channelManager.state}",
         )
     }
 

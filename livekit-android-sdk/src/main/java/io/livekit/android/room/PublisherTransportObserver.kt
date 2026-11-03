@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,10 +32,10 @@ import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.RtpTransceiver
 import livekit.org.webrtc.SessionDescription
 
-internal class PublisherTransportObserver(
-    private val engine: RTCEngine,
-    private val client: SignalClient,
-    private val rtcThreadToken: RTCThreadToken,
+internal open class PublisherTransportObserver(
+    protected val engine: RTCEngine,
+    protected val client: SignalClient,
+    protected val rtcThreadToken: RTCThreadToken,
 ) : PeerConnection.Observer, PeerConnectionTransport.Listener, PeerConnectionStateObservable {
 
     var connectionChangeListener: PeerConnectionStateListener? = null
@@ -43,7 +43,7 @@ internal class PublisherTransportObserver(
     @FlowObservable
     @get:FlowObservable
     override var connectionState by flowDelegate(PeerConnection.PeerConnectionState.NEW)
-        private set
+        protected set
 
     override fun onIceCandidate(iceCandidate: IceCandidate?) {
         executeOnRTCThread(rtcThreadToken) {
@@ -107,6 +107,6 @@ internal class PublisherTransportObserver(
     override fun onTrack(transceiver: RtpTransceiver?) {
     }
 
-    override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
+    override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
     }
 }
