@@ -28,6 +28,7 @@ import livekit.LivekitModels.DataPacket
 import livekit.LivekitModels.UserPacket
 import livekit.org.webrtc.DataChannel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.nio.ByteBuffer
 
@@ -64,6 +65,39 @@ class RoomDataMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun dataReceivedReportsSenderIdentityWithoutParticipant() = runTest {
+        connect()
+        val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
+        val subDataChannel = MockDataChannel(RTCEngine.RELIABLE_DATA_CHANNEL_LABEL)
+        subPeerConnection.observer?.onDataChannel(subDataChannel)
+
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        // Data sent by the Server API, or by a participant that has already left, has no
+        // RemoteParticipant in the room to attach to.
+        val dataPacket = with(DataPacket.newBuilder()) {
+            participantIdentity = "server-api-sender"
+            user = with(UserPacket.newBuilder()) {
+                payload = ByteString.copyFrom("hello", Charsets.UTF_8)
+                build()
+            }
+            build()
+        }
+        val dataBuffer = DataChannel.Buffer(
+            ByteBuffer.wrap(dataPacket.toByteArray()),
+            true,
+        )
+
+        subDataChannel.observer?.onMessage(dataBuffer)
+        val events = collector.stopCollecting()
+
+        assertEquals(1, events.size)
+        val event = events[0] as RoomEvent.DataReceived
+
+        assertNull(event.participant)
+        assertEquals("server-api-sender", event.participantIdentity)
+    }
+
+    @Test
     fun dropsUndecodableDataPacket() = runTest {
         connect()
         val subPeerConnection = component.rtcEngine().getSubscriberPeerConnection() as MockPeerConnection
@@ -71,7 +105,6 @@ class RoomDataMockE2ETest : MockE2ETest() {
         subPeerConnection.observer?.onDataChannel(subDataChannel)
 
         val collector = EventCollector(room.events, coroutineRule.scope)
-
         // A truncated protobuf field rather than a DataPacket.
         subDataChannel.observer?.onMessage(DataChannel.Buffer(ByteBuffer.wrap(byteArrayOf(0x0A, 0x7F)), true))
         val events = collector.stopCollecting()
