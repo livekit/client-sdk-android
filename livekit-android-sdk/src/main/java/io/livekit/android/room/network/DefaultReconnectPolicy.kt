@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.network
 
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -45,12 +46,28 @@ class DefaultReconnectPolicy(
             return null
         }
 
-        return retryDelays[context.retryCount]
+        val retryDelay = retryDelays[context.retryCount]
+
+        // The first retry has no base delay to scale, so it gets a fixed window instead. A zero at
+        // a later index is an explicit request for an immediate retry and passes through as zero.
+        if (context.retryCount == 0 && retryDelay == Duration.ZERO) {
+            return Random.nextDouble(MAX_FIRST_RETRY_JITTER_IN_MS).milliseconds
+        }
+
+        // Jitter scales with the delay (+/-50%) so clients spread out further on later retries.
+        return retryDelay * (0.5 + Random.nextDouble())
     }
 
     companion object {
 
         val DEFAULT_MAX_RECONNECTION_TIMEOUT = 60.seconds
+
+        /**
+         * Upper bound of the random delay used when the first retry's base delay is zero. It keeps
+         * a brief network blip recovering quickly while spreading out clients that disconnect
+         * together.
+         */
+        private const val MAX_FIRST_RETRY_JITTER_IN_MS = 500.0
 
         val DEFAULT_MAX_RETRY_DELAY = 5.seconds
 
