@@ -1731,7 +1731,12 @@ constructor(
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {
-    class ConnectException(message: String? = null, cause: Throwable? = null) :
+    /**
+     * @param statusCode HTTP status of the rejected signal connection: the validate endpoint's
+     * status when it reported an error, otherwise the websocket handshake's. Null when the
+     * failure did not come with an HTTP response, such as a network error.
+     */
+    class ConnectException(message: String? = null, cause: Throwable? = null, val statusCode: Int? = null) :
         RoomException(message, cause)
 }
 

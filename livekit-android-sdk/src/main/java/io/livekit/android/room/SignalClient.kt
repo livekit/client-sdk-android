@@ -364,6 +364,9 @@ constructor(
             return
         }
         var reason: String? = null
+        // The validate endpoint explains a rejected handshake; its status wins over the
+        // handshake's when it answers with an error.
+        var statusCode: Int? = response?.code
         try {
             val lastToken = webSocket.request().header("Authorization")
             SignalUrlBuilder.toValidateUrl(lastUrl).getOrNull()?.let {
@@ -380,6 +383,7 @@ constructor(
                 val body = resp.body
                 if (!resp.isSuccessful) {
                     reason = body?.string()
+                    statusCode = resp.code
                 }
                 body?.close()
             }
@@ -397,22 +401,16 @@ constructor(
 
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
-            val error = if (joinCont != null) {
-                RoomException.ConnectException(reason, t)
-            } else {
-                Exception(reason)
-            }
-            listener?.onError(error)
-            joinCont?.resumeWithException(error)
         } else {
             LKLog.e(t) { "websocket failure: $response" }
-            val error = if (joinCont != null) {
-                RoomException.ConnectException(t.localizedMessage, t)
-            } else {
-                t
-            }
-            listener?.onError(error)
-            joinCont?.resumeWithException(error)
+        }
+
+        if (joinCont != null) {
+            // The caller of join/reconnect receives the error through the continuation and decides
+            // whether to retry or report it, so the listener is not notified here.
+            joinCont.resumeWithException(RoomException.ConnectException(reason ?: t.localizedMessage, t, statusCode))
+        } else {
+            listener?.onError(if (reason != null) Exception(reason) else t)
         }
 
         if (wasConnected || wasReconnectHandshake) {
@@ -420,7 +418,7 @@ constructor(
             // Handle websocket closure here.
             // Also handle failure during a soft reconnect handshake (reconnect query): isConnected is
             // still false but the upper layer should be notified like a close. Initial join handshake
-            // failures do not call onClose so RTCEngine can surface them via onError / onFailToConnect.
+            // failures do not call onClose; the join caller surfaces them.
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE,

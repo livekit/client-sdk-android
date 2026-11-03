@@ -18,10 +18,12 @@ package io.livekit.android.room
 
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
+import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.track.TrackException
 import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.findConstraint
 import io.livekit.android.test.MockE2ETest
+import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.events.FlowCollector
 import io.livekit.android.test.mock.MockDataChannel
 import io.livekit.android.test.mock.MockPeerConnection
@@ -54,6 +56,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -168,6 +171,29 @@ class RTCEngineMockE2ETest : MockE2ETest() {
             "Expected RoomException.ConnectException, got $connectResult",
             connectResult is RoomException.ConnectException,
         )
+    }
+
+    @Test
+    fun joinFailureWithoutFallbackReportsFailedToConnectOnce() = runTest {
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        val connectJob = async {
+            runCatching { room.connect(url = TestData.EXAMPLE_URL, token = "token") }
+        }
+        room::state.flow
+            .takeWhile { it != Room.State.CONNECTING }
+            .collect()
+        runCurrent()
+
+        val firstRequest = wsFactory.request
+        wsFactory.listener.onFailure(wsFactory.ws, IOException("500"), createFailedHandshakeResponse(firstRequest, 500))
+        advanceUntilIdle()
+
+        val error = connectJob.await().exceptionOrNull()
+        assertTrue("expected ConnectException, got $error", error is RoomException.ConnectException)
+        assertEquals(500, (error as RoomException.ConnectException).statusCode)
+        assertTrue("no retry expected", wsFactory.request === firstRequest)
+        val events = collector.stopCollecting()
+        assertEquals(1, events.count { it is RoomEvent.FailedToConnect })
     }
 
     @Test

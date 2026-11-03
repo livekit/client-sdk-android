@@ -298,7 +298,25 @@ internal constructor(
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
-        val joinResponse = client.join(url, token, options, roomOptions)
+        var effectiveOptions = options
+        val joinResponse = try {
+            client.join(url, token, options, roomOptions)
+        } catch (e: RoomException.ConnectException) {
+            // A server that predates /rtc/v1 answers that handshake with 404.
+            if (!options.singlePeerConnection || e.statusCode != 404) {
+                onError(e)
+                throw e
+            }
+            LKLog.w { "server has no /rtc/v1 path, retrying on the legacy path with dual peer connections" }
+            effectiveOptions = options.copy(singlePeerConnection = false)
+            connectOptions = effectiveOptions
+            try {
+                client.join(url, token, effectiveOptions, roomOptions)
+            } catch (e: RoomException.ConnectException) {
+                onError(e)
+                throw e
+            }
+        }
         ensureActive()
 
         if (joinResponse.hasParticipant()) {
@@ -318,9 +336,9 @@ internal constructor(
         isClosed = false
         listener?.onSignalConnected(false)
 
-        isSubscriberPrimary = !options.singlePeerConnection && joinResponse.subscriberPrimary
+        isSubscriberPrimary = !effectiveOptions.singlePeerConnection && joinResponse.subscriberPrimary
 
-        configure(joinResponse, options)
+        configure(joinResponse, effectiveOptions)
         // The publisher created above needs the attempt's start time before its first offer, in
         // case video is published before the primary transport connects.
         transport?.publisher?.setConnectStartedAt(startedAtMs)

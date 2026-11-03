@@ -138,6 +138,18 @@ abstract class MockE2ETest : BaseTest() {
     }
 
     /**
+     * The HTTP response of a websocket handshake the server rejected with [code].
+     */
+    fun createFailedHandshakeResponse(request: Request, code: Int): Response {
+        return Response.Builder()
+            .request(request)
+            .code(code)
+            .protocol(Protocol.HTTP_1_1)
+            .message("")
+            .build()
+    }
+
+    /**
      * Simulates receiving [message] from the server
      */
     fun simulateMessageFromServer(message: MessageLite) {
