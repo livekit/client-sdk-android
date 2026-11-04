@@ -26,6 +26,7 @@ internal const val defaultFailureTolerance = -1
 internal const val defaultKeyRingSize = 16
 internal const val defaultDiscardFrameWhenCryptorNotReady = false
 internal val defaultKeyDerivationAlgorithm = FrameCryptorKeyDerivationAlgorithm.PBKDF2
+internal val defaultKeySize = KeyProviderKeySize.BITS_128
 
 data class E2EEOptions(
     var keyProvider: KeyProvider = BaseKeyProvider(
@@ -37,6 +38,7 @@ data class E2EEOptions(
         defaultKeyRingSize,
         defaultDiscardFrameWhenCryptorNotReady,
         defaultKeyDerivationAlgorithm,
+        defaultKeySize,
     ),
     var encryptionType: Encryption.Type = Encryption.Type.GCM,
 ) {
