@@ -24,8 +24,10 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -102,7 +104,97 @@ class RegionUrlProviderTest : BaseTest() {
         // Still served from the cached settings.
         assertEquals(1, server.requestCount)
     }
+
+    @Test
+    fun trustedRegionUrlAcceptsEncryptedCloudUrls() {
+        assertTrue(isTrustedRegionUrl("wss://eu.livekit.cloud"))
+        assertTrue(isTrustedRegionUrl("https://eu.livekit.cloud"))
+        assertTrue(isTrustedRegionUrl("https://eu.livekit.cloud:443/rtc"))
+        assertTrue(isTrustedRegionUrl("wss://staging.livekit.run"))
+        assertTrue(isTrustedRegionUrl("https://EU.LIVEKIT.CLOUD"))
+    }
+
+    @Test
+    fun trustedRegionUrlRejectsCleartextSchemes() {
+        // The transport carrying the token must stay encrypted, even to a real cloud host.
+        assertFalse(isTrustedRegionUrl("ws://eu.livekit.cloud"))
+        assertFalse(isTrustedRegionUrl("http://eu.livekit.cloud"))
+    }
+
+    @Test
+    fun trustedRegionUrlRejectsForeignHosts() {
+        assertFalse(isTrustedRegionUrl("https://other.example.com"))
+        assertFalse(isTrustedRegionUrl("wss://other.example.com/rtc"))
+        // Near-misses must not match on suffix alone.
+        assertFalse(isTrustedRegionUrl("https://not-livekit.cloud"))
+        assertFalse(isTrustedRegionUrl("https://livekit.cloud.example.com"))
+    }
+
+    @Test
+    fun trustedRegionUrlRejectsMalformedAndHostlessUrls() {
+        assertFalse(isTrustedRegionUrl(""))
+        assertFalse(isTrustedRegionUrl("not a url"))
+        assertFalse(isTrustedRegionUrl("eu.livekit.cloud"))
+        assertFalse(isTrustedRegionUrl("file:///etc/passwd"))
+    }
+
+    /** A fetched region the SDK must not fail over to is dropped, not connected to with the token. */
+    @Test
+    fun rejectsUntrustedFetchedRegions() = runTest {
+        server = MockWebServer()
+        server.enqueue(MockResponse().setBody(untrustedRegionResponse))
+        val regionUrlProvider = RegionUrlProvider(server.url("").toUri(), "token", OkHttpClient.Builder().build(), Json { ignoreUnknownKeys = true })
+
+        val settings = regionUrlProvider.fetchRegionSettings()
+        assertNotNull(settings)
+        assertEquals(listOf("https://good.livekit.cloud"), settings!!.regions.map { it.url })
+
+        assertEquals("https://good.livekit.cloud", regionUrlProvider.getNextBestRegionUrl())
+        assertNull(regionUrlProvider.getNextBestRegionUrl())
+    }
+
+    /** Server-reported regions arrive over signaling and are the second ingestion path. */
+    @Test
+    fun rejectsUntrustedServerReportedRegions() = runTest {
+        server = MockWebServer()
+        val regionUrlProvider = RegionUrlProvider(server.url("").toUri(), "token", OkHttpClient.Builder().build(), Json { ignoreUnknownKeys = true })
+
+        regionUrlProvider.setServerReportedRegions(
+            RegionSettings(
+                listOf(
+                    RegionInfo("foreign", "https://other.example.com", 1L),
+                    RegionInfo("cleartext", "ws://cleartext.livekit.cloud", 2L),
+                    RegionInfo("good", "https://good.livekit.cloud", 3L),
+                ),
+            ),
+        )
+
+        assertEquals("https://good.livekit.cloud", regionUrlProvider.getNextBestRegionUrl())
+        assertNull(regionUrlProvider.getNextBestRegionUrl())
+        // No fetch was needed: the server-reported list was used directly.
+        assertEquals(0, server.requestCount)
+    }
 }
+
+private val untrustedRegionResponse = """{
+    "regions": [
+        {
+            "region": "foreign",
+            "url": "https://other.example.com",
+            "distance": "1"
+        },
+        {
+            "region": "cleartext",
+            "url": "ws://cleartext.livekit.cloud",
+            "distance": "2"
+        },
+        {
+            "region": "good",
+            "url": "https://good.livekit.cloud",
+            "distance": "3"
+        }
+    ]
+}"""
 
 private val regionResponse = """{
     "regions": [

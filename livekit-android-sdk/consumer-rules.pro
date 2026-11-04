@@ -52,7 +52,7 @@
 # JNA (UniFFI data track bindings)
 #########################################
 # libjnidispatch looks up JNA's classes and fields by name, and JNA reads the bindings'
-# Structure and Callback subclasses reflectively. livekit-uniffi-android ships no rules for
+# Structure and Callback subclasses reflectively. livekit-ffi-android ships no rules for
 # either. These are the rules from JNA's FAQ.
 -dontwarn java.awt.*
 -keep class com.sun.jna.* { *; }

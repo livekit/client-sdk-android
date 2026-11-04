@@ -23,6 +23,7 @@ import io.livekit.android.dagger.InternalBindsModule
 import io.livekit.android.dagger.JsonFormatModule
 import io.livekit.android.dagger.LiveKitComponent
 import io.livekit.android.dagger.MemoryModule
+import io.livekit.android.dagger.UniffiModule
 import io.livekit.android.room.RTCEngine
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.MockWebSocketFactory
@@ -40,6 +41,7 @@ import javax.inject.Singleton
         JsonFormatModule::class,
         MemoryModule::class,
         InternalBindsModule::class,
+        UniffiModule::class,
     ],
 )
 interface TestLiveKitComponent : LiveKitComponent {

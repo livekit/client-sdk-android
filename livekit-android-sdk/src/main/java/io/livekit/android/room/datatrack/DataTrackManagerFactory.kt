@@ -17,15 +17,15 @@
 package io.livekit.android.room.datatrack
 
 import androidx.annotation.VisibleForTesting
-import io.livekit.uniffi.LocalDataTrackManagerDelegate
-import io.livekit.uniffi.LocalDataTrackManagerInterface
-import io.livekit.uniffi.RemoteDataTrackManagerDelegate
-import io.livekit.uniffi.RemoteDataTrackManagerInterface
+import io.livekit.ffi.LocalDataTrackManagerDelegate
+import io.livekit.ffi.LocalDataTrackManagerInterface
+import io.livekit.ffi.RemoteDataTrackManagerDelegate
+import io.livekit.ffi.RemoteDataTrackManagerInterface
 import uniffi.livekit_datatrack.DecryptionProvider
 import uniffi.livekit_datatrack.EncryptionProvider
 
 /**
- * Creates UniFFI [io.livekit.uniffi.LocalDataTrackManager] instances.
+ * Creates UniFFI [io.livekit.ffi.LocalDataTrackManager] instances.
  *
  * @suppress
  */
@@ -38,7 +38,7 @@ fun interface LocalDataTrackManagerFactory {
 }
 
 /**
- * Creates UniFFI [io.livekit.uniffi.RemoteDataTrackManager] instances.
+ * Creates UniFFI [io.livekit.ffi.RemoteDataTrackManager] instances.
  *
  * @suppress
  */

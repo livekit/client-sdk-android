@@ -22,6 +22,7 @@ import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.ParticipantEvent
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.TrackEvent
+import io.livekit.android.room.ClientCapability
 import io.livekit.android.room.ClientProtocolVersion
 import io.livekit.android.room.track.LocalTrackPublication
 import io.livekit.android.room.track.RemoteTrackPublication
@@ -30,6 +31,7 @@ import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.AgentAttributes
 import io.livekit.android.room.types.fromStringMap
 import io.livekit.android.util.FlowObservable
+import io.livekit.android.util.LKLog
 import io.livekit.android.util.diffMapChange
 import io.livekit.android.util.flow
 import io.livekit.android.util.flowDelegate
@@ -278,6 +280,18 @@ open class Participant(
         internal set
 
     /**
+     * The optional feature capabilities this participant's client advertises.
+     *
+     * Mirrored by the server from the participant's `ClientInfo`. Values this SDK build does not
+     * recognize are omitted, so an empty list means the participant advertised nothing usable.
+     * Unlike [clientProtocol], which is a single version, capabilities are independent flags.
+     */
+    @FlowObservable
+    @get:FlowObservable
+    var capabilities: List<ClientCapability> by flowDelegate(emptyList())
+        internal set
+
+    /**
      * @suppress
      */
     @Deprecated("Use events instead")
@@ -446,9 +460,14 @@ open class Participant(
             permissions = ParticipantPermission.fromProto(info.permission)
         }
         attributes = info.attributesMap
-        agentAttributes = AgentAttributes.fromStringMap(info.attributesMap)
+        try {
+            agentAttributes = AgentAttributes.fromStringMap(info.attributesMap)
+        } catch (e: Exception) {
+            LKLog.w(e) { "Failed to parse agent attributes for participant ${info.identity}" }
+        }
         state = State.fromProto(info.state)
         clientProtocol = info.clientProtocol
+        capabilities = info.capabilitiesList.mapNotNull { ClientCapability.fromProto(it) }
     }
 
     override fun equals(other: Any?): Boolean {
