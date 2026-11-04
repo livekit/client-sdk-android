@@ -75,9 +75,40 @@ class MockPeerConnection(
     }
 
     override fun getRemoteDescription(): SessionDescription? = remoteDesc
+
+    /**
+     * Holds remote descriptions in flight instead of applying them, so a test can put a candidate
+     * in the gap a real connection has between an offer arriving and its description landing.
+     * Released by [releaseRemoteDescriptions].
+     */
+    var holdsRemoteDescriptions = false
+    private val heldRemoteDescriptions = mutableListOf<Pair<SdpObserver, SessionDescription>>()
+
+    /** Applies the oldest held description, leaving any after it still in flight. */
+    fun releaseHeldRemoteDescription() {
+        val held = heldRemoteDescriptions.removeFirstOrNull() ?: return
+        val holding = holdsRemoteDescriptions
+        holdsRemoteDescriptions = false
+        setRemoteDescription(held.first, held.second)
+        holdsRemoteDescriptions = holding
+    }
+
+    /** Applies everything held, in the order it arrived. */
+    fun releaseRemoteDescriptions() {
+        val held = heldRemoteDescriptions.toList()
+        heldRemoteDescriptions.clear()
+        holdsRemoteDescriptions = false
+        held.forEach { (observer, sdp) -> setRemoteDescription(observer, sdp) }
+    }
+
     override fun setRemoteDescription(observer: SdpObserver, sdp: SessionDescription) {
         if (sdp.description.isEmpty()) {
             observer.onSetFailure("empty remote description")
+            return
+        }
+
+        if (holdsRemoteDescriptions) {
+            heldRemoteDescriptions.add(observer to sdp)
             return
         }
 
@@ -129,7 +160,11 @@ class MockPeerConnection(
         return true
     }
 
+    /** Every candidate actually handed to the connection, so a test can tell added from queued. */
+    val addedIceCandidates = mutableListOf<IceCandidate>()
+
     override fun addIceCandidate(candidate: IceCandidate?): Boolean {
+        candidate?.let { addedIceCandidates.add(it) }
         return true
     }
 
