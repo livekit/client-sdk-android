@@ -115,6 +115,13 @@ constructor(
 
     private val latestOfferId = AtomicInteger(0)
 
+    /** offerId of the last answer successfully applied, or 0 if none. */
+    private val answeredOfferId = AtomicInteger(0)
+
+    /** offerId (0 if unnumbered) of the answer being applied right now, or null if none. */
+    @Volatile
+    private var answerInFlight: Int? = null
+
     interface Listener {
         fun onOffer(sd: SessionDescription, offerId: Int)
     }
@@ -141,15 +148,36 @@ constructor(
             if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
                 return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: $currentOfferId, actual: $offerId")
             }
-            val result = peerConnection.setRemoteDescription(sd)
-            if (result is Either.Left) {
-                pendingCandidates.forEach { pending ->
-                    peerConnection.addIceCandidate(pending)
+            if (sd.type == SessionDescription.Type.ANSWER) {
+                if (isDuplicateAnswer(offerId, answerInFlight, answeredOfferId.get(), peerConnection.signalingState())) {
+                    // a repeat of an answer already applied or being applied (e.g. duplicated by a
+                    // proxy): there is no local offer left to answer
+                    LKLog.w { "ignoring duplicate answer, offerId: $offerId" }
+                    return@launchRTCIfNotClosed Either.Right("Duplicate answer, ignoring. offerId: $offerId")
                 }
-                pendingCandidates.clear()
-                restartingIce = false
+                // claimed before any suspension, so a copy arriving mid-apply is caught too
+                answerInFlight = offerId
             }
-            return@launchRTCIfNotClosed result
+            try {
+                val result = peerConnection.setRemoteDescription(sd)
+                if (result is Either.Left) {
+                    // only a successfully applied answer makes later copies duplicates
+                    if (sd.type == SessionDescription.Type.ANSWER && offerId > 0) {
+                        answeredOfferId.set(offerId)
+                    }
+                    pendingCandidates.forEach { pending ->
+                        peerConnection.addIceCandidate(pending)
+                    }
+                    pendingCandidates.clear()
+                    restartingIce = false
+                }
+                return@launchRTCIfNotClosed result
+            } finally {
+                // released however the apply ends, so a genuine retry is still possible
+                if (sd.type == SessionDescription.Type.ANSWER) {
+                    answerInFlight = null
+                }
+            }
         } ?: Either.Right("PCT is closed.")
 
         if (this.renegotiate) {
@@ -739,4 +767,22 @@ internal data class TrackBitrateInfo(
 internal sealed class TrackBitrateInfoKey {
     data class Cid(val value: String) : TrackBitrateInfoKey()
     data class Transceiver(val value: RtpTransceiver) : TrackBitrateInfoKey()
+}
+
+/**
+ * Whether an incoming answer repeats one already applied or being applied.
+ *
+ * Any answer for the offer whose answer is in flight is a duplicate, numbered or not. With an
+ * [offerId] (current servers) an answer is also a duplicate if that offer's answer was already
+ * applied. Without one, fall back to the signaling state: in `STABLE` no local offer is pending.
+ */
+internal fun isDuplicateAnswer(
+    offerId: Int,
+    answerInFlight: Int?,
+    answeredOfferId: Int,
+    signalingState: PeerConnection.SignalingState?,
+): Boolean {
+    if (answerInFlight != null && answerInFlight == offerId) return true
+    if (offerId > 0) return offerId == answeredOfferId
+    return signalingState == PeerConnection.SignalingState.STABLE
 }

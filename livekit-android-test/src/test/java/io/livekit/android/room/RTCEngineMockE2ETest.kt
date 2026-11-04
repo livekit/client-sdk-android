@@ -258,6 +258,63 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun duplicateAnswerForTheSameOfferIsIgnored() = runTest {
+        connect()
+
+        val ws = wsFactory.ws
+        var answeredOfferId = 0
+        val handler: SignalRequestHandler = { request ->
+            if (request.hasOffer()) {
+                answeredOfferId = request.offer.id
+                val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+                    answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                        sdp = "remote_answer"
+                        type = "answer"
+                        id = request.offer.id
+                        build()
+                    }
+                    build()
+                }
+                wsFactory.receiveMessage(answer)
+                true
+            }
+            false
+        }
+        wsFactory.registerSignalRequestHandler(handler)
+
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+        ws.clearRequests()
+        publisher.observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        assertEquals("remote_answer", publisher.remoteDesc?.description)
+        wsFactory.unregisterSignalRequestHandler(handler)
+
+        // A proxy (or a server retry) can deliver a second copy of the answer that was
+        // already applied. There is no local offer left to answer, so applying it again
+        // is invalid. The payload differs only so the test can tell whether it was applied.
+        val duplicate = with(LivekitRtc.SignalResponse.newBuilder()) {
+            answer = with(LivekitRtc.SessionDescription.newBuilder()) {
+                sdp = "remote_answer_duplicate"
+                type = "answer"
+                id = answeredOfferId
+                build()
+            }
+            build()
+        }
+        wsFactory.receiveMessage(duplicate)
+        advanceUntilIdle()
+
+        assertEquals(PeerConnection.SignalingState.STABLE, publisher.signalingState())
+        assertEquals(
+            "duplicate answer was applied to the peer connection",
+            "remote_answer",
+            publisher.remoteDesc?.description,
+        )
+    }
+
+    @Test
     fun offerIdMismatchIsIgnored() = runTest {
         connect()
 
