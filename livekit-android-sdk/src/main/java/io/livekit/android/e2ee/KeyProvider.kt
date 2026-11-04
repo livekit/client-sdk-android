@@ -160,7 +160,7 @@ class BaseKeyProvider(
      */
     fun setCurrentKeyIndex(keyIndex: Int) {
         val observers = synchronized(keyIndexStateLock) {
-            _currentKeyIndex = Math.floorMod(keyIndex, keyRingSize)
+            _currentKeyIndex = keyIndex.mod(keyRingSize)
             keyIndexObservers.values.toList()
         }
         // Dispatch is serialized and each pass re-reads the newest index,
