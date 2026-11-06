@@ -44,6 +44,7 @@ import livekit.org.webrtc.SessionDescription
  * @param subscriberPrimary the server's `subscriber_primary` flag from the join response.
  * @param fastPublish the server's `fast_publish` flag from the join response.
  */
+@Suppress("TooManyFunctions")
 internal class DualPeerConnectionTransport(
     override val publisher: PeerConnectionTransport,
     override val subscriber: PeerConnectionTransport,

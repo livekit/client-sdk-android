@@ -31,6 +31,7 @@ import livekit.org.webrtc.SessionDescription
  * Operations that only ever touch the publishing peer connection, such as adding transceivers
  * or creating client data channels, go through [publisher] directly.
  */
+@Suppress("TooManyFunctions")
 internal interface Transport {
 
     /**

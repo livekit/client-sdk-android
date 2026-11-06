@@ -109,8 +109,7 @@
     <ID>UnsafeCallOnNullableType:LocalScreencastVideoTrack.kt$LocalScreencastVideoTrack.MediaProjectionCallback$track!!</ID>
     <ID>UnsafeCallOnNullableType:LocalVideoTrack.kt$LocalVideoTrack$simulcastInfo.sender!!</ID>
     <ID>UnsafeCallOnNullableType:PeerConnectionTransport.kt$PeerConnectionTransport$executeBlockingOnRTCThread(rtcThreadToken) { connectionFactory.createPeerConnection( config, pcObserver, ) ?: throw IllegalStateException("peer connection creation failed?") }!!</ID>
-    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$publisher!!</ID>
-    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$subscriber!!</ID>
+    <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$transport!!</ID>
     <ID>UnsafeCallOnNullableType:RTCEngine.kt$RTCEngine$url!!</ID>
     <ID>UnsafeCallOnNullableType:RTCModule.kt$RTCModule$executeBlockingOnRTCThread(LibWebrtcInitializationThreadToken) { val peerConnectionFactory = PeerConnectionFactory.builder() .setAudioDeviceModule(audioDeviceModule) .setAudioProcessingFactory(audioProcessingFactory) .setVideoEncoderFactory(videoEncoderFactory) .setVideoDecoderFactory(videoDecoderFactory) .apply { if (peerConnectionFactoryOptions != null) { setOptions(peerConnectionFactoryOptions) } } .createPeerConnectionFactory() return@executeBlockingOnRTCThread PeerConnectionFactoryManager(peerConnectionFactory) .apply { memoryManager.registerClosable { executeOnRTCThread(RTCThreadTokenImpl(this)) { dispose() } } } }!!</ID>
     <ID>UnsafeCallOnNullableType:Room.kt$Room$e2eeManager!!</ID>
