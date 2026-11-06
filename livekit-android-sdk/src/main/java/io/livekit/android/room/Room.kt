@@ -1297,6 +1297,7 @@ constructor(
         if (streamId != null && streamId.startsWith("TR")) {
             trackSid = streamId
         }
+        engine.getTrackSidForReceiver(receiver)?.let { trackSid = it }
         val participant = getParticipantBySid(participantSid) as? RemoteParticipant
 
         if (participant == null) {

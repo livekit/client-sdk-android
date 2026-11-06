@@ -865,7 +865,8 @@ constructor(
             LivekitRtc.SignalResponse.MessageCase.ANSWER -> {
                 val sd = fromProtoSessionDescription(response.answer)
                 val offerId = response.answer.id
-                listener?.onServerAnswer(sd, offerId)
+                val midToTrackId = response.answer.midToTrackIdMap
+                listener?.onServerAnswer(sd, offerId, midToTrackId)
             }
 
             LivekitRtc.SignalResponse.MessageCase.OFFER -> {
@@ -986,7 +987,7 @@ constructor(
             }
 
             LivekitRtc.SignalResponse.MessageCase.MEDIA_SECTIONS_REQUIREMENT -> {
-                // TODO
+                listener?.onMediaSectionsRequirement(response.mediaSectionsRequirement)
             }
 
             LivekitRtc.SignalResponse.MessageCase.SUBSCRIBED_AUDIO_CODEC_UPDATE -> {
@@ -1101,7 +1102,7 @@ constructor(
     }
 
     internal interface Listener {
-        fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int)
+        fun onServerAnswer(sessionDescription: SessionDescription, offerId: Int, midToTrackId: Map<String, String>)
         fun onServerOffer(sessionDescription: SessionDescription, offerId: Int)
         fun onTrickle(candidate: IceCandidate, target: LivekitRtc.SignalTarget)
         fun onLocalTrackPublished(response: LivekitRtc.TrackPublishedResponse)
@@ -1124,6 +1125,7 @@ constructor(
         fun onUnpublishDataTrackResponse(encoded: ByteArray) {}
         fun onRequestResponse(encoded: ByteArray) {}
         fun onDataTrackSubscriberHandles(encoded: ByteArray) {}
+        fun onMediaSectionsRequirement(requirement: LivekitRtc.MediaSectionsRequirement) {}
     }
 
     /**

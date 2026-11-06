@@ -108,7 +108,13 @@ class MockPeerConnection(
         return dataChannel
     }
 
+    /**
+     * The constraints passed to the most recent [createOffer].
+     */
+    var lastOfferConstraints: MediaConstraints? = null
+
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
+        lastOfferConstraints = constraints
         val sdp = SessionDescription(SessionDescription.Type.OFFER, "local_offer")
         observer?.onCreateSuccess(sdp)
     }
@@ -188,15 +194,19 @@ class MockPeerConnection(
         return transceiver
     }
 
-    override fun addTransceiver(mediaType: MediaStreamTrack.MediaType?): RtpTransceiver {
-        return super.addTransceiver(mediaType)
+    override fun addTransceiver(mediaType: MediaStreamTrack.MediaType): RtpTransceiver {
+        val transceiver = MockRtpTransceiver.create(mediaType, RtpTransceiver.RtpTransceiverInit())
+        transceivers.add(transceiver)
+        return transceiver
     }
 
     override fun addTransceiver(
-        mediaType: MediaStreamTrack.MediaType?,
+        mediaType: MediaStreamTrack.MediaType,
         init: RtpTransceiver.RtpTransceiverInit?,
     ): RtpTransceiver {
-        return super.addTransceiver(mediaType, init)
+        val transceiver = MockRtpTransceiver.create(mediaType, init ?: RtpTransceiver.RtpTransceiverInit())
+        transceivers.add(transceiver)
+        return transceiver
     }
 
     @Deprecated("Deprecated in Java")

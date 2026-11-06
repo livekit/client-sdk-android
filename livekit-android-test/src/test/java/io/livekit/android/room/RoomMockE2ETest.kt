@@ -41,6 +41,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import livekit.LivekitRtc
+import livekit.org.webrtc.RtpReceiver
+import livekit.org.webrtc.RtpTransceiver
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -234,6 +236,74 @@ class RoomMockE2ETest : MockE2ETest() {
 
         val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
         assertNotNull(micPub)
+        assertNotNull(micPub?.track)
+    }
+
+    /**
+     * Adds a receiving media section to the subscriber and has the transport map it to
+     * [trackSid].
+     *
+     * @return the receiver of the media section.
+     */
+    private fun mapReceiverToTrackSid(trackSid: String): RtpReceiver {
+        val engine = component.rtcEngine()
+        val transceiver = engine.getSubscriberPeerConnection().addTransceiver(
+            MockAudioStreamTrack(),
+            RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.RECV_ONLY),
+        )
+        val receiver = transceiver.receiver
+
+        val transport = Mockito.spy(engine.transport!!)
+        Mockito.doReturn(trackSid).`when`(transport).trackIdForReceiver(receiver)
+        engine.transport = transport
+        return receiver
+    }
+
+    @Test
+    fun participantSubscribesRemoteTrackByMid() = runTest {
+        connect()
+
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid)!!
+        val receiver = mapReceiverToTrackSid(trackSid = TestData.REMOTE_AUDIO_TRACK.sid)
+        val eventCollector = EventCollector(room.events, coroutineRule.scope)
+        room.onAddTrack(
+            receiver,
+            MockAudioStreamTrack(id = "local_track_id"),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "local_stream_id"),
+                ),
+            ),
+        )
+        val events = eventCollector.stopCollecting()
+
+        assertIsClassList(
+            listOf(RoomEvent.TrackSubscribed::class.java),
+            events,
+        )
+        val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
+        assertNotNull(micPub?.track)
+    }
+
+    @Test
+    fun midTakesPrecedenceOverStreamTrackSid() = runTest {
+        connect()
+
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid)!!
+        val receiver = mapReceiverToTrackSid(trackSid = TestData.REMOTE_AUDIO_TRACK.sid)
+        room.onAddTrack(
+            receiver,
+            MockAudioStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "TR_unknown"),
+                ),
+            ),
+        )
+
+        val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
         assertNotNull(micPub?.track)
     }
 
