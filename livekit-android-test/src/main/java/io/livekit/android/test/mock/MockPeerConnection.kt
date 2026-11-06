@@ -113,9 +113,14 @@ class MockPeerConnection(
      */
     var lastOfferConstraints: MediaConstraints? = null
 
+    /**
+     * The description every [createOffer] returns.
+     */
+    var offerDescription: String = "local_offer"
+
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
         lastOfferConstraints = constraints
-        val sdp = SessionDescription(SessionDescription.Type.OFFER, "local_offer")
+        val sdp = SessionDescription(SessionDescription.Type.OFFER, offerDescription)
         observer?.onCreateSuccess(sdp)
     }
 
