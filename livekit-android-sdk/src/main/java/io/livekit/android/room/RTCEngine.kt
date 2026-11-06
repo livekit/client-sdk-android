@@ -360,11 +360,9 @@ internal constructor(
                     publisherObserver,
                     publisherObserver,
                 )
-                val subscriber = pctFactory.create(
-                    rtcConfig,
-                    subscriberObserver,
-                    null,
-                )
+                val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
+                    .onFailure { publisher.close() }
+                    .getOrThrow()
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
