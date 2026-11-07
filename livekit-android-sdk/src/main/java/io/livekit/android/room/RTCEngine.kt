@@ -1201,6 +1201,7 @@ internal constructor(
         fun onLocalTrackSubscribed(trackSubscribed: LivekitRtc.TrackSubscribed)
         fun onRpcPacketReceived(dp: LivekitModels.DataPacket)
         fun onDataStreamPacket(dp: LivekitModels.DataPacket, encryptionType: LivekitModels.Encryption.Type)
+        fun onSelectedIceCandidatePairChanged(pair: SelectedIceCandidatePair) {}
     }
 
     companion object {

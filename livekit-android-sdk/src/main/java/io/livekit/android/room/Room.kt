@@ -169,6 +169,21 @@ constructor(
 
     private lateinit var coroutineScope: CoroutineScope
     private val eventBus = BroadcastEventBus<RoomEvent>()
+
+    /**
+     * Events emitted by this [Room], such as participant changes, track publications and connection
+     * state updates.
+     *
+     * For example, observing whenever the ICE candidate pair carrying media changes:
+     * ```kotlin
+     * room.events.collect { event ->
+     *     if (event is RoomEvent.SelectedIceCandidatePairChanged) {
+     *         LKLog.i { event.pair.summary() }
+     *     }
+     * }
+     * ```
+     * @see [RoomEvent]
+     */
     val events = eventBus.readOnly()
 
     init {
@@ -1533,6 +1548,14 @@ constructor(
     override fun onFailToConnect(error: Throwable) {
         // scope will likely be closed already here, so force it out of scope.
         eventBus.tryPostEvent(RoomEvent.FailedToConnect(this, error))
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onSelectedIceCandidatePairChanged(pair: SelectedIceCandidatePair) {
+        // Posted synchronously so that ordering between consecutive changes is preserved.
+        eventBus.tryPostEvent(RoomEvent.SelectedIceCandidatePairChanged(this, pair))
     }
 
     /**
