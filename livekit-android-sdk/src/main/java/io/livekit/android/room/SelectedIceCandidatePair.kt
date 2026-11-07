@@ -46,20 +46,27 @@ data class IceCandidateInfo(
     val type: String?,
     /** `udp` or `tcp`. */
     val protocol: String?,
+    /** IP address of the candidate. */
     val address: String?,
+    /** Port of the candidate. */
     val port: Int?,
+    /** RFC 5245 foundation. Candidates gathered from the same origin with the same transport protocol share one. */
     val foundation: String?,
     /** 1 for RTP, 2 for RTCP. Always 1 when rtcp-mux is in use. */
     val component: Int?,
+    /** RFC 5245 priority. Decomposed into [typePreference], [localPreference] and [componentPreference]. */
     val priority: Long?,
     /** The address behind the NAT. Present for `srflx`/`prflx`/`relay` candidates. */
     val relatedAddress: String?,
+    /** Port of [relatedAddress]. */
     val relatedPort: Int?,
     /** `active`, `passive` or `so` for TCP candidates. */
     val tcpType: String?,
     /** Any remaining key/value pairs on the line, e.g. `generation`, `ufrag`, `network-id`, `network-cost`. */
     val attributes: Map<String, String>,
+    /** Media id (`a=mid`) the candidate is associated with. Null when unset by the remote. */
     val sdpMid: String?,
+    /** Index of the m-line in the SDP the candidate is associated with. */
     val sdpMLineIndex: Int,
     /** The STUN/TURN server that produced this candidate, if any. */
     val serverUrl: String?,
@@ -69,10 +76,9 @@ data class IceCandidateInfo(
     val raw: String,
 ) {
     /**
-     * Type preference encoded into the priority. libwebrtc uses host 126 (90 for TCP), prflx 110 (80 for TCP),
-     * srflx 100 and relay 0-2 depending on the TURN transport.
+     * RFC 5245 type preference, bits 24-31 of the priority. libwebrtc uses host 126 (90 for TCP),
+     * prflx 110 (80 for TCP), srflx 100 and relay 0-2 depending on the TURN transport.
      */
-    /** RFC 5245 type preference, bits 24-31 of the priority. */
     val typePreference: Long?
         get() = priority?.let { (it ushr 24) and 0xFFL }
 
@@ -116,8 +122,11 @@ data class IceCandidateInfo(
  * @see io.livekit.android.events.RoomEvent.SelectedIceCandidatePairChanged
  */
 data class SelectedIceCandidatePair(
+    /** Which peer connection this pair belongs to. */
     val target: IceTarget,
+    /** The locally gathered candidate of the pair. */
     val local: IceCandidateInfo,
+    /** The remote peer's candidate of the pair. */
     val remote: IceCandidateInfo,
     /** libwebrtc's description of why the pair changed. Free-form, wording varies between versions. */
     val reason: String?,
