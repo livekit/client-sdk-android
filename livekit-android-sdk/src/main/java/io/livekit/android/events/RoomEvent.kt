@@ -335,6 +335,9 @@ sealed class RoomEvent(val room: Room) : Event() {
      */
     class SelectedIceCandidatePairChanged(
         room: Room,
+        /**
+         * The newly selected candidate pair, including both of its parsed candidates.
+         */
         val pair: SelectedIceCandidatePair,
     ) : RoomEvent(room)
 }

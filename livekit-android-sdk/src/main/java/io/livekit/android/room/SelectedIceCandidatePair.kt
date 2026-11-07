@@ -25,7 +25,10 @@ import livekit.org.webrtc.PeerConnection
  * connections run independent ICE sessions and may select different network paths.
  */
 enum class IceTarget {
+    /** The publisher (uplink) peer connection, carrying locally published tracks. */
     PUBLISHER,
+
+    /** The subscriber (downlink) peer connection, carrying remotely published tracks. */
     SUBSCRIBER,
 }
 
@@ -69,12 +72,15 @@ data class IceCandidateInfo(
      * Type preference encoded into the priority. libwebrtc uses host 126 (90 for TCP), prflx 110 (80 for TCP),
      * srflx 100 and relay 0-2 depending on the TURN transport.
      */
+    /** RFC 5245 type preference, bits 24-31 of the priority. */
     val typePreference: Long?
         get() = priority?.let { (it ushr 24) and 0xFFL }
 
+    /** RFC 5245 local preference, bits 8-23 of the priority. */
     val localPreference: Long?
         get() = priority?.let { (it ushr 8) and 0xFFFFL }
 
+    /** RFC 5245 component preference, bits 0-7 of the priority. */
     val componentPreference: Long?
         get() = priority?.let { it and 0xFFL }
 
