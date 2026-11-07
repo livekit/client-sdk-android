@@ -19,6 +19,7 @@ package io.livekit.android.events
 import io.livekit.android.annotations.Beta
 import io.livekit.android.e2ee.E2EEState
 import io.livekit.android.room.Room
+import io.livekit.android.room.SelectedIceCandidatePair
 import io.livekit.android.room.datatrack.DataTrackSid
 import io.livekit.android.room.datatrack.RemoteDataTrack
 import io.livekit.android.room.participant.ConnectionQuality
@@ -323,6 +324,18 @@ sealed class RoomEvent(val room: Room) : Event() {
         val participant: Participant,
         val newState: Participant.State,
         val oldState: Participant.State,
+    ) : RoomEvent(room)
+
+    /**
+     * The ICE candidate pair carrying media on the publisher or subscriber peer connection has changed.
+     *
+     * Emitted for the initial selection as well as every later switch, such as a Wi-Fi to cellular
+     * handover or a fallback to a TURN relay, and again after reconnections. The publisher and subscriber
+     * peer connections select their candidate pairs independently, so check [SelectedIceCandidatePair.target].
+     */
+    class SelectedIceCandidatePairChanged(
+        room: Room,
+        val pair: SelectedIceCandidatePair,
     ) : RoomEvent(room)
 }
 

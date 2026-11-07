@@ -1521,6 +1521,14 @@ constructor(
     /**
      * @suppress
      */
+    override fun onSelectedIceCandidatePairChanged(pair: SelectedIceCandidatePair) {
+        // Posted synchronously so that ordering between consecutive changes is preserved.
+        eventBus.tryPostEvent(RoomEvent.SelectedIceCandidatePairChanged(this, pair))
+    }
+
+    /**
+     * @suppress
+     */
     override suspend fun onSignalConnected(isResume: Boolean) {
         if (isResume) {
             // during resume reconnection, need to send sync state upon signal connection.
