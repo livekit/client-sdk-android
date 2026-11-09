@@ -26,6 +26,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Base64
@@ -45,7 +46,7 @@ class SignalUrlBuilderTest {
         roomOptions = roomOptions,
         networkType = networkType,
         publisherOffer = publisherOffer,
-    ).getOrThrow()
+    )
 
     /** Options as `SignalClient.reconnect` sets them. */
     private fun reconnectOptions(participantSid: String?) = ConnectOptions().apply {
@@ -281,14 +282,14 @@ class SignalUrlBuilderTest {
     }
 
     @Test
-    fun invalidUrlFails() {
-        val result = SignalUrlBuilder.buildJoinRequestUrl(
-            url = "not a url",
-            connectOptions = ConnectOptions(),
-            roomOptions = RoomOptions(),
-        )
-
-        assertTrue(result.isFailure)
+    fun invalidUrlThrows() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SignalUrlBuilder.buildJoinRequestUrl(
+                url = "not a url",
+                connectOptions = ConnectOptions(),
+                roomOptions = RoomOptions(),
+            )
+        }
     }
 
     // endregion
@@ -297,7 +298,7 @@ class SignalUrlBuilderTest {
 
     @Test
     fun validateUrlForLegacyPath() {
-        val validate = SignalUrlBuilder.toValidateUrl("wss://example.livekit.cloud/rtc?protocol=13&sdk=android").getOrThrow()
+        val validate = SignalUrlBuilder.toValidateUrl("wss://example.livekit.cloud/rtc?protocol=13&sdk=android")
 
         assertEquals("https://example.livekit.cloud/rtc/validate?protocol=13&sdk=android", validate)
     }
@@ -305,7 +306,7 @@ class SignalUrlBuilderTest {
     @Test
     fun validateUrlForV1Path() {
         val url = buildUrl()
-        val validate = SignalUrlBuilder.toValidateUrl(url).getOrThrow().toHttpUrl()
+        val validate = SignalUrlBuilder.toValidateUrl(url).toHttpUrl()
 
         assertEquals("https", validate.scheme)
         assertEquals("/rtc/v1/validate", validate.encodedPath)
@@ -314,26 +315,23 @@ class SignalUrlBuilderTest {
 
     @Test
     fun validateUrlWsBecomesHttp() {
-        val validate = SignalUrlBuilder.toValidateUrl("ws://localhost:7880/rtc/v1?join_request=abc=").getOrThrow()
+        val validate = SignalUrlBuilder.toValidateUrl("ws://localhost:7880/rtc/v1?join_request=abc=")
 
         assertEquals("http://localhost:7880/rtc/v1/validate?join_request=abc=", validate)
     }
 
     @Test
     fun validateUrlHandlesTrailingSlash() {
-        val validate = SignalUrlBuilder.toValidateUrl("wss://example.livekit.cloud/rtc/").getOrThrow()
+        val validate = SignalUrlBuilder.toValidateUrl("wss://example.livekit.cloud/rtc/")
 
         assertEquals("https://example.livekit.cloud/rtc/validate", validate)
     }
 
     @Test
-    fun validateUrlInvalidUrlFails() {
-        assertTrue(SignalUrlBuilder.toValidateUrl("not a url").isFailure)
-    }
-
-    @Test
-    fun validateUrlNullUrlFails() {
-        assertTrue(SignalUrlBuilder.toValidateUrl(null).isFailure)
+    fun validateUrlInvalidUrlThrows() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SignalUrlBuilder.toValidateUrl("not a url")
+        }
     }
 
     // endregion

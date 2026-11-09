@@ -55,7 +55,8 @@ internal object SignalUrlBuilder {
      * @param connectOptions also decides whether this is a reconnect, and with which participant.
      * @param publisherOffer bundled into the join request so the server can answer it
      * in the same exchange.
-     * @return the websocket URL, or a failure if [url] cannot be parsed.
+     * @return the websocket URL.
+     * @throws IllegalArgumentException if [url] cannot be parsed.
      */
     fun buildJoinRequestUrl(
         url: String,
@@ -63,7 +64,7 @@ internal object SignalUrlBuilder {
         roomOptions: RoomOptions,
         networkType: NetworkType? = null,
         publisherOffer: SessionDescription? = null,
-    ): Result<String> = runCatching {
+    ): String {
         val baseUrl = url.toHttpUrl().parseHttpUrl()
 
         // An empty last segment means the path ends in '/', which marks it as a directory.
@@ -89,7 +90,7 @@ internal object SignalUrlBuilder {
             publisherOffer = publisherOffer,
         )
 
-        return@runCatching "${rtcUrl.toString().toWebsocketUrl()}?$QUERY_JOIN_REQUEST=$joinRequest"
+        return "${rtcUrl.toString().toWebsocketUrl()}?$QUERY_JOIN_REQUEST=$joinRequest"
     }
 
     /**
@@ -97,20 +98,16 @@ internal object SignalUrlBuilder {
      * - `wss://host/rtc?...` → `https://host/rtc/validate?...`
      * - `wss://host/rtc/v1?...` → `https://host/rtc/v1/validate?...`
      *
-     * @return the validation URL, or a failure if [wsUrl] is null or cannot be parsed.
+     * @return the validation URL.
+     * @throws IllegalArgumentException if [wsUrl] cannot be parsed.
      */
-    fun toValidateUrl(wsUrl: String?): Result<String> {
-        if (wsUrl == null) {
-            return Result.failure(IllegalArgumentException("No signal URL to validate"))
-        }
-        return runCatching {
-            // addPathSegment replaces an empty last segment, so a trailing '/' doesn't double up.
-            wsUrl.toHttpUrl().parseHttpUrl()
-                .newBuilder()
-                .addPathSegment("validate")
-                .build()
-                .toString()
-        }
+    fun toValidateUrl(wsUrl: String): String {
+        // addPathSegment replaces an empty last segment, so a trailing '/' doesn't double up.
+        return wsUrl.toHttpUrl().parseHttpUrl()
+            .newBuilder()
+            .addPathSegment("validate")
+            .build()
+            .toString()
     }
 
     /**

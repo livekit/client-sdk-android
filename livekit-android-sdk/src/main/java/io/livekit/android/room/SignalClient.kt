@@ -197,7 +197,6 @@ constructor(
 
         if (options.singlePeerConnection) {
             wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType())
-                .getOrElse { wsUrlString }
         }
 
         LKLog.i { "connecting to $wsUrlString" }
@@ -369,7 +368,7 @@ constructor(
         var statusCode: Int? = response?.code
         try {
             val lastToken = webSocket.request().header("Authorization")
-            SignalUrlBuilder.toValidateUrl(lastUrl).getOrNull()?.let {
+            lastUrl?.let { SignalUrlBuilder.toValidateUrl(it) }?.let {
                 val request = Request.Builder()
                     .url(it)
                     .apply {
