@@ -19,7 +19,6 @@ package io.livekit.android.room
 import io.livekit.android.util.LKLog
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
-import livekit.org.webrtc.DataChannel
 import livekit.org.webrtc.MediaStream
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RtpReceiver
@@ -27,21 +26,12 @@ import livekit.org.webrtc.RtpTransceiver
 
 internal class DuplexTransportObserver(engine: RTCEngine, client: SignalClient, rtcThreadToken: RTCThreadToken) :
     PublisherTransportObserver(engine, client, rtcThreadToken) {
-    var dataChannelListener: ((DataChannel) -> Unit)? = null
 
     override fun onTrack(transceiver: RtpTransceiver?) {
         when (transceiver?.mediaType) {
             MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO -> LKLog.v { "peerconn started receiving audio" }
             MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO -> LKLog.v { "peerconn started receiving video" }
             else -> LKLog.d { "peerconn started receiving unknown media type: ${transceiver?.mediaType}" }
-        }
-    }
-
-    override fun onDataChannel(dataChannel: DataChannel?) {
-        executeOnRTCThread(rtcThreadToken) {
-            dataChannel?.let {
-                dataChannelListener?.invoke(it)
-            }
         }
     }
 

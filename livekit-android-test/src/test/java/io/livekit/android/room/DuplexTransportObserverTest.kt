@@ -20,7 +20,6 @@ import io.livekit.android.test.mock.MockRTCThreadToken
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import livekit.LivekitRtc.SignalTarget
-import livekit.org.webrtc.DataChannel
 import livekit.org.webrtc.IceCandidate
 import livekit.org.webrtc.MediaStream
 import livekit.org.webrtc.MediaStreamTrack
@@ -123,39 +122,6 @@ class DuplexTransportObserverTest {
         flushRTCThread()
 
         verify(engineListener, never()).onAddTrack(any(), any(), any())
-    }
-
-    // endregion
-
-    // region onDataChannel
-
-    @Test
-    fun dataChannelIsForwardedToListener() {
-        val channel = mock<DataChannel>()
-        val received = mutableListOf<DataChannel>()
-        observer.dataChannelListener = { received.add(it) }
-
-        observer.onDataChannel(channel)
-        flushRTCThread()
-
-        assertEquals(listOf(channel), received)
-    }
-
-    @Test
-    fun nullDataChannelIsIgnored() {
-        val received = mutableListOf<DataChannel>()
-        observer.dataChannelListener = { received.add(it) }
-
-        observer.onDataChannel(null)
-        flushRTCThread()
-
-        assertEquals(emptyList<DataChannel>(), received)
-    }
-
-    @Test
-    fun dataChannelWithoutListenerIsDropped() {
-        observer.onDataChannel(mock())
-        flushRTCThread()
     }
 
     // endregion
