@@ -210,6 +210,12 @@ internal constructor(
     private var publisherObserver: PublisherTransportObserver? = null
     private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
+    // Publisher created ahead of a single peer connection join so its offer rides in the /rtc/v1
+    // request. configure adopts it into the transport and clears it; until then closeResources
+    // disposes it.
+    private var earlyPublisher: PeerConnectionTransport? = null
+    private var earlyPublisherObserver: DuplexTransportObserver? = null
+
     internal var transport: Transport? = null
     private var reliableDataChannel: DataChannel? = null
     private var reliableDataChannelSub: DataChannel? = null
@@ -301,23 +307,23 @@ internal constructor(
             connectionState = ConnectionState.CONNECTING
         }
         var effectiveOptions = options
-        var earlyPublisher: PeerConnectionTransport? = null
-        var earlyPublisherObserver: DuplexTransportObserver? = null
         if (effectiveOptions.singlePeerConnection) {
-            earlyPublisherObserver = DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
-            val rtcConfig = makeRTCConfig(null, effectiveOptions)
-            earlyPublisher = pctFactory.create(
-                rtcConfig,
-                earlyPublisherObserver,
-                earlyPublisherObserver,
+            val observer = DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
+            val publisher = pctFactory.create(
+                makeRTCConfig(null, effectiveOptions),
+                observer,
+                observer,
             )
-            createPublisherDataChannels(earlyPublisher)
+            earlyPublisherObserver = observer
+            earlyPublisher = publisher
+            createPublisherDataChannels(publisher)
         }
 
         val offerValue = when (val earlyOffer = earlyPublisher?.createInitialOffer(getPublisherOfferConstraints())) {
             is Either.Left -> earlyOffer.value.sessionDescription.toProtoSessionDescription(earlyOffer.value.offerId)
             else -> null
         }
+
         val joinResponse = try {
             client.join(url, token, options, roomOptions, offerValue)
         } catch (e: RoomException.ConnectException) {
@@ -329,6 +335,7 @@ internal constructor(
             LKLog.w { "server has no /rtc/v1 path, retrying on the legacy path with dual peer connections" }
             effectiveOptions = options.copy(singlePeerConnection = false)
             connectOptions = effectiveOptions
+            closeEarlyPublisher()
             try {
                 client.join(url, token, effectiveOptions, roomOptions)
             } catch (e: RoomException.ConnectException) {
@@ -357,7 +364,7 @@ internal constructor(
 
         isSubscriberPrimary = !effectiveOptions.singlePeerConnection && joinResponse.subscriberPrimary
 
-        configure(joinResponse, effectiveOptions, earlyPublisher, earlyPublisherObserver)
+        configure(joinResponse, effectiveOptions)
         // The publisher created above needs the attempt's start time before its first offer, in
         // case video is published before the primary transport connects.
         transport?.publisher?.setConnectStartedAt(startedAtMs)
@@ -374,12 +381,7 @@ internal constructor(
         return@coroutineScope joinResponse
     }
 
-    private suspend fun configure(
-        joinResponse: JoinResponse,
-        connectOptions: ConnectOptions,
-        earlyPublisher: PeerConnectionTransport?,
-        earlyObserver: PublisherTransportObserver?
-    ) {
+    private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions) {
         launchBlockingOnRTCThread(rtcThreadToken) {
             configurationLock.withCheckLock(
                 {
@@ -390,7 +392,7 @@ internal constructor(
                     }
                 },
             ) {
-                val publisherObserver = earlyObserver ?: PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
+                val publisherObserver = earlyPublisherObserver ?: PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
                 this@RTCEngine.publisherObserver = publisherObserver
 
                 participantSid = if (joinResponse.hasParticipant()) {
@@ -402,17 +404,14 @@ internal constructor(
                 // Setup peer connections
                 val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
 
-                val publisher = if (earlyPublisher != null) {
-                    earlyPublisher.updateRTCConfig(rtcConfig)
+                val publisher = earlyPublisher?.also {
+                    it.updateRTCConfig(rtcConfig)
                     hasPublished = true
-                    earlyPublisher
-                } else {
-                    pctFactory.create(
-                        rtcConfig,
-                        publisherObserver,
-                        publisherObserver,
-                    )
-                }
+                } ?: pctFactory.create(
+                    rtcConfig,
+                    publisherObserver,
+                    publisherObserver,
+                )
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
@@ -472,6 +471,9 @@ internal constructor(
                 if (earlyPublisher == null) {
                     createPublisherDataChannels(publisher)
                 }
+                // The transport owns the publisher from here on.
+                earlyPublisher = null
+                earlyPublisherObserver = null
             }
         }
     }
@@ -582,21 +584,13 @@ internal constructor(
                     subscriberObserver.connectionChangeListener = null
                     transport?.close()
                     transport = null
-                    reliableBufferedAmountJob?.cancel()
-                    reliableBufferedAmountJob = null
-                    reliableDataChannelManager?.dispose()
-                    reliableDataChannelManager = null
-                    reliableDataChannel = null
+                    closeEarlyPublisher()
                     reliableDataChannelSubManager?.dispose()
                     reliableDataChannelSubManager = null
                     reliableDataChannelSub = null
-                    lossyDataChannelManager?.dispose()
-                    lossyDataChannelManager = null
-                    lossyDataChannel = null
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
-                    dataTrackPublisherChannel.detach()
                     dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
                 }
@@ -1033,6 +1027,26 @@ internal constructor(
                 "Timed out establishing the publisher data track channel",
             )
         }
+    }
+
+    /**
+     * Closes the early publisher when one is still unadopted, and the publisher's data channels
+     * with it. The 404 fallback calls this so the legacy join starts from nothing; closeResources
+     * calls it when tearing the connection down.
+     */
+    private suspend fun closeEarlyPublisher() {
+        earlyPublisher?.close()
+        earlyPublisher = null
+        earlyPublisherObserver = null
+        reliableBufferedAmountJob?.cancel()
+        reliableBufferedAmountJob = null
+        reliableDataChannelManager?.dispose()
+        reliableDataChannelManager = null
+        reliableDataChannel = null
+        lossyDataChannelManager?.dispose()
+        lossyDataChannelManager = null
+        lossyDataChannel = null
+        dataTrackPublisherChannel.detach()
     }
 
     /**
