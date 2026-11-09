@@ -34,7 +34,7 @@ jobs:
         submodules: recursive
 
     - name: set up JDK 17
-      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       with:
         java-version: '17'
         distribution: 'adopt'
@@ -68,7 +68,7 @@ jobs:
       run: ./gradlew livekit-android-sdk:detektRelease
 
     - name: Upload AAR
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: livekit-android-sdk-release.aar
         path: client-sdk-android/livekit-android-sdk/build/outputs/aar/livekit-android-sdk-release.aar
@@ -252,7 +252,7 @@ jobs:
     name: Diffuse checker
     needs: [build, diffuse_prep]
     steps:
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '17'
           distribution: 'adopt'
@@ -264,7 +264,7 @@ jobs:
           path: client-sdk-android/diffuse-source-file
           key: diffuse-${{ github.event.pull_request.base.sha }}
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         name: Download current release AAR for diffuse
         with:
           name: livekit-android-sdk-release.aar
@@ -302,7 +302,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: diffuse-output
           path: ${{ steps.diffuse.outputs.diff-file }}
