@@ -65,6 +65,10 @@ data class ConnectOptions(
 
     /**
      * Use a single peer connection instead of one subscriber and one publisher.
+     *
+     * ```
+     * room.connect(url, token, ConnectOptions(singlePeerConnection = true))
+     * ```
      */
     val singlePeerConnection: Boolean = false,
 ) {
