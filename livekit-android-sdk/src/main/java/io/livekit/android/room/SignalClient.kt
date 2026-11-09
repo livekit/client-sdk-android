@@ -197,9 +197,11 @@ constructor(
 
         if (options.singlePeerConnection) {
             wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType())
+            // The join request carries client metadata, so only the path is logged.
+            LKLog.i { "connecting to ${wsUrlString.substringBefore('?')}?${SignalUrlBuilder.QUERY_JOIN_REQUEST}=<redacted>" }
+        } else {
+            LKLog.i { "connecting to $wsUrlString" }
         }
-
-        LKLog.i { "connecting to $wsUrlString" }
 
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         lastUrl = wsUrlString
