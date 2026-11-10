@@ -1120,6 +1120,10 @@ constructor(
         remoteParticipants.keys.toMutableSet() // copy keys to avoid concurrent modifications.
             .forEach { sid -> handleParticipantDisconnect(sid) }
 
+        // The loop above only reaches calls addressed to a participant the room knows about.
+        // Sweep up anything else, so no caller is left waiting on a room that has gone.
+        localParticipant.failAllPendingRpcs()
+
         sid = null
         metadata = null
         name = null
