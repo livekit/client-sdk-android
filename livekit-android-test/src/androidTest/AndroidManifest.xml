@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Lets on-device tests reach a local development server over ws:// -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

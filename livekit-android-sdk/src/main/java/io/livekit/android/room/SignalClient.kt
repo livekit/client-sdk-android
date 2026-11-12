@@ -529,12 +529,14 @@ constructor(
         sendRequest(request)
     }
 
+    @Suppress("LongParameterList")
     fun sendUpdateTrackSettings(
         sid: String,
         disabled: Boolean,
         videoDimensions: Track.Dimensions?,
         videoQuality: LivekitModels.VideoQuality?,
         fps: Int?,
+        fecProtection: LivekitRtc.FECProtection? = null,
     ) {
         val trackSettings = LivekitRtc.UpdateTrackSettings.newBuilder()
             .addTrackSids(sid)
@@ -552,6 +554,10 @@ constructor(
 
                 if (fps != null) {
                     setFps(fps)
+                }
+
+                if (fecProtection != null) {
+                    fec = fecProtection
                 }
             }
 
