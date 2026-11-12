@@ -104,7 +104,7 @@ internal class SinglePeerConnectionTransport(
      * not attached as. libwebrtc reports a track only when its section starts receiving, not
      * when the server binds another track to a section that already is.
      */
-    private suspend fun attachBoundTracks() {
+    override suspend fun attachBoundTracks() {
         publisher.withPeerConnection {
             for (transceiver in transceivers) {
                 val trackId = transceiver.mid?.let { midToTrackId[it] } ?: continue

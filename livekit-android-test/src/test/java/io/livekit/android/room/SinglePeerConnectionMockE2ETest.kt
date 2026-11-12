@@ -197,6 +197,22 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun boundTrackAttachesOncePublicationArrives() = runTest {
+        connectSinglePeerConnection()
+        addReceivingAudioSection()
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val events = collector.stopCollecting()
+        assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        assertNotNull(remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track)
+    }
+
+    @Test
     fun trackCallbackAfterBoundTrackDoesNotAttachTwice() = runTest {
         connectSinglePeerConnection()
         simulateMessageFromServer(TestData.PARTICIPANT_JOIN)

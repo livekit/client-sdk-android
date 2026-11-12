@@ -389,6 +389,29 @@ class SinglePeerConnectionTransportTest {
     }
 
     @Test
+    fun unattachedBindingIsOfferedOnRequest() = runTest {
+        val transport = transport()
+        val receiver = boundReceiverForMid("0")
+        attachBoundTracks = false
+        transport.applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
+
+        transport.attachBoundTracks()
+
+        assertEquals(listOf(receiver to "TR_a", receiver to "TR_a"), boundTracks)
+    }
+
+    @Test
+    fun attachedBindingIsNotOfferedOnRequest() = runTest {
+        val transport = transport()
+        boundReceiverForMid("0")
+        transport.applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
+
+        transport.attachBoundTracks()
+
+        assertEquals(1, boundTracks.size)
+    }
+
+    @Test
     fun receiverWithoutTrackIsNotOffered() = runTest {
         receiverForMid("0")
 

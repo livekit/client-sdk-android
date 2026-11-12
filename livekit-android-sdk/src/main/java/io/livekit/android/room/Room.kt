@@ -1372,6 +1372,8 @@ constructor(
                 }
             }
         }
+        // A track can be bound before the update that announces its publication.
+        engine.attachBoundTracks()
     }
 
     /**

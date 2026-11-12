@@ -1682,6 +1682,15 @@ internal constructor(
         return transport?.trackIdForReceiver(receiver)
     }
 
+    /**
+     * Attaches the tracks the server has bound to publications that have since arrived.
+     */
+    internal fun attachBoundTracks() {
+        coroutineScope.launch {
+            transport?.attachBoundTracks()
+        }
+    }
+
     fun createStatsGetter(receiver: RtpReceiver): RTCStatsGetter {
         val p = transport?.subscriber
         return { statsCallback: RTCStatsCollectorCallback ->
