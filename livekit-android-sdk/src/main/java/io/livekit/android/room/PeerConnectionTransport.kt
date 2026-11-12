@@ -135,11 +135,18 @@ constructor(
         }
     }
 
+    /**
+     * @return whether an answer for [offerId] answers an offer older than the latest one sent.
+     */
+    fun isStaleAnswer(offerId: Int): Boolean {
+        val currentOfferId = latestOfferId.get()
+        return currentOfferId > 0 && offerId > 0 && currentOfferId > offerId
+    }
+
     suspend fun setRemoteDescription(sd: SessionDescription, offerId: Int): Either<Unit, String?> {
         val result = launchRTCIfNotClosed {
-            val currentOfferId = latestOfferId.get()
-            if (sd.type == SessionDescription.Type.ANSWER && currentOfferId > 0 && offerId > 0 && currentOfferId > offerId) {
-                return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: $currentOfferId, actual: $offerId")
+            if (sd.type == SessionDescription.Type.ANSWER && isStaleAnswer(offerId)) {
+                return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: ${latestOfferId.get()}, actual: $offerId")
             }
             val result = peerConnection.setRemoteDescription(sd)
             if (result is Either.Left) {

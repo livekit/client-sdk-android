@@ -20,6 +20,7 @@ import io.livekit.android.room.util.PeerConnectionStateObservable
 import io.livekit.android.room.util.waitUntilConnected
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
+import io.livekit.android.util.isLeft
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.runBlocking
 import livekit.LivekitRtc
@@ -38,13 +39,20 @@ import java.util.concurrent.ConcurrentHashMap
  * [handleMediaSectionsRequirement].
  *
  * @param publisherState connection state of [publisher], as reported by its observer.
+ * @param onTrackBound called after an answer for each receiver the server has bound to a track
+ * ID that has not been attached yet. Returns whether the track was attached; a receiver that
+ * was not is offered again after the next answer.
  */
 @Suppress("TooManyFunctions")
 internal class SinglePeerConnectionTransport(
     override val publisher: PeerConnectionTransport,
     private val publisherState: PeerConnectionStateObservable,
+    private val onTrackBound: (receiver: RtpReceiver, track: MediaStreamTrack, trackId: String) -> Boolean,
 ) : Transport {
     private val midToTrackId: MutableMap<String, String> = ConcurrentHashMap<String, String>()
+
+    // Receiver ID to the track ID it was last attached as.
+    private val attachedTrackIds: MutableMap<String, String> = ConcurrentHashMap<String, String>()
     override val subscriber: PeerConnectionTransport
         get() = publisher
     override val publisherConnectsOnDemand: Boolean
@@ -77,11 +85,39 @@ internal class SinglePeerConnectionTransport(
         offerId: Int,
         midToTrackId: Map<String, String>,
     ): Either<Unit, String?> {
-        for (k in midToTrackId) {
-            this.midToTrackId[k.key] = k.value
+        if (publisher.isStaleAnswer(offerId)) {
+            return Either.Right("Old offer, ignoring: $offerId")
         }
-        val res = publisher.setRemoteDescription(answer, offerId)
-        return res
+        // libwebrtc reports new tracks while it applies the description, and those lookups
+        // read this mapping.
+        this.midToTrackId.putAll(midToTrackId)
+
+        val result = publisher.setRemoteDescription(answer, offerId)
+        if (result.isLeft()) {
+            attachBoundTracks()
+        }
+        return result
+    }
+
+    /**
+     * Offers [onTrackBound] every receiver whose media section is mapped to a track ID it is
+     * not attached as. libwebrtc reports a track only when its section starts receiving, not
+     * when the server binds another track to a section that already is.
+     */
+    private suspend fun attachBoundTracks() {
+        publisher.withPeerConnection {
+            for (transceiver in transceivers) {
+                val trackId = transceiver.mid?.let { midToTrackId[it] } ?: continue
+                val receiver = transceiver.receiver ?: continue
+                val track = receiver.track() ?: continue
+                if (attachedTrackIds[receiver.id()] == trackId) {
+                    continue
+                }
+                if (onTrackBound(receiver, track, trackId)) {
+                    attachedTrackIds[receiver.id()] = trackId
+                }
+            }
+        }
     }
 
     override fun trackIdForReceiver(receiver: RtpReceiver): String? {

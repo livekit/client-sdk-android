@@ -422,7 +422,9 @@ internal constructor(
                     transport = SinglePeerConnectionTransport(
                         publisher,
                         publisherObserver,
-                    )
+                    ) { receiver, track, trackSid ->
+                        listener?.onTrackBound(receiver, track, trackSid) == true
+                    }
                 } else {
                     val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
                         .onFailure { publisher.close() }
@@ -1182,6 +1184,14 @@ internal constructor(
         fun onJoinResponse(response: JoinResponse)
         fun reattachRemoteDataTracks() {}
         fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>)
+
+        /**
+         * The server bound [receiver] to the publication [trackSid] without the peer connection
+         * reporting a new track.
+         *
+         * @return whether [track] is attached to that publication.
+         */
+        fun onTrackBound(receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String): Boolean = false
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)

@@ -111,10 +111,10 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     /**
-     * Has the server require [audios] receiving audio sections and [videos] video ones, and
-     * answers the renegotiation that follows with [midToTrackId].
+     * Has the server require [audios] receiving audio sections and [videos] video ones, which
+     * leaves the renegotiation offer that follows unanswered.
      */
-    private fun TestScope.requireMediaSections(audios: Int, videos: Int, midToTrackId: Map<String, String> = emptyMap()) {
+    private fun TestScope.requireMediaSections(audios: Int, videos: Int) {
         val requirement = with(LivekitRtc.SignalResponse.newBuilder()) {
             setMediaSectionsRequirement(
                 with(LivekitRtc.MediaSectionsRequirement.newBuilder()) {
@@ -130,7 +130,6 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         // The mock peer connection does not ask for renegotiation on its own.
         publisherPeerConnection().observer?.onRenegotiationNeeded()
         advanceUntilIdle()
-        answerLastOffer(midToTrackId)
     }
 
     @Test
@@ -163,6 +162,7 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         connectSinglePeerConnection()
 
         requireMediaSections(audios = 1, videos = 2)
+        answerLastOffer()
 
         val transceivers = publisherPeerConnection().transceivers
         assertEquals(3, transceivers.size)
@@ -171,28 +171,50 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         assertEquals(2, transceivers.count { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO })
     }
 
-    @Test
-    fun remoteTrackResolvesThroughAnswerMapping() = runTest {
-        connectSinglePeerConnection()
-        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
-        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
-
+    /**
+     * Adds one receiving audio section with mid "0" and a track on its receiver, and leaves
+     * the renegotiation offer unanswered.
+     */
+    private fun TestScope.addReceivingAudioSection(): RtpTransceiver {
         requireMediaSections(audios = 1, videos = 0)
         val transceiver = publisherPeerConnection().transceivers.single()
         whenever(transceiver.mid).thenReturn("0")
-        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
-        val receiver = transceiver.receiver
-        whenever(receiver.track()).thenReturn(MockAudioStreamTrack())
+        whenever(transceiver.receiver.track()).thenReturn(MockAudioStreamTrack())
+        return transceiver
+    }
 
-        // The stream ID carries no track SID, so only the answer's mapping can resolve the track.
+    @Test
+    fun boundTrackAttachesWithoutTrackCallback() = runTest {
+        connectSinglePeerConnection()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        addReceivingAudioSection()
+        val collector = EventCollector(room.events, coroutineRule.scope)
+
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
+        val events = collector.stopCollecting()
+        assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
+        val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
+        assertNotNull(micPub?.track)
+    }
+
+    @Test
+    fun trackCallbackAfterBoundTrackDoesNotAttachTwice() = runTest {
+        connectSinglePeerConnection()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val transceiver = addReceivingAudioSection()
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
         publisherPeerConnection().observer?.onAddTrack(
-            receiver,
+            transceiver.receiver,
             arrayOf(MockMediaStream(id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "stream"))),
         )
         advanceUntilIdle()
 
-        val micPub = remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)
-        assertNotNull(micPub?.track)
+        val events = collector.stopCollecting()
+        assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
     }
 
     @Test

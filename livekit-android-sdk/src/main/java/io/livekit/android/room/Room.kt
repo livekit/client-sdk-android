@@ -1305,12 +1305,31 @@ constructor(
             return
         }
 
-        val statsGetter = engine.createStatsGetter(receiver)
+        attachTrack(participant, receiver, track, trackSid!!)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onTrackBound(receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String): Boolean {
+        val participant = remoteParticipants.values.firstOrNull { it.getTrackPublication(trackSid) != null }
+        if (participant == null) {
+            LKLog.d { "no publication yet for bound track $trackSid" }
+            return false
+        }
+        attachTrack(participant, receiver, track, trackSid)
+        return true
+    }
+
+    private fun attachTrack(participant: RemoteParticipant, receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String) {
+        if (participant.getTrackPublication(trackSid)?.track?.rtcTrack === track) {
+            return
+        }
         participant.addSubscribedMediaTrack(
             track,
-            trackSid!!,
+            trackSid,
             autoManageVideo = adaptiveStream,
-            statsGetter = statsGetter,
+            statsGetter = engine.createStatsGetter(receiver),
             receiver = receiver,
         )
     }
