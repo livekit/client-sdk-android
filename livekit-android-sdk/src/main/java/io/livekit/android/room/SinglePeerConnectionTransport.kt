@@ -143,8 +143,6 @@ internal class SinglePeerConnectionTransport(
                 addTransceiver(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO, transceiverInit)
             }
         }
-
-        // Adding transceiver triggers the onRenegotiationNeeded event and triggers negotiation.
     }
 
     override fun prepareForIceRestart() {

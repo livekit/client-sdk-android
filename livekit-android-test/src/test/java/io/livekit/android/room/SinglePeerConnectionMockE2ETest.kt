@@ -58,13 +58,13 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     private fun publisherPeerConnection() = getPublisherPeerConnection()
 
     /**
-     * @return the most recent offer the client sent to the server.
+     * @return the offers the client has sent to the server, oldest first.
      */
-    private fun lastSentOffer(): LivekitRtc.SessionDescription {
+    private fun sentOffers(): List<LivekitRtc.SessionDescription> {
         return wsFactory.ws.sentRequests
             .map { LivekitRtc.SignalRequest.newBuilder().mergeFrom(it.toPBByteString()).build() }
-            .last { it.hasOffer() }
-            .offer
+            .filter { it.hasOffer() }
+            .map { it.offer }
     }
 
     /**
@@ -72,7 +72,7 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
      * receiving media sections to track IDs.
      */
     private fun TestScope.answerLastOffer(midToTrackId: Map<String, String> = emptyMap()) {
-        val offer = lastSentOffer()
+        val offer = sentOffers().last()
         val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
             setAnswer(
                 with(LivekitRtc.SessionDescription.newBuilder()) {
@@ -126,9 +126,6 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
             build()
         }
         simulateMessageFromServer(requirement)
-        advanceUntilIdle()
-        // The mock peer connection does not ask for renegotiation on its own.
-        publisherPeerConnection().observer?.onRenegotiationNeeded()
         advanceUntilIdle()
     }
 
@@ -215,6 +212,17 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
 
         val events = collector.stopCollecting()
         assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
+    }
+
+    @Test
+    fun zeroCountRequirementSendsOffer() = runTest {
+        connectSinglePeerConnection()
+        val offersBefore = sentOffers().size
+
+        requireMediaSections(audios = 0, videos = 0)
+
+        assertEquals(offersBefore + 1, sentOffers().size)
+        assertTrue(publisherPeerConnection().transceivers.isEmpty())
     }
 
     @Test

@@ -1444,6 +1444,8 @@ internal constructor(
     override fun onMediaSectionsRequirement(requirement: LivekitRtc.MediaSectionsRequirement) {
         coroutineScope.launch {
             transport?.handleMediaSectionsRequirement(requirement)
+            // The server asks for an offer this way, including when it needs no new section.
+            negotiatePublisher()
         }
     }
 
