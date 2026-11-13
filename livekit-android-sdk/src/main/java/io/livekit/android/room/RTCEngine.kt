@@ -211,8 +211,8 @@ internal constructor(
     private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
     // Publisher created ahead of a single peer connection join so its offer rides in the /rtc/v1
-    // request. configure adopts it into the transport and clears it; until then closeResources
-    // disposes it.
+    // request. configure adopts it into the transport and clears it; until then close disposes
+    // it, as does the next join.
     private var earlyPublisher: PeerConnectionTransport? = null
     private var earlyPublisherObserver: DuplexTransportObserver? = null
 
@@ -308,6 +308,9 @@ internal constructor(
         }
         var effectiveOptions = options
         if (effectiveOptions.singlePeerConnection) {
+            if (earlyPublisher != null) {
+                closeEarlyPublisher()
+            }
             val observer = DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
             val publisher = pctFactory.create(
                 makeRTCConfig(null, effectiveOptions),
@@ -547,6 +550,17 @@ internal constructor(
 
     fun close(reason: String = "Normal Closure") {
         if (isClosed) {
+            // A join that ends before its response leaves the engine closed with the early
+            // publisher still held.
+            if (earlyPublisher != null) {
+                executeBlockingOnRTCThread(rtcThreadToken) {
+                    runBlocking {
+                        configurationLock.withLock {
+                            closeEarlyPublisher()
+                        }
+                    }
+                }
+            }
             return
         }
         LKLog.v { "Close - $reason" }
@@ -1031,8 +1045,9 @@ internal constructor(
 
     /**
      * Closes the early publisher when one is still unadopted, and the publisher's data channels
-     * with it. The 404 fallback calls this so the legacy join starts from nothing; closeResources
-     * calls it when tearing the connection down.
+     * with it. The 404 fallback calls this so the legacy join starts from nothing, a join calls
+     * it for the publisher of an earlier join that ended before its response, and close and
+     * closeResources call it when tearing the connection down.
      */
     private suspend fun closeEarlyPublisher() {
         earlyPublisher?.close()

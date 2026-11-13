@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,18 @@ import io.livekit.android.test.mock.MockVideoSource
 import io.livekit.android.test.mock.MockVideoStreamTrack
 
 class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
+    /**
+     * Every peer connection this factory has created, oldest first.
+     */
+    val peerConnections = mutableListOf<MockPeerConnection>()
+
     override fun createPeerConnectionInternal(
         rtcConfig: PeerConnection.RTCConfiguration,
         constraints: MediaConstraints?,
         observer: PeerConnection.Observer?,
         sslCertificateVerifier: SSLCertificateVerifier?,
     ): PeerConnection {
-        return MockPeerConnection(rtcConfig, observer)
+        return MockPeerConnection(rtcConfig, observer).also { peerConnections.add(it) }
     }
 
     override fun createAudioSource(constraints: MediaConstraints?): AudioSource {
