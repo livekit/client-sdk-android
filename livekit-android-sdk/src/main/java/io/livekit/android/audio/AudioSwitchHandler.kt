@@ -221,9 +221,10 @@ constructor(private val context: Context) : AudioHandler {
             handler = Handler(thread!!.looper)
         }
 
-        if (audioSwitch == null) {
-            handler?.removeCallbacksAndMessages(null)
-            handler?.postAtFrontOfQueue {
+        val startHandler = handler
+        if (audioSwitch == null && startHandler != null) {
+            startHandler.removeCallbacksAndMessages(null)
+            startHandler.postAtFrontOfQueue {
                 val switch =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         CommDeviceAudioSwitch(
@@ -255,7 +256,15 @@ constructor(private val context: Context) : AudioHandler {
                 switch.audioAttributeContentType = audioAttributeContentType
                 switch.forceHandleAudioRouting = forceHandleAudioRouting
 
-                audioSwitch = switch
+                // stop() may have run while this switch was being created, and its teardown
+                // saw no switch to stop. Only publish the switch if this start is still current;
+                // otherwise drop it, since nothing is registered until switch.start() below.
+                synchronized(this@AudioSwitchHandler) {
+                    if (handler !== startHandler) {
+                        return@postAtFrontOfQueue
+                    }
+                    audioSwitch = switch
+                }
                 switch.start(audioDeviceChangeDispatcher)
                 switch.activate()
             }
