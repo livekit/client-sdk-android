@@ -134,6 +134,15 @@ class PeerConnectionTransportTest {
     }
 
     @Test
+    fun initialOfferIsUnmungedWhenTheMungeLeavesNothing() = runTest {
+        pc.offerDescription = UNPARSEABLE_OFFER
+
+        val offer = initialOffer()
+
+        assertEquals(UNPARSEABLE_OFFER, offer.sessionDescription.description)
+    }
+
+    @Test
     fun initialOfferIsNotSetAsLocalDescription() = runTest {
         initialOffer()
 
@@ -237,5 +246,8 @@ class PeerConnectionTransportTest {
 
         /** Comfortably longer than the negotiate debounce. */
         private const val OFFER_SETTLE_MS = 200L
+
+        /** Not SDP, so munging it leaves an empty description. */
+        private const val UNPARSEABLE_OFFER = "local_offer"
     }
 }

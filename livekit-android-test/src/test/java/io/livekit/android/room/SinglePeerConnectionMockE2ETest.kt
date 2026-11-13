@@ -180,10 +180,12 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         val offer = joinOffer()
         assertEquals("offer", offer.type)
         assertEquals(1, offer.id)
+        assertTrue(offer.sdp.isNotEmpty())
         assertTrue("no offer is expected over the signal connection", sentOffers().isEmpty())
 
         answerOffer(offer.id)
 
+        assertEquals(offer.sdp, publisherPeerConnection().localDescription?.description)
         assertTrue("the answered join offer must not be offered again", sentOffers().isEmpty())
     }
 

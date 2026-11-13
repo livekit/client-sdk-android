@@ -185,9 +185,10 @@ constructor(
      * Creates the offer that is bundled with the join request instead of being sent through
      * [Listener.onOffer].
      *
-     * The offer is created with [constraints] and the usual munging, and takes the next offer id,
-     * but it is not set as the local description: that would start ICE gathering before the
-     * server's ICE servers are known. It is kept pending instead, and [setRemoteDescription]
+     * The offer is created with [constraints] and the usual munging, or left unmunged if the
+     * munge leaves nothing. It takes the next offer id, but it is not set as the local
+     * description: that would start ICE gathering before the server's ICE servers are known.
+     * It is kept pending instead, and [setRemoteDescription]
      * applies it as the local description just before the answer, whatever the answer's offer id.
      * While it is pending, a [negotiate] request is queued the same way as when an offer is already
      * in flight, and runs once the answer is applied. [clearPendingInitialOffer] and [close] drop it.
@@ -207,7 +208,8 @@ constructor(
                     is Either.Left -> outcome.value
                     is Either.Right -> return@launchRTCIfNotClosed Either.Right(outcome.value)
                 }
-                val offer = InitialOffer(SessionDescription(munged.original.type, munged.description), offerId)
+                val description = munged.description.ifBlank { munged.original.description }
+                val offer = InitialOffer(SessionDescription(munged.original.type, description), offerId)
                 initialOffer = offer
                 Either.Left(offer)
             } ?: Either.Right("PCT is closed.")
