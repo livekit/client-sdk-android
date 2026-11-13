@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package io.livekit.android.util
 
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
+
 /**
  * @suppress
  */
@@ -26,4 +29,32 @@ sealed class Either<out A, out B> {
 
 internal fun <A> Either<A, String?>?.nullSafe(): Either<A, String?> {
     return this ?: Either.Right("null")
+}
+
+/**
+ * Whether this is an [Either.Left]. A true result smart-casts this to [Either.Left],
+ * and a false result to [Either.Right].
+ */
+@OptIn(ExperimentalContracts::class)
+internal fun <A, B> Either<A, B>.isLeft(): Boolean {
+    contract {
+        returns(true) implies (this@isLeft is Either.Left<A>)
+        returns(false) implies (this@isLeft is Either.Right<B>)
+    }
+    return this is Either.Left
+}
+
+/**
+ * Whether this is an [Either.Right]. A true result smart-casts this to [Either.Right],
+ * and a false result to [Either.Left].
+ */
+@OptIn(ExperimentalContracts::class)
+internal fun <A, B> Either<A, B>.isRight(): Boolean {
+    // Kotlin 1.9 inverts this contract when reading it from compiled code unless the
+    // Either.Left clause comes first. EitherTest checks the narrowing from another module.
+    contract {
+        returns(false) implies (this@isRight is Either.Left<A>)
+        returns(true) implies (this@isRight is Either.Right<B>)
+    }
+    return this is Either.Right
 }

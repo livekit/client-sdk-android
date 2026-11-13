@@ -19,6 +19,8 @@ package io.livekit.android.room
 import com.google.protobuf.ByteString
 import io.livekit.android.ConnectOptions
 import io.livekit.android.room.track.TrackException
+import io.livekit.android.room.util.MediaConstraintKeys
+import io.livekit.android.room.util.findConstraint
 import io.livekit.android.test.MockE2ETest
 import io.livekit.android.test.events.FlowCollector
 import io.livekit.android.test.mock.MockDataChannel
@@ -41,6 +43,7 @@ import kotlinx.coroutines.test.runCurrent
 import livekit.LivekitModels
 import livekit.LivekitModels.DataPacket
 import livekit.LivekitRtc
+import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.PeerConnection
 import org.junit.Assert
 import org.junit.Assert.assertArrayEquals
@@ -61,6 +64,24 @@ class RTCEngineMockE2ETest : MockE2ETest() {
     @Before
     fun setupRTCEngine() {
         rtcEngine = component.rtcEngine()
+    }
+
+    private fun negotiatePublisherOffer(): MediaConstraints {
+        val publisher = rtcEngine.getPublisherPeerConnection() as MockPeerConnection
+        publisher.lastOfferConstraints = null
+        publisher.observer?.onRenegotiationNeeded()
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        return requireNotNull(publisher.lastOfferConstraints) { "publisher did not create an offer" }
+    }
+
+    @Test
+    fun dualPeerConnectionOfferDoesNotOfferToReceive() = runTest {
+        connect()
+
+        val constraints = negotiatePublisherOffer()
+
+        assertEquals(MediaConstraintKeys.FALSE, constraints.findConstraint(MediaConstraintKeys.OFFER_TO_RECV_AUDIO))
+        assertEquals(MediaConstraintKeys.FALSE, constraints.findConstraint(MediaConstraintKeys.OFFER_TO_RECV_VIDEO))
     }
 
     @Test

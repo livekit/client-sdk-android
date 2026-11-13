@@ -145,6 +145,35 @@ class RoomReconnectionMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun softReconnectSyncStateCarriesSubscriberDescriptions() = runTest {
+        room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
+
+        connect()
+
+        disconnectPeerConnection()
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+        reconnectWebsocket()
+        connectPeerConnection()
+
+        testScheduler.advanceUntilIdle()
+        val syncState = wsFactory.ws.sentRequests
+            .map { requestString ->
+                LivekitRtc.SignalRequest.newBuilder()
+                    .mergeFrom(requestString.toPBByteString())
+                    .build()
+            }
+            .last { it.hasSyncState() }
+            .syncState
+
+        val subscriberAnswer = getSubscriberPeerConnection().localDescription!!
+        assertEquals("answer", syncState.answer.type)
+        assertEquals(subscriberAnswer.description, syncState.answer.sdp)
+        assertEquals("offer", syncState.offer.type)
+        assertEquals(TestData.OFFER.offer.sdp, syncState.offer.sdp)
+    }
+
+    @Test
     fun softReconnectSendsSyncStateUnsub() = runTest {
         room.setReconnectionType(ReconnectType.FORCE_SOFT_RECONNECT)
 

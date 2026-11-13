@@ -44,6 +44,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocketListener
+import okio.ByteString
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -175,6 +176,26 @@ class SignalClientTest : BaseTest() {
         job.await()
 
         Mockito.verifyNoInteractions(listener)
+    }
+
+    @Test
+    fun dropsUndecodableSignalResponse() = runTest {
+        val job = async {
+            client.join(EXAMPLE_URL, "")
+        }
+        connectWebsocketAndJoin()
+        job.await()
+        client.onReadyForResponses()
+
+        // A truncated protobuf field rather than a SignalResponse.
+        client.onMessage(wsFactory.ws, ByteString.of(0x0A, 0x7F))
+        client.onMessage(wsFactory.ws, OFFER.toOkioByteString())
+
+        Mockito.verify(listener)
+            .onServerOffer(
+                sessionDescription = argThat { type == SessionDescription.Type.OFFER && description == OFFER.offer.sdp },
+                offerId = argThat { id -> id == OFFER.offer.id },
+            )
     }
 
     @Test

@@ -103,8 +103,14 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_DEPLOY_AWS_API_SECRET }}
           AWS_DEFAULT_REGION: "us-east-1"
 
+      - name: Fetch livekit-ffi host library
+        id: uniffi
+        run: |
+          lib_dir=$(./ci/fetch_uniffi_cdylib.sh)
+          echo "lib_dir=$lib_dir" >> "$GITHUB_OUTPUT"
+
       - name: Build with Gradle
-        run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-camerax:assembleRelease livekit-android-test:testRelease
+        run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-camerax:assembleRelease livekit-android-test:testRelease "-PlivekitUniffiLibDir=${{ steps.uniffi.outputs.lib_dir }}"
 
       - name: Create gpg key and import into gradle properties
         run: |
