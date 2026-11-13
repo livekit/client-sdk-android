@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.withIndex
-import io.livekit.uniffi.DataTrackStreamInterface as FfiDataTrackStream
+import io.livekit.ffi.DataTrackStreamInterface as FfiDataTrackStream
 
 /**
  * A stream of frames received from a subscribed [RemoteDataTrack].

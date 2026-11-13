@@ -95,8 +95,8 @@ data class RpcError(
     fun toProto(): LivekitModels.RpcError {
         return with(LivekitModels.RpcError.newBuilder()) {
             this.code = this@RpcError.code
-            this.message = this@RpcError.message
-            this.data = this@RpcError.data
+            this.message = this@RpcError.message.truncateBytes(MAX_MESSAGE_BYTES)
+            this.data = this@RpcError.data.truncateBytes(MAX_V1_PAYLOAD_BYTES)
             build()
         }
     }

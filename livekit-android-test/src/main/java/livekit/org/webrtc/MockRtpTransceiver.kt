@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,21 +27,28 @@ object MockRtpTransceiver {
         track: MediaStreamTrack,
         init: RtpTransceiver.RtpTransceiverInit = RtpTransceiver.RtpTransceiverInit(),
     ): RtpTransceiver {
+        val mediaType = when (track.kind()) {
+            MediaStreamTrack.AUDIO_TRACK_KIND -> MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO
+            MediaStreamTrack.VIDEO_TRACK_KIND -> MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO
+            else -> throw IllegalStateException("illegal kind: ${track.kind()}")
+        }
+        return create(mediaType, init)
+    }
+
+    fun create(
+        mediaType: MediaStreamTrack.MediaType,
+        init: RtpTransceiver.RtpTransceiverInit = RtpTransceiver.RtpTransceiverInit(),
+    ): RtpTransceiver {
         val mock = Mockito.mock(RtpTransceiver::class.java)
         val id = UUID.randomUUID().toString()
-        Mockito.`when`(mock.mediaType).then {
-            return@then when (track.kind()) {
-                MediaStreamTrack.AUDIO_TRACK_KIND -> MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO
-                MediaStreamTrack.VIDEO_TRACK_KIND -> MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO
-                else -> throw IllegalStateException("illegal kind: ${track.kind()}")
-            }
-        }
+        Mockito.`when`(mock.mediaType).then { mediaType }
 
         val direction = RtpTransceiverDirection.fromNativeIndex(init.directionNativeIndex)
+        Mockito.`when`(mock.direction).then { direction }
 
         when (direction) {
             RtpTransceiverDirection.SEND_RECV, RtpTransceiverDirection.SEND_ONLY -> {
-                val sender = MockRtpSender.create(id = id)
+                val sender = MockRtpSender.create(id = id, encodings = init.sendEncodings)
                 Mockito.`when`(mock.sender)
                     .then { sender }
             }

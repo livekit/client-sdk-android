@@ -1,5 +1,67 @@
 # client-sdk-android
 
+## 2.30.0
+
+### Minor Changes
+
+- Data streams v2: Data streams are now backed by the shared Rust core (`livekit-ffi`), which adds the v2 wire format: a small, known-size payload is sent as a single packet with the content inline in the header, and payloads can be `deflate-raw` compressed. Both are negotiated per recipient, so rooms with older peers keep working. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  - `ConnectOptions.clientProtocol` now defaults to `ClientProtocolVersion.DATA_STREAM_V2`.
+  - New `ClientCapability` enum and `Participant.capabilities`, mirroring the capabilities each peer's client advertises.
+  - New `RoomOptions.dataStreamOptions` / `Room.dataStreamOptions`, with `DataStreamOptions.maxPayloadByteLength` to cap the size of a reassembled incoming payload.
+  - New `compress` flag on `StreamTextOptions` and `StreamBytesOptions` (default `true`). Only applies to whole-payload sends such as `sendText`/`sendBytes`; incremental streams are never compressed.
+  - New `OutgoingDataStreamManager.sendBytes` convenience for sending a whole byte array.
+  - New `StreamException` types: `HeaderTooLargeException` and `PayloadTooLargeException` (both subclasses of `LengthExceededException`), and `InternalException`. `TerminatedException` gains a `reason`. An exhaustive `when` over `StreamException` needs a branch for the new cases.
+  - Incoming streams are held to the encryption type their header arrived with; a mismatching chunk or trailer fails the reader with `EncryptionTypeMismatch`.
+
+### Patch Changes
+
+- Fix a crash when a participant's `lk.agent.inputs` or `lk.agent.outputs` attribute is not a valid JSON array. The attribute is now logged as a warning and the participant's agent attributes are left unchanged. - [#1053](https://github.com/livekit/client-sdk-android/pull/1053) ([@1egoman](https://github.com/1egoman))
+
+- Fix crashes when a data channel packet, a decrypted end-to-end encrypted payload, or a signal message cannot be parsed. The message is now logged and dropped. - [#1054](https://github.com/livekit/client-sdk-android/pull/1054) ([@1egoman](https://github.com/1egoman))
+
+- Update protocol to v1.53.1 - [#1049](https://github.com/livekit/client-sdk-android/pull/1049) ([@changt](https://github.com/changt))
+
+- Validate region URLs before failing over to them. Regions returned by `/settings/regions` or reported by the server were previously used as-is. Each URL must now name a LiveKit Cloud host and use an encrypted scheme (`wss`/`https`); entries that do not are logged and dropped. - [#1052](https://github.com/livekit/client-sdk-android/pull/1052) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+## 2.29.2
+
+### Patch Changes
+
+- Keep dynacast-paused simulcast layers paused across publisher renegotiations. Previously a paused layer started to upload again after any renegotiation of the publisher connection. Publishing a track, unpublishing one, a codec change, and an ICE restart all caused this. With servers before v1.13.8, the layer stayed on until the next subscribed-quality change. Newer servers restate the pause a few seconds after the answer (livekit/livekit#4907), so there it stayed on for that window. - [#1037](https://github.com/livekit/client-sdk-android/pull/1037) ([@lukasIO](https://github.com/lukasIO))
+
+  The server's answer to a publisher offer no longer carries the RFC 8853 pause markers. Applying that answer re-enables every layer the client paused. Directly after it applies a publisher answer, the SDK now re-applies the last known subscribed codecs.
+
+  One frame per layer can still escape, because the encoders restart during the apply. This matches the JavaScript and Rust SDKs.
+
+- Update libwebrtc to 150.7871.04, which removes the AAA Certificate Services root from the TURN/TLS trust anchors so certificates from the compromised eMudhra intermediates are rejected. - [#1043](https://github.com/livekit/client-sdk-android/pull/1043) ([@erikhortsch](https://github.com/erikhortsch))
+
+  This version also passes the TLS hostname to the Android platform certificate verifier, so the fallback to the OS trust store no longer fails when the app's `network_security_config` has a `domain-config`.
+
+## 2.29.1
+
+### Patch Changes
+
+- Fix region failover being skipped on later connects after a failed attempt - [#1027](https://github.com/livekit/client-sdk-android/pull/1027) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+- Scale the `x-google-start-bitrate` hint by connection setup time: the 1 Mbps camera cap now applies to connections that set up within 1.5 s and ramps linearly down to 300 kbps at 3.5 s or slower; screen share stays uncapped. - [#1031](https://github.com/livekit/client-sdk-android/pull/1031) ([@changt](https://github.com/changt))
+
+- Seed the bandwidth estimator with `x-google-start-bitrate` for all video codecs, not just SVC, so published video reaches its target quality in the first second or two instead of ramping from ~300 kbps over 5-15 seconds. The hint is 90% of the track's target bitrate, capped at 1 Mbps for camera tracks (screen shares are exempt, since they are published at high bitrates for text legibility) and skipped below a 300 kbps target, where seeding high costs more than it gains. - [#973](https://github.com/livekit/client-sdk-android/pull/973) ([@xianshijing-lk](https://github.com/xianshijing-lk))
+
+  Because libwebrtc applies these codec fmtp parameters to the whole peer connection rather than the m-section carrying them, the SDK now writes a single connection-level value to every video m-section, once per publisher connection. Re-seeding a converged estimator is avoided: the value persists in libwebrtc's bitrate configurator and is automatically re-applied on network route changes, and a full reconnect builds a new peer connection and seeds it again.
+
+  **Behavior change:** the SDK no longer writes `x-google-max-bitrate` into SDP. That value was promoted to a ceiling on total send bandwidth for the entire connection, so a camera publication could throttle a concurrent screen share. Per-track and per-layer limits continue to be enforced through `RtpParameters.Encoding.maxBitrateBps`, which is correctly scoped per encoding. Applications that relied on the SDP value as a connection-wide cap should set encoding bitrates instead. This matches client-sdk-js and the Rust SDK, neither of which writes it.
+
+  `TrackBitrateInfo` and `TrackBitrateInfoKey` are now `internal`. They were never intended as public API (both were `@suppress`ed and only reachable through a `@VisibleForTesting` helper) and were public only to be visible from the test module, which is no longer necessary.
+
+- Update libwebrtc to 150.7871.01 and turn on WARP (draft-uberti-tsvwg-warp) by default. - [#1028](https://github.com/livekit/client-sdk-android/pull/1028) ([@cloudwebrtc](https://github.com/cloudwebrtc))
+
+  Two connection-setup accelerations are now enabled out of the box: the `WebRTC-IceHandshakeDtls`
+  field trial, which carries the DTLS handshake inside the ICE STUN binding exchange so DTLS and ICE
+  negotiate in parallel, and `RTCConfiguration.enableSctpSnap`, which puts the SCTP INIT parameters
+  in the SDP so a data channel skips SCTP's cookie exchange. Both are negotiated with the server and
+  fall back to the plain DTLS/SCTP setup when it doesn't support them.
+
 ## 2.29.0
 
 ### Minor Changes

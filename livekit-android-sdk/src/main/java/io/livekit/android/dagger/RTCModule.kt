@@ -48,8 +48,8 @@ import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.RTCThreadTokenImpl
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.executeOnRTCThread
-import io.livekit.uniffi.LocalDataTrackManager
-import io.livekit.uniffi.RemoteDataTrackManager
+import io.livekit.ffi.LocalDataTrackManager
+import io.livekit.ffi.RemoteDataTrackManager
 import livekit.org.webrtc.AudioProcessingFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.Logging

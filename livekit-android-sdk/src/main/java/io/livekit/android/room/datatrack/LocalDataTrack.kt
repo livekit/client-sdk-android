@@ -21,7 +21,7 @@ import io.livekit.android.util.rethrowIfCancellationSignal
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.takeWhile
 import uniffi.livekit_datatrack.PushFrameErrorReason
-import io.livekit.uniffi.LocalDataTrack as FfiLocalDataTrack
+import io.livekit.ffi.LocalDataTrack as FfiLocalDataTrack
 
 /**
  * A data track published by the local participant. Obtain one from
