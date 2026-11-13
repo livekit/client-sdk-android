@@ -114,6 +114,7 @@ constructor(
     private var isClosed = AtomicBoolean(false)
 
     private val latestOfferId = AtomicInteger(0)
+    private var initialOffer: InitialOffer? = null
 
     interface Listener {
         fun onOffer(sd: SessionDescription, offerId: Int)
@@ -148,7 +149,11 @@ constructor(
             if (sd.type == SessionDescription.Type.ANSWER && isStaleAnswer(offerId)) {
                 return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: ${latestOfferId.get()}, actual: $offerId")
             }
+            initialOffer?.let {
+                peerConnection.setLocalDescription(it.sessionDescription)
+            }
             val result = peerConnection.setRemoteDescription(sd)
+            initialOffer = null
             if (result is Either.Left) {
                 pendingCandidates.forEach { pending ->
                     peerConnection.addIceCandidate(pending)
@@ -165,6 +170,62 @@ constructor(
         }
 
         return result
+    }
+
+    /**
+     * An offer from [createInitialOffer]: the description to bundle with the join request, and
+     * the offer id the server's answer carries.
+     */
+    data class InitialOffer(
+        val sessionDescription: SessionDescription,
+        val offerId: Int,
+    )
+
+    /**
+     * Creates the offer that is bundled with the join request instead of being sent through
+     * [Listener.onOffer].
+     *
+     * The offer is created with [constraints] and the usual munging, or left unmunged if the
+     * munge leaves nothing. It takes the next offer id, but it is not set as the local
+     * description: that would start ICE gathering before the server's ICE servers are known.
+     * It is kept pending instead, and [setRemoteDescription]
+     * applies it as the local description just before the answer, whatever the answer's offer id.
+     * While it is pending, a [negotiate] request is queued the same way as when an offer is already
+     * in flight, and runs once the answer is applied. [clearPendingInitialOffer] and [close] drop it.
+     *
+     * @return the offer, or an error message if the signaling state is not stable, the offer
+     * could not be created, or the peer connection is closed.
+     */
+    suspend fun createInitialOffer(constraints: MediaConstraints = MediaConstraints()): Either<InitialOffer, String?> {
+        offerLock.withLock {
+            return launchRTCIfNotClosed<Either<InitialOffer, String?>> {
+                val signalingState = peerConnection.signalingState()
+                if (signalingState != SignalingState.STABLE) {
+                    return@launchRTCIfNotClosed Either.Right("Signaling state is $signalingState, cannot create the initial offer")
+                }
+                val offerId = latestOfferId.incrementAndGet()
+                val munged = when (val outcome = createMungedOffer(constraints)) {
+                    is Either.Left -> outcome.value
+                    is Either.Right -> return@launchRTCIfNotClosed Either.Right(outcome.value)
+                }
+                val description = munged.description.ifBlank { munged.original.description }
+                val offer = InitialOffer(SessionDescription(munged.original.type, description), offerId)
+                initialOffer = offer
+                Either.Left(offer)
+            } ?: Either.Right("PCT is closed.")
+        }
+    }
+
+    /**
+     * Drops the offer kept by [createInitialOffer], when the join it was bundled with did not
+     * succeed, so [negotiate] offers normally again.
+     */
+    fun clearPendingInitialOffer() {
+        initialOffer = null
+    }
+
+    fun hasPendingInitialOffer(): Boolean {
+        return initialOffer != null
     }
 
     val negotiate = debounce<MediaConstraints?, Unit>(20, coroutineScope) {
@@ -194,7 +255,7 @@ constructor(
                     restartingIce = true
                 }
 
-                if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER) {
+                if (peerConnection.signalingState() == SignalingState.HAVE_LOCAL_OFFER || initialOffer != null) {
                     // we're waiting for the peer to accept our offer, so we'll just wait
                     // the only exception to this is when ICE restart is needed
                     val curSd = peerConnection.remoteDescription
@@ -215,7 +276,7 @@ constructor(
                 // this may skip some ids, but is not an issue.
                 offerId = latestOfferId.incrementAndGet()
 
-                val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
+                val munged = when (val outcome = createMungedOffer(constraints)) {
                     is Either.Left -> outcome.value
                     is Either.Right -> {
                         LKLog.d { "error creating offer: ${outcome.value}" }
@@ -223,60 +284,10 @@ constructor(
                     }
                 }
 
-                if (isClosed()) {
-                    return@launchRTCIfNotClosed
-                }
-
-                // WARP (draft-uberti-tsvwg-warp) shows up as a=goog-sped-v1 (DTLS handshake carried
-                // in the ICE exchange) and a=sctp-init (SCTP INIT params in the SDP, skipping the
-                // cookie exchange). libwebrtc only emits them when the acceleration is actually in
-                // use, so this reports what went on the wire.
-                LKLog.i {
-                    "WARP: SPED ${if (sdpOffer.description.contains("goog-sped-v1")) "enabled" else "disabled"}, " +
-                        "SNAP ${if (sdpOffer.description.contains("a=sctp-init")) "enabled" else "disabled"}"
-                }
-
-                // munge sdp
-                val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
-
-                val mediaDescs = sdpDescription.getMediaDescriptions(true)
-                    .filterIsInstance<MediaDescription>()
-                // The publisher PeerConnection may negotiate before any video is published
-                // (for example, data channel only or audio first). Those offers should not
-                // consume the video start hint. When the first video offer is created, use
-                // one connection-level value across all video m-sections so libwebrtc's
-                // last-writer-wins handling cannot depend on SDP m-section order.
-                val setupCompleted = connectionSetupTime != null
-                val connectionSetupTime = connectionSetupTimeForOffer()
-                val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
-                    computeConnectionStartBitrate(mediaDescs, trackBitrates, connectionSetupTime)
-                } else {
-                    null
-                }
-                if (connectionStartBitrate != null) {
-                    LKLog.i {
-                        "Applying x-google-start-bitrate=$connectionStartBitrate kbps " +
-                            "(connection setup ${connectionSetupTime?.inWholeMilliseconds} ms" +
-                            "${if (setupCompleted) "" else ", still connecting"})"
-                    }
-                }
-                for (mediaDesc in mediaDescs) {
-                    if (mediaDesc.media.mediaType == "audio") {
-                        // TODO
-                    } else if (mediaDesc.media.mediaType == "video") {
-                        ensureVideoDDExtensionForSVC(mediaDesc)
-                        ensureCodecBitrates(
-                            mediaDesc,
-                            trackBitrates = trackBitrates,
-                            connectionStartBitrate = connectionStartBitrate,
-                        )
-                    }
-                }
-                val mungedDescription = sdpDescription.toString()
-                finalSdp = setMungedSdp(sdpOffer, mungedDescription)
+                finalSdp = setMungedSdp(munged.original, munged.description)
                 // setMungedSdp may fall back to the original SDP. Only mark the one-shot
                 // hint as used after the SDP with the hint is accepted locally.
-                if (connectionStartBitrate != null && finalSdp?.description == mungedDescription) {
+                if (munged.connectionStartBitrate != null && finalSdp?.description == munged.description) {
                     hasAppliedVideoStartBitrate = true
                 }
             }
@@ -294,6 +305,85 @@ constructor(
                 listener.onOffer(sdp, offerId)
             }
         }
+    }
+
+    /**
+     * An offer from [createMungedOffer].
+     *
+     * @param original the offer as libwebrtc created it, to fall back to if [description] is rejected.
+     * @param description the munged offer.
+     * @param connectionStartBitrate the start bitrate hint written into [description], if any.
+     */
+    private class MungedOffer(
+        val original: SessionDescription,
+        val description: String,
+        val connectionStartBitrate: Long?,
+    )
+
+    /**
+     * Creates an offer with [constraints] and munges it. Runs on the RTC thread.
+     *
+     * The munge adds the dependency descriptor extension to SVC video sections and the
+     * connection-level start bitrate hint to video sections with a registered track bitrate.
+     * Writing the hint is one-shot per peer connection, so the caller marks
+     * [hasAppliedVideoStartBitrate] once libwebrtc has accepted [MungedOffer.description].
+     *
+     * @return the offer, or an error message if it could not be created or the peer connection
+     * is closed.
+     */
+    private suspend fun createMungedOffer(constraints: MediaConstraints): Either<MungedOffer, String?> {
+        val sdpOffer = when (val outcome = peerConnection.createOffer(constraints)) {
+            is Either.Left -> outcome.value
+            is Either.Right -> return Either.Right(outcome.value)
+        }
+
+        if (isClosed()) {
+            return Either.Right("PCT is closed.")
+        }
+
+        // WARP (draft-uberti-tsvwg-warp) shows up as a=goog-sped-v1 (DTLS handshake carried
+        // in the ICE exchange) and a=sctp-init (SCTP INIT params in the SDP, skipping the
+        // cookie exchange). libwebrtc only emits them when the acceleration is actually in
+        // use, so this reports what went on the wire.
+        LKLog.i {
+            "WARP: SPED ${if (sdpOffer.description.contains("goog-sped-v1")) "enabled" else "disabled"}, " +
+                "SNAP ${if (sdpOffer.description.contains("a=sctp-init")) "enabled" else "disabled"}"
+        }
+
+        val sdpDescription = sdpFactory.createSessionDescription(sdpOffer.description)
+
+        val mediaDescs = sdpDescription.getMediaDescriptions(true)
+            .filterIsInstance<MediaDescription>()
+        // The publisher PeerConnection may negotiate before any video is published
+        // (for example, data channel only or audio first). Those offers should not
+        // consume the video start hint. When the first video offer is created, use
+        // one connection-level value across all video m-sections so libwebrtc's
+        // last-writer-wins handling cannot depend on SDP m-section order.
+        val setupCompleted = connectionSetupTime != null
+        val connectionSetupTime = connectionSetupTimeForOffer()
+        val connectionStartBitrate = if (!hasAppliedVideoStartBitrate) {
+            computeConnectionStartBitrate(mediaDescs, trackBitrates, connectionSetupTime)
+        } else {
+            null
+        }
+        if (connectionStartBitrate != null) {
+            LKLog.i {
+                "Applying x-google-start-bitrate=$connectionStartBitrate kbps " +
+                    "(connection setup ${connectionSetupTime?.inWholeMilliseconds} ms" +
+                    "${if (setupCompleted) "" else ", still connecting"})"
+            }
+        }
+        for (mediaDesc in mediaDescs) {
+            if (mediaDesc.media.mediaType == "video") {
+                ensureVideoDDExtensionForSVC(mediaDesc)
+                ensureCodecBitrates(
+                    mediaDesc,
+                    trackBitrates = trackBitrates,
+                    connectionStartBitrate = connectionStartBitrate,
+                )
+            }
+        }
+        return Either.Left(MungedOffer(sdpOffer, sdpDescription.toString(), connectionStartBitrate))
     }
 
     private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false): SessionDescription {
@@ -375,6 +465,7 @@ constructor(
         launchRTCIfNotClosed {
             isClosed.set(true)
             peerConnection.dispose()
+            initialOffer = null
         }
         coroutineScope.cancel()
     }
