@@ -99,6 +99,12 @@ internal interface Transport {
     fun trackIdForReceiver(receiver: RtpReceiver): String?
 
     /**
+     * Attaches the received tracks the server has bound to a track ID and that are not attached
+     * as it yet, such as those whose publication had not arrived when the binding did.
+     */
+    suspend fun attachBoundTracks()
+
+    /**
      * Ensures there are at least as many receive-only media sections as the server requires
      * to deliver remote tracks.
      */

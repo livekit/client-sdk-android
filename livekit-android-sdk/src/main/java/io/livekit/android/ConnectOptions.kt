@@ -62,6 +62,15 @@ data class ConnectOptions(
      * version supported by this SDK build.
      */
     val clientProtocol: ClientProtocolVersion = ClientProtocolVersion.DATA_STREAM_V2,
+
+    /**
+     * Use a single peer connection instead of one subscriber and one publisher.
+     *
+     * ```
+     * room.connect(url, token, ConnectOptions(singlePeerConnection = true))
+     * ```
+     */
+    val singlePeerConnection: Boolean = false,
 ) {
     internal var reconnect: Boolean = false
     internal var participantSid: String? = null

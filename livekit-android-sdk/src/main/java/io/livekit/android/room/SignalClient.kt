@@ -25,6 +25,7 @@ import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.room.datatrack.DataTrackSchemaException
 import io.livekit.android.room.participant.ParticipantTrackPermission
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.util.SignalUrlBuilder
 import io.livekit.android.stats.NetworkInfo
 import io.livekit.android.stats.getClientInfo
 import io.livekit.android.util.CloseableCoroutineScope
@@ -32,7 +33,6 @@ import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.TimeoutException
 import io.livekit.android.util.rethrowIfCancellationSignal
-import io.livekit.android.util.toHttpUrl
 import io.livekit.android.util.toWebsocketUrl
 import io.livekit.android.util.withDeadline
 import io.livekit.android.webrtc.toProtoSessionDescription
@@ -192,10 +192,16 @@ constructor(
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
 
-        val wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(options.clientProtocol), options, roomOptions)}"
+        var wsUrlString = "${url.toWebsocketUrl()}/rtc${createConnectionParams(getClientInfo(options.clientProtocol), options, roomOptions)}"
         isReconnecting = options.reconnect
 
-        LKLog.i { "connecting to $wsUrlString" }
+        if (options.singlePeerConnection) {
+            wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType())
+            // The join request carries client metadata, so only the path is logged.
+            LKLog.i { "connecting to ${wsUrlString.substringBefore('?')}?${SignalUrlBuilder.QUERY_JOIN_REQUEST}=<redacted>" }
+        } else {
+            LKLog.i { "connecting to $wsUrlString" }
+        }
 
         coroutineScope = CloseableCoroutineScope(SupervisorJob() + ioDispatcher)
         lastUrl = wsUrlString
@@ -359,12 +365,14 @@ constructor(
             return
         }
         var reason: String? = null
+        // The validate endpoint explains a rejected handshake; its status wins over the
+        // handshake's when it answers with an error.
+        var statusCode: Int? = response?.code
         try {
             val lastToken = webSocket.request().header("Authorization")
-            lastUrl?.let {
-                val validationUrl = it.toHttpUrl().replaceFirst("/rtc?", "/rtc/validate?")
+            lastUrl?.let { SignalUrlBuilder.toValidateUrl(it) }?.let {
                 val request = Request.Builder()
-                    .url(validationUrl)
+                    .url(it)
                     .apply {
                         if (lastToken != null) {
                             addHeader("Authorization", lastToken)
@@ -376,6 +384,7 @@ constructor(
                 val body = resp.body
                 if (!resp.isSuccessful) {
                     reason = body?.string()
+                    statusCode = resp.code
                 }
                 body?.close()
             }
@@ -393,22 +402,16 @@ constructor(
 
         if (reason != null) {
             LKLog.e(t) { "websocket failure: $reason" }
-            val error = if (joinCont != null) {
-                RoomException.ConnectException(reason, t)
-            } else {
-                Exception(reason)
-            }
-            listener?.onError(error)
-            joinCont?.resumeWithException(error)
         } else {
             LKLog.e(t) { "websocket failure: $response" }
-            val error = if (joinCont != null) {
-                RoomException.ConnectException(t.localizedMessage, t)
-            } else {
-                t
-            }
-            listener?.onError(error)
-            joinCont?.resumeWithException(error)
+        }
+
+        if (joinCont != null) {
+            // The caller of join/reconnect receives the error through the continuation and decides
+            // whether to retry or report it, so the listener is not notified here.
+            joinCont.resumeWithException(RoomException.ConnectException(reason ?: t.localizedMessage, t, statusCode))
+        } else {
+            listener?.onError(if (reason != null) Exception(reason) else t)
         }
 
         if (wasConnected || wasReconnectHandshake) {
@@ -416,7 +419,7 @@ constructor(
             // Handle websocket closure here.
             // Also handle failure during a soft reconnect handshake (reconnect query): isConnected is
             // still false but the upper layer should be notified like a close. Initial join handshake
-            // failures do not call onClose so RTCEngine can surface them via onError / onFailToConnect.
+            // failures do not call onClose; the join caller surfaces them.
             handleWebSocketClose(
                 reason = reason ?: response?.toString() ?: t.localizedMessage ?: "websocket failure",
                 code = response?.code ?: CLOSE_REASON_WEBSOCKET_FAILURE,

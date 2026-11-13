@@ -1305,12 +1305,31 @@ constructor(
             return
         }
 
-        val statsGetter = engine.createStatsGetter(receiver)
+        attachTrack(participant, receiver, track, trackSid!!)
+    }
+
+    /**
+     * @suppress
+     */
+    override fun onTrackBound(receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String): Boolean {
+        val participant = remoteParticipants.values.firstOrNull { it.getTrackPublication(trackSid) != null }
+        if (participant == null) {
+            LKLog.d { "no publication yet for bound track $trackSid" }
+            return false
+        }
+        attachTrack(participant, receiver, track, trackSid)
+        return true
+    }
+
+    private fun attachTrack(participant: RemoteParticipant, receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String) {
+        if (participant.getTrackPublication(trackSid)?.track?.rtcTrack === track) {
+            return
+        }
         participant.addSubscribedMediaTrack(
             track,
-            trackSid!!,
+            trackSid,
             autoManageVideo = adaptiveStream,
-            statsGetter = statsGetter,
+            statsGetter = engine.createStatsGetter(receiver),
             receiver = receiver,
         )
     }
@@ -1353,6 +1372,8 @@ constructor(
                 }
             }
         }
+        // A track can be bound before the update that announces its publication.
+        engine.attachBoundTracks()
     }
 
     /**
@@ -1731,7 +1752,12 @@ constructor(
 
 sealed class RoomException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {
-    class ConnectException(message: String? = null, cause: Throwable? = null) :
+    /**
+     * @param statusCode HTTP status of the rejected signal connection: the validate endpoint's
+     * status when it reported an error, otherwise the websocket handshake's. Null when the
+     * failure did not come with an HTTP response, such as a network error.
+     */
+    class ConnectException(message: String? = null, cause: Throwable? = null, val statusCode: Int? = null) :
         RoomException(message, cause)
 }
 

@@ -235,8 +235,9 @@ class SignalClientTest : BaseTest() {
 
     /**
      * Cold [join] handshake failure: [isConnected] is still false and this is not a reconnect attempt,
-     * so the listener must not get [SignalClient.Listener.onClose] (RTCEngine uses [onError] while
-     * CONNECTING). OkHttp does not call [WebSocketListener.onClosed] after [WebSocketListener.onFailure].
+     * so the listener gets neither [SignalClient.Listener.onClose] nor [SignalClient.Listener.onError];
+     * the error reaches the [join] caller, which decides whether to retry or report it. OkHttp does
+     * not call [WebSocketListener.onClosed] after [WebSocketListener.onFailure].
      */
     @Test
     fun onCloseNotInvokedWhenJoinHandshakeFailsBeforeJoinMessage() = runTest {
@@ -252,7 +253,7 @@ class SignalClientTest : BaseTest() {
         }
 
         Mockito.verify(listener, never()).onClose(any(), any())
-        Mockito.verify(listener, times(1)).onError(any())
+        Mockito.verify(listener, never()).onError(any())
     }
 
     /**

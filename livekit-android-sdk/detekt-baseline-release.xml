@@ -24,6 +24,7 @@
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$@Synchronized @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE) fun reconnect()</ID>
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$fun onMessage(dataChannel: DataChannel, buffer: DataChannel.Buffer?)</ID>
     <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$private fun makeRTCConfig( serverResponse: Either&lt;JoinResponse, ReconnectResponse>, connectOptions: ConnectOptions, ): RTCConfiguration</ID>
+    <ID>CyclomaticComplexMethod:RTCEngine.kt$RTCEngine$private suspend fun configure(joinResponse: JoinResponse, connectOptions: ConnectOptions)</ID>
     <ID>CyclomaticComplexMethod:Room.kt$Room$@Throws(Exception::class) suspend fun connect(url: String, token: String, options: ConnectOptions = ConnectOptions())</ID>
     <ID>CyclomaticComplexMethod:RoomEvent.kt$fun LivekitModels.DisconnectReason?.convert(): DisconnectReason</ID>
     <ID>CyclomaticComplexMethod:SignalClient.kt$SignalClient$override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?)</ID>

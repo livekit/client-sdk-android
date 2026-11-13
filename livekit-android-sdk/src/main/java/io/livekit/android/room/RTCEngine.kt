@@ -205,7 +205,7 @@ internal constructor(
     internal val serverInfo: ServerInfo?
         get() = client.serverInfo
 
-    private val publisherObserver = PublisherTransportObserver(this, client, rtcThreadToken)
+    private var publisherObserver: PublisherTransportObserver? = null
     private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
     internal var transport: Transport? = null
@@ -298,7 +298,25 @@ internal constructor(
         if (connectionState == ConnectionState.DISCONNECTED) {
             connectionState = ConnectionState.CONNECTING
         }
-        val joinResponse = client.join(url, token, options, roomOptions)
+        var effectiveOptions = options
+        val joinResponse = try {
+            client.join(url, token, options, roomOptions)
+        } catch (e: RoomException.ConnectException) {
+            // A server that predates /rtc/v1 answers that handshake with 404.
+            if (!options.singlePeerConnection || e.statusCode != 404) {
+                onError(e)
+                throw e
+            }
+            LKLog.w { "server has no /rtc/v1 path, retrying on the legacy path with dual peer connections" }
+            effectiveOptions = options.copy(singlePeerConnection = false)
+            connectOptions = effectiveOptions
+            try {
+                client.join(url, token, effectiveOptions, roomOptions)
+            } catch (e: RoomException.ConnectException) {
+                onError(e)
+                throw e
+            }
+        }
         ensureActive()
 
         if (joinResponse.hasParticipant()) {
@@ -318,9 +336,9 @@ internal constructor(
         isClosed = false
         listener?.onSignalConnected(false)
 
-        isSubscriberPrimary = joinResponse.subscriberPrimary
+        isSubscriberPrimary = !effectiveOptions.singlePeerConnection && joinResponse.subscriberPrimary
 
-        configure(joinResponse, options)
+        configure(joinResponse, effectiveOptions)
         // The publisher created above needs the attempt's start time before its first offer, in
         // case video is published before the primary transport connects.
         transport?.publisher?.setConnectStartedAt(startedAtMs)
@@ -347,6 +365,13 @@ internal constructor(
                     }
                 },
             ) {
+                val publisherObserver = if (connectOptions.singlePeerConnection) {
+                    DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
+                } else {
+                    PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
+                }
+                this@RTCEngine.publisherObserver = publisherObserver
+
                 participantSid = if (joinResponse.hasParticipant()) {
                     joinResponse.participant.sid
                 } else {
@@ -360,9 +385,6 @@ internal constructor(
                     publisherObserver,
                     publisherObserver,
                 )
-                val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
-                    .onFailure { publisher.close() }
-                    .getOrThrow()
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
                     LKLog.v { "onIceConnection new state: $newState" }
@@ -373,7 +395,7 @@ internal constructor(
                     }
                 }
 
-                if (joinResponse.subscriberPrimary) {
+                if (this@RTCEngine.isSubscriberPrimary) {
                     // in subscriber primary mode, server side opens sub data channels.
                     subscriberObserver.dataChannelListener = onDataChannel@{ dataChannel: DataChannel ->
                         when (dataChannel.label()) {
@@ -396,14 +418,27 @@ internal constructor(
                     publisherObserver.connectionChangeListener = connectionStateListener
                 }
 
-                transport = DualPeerConnectionTransport(
-                    publisher,
-                    subscriber,
-                    publisherObserver,
-                    subscriberObserver,
-                    joinResponse.subscriberPrimary,
-                    joinResponse.fastPublish,
-                )
+                if (connectOptions.singlePeerConnection) {
+                    transport = SinglePeerConnectionTransport(
+                        publisher,
+                        publisherObserver,
+                    ) { receiver, track, trackSid ->
+                        listener?.onTrackBound(receiver, track, trackSid) == true
+                    }
+                } else {
+                    val subscriber = runCatching { pctFactory.create(rtcConfig, subscriberObserver, null) }
+                        .onFailure { publisher.close() }
+                        .getOrThrow()
+
+                    transport = DualPeerConnectionTransport(
+                        publisher,
+                        subscriber,
+                        publisherObserver,
+                        subscriberObserver,
+                        joinResponse.subscriberPrimary,
+                        joinResponse.fastPublish,
+                    )
+                }
 
                 ensureActive()
                 // data channels
@@ -551,7 +586,7 @@ internal constructor(
         executeBlockingOnRTCThread(rtcThreadToken) {
             runBlocking {
                 configurationLock.withLock {
-                    publisherObserver.connectionChangeListener = null
+                    publisherObserver?.connectionChangeListener = null
                     subscriberObserver.connectionChangeListener = null
                     transport?.close()
                     transport = null
@@ -969,7 +1004,7 @@ internal constructor(
         }
 
         throw RoomException.ConnectException(
-            "could not establish publisher connection: publisher state: ${publisherObserver.connectionState}, channel state: ${channelManager.state}",
+            "could not establish publisher connection: publisher state: ${publisherObserver?.connectionState}, channel state: ${channelManager.state}",
         )
     }
 
@@ -1149,6 +1184,14 @@ internal constructor(
         fun onJoinResponse(response: JoinResponse)
         fun reattachRemoteDataTracks() {}
         fun onAddTrack(receiver: RtpReceiver, track: MediaStreamTrack, streams: Array<out MediaStream>)
+
+        /**
+         * The server bound [receiver] to the publication [trackSid] without the peer connection
+         * reporting a new track.
+         *
+         * @return whether [track] is attached to that publication.
+         */
+        fun onTrackBound(receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String): Boolean = false
         fun onUpdateParticipants(updates: List<LivekitModels.ParticipantInfo>)
         fun onActiveSpeakersUpdate(speakers: List<LivekitModels.SpeakerInfo>)
         fun onRemoteMuteChanged(trackSid: String, muted: Boolean)
@@ -1401,6 +1444,8 @@ internal constructor(
     override fun onMediaSectionsRequirement(requirement: LivekitRtc.MediaSectionsRequirement) {
         coroutineScope.launch {
             transport?.handleMediaSectionsRequirement(requirement)
+            // The server asks for an offer this way, including when it needs no new section.
+            negotiatePublisher()
         }
     }
 
@@ -1635,6 +1680,15 @@ internal constructor(
      */
     internal fun getTrackSidForReceiver(receiver: RtpReceiver): String? {
         return transport?.trackIdForReceiver(receiver)
+    }
+
+    /**
+     * Attaches the tracks the server has bound to publications that have since arrived.
+     */
+    internal fun attachBoundTracks() {
+        coroutineScope.launch {
+            transport?.attachBoundTracks()
+        }
     }
 
     fun createStatsGetter(receiver: RtpReceiver): RTCStatsGetter {
