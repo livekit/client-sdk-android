@@ -1319,6 +1319,10 @@ internal constructor(
         rpcClientManager.handleParticipantDisconnect(identity)
     }
 
+    internal fun failAllPendingRpcs() {
+        rpcClientManager.failAllPending()
+    }
+
     /**
      * @suppress
      */
