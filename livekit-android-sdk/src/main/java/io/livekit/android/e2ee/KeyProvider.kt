@@ -27,6 +27,18 @@ internal class KeyInfo(var participantId: String, var keyIndex: Int, var key: St
     }
 }
 
+/**
+ * The length of the AES-GCM key derived from the shared or per-participant key material.
+ *
+ * Every participant in a room must use the same size: a 256-bit client and a 128-bit client
+ * cannot decrypt each other's media or data. The default is [BITS_128], which matches the
+ * historical behavior of all SDKs.
+ */
+enum class KeyProviderKeySize(val bits: Int) {
+    BITS_128(128),
+    BITS_256(256),
+}
+
 interface KeyProvider {
     fun setSharedKey(key: String, keyIndex: Int? = 0): Boolean
     fun ratchetSharedKey(keyIndex: Int? = 0): ByteArray
@@ -51,6 +63,7 @@ class BaseKeyProvider(
     keyRingSize: Int = defaultKeyRingSize,
     discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady,
     keyDerivationAlgorithm: FrameCryptorKeyDerivationAlgorithm = defaultKeyDerivationAlgorithm,
+    keySize: KeyProviderKeySize = defaultKeySize,
 ) : KeyProvider {
 
     private val latestSetIndex = mutableMapOf<String, Int>()
@@ -64,6 +77,7 @@ class BaseKeyProvider(
         keyRingSize,
         discardFrameWhenCryptorNotReady,
         keyDerivationAlgorithm,
+        keySize.bits,
     )
 
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
