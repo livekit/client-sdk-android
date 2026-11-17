@@ -70,7 +70,8 @@ object LiveKit {
      * When enabled, connections negotiate `flexfec-03`, which lets subscribed video tracks
      * receive repair packets from the server, see
      * [io.livekit.android.room.track.RemoteTrackPublication.setFecProtection].
-     * Published video tracks then also send FlexFEC as WebRTC adapts it to observed loss.
+     * Video tracks published without simulcast also send FlexFEC, at a rate WebRTC adapts to the
+     * reported loss; WebRTC does not protect simulcast tracks with FlexFEC.
      * Disabled by default.
      *
      * This is a process-wide WebRTC setting, so it must be set before the first [Room] is
