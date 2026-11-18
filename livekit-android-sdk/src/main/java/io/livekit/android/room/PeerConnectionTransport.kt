@@ -16,6 +16,7 @@
 
 package io.livekit.android.room
 
+import android.gov.nist.javax.sdp.fields.AttributeField
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
 import android.os.SystemClock
@@ -72,6 +73,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 internal class PeerConnectionTransport
 @AssistedInject
+@Suppress("LongParameterList") // Dagger combines assisted settings with injected dependencies.
 constructor(
     @Assisted config: RTCConfiguration,
     @Assisted pcObserver: PeerConnection.Observer,
@@ -81,6 +83,7 @@ constructor(
     connectionFactory: PeerConnectionFactory,
     private val sdpFactory: SdpFactory,
     private val rtcThreadToken: RTCThreadToken,
+    @Assisted private val singlePeerConnection: Boolean = false,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -262,7 +265,9 @@ constructor(
                 }
                 for (mediaDesc in mediaDescs) {
                     if (mediaDesc.media.mediaType == "audio") {
-                        // TODO
+                        if (singlePeerConnection) {
+                            ensureOpusNack(mediaDesc)
+                        }
                     } else if (mediaDesc.media.mediaType == "video") {
                         ensureVideoDDExtensionForSVC(mediaDesc)
                         ensureCodecBitrates(
@@ -482,9 +487,48 @@ constructor(
             config: RTCConfiguration,
             pcObserver: PeerConnection.Observer,
             listener: Listener?,
+            singlePeerConnection: Boolean = false,
         ): PeerConnectionTransport
     }
 }
+
+/**
+ * Adds plain NACK feedback to every Opus payload in an audio section.
+ *
+ * The SFU negotiates audio feedback from the first audio section, so single-PC send-only
+ * sections must advertise it even before any subscriptions exist. Wildcard NACK already
+ * covers every payload; `nack pli` is separate feedback and does not imply plain NACK.
+ */
+internal fun ensureOpusNack(mediaDesc: MediaDescription) {
+    if (mediaDesc.media.mediaType != "audio") return
+    val opusPayloads = mediaDesc.getRtps()
+        .map { it.second }
+        .filter { it.codec.equals("opus", ignoreCase = true) }
+        .map { it.payload.toString() }
+        .toSet()
+    if (opusPayloads.isEmpty()) return
+
+    val nackPayloads = mediaDesc.getAttributes(true)
+        .filterIsInstance<AttributeField>()
+        .filter { it.attribute.name == "rtcp-fb" }
+        .mapNotNull { attribute ->
+            val fields = attribute.value?.trim()?.split(rtcpFeedbackWhitespace) ?: return@mapNotNull null
+            if (fields.size == 2 && fields[1] == "nack") fields[0] else null
+        }
+        .toSet()
+    if ("*" in nackPayloads) return
+
+    for (payload in opusPayloads - nackPayloads) {
+        mediaDesc.addAttribute(
+            AttributeField().apply {
+                name = "rtcp-fb"
+                value = "$payload nack"
+            },
+        )
+    }
+}
+
+private val rtcpFeedbackWhitespace = "\\s+".toRegex()
 
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 

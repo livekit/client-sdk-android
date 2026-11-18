@@ -384,6 +384,7 @@ internal constructor(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
+                    singlePeerConnection = connectOptions.singlePeerConnection,
                 )
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->
