@@ -230,22 +230,6 @@ class PeerConnectionTransportTest {
 
     // endregion
 
-    // region clearPendingInitialOffer
-
-    @Test
-    fun clearingThePendingOfferResumesNegotiation() = runBlocking {
-        initialOffer()
-        transport.clearPendingInitialOffer()
-
-        transport.negotiate(null)
-
-        awaitOffers(1)
-        assertEquals(2, listener.offers.single().second)
-        assertEquals(SignalingState.HAVE_LOCAL_OFFER, pc.signalingState())
-    }
-
-    // endregion
-
     private object NoopSdpObserver : SdpObserver {
         override fun onCreateSuccess(sdp: SessionDescription?) {}
         override fun onSetSuccess() {}

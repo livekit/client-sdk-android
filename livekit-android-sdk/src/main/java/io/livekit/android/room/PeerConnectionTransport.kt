@@ -196,7 +196,7 @@ constructor(
      * If it is rejected then, the answer is not applied and the offer stays pending: the server
      * answered this offer, so no other description can stand in for it.
      * While it is pending, a [negotiate] request is queued the same way as when an offer is already
-     * in flight, and runs once the answer is applied. [clearPendingInitialOffer] and [close] drop it.
+     * in flight, and runs once the answer is applied. [close] drops it.
      *
      * @return the offer, or an error message if the signaling state is not stable, the offer
      * could not be created, or the peer connection is closed.
@@ -219,14 +219,6 @@ constructor(
                 Either.Left(offer)
             } ?: Either.Right("PCT is closed.")
         }
-    }
-
-    /**
-     * Drops the offer kept by [createInitialOffer], when the join it was bundled with did not
-     * succeed, so [negotiate] offers normally again.
-     */
-    fun clearPendingInitialOffer() {
-        initialOffer = null
     }
 
     fun hasPendingInitialOffer(): Boolean {
