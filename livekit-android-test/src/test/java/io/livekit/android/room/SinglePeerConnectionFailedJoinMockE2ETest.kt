@@ -97,4 +97,26 @@ class SinglePeerConnectionFailedJoinMockE2ETest : MockE2ETest() {
         engine.close()
         assertEquals(IceConnectionState.CLOSED, peerConnections().last().iceConnectionState())
     }
+
+    @Test
+    fun dualPeerConnectionJoinClosesTheEarlyPublisherOfAFailedJoin() = runTest {
+        val engine = component.rtcEngine()
+        val firstJoin = coroutineRule.scope.launch {
+            runCatching { engine.join(TestData.EXAMPLE_URL, "token", options, RoomOptions()) }
+        }
+        rejectJoin(firstJoin)
+        val earlyPublisher = peerConnections().single()
+
+        val secondJoin = coroutineRule.scope.launch {
+            runCatching { engine.join(TestData.EXAMPLE_URL, "token", ConnectOptions(), RoomOptions()) }
+        }
+        runCurrent()
+
+        assertEquals(IceConnectionState.CLOSED, earlyPublisher.iceConnectionState())
+        assertEquals(1, peerConnections().size)
+        assertEquals("/rtc", wsFactory.request.url.encodedPath)
+
+        secondJoin.cancel()
+        engine.close()
+    }
 }

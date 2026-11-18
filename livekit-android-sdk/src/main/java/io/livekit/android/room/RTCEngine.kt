@@ -307,10 +307,10 @@ internal constructor(
             connectionState = ConnectionState.CONNECTING
         }
         var effectiveOptions = options
+        if (earlyPublisher != null) {
+            closeEarlyPublisher()
+        }
         if (effectiveOptions.singlePeerConnection) {
-            if (earlyPublisher != null) {
-                closeEarlyPublisher()
-            }
             val observer = DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
             val publisher = pctFactory.create(
                 makeRTCConfig(null, effectiveOptions),
