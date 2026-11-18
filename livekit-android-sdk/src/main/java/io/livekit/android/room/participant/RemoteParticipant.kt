@@ -202,6 +202,10 @@ class RemoteParticipant(
             return
         }
 
+        if (publication.track?.rtcTrack === mediaTrack) {
+            return
+        }
+
         val track: Track = when (val kind = mediaTrack.kind()) {
             KIND_AUDIO -> audioTrackFactory.create(rtcTrack = mediaTrack as AudioTrack, name = "", receiver = receiver)
             KIND_VIDEO -> videoTrackFactory.create(

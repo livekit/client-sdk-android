@@ -1322,9 +1322,6 @@ constructor(
     }
 
     private fun attachTrack(participant: RemoteParticipant, receiver: RtpReceiver, track: MediaStreamTrack, trackSid: String) {
-        if (participant.getTrackPublication(trackSid)?.track?.rtcTrack === track) {
-            return
-        }
         participant.addSubscribedMediaTrack(
             track,
             trackSid,

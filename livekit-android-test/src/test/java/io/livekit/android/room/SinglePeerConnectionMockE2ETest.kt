@@ -306,6 +306,36 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun boundTrackDoesNotAttachTwiceWhileTrackCallbackAwaitsPublication() = runTest {
+        connectSinglePeerConnection()
+        val participantWithoutTracks = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
+            update = with(update.toBuilder()) {
+                clearParticipants()
+                addParticipants(TestData.REMOTE_PARTICIPANT.toBuilder().clearTracks())
+                build()
+            }
+            build()
+        }
+        simulateMessageFromServer(participantWithoutTracks)
+        val transceiver = addReceivingAudioSection()
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
+        publisherPeerConnection().observer?.onAddTrack(
+            transceiver.receiver,
+            arrayOf(MockMediaStream(id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "stream"))),
+        )
+        runCurrent()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val subscribed = collector.stopCollecting().filterIsInstance<RoomEvent.TrackSubscribed>()
+        assertEquals(1, subscribed.size)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        assertSame(subscribed.single().track, remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track)
+    }
+
+    @Test
     fun zeroCountRequirementSendsOffer() = runTest {
         connectSinglePeerConnection()
         val offersBefore = sentOffers().size
