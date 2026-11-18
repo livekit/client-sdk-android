@@ -19,7 +19,6 @@ package io.livekit.android.room
 import io.livekit.android.room.util.MediaConstraintKeys
 import io.livekit.android.room.util.PeerConnectionStateObservable
 import io.livekit.android.room.util.createAnswer
-import io.livekit.android.room.util.setLocalDescription
 import io.livekit.android.room.util.waitUntilConnected
 import io.livekit.android.util.Either
 import io.livekit.android.util.LKLog
@@ -89,14 +88,7 @@ internal class DualPeerConnectionTransport(
         val answer = subscriber.withPeerConnection { createAnswer(MediaConstraints()) }.nullSafe()
         if (answer.isRight()) { return answer }
 
-        val outcome = subscriber.withPeerConnection { setLocalDescription(answer.value) }.nullSafe()
-        if (outcome.isRight()) {
-            // This is a failure
-            return outcome
-        } else {
-            // The caller wants the answer on success
-            return answer
-        }
+        return subscriber.setAnswerWithOpusNack(answer.value, offer)
     }
 
     override suspend fun applyServerAnswer(

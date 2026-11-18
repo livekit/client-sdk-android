@@ -16,7 +16,6 @@
 
 package io.livekit.android.room
 
-import android.gov.nist.javax.sdp.fields.AttributeField
 import android.javax.sdp.MediaDescription
 import android.javax.sdp.SdpFactory
 import android.os.SystemClock
@@ -301,6 +300,22 @@ constructor(
         }
     }
 
+    /** Applies an answer accepting Opus NACK only on the MIDs that offered it. */
+    suspend fun setAnswerWithOpusNack(answer: SessionDescription, offer: SessionDescription): Either<SessionDescription, String?> {
+        val munged = mungeOpusNackForAnswer(answer.description, offer.description, sdpFactory)
+        if (munged != answer.description) {
+            val description = SessionDescription(answer.type, munged)
+            val result = withPeerConnection { setLocalDescription(description) }
+            if (result is Either.Left) return Either.Left(description)
+            LKLog.w { "Opus NACK answer rejected, falling back to original SDP" }
+        }
+        return when (val result = withPeerConnection { setLocalDescription(answer) }) {
+            is Either.Left -> Either.Left(answer)
+            is Either.Right -> result
+            null -> Either.Right("PCT closed")
+        }
+    }
+
     private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false): SessionDescription {
         val mungedSdp = SessionDescription(sdp.type, mungedDescription)
 
@@ -491,44 +506,6 @@ constructor(
         ): PeerConnectionTransport
     }
 }
-
-/**
- * Adds plain NACK feedback to every Opus payload in an audio section.
- *
- * The SFU negotiates audio feedback from the first audio section, so single-PC send-only
- * sections must advertise it even before any subscriptions exist. Wildcard NACK already
- * covers every payload; `nack pli` is separate feedback and does not imply plain NACK.
- */
-internal fun ensureOpusNack(mediaDesc: MediaDescription) {
-    if (mediaDesc.media.mediaType != "audio") return
-    val opusPayloads = mediaDesc.getRtps()
-        .map { it.second }
-        .filter { it.codec.equals("opus", ignoreCase = true) }
-        .map { it.payload.toString() }
-        .toSet()
-    if (opusPayloads.isEmpty()) return
-
-    val nackPayloads = mediaDesc.getAttributes(true)
-        .filterIsInstance<AttributeField>()
-        .filter { it.attribute.name == "rtcp-fb" }
-        .mapNotNull { attribute ->
-            val fields = attribute.value?.trim()?.split(rtcpFeedbackWhitespace) ?: return@mapNotNull null
-            if (fields.size == 2 && fields[1] == "nack") fields[0] else null
-        }
-        .toSet()
-    if ("*" in nackPayloads) return
-
-    for (payload in opusPayloads - nackPayloads) {
-        mediaDesc.addAttribute(
-            AttributeField().apply {
-                name = "rtcp-fb"
-                value = "$payload nack"
-            },
-        )
-    }
-}
-
-private val rtcpFeedbackWhitespace = "\\s+".toRegex()
 
 private const val DD_EXTENSION_URI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
