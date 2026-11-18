@@ -1337,6 +1337,12 @@ internal constructor(
 
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                    if (transport?.publisher?.hasPendingInitialOffer() == true) {
+                        // The offer sent with the join request could not be applied, so this
+                        // peer connection cannot be negotiated. Rejoin with a new one.
+                        fullReconnectOnNext = true
+                        reconnect()
+                    }
                 }
             }
         }

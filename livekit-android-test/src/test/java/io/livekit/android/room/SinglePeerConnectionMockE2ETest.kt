@@ -39,6 +39,7 @@ import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.RtpTransceiver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -93,8 +94,8 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         answerOffer(sentOffers().last().id, midToTrackId)
     }
 
-    private fun TestScope.answerOffer(offerId: Int, midToTrackId: Map<String, String> = emptyMap()) {
-        val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+    private fun answerTo(offerId: Int, midToTrackId: Map<String, String> = emptyMap()): LivekitRtc.SignalResponse {
+        return with(LivekitRtc.SignalResponse.newBuilder()) {
             setAnswer(
                 with(LivekitRtc.SessionDescription.newBuilder()) {
                     type = "answer"
@@ -106,7 +107,10 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
             )
             build()
         }
-        simulateMessageFromServer(answer)
+    }
+
+    private fun TestScope.answerOffer(offerId: Int, midToTrackId: Map<String, String> = emptyMap()) {
+        simulateMessageFromServer(answerTo(offerId, midToTrackId))
         advanceUntilIdle()
     }
 
@@ -187,6 +191,33 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
 
         assertEquals(offer.sdp, publisherPeerConnection().localDescription?.description)
         assertTrue("the answered join offer must not be offered again", sentOffers().isEmpty())
+    }
+
+    @Test
+    fun rejectedJoinOfferRejoinsWithANewPeerConnection() = runTest {
+        joinSinglePeerConnection()
+        val joinRequest = wsFactory.request
+        val rejectingPeerConnection = publisherPeerConnection()
+        rejectingPeerConnection.localDescriptionError = "rejected"
+
+        simulateMessageFromServer(answerTo(joinOffer().id))
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+
+        val rejoinRequest = wsFactory.request
+        assertTrue("expected a new websocket for the rejoin", rejoinRequest !== joinRequest)
+        assertEquals("/rtc/v1", rejoinRequest.url.encodedPath)
+        assertNull(rejectingPeerConnection.remoteDescription)
+
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(rejoinRequest))
+        simulateMessageFromServer(TestData.JOIN)
+        runCurrent()
+        assertTrue("expected a new peer connection for the rejoin", publisherPeerConnection() !== rejectingPeerConnection)
+        simulateMessageFromServer(answerTo(joinOffer().id))
+        publisherPeerConnection().moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(Room.State.CONNECTED, room.state)
     }
 
     @Test

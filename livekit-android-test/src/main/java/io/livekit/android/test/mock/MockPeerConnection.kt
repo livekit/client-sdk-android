@@ -53,8 +53,17 @@ class MockPeerConnection(
 
     private val transceivers = mutableListOf<RtpTransceiver>()
 
+    /**
+     * When set, [setLocalDescription] fails with this error.
+     */
+    var localDescriptionError: String? = null
+
     override fun getLocalDescription(): SessionDescription? = localDesc
     override fun setLocalDescription(observer: SdpObserver, sdp: SessionDescription) {
+        localDescriptionError?.let {
+            observer.onSetFailure(it)
+            return
+        }
         if (sdp.description.isEmpty()) {
             observer.onSetFailure("empty local description")
             return

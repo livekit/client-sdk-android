@@ -150,7 +150,10 @@ constructor(
                 return@launchRTCIfNotClosed Either.Right("Old offer, ignoring. Expected: ${latestOfferId.get()}, actual: $offerId")
             }
             initialOffer?.let {
-                peerConnection.setLocalDescription(it.sessionDescription)
+                val localResult = peerConnection.setLocalDescription(it.sessionDescription)
+                if (localResult is Either.Right) {
+                    return@launchRTCIfNotClosed Either.Right("Could not set the initial offer: ${localResult.value}")
+                }
             }
             val result = peerConnection.setRemoteDescription(sd)
             initialOffer = null
@@ -190,6 +193,8 @@ constructor(
      * description: that would start ICE gathering before the server's ICE servers are known.
      * It is kept pending instead, and [setRemoteDescription]
      * applies it as the local description just before the answer, whatever the answer's offer id.
+     * If it is rejected then, the answer is not applied and the offer stays pending: the server
+     * answered this offer, so no other description can stand in for it.
      * While it is pending, a [negotiate] request is queued the same way as when an offer is already
      * in flight, and runs once the answer is applied. [clearPendingInitialOffer] and [close] drop it.
      *

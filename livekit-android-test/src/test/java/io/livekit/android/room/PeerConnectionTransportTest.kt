@@ -200,6 +200,19 @@ class PeerConnectionTransportTest {
     }
 
     @Test
+    fun answerIsNotAppliedWhenThePendingOfferIsRejected() = runTest {
+        val offer = initialOffer()
+        pc.localDescriptionError = "rejected"
+
+        val result = transport.setRemoteDescription(answer(), offer.offerId)
+
+        assertTrue(result is Either.Right)
+        assertTrue((result as Either.Right).value.orEmpty().contains("rejected"))
+        assertNull(pc.remoteDesc)
+        assertTrue(transport.hasPendingInitialOffer())
+    }
+
+    @Test
     fun negotiationWaitsForThePendingOfferToBeAnswered() = runBlocking {
         val offer = initialOffer()
 
