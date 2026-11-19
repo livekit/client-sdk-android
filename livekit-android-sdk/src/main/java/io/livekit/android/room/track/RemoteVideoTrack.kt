@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.annotations.Beta
 import io.livekit.android.dagger.InjectionNames
 import io.livekit.android.events.TrackEvent
 import io.livekit.android.room.track.video.VideoSinkVisibility
@@ -32,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import livekit.org.webrtc.FrameMetadataTransformer
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.VideoSink
 import javax.inject.Named
@@ -72,6 +74,42 @@ constructor(
 
     init {
         this.receiver = receiver
+    }
+
+    // Guards the transformer, so a lookup can't use it while it's being disposed.
+    private val frameMetadataLock = Any()
+    private var frameMetadataTransformer: FrameMetadataTransformer? = null
+
+    internal fun setFrameMetadataTransformer(transformer: FrameMetadataTransformer?) {
+        synchronized(frameMetadataLock) {
+            frameMetadataTransformer = transformer
+        }
+    }
+
+    /**
+     * Looks up the frame metadata the publisher sent with a frame of this track.
+     *
+     * Get the RTP timestamp from the frame in your video sink, with
+     * [VideoFrame.getRtpTimestamp][livekit.org.webrtc.VideoFrame.getRtpTimestamp]:
+     *
+     * ```
+     * remoteVideoTrack.addRenderer { frame ->
+     *     val metadata = remoteVideoTrack.lookupFrameMetadata(frame.rtpTimestamp)
+     * }
+     * ```
+     *
+     * Values for the last ~300 frames are kept, so look up a frame soon after it arrives.
+     *
+     * @return the values, or null if the publisher didn't send any for this frame, the frame is no
+     * longer available, or the track has been unsubscribed.
+     */
+    @Beta
+    fun lookupFrameMetadata(rtpTimestamp: Long): FrameMetadata? {
+        // The transformer is cleared under this lock before it's disposed, so a lookup never sees
+        // a disposed one.
+        synchronized(frameMetadataLock) {
+            return frameMetadataTransformer?.lookup(rtpTimestamp)?.toSdk()
+        }
     }
 
     /**

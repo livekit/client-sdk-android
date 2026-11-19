@@ -30,6 +30,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
+import io.livekit.android.room.framemetadata.FrameMetadataStampingProcessor
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.track.screencapture.ScreenCaptureConnection
 import io.livekit.android.room.track.screencapture.ScreenCaptureService
@@ -247,7 +248,9 @@ constructor(
             onStop: (Track) -> Unit,
         ): LocalScreencastVideoTrack {
             val source = peerConnectionFactory.createVideoSource(options.isScreencast)
-            source.setVideoProcessor(videoProcessor)
+            // Installed now and armed at publish, so publishing doesn't have to swap processors.
+            val stampingProcessor = FrameMetadataStampingProcessor(videoProcessor)
+            source.setVideoProcessor(stampingProcessor)
             val callback = MediaProjectionCallback().apply {
                 addOnStopCallback(onStop)
             }
@@ -268,6 +271,7 @@ constructor(
                 rtcTrack = rtcTrack,
                 mediaProjectionCallback = callback,
             )
+            track.frameMetadataStamper = stampingProcessor
             // The track owns the SurfaceTextureHelper; dispose() releases its capture thread.
             track.closeableManager.registerResource(
                 rtcTrack,

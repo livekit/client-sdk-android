@@ -16,9 +16,31 @@
 
 package io.livekit.android.test.mock
 
+import livekit.org.webrtc.FrameMetadataTransformer
+import livekit.org.webrtc.VideoProcessor
 import livekit.org.webrtc.VideoSource
 
 class MockVideoSource(nativeSource: Long = 100) : VideoSource(nativeSource) {
+
+    /** The send transformers currently linked to this source. */
+    val frameMetadataTransformers = mutableListOf<FrameMetadataTransformer>()
+
+    var videoProcessor: VideoProcessor? = null
+        private set
+
     override fun dispose() {
+    }
+
+    override fun addFrameMetadataTransformer(transformer: FrameMetadataTransformer) {
+        frameMetadataTransformers.add(transformer)
+    }
+
+    override fun removeFrameMetadataTransformer(transformer: FrameMetadataTransformer) {
+        frameMetadataTransformers.remove(transformer)
+    }
+
+    override fun setVideoProcessor(newVideoProcessor: VideoProcessor?) {
+        videoProcessor = newVideoProcessor
+        super.setVideoProcessor(newVideoProcessor)
     }
 }

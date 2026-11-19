@@ -76,8 +76,13 @@ enum class ClientCapability(val value: Int) {
  * compression is advertised unconditionally: deflate-raw is compressed and decompressed by the
  * Rust data stream core, so support does not vary by device, API level, or room options.
  *
+ * Packet trailers are also advertised unconditionally: the SDK handles the trailer itself on every
+ * subscribed video track whose publisher sends one. Without this, the server strips it first and
+ * frame metadata never arrives.
+ *
  * @suppress
  */
 internal val ADVERTISED_CLIENT_CAPABILITIES = listOf(
+    ClientCapability.PACKET_TRAILER,
     ClientCapability.COMPRESSION_DEFLATE_RAW,
 )

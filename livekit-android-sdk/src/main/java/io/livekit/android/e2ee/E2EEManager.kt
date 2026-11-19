@@ -22,6 +22,8 @@ import dagger.assisted.AssistedInject
 import io.livekit.android.annotations.Beta
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.room.Room
+import io.livekit.android.room.framemetadata.DefaultFrameTransformerFactory
+import io.livekit.android.room.framemetadata.FrameTransformerFactory
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.room.participant.Participant
 import io.livekit.android.room.participant.RemoteParticipant
@@ -36,7 +38,6 @@ import livekit.LivekitModels.Encryption
 import livekit.org.webrtc.FrameCryptor
 import livekit.org.webrtc.FrameCryptor.FrameCryptionState
 import livekit.org.webrtc.FrameCryptorAlgorithm
-import livekit.org.webrtc.FrameCryptorFactory
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.RtpSender
@@ -54,6 +55,8 @@ constructor(
     private lateinit var emitEvent: (roomEvent: RoomEvent) -> Unit?
 
     internal var dataPacketCryptorManager: DataPacketCryptorManager = dataPacketCryptorManagerFactory.create(keyProvider)
+
+    internal var frameTransformerFactory: FrameTransformerFactory = DefaultFrameTransformerFactory(peerConnectionFactory)
 
     var enabled: Boolean = false
         set(value) {
@@ -99,22 +102,29 @@ constructor(
         this.room?.localParticipant?.trackPublications?.forEach { item ->
             val participant = this.room!!.localParticipant
             val publication = item.value
-            if (publication.track != null) {
-                addPublishedTrack(publication.track!!, publication, participant, room)
+            val track = publication.track
+            if (track != null) {
+                val frameCryptor = addPublishedTrack(track, publication, participant, room)
+                room.installSendTransformers(track, frameCryptor)
             }
         }
         this.room?.remoteParticipants?.forEach { item ->
             val participant = item.value
             participant.trackPublications.forEach { item ->
                 val publication = item.value
-                if (publication.track != null) {
-                    addSubscribedTrack(publication.track!!, publication, participant, room)
+                val track = publication.track
+                if (track != null) {
+                    val frameCryptor = addSubscribedTrack(track, publication, participant, room)
+                    room.installReceiveTransformers(track, frameCryptor)
                 }
             }
         }
     }
 
-    fun addSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+    /**
+     * Creates the cryptor for a subscribed track, without installing it.
+     */
+    internal fun addSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room): FrameCryptor {
         val rtpReceiver: RtpReceiver? = when (publication.track!!) {
             is RemoteAudioTrack -> (publication.track!! as RemoteAudioTrack).receiver
             is RemoteVideoTrack -> (publication.track!! as RemoteVideoTrack).receiver
@@ -135,9 +145,10 @@ constructor(
                 ),
             )
         }
+        return frameCryptor
     }
 
-    fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
+    internal fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
         val frameCryptor = frameCryptors.get(trackId to participantId)
@@ -148,7 +159,10 @@ constructor(
         }
     }
 
-    fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+    /**
+     * Creates the cryptor for a published track, without installing it.
+     */
+    internal fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room): FrameCryptor {
         val rtpSender: RtpSender = when (publication.track!!) {
             is LocalAudioTrack -> (publication.track!! as LocalAudioTrack).sender
             is LocalVideoTrack -> (publication.track!! as LocalVideoTrack).sender
@@ -170,9 +184,10 @@ constructor(
                 ),
             )
         }
+        return frameCryptor
     }
 
-    fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
+    internal fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
         val frameCryptor = frameCryptors.get(trackId to participantId)
@@ -197,8 +212,7 @@ constructor(
     }
 
     private fun addRtpSender(sender: RtpSender, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
-        val frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpSender(
-            peerConnectionFactory,
+        val frameCryptor = frameTransformerFactory.createFrameCryptor(
             sender,
             participantId.value,
             algorithm,
@@ -212,8 +226,7 @@ constructor(
     }
 
     private fun addRtpReceiver(receiver: RtpReceiver, participantId: Participant.Identity, trackId: String, kind: String): FrameCryptor {
-        val frameCryptor = FrameCryptorFactory.createFrameCryptorForRtpReceiver(
-            peerConnectionFactory,
+        val frameCryptor = frameTransformerFactory.createFrameCryptor(
             receiver,
             participantId.value,
             algorithm,

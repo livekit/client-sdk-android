@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,12 +40,15 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
         return MockAudioStreamTrack(id = id)
     }
 
+    /** Every video source created, in order. */
+    val createdVideoSources = mutableListOf<MockVideoSource>()
+
     override fun createVideoSource(isScreencast: Boolean, alignTimestamps: Boolean): VideoSource {
-        return MockVideoSource()
+        return MockVideoSource().also { createdVideoSources.add(it) }
     }
 
     override fun createVideoSource(isScreencast: Boolean): VideoSource {
-        return MockVideoSource()
+        return MockVideoSource().also { createdVideoSources.add(it) }
     }
 
     override fun createVideoTrack(id: String, source: VideoSource?): VideoTrack {

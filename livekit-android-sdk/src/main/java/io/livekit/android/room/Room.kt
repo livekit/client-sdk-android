@@ -54,6 +54,8 @@ import io.livekit.android.room.datatrack.DataTrackSid
 import io.livekit.android.room.datatrack.IncomingDataTrackEvent
 import io.livekit.android.room.datatrack.IncomingDataTrackManager
 import io.livekit.android.room.datatrack.RemoteDataTrack
+import io.livekit.android.room.framemetadata.FrameMetadataManager
+import io.livekit.android.room.framemetadata.FrameTransformerInstaller
 import io.livekit.android.room.metrics.collectMetrics
 import io.livekit.android.room.network.NetworkCallbackManagerFactory
 import io.livekit.android.room.network.ReconnectPolicy
@@ -76,10 +78,14 @@ import io.livekit.android.room.rpc.RPC_RESPONSE_DATA_STREAM_TOPIC
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
+import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalTrackPublication
+import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.RemoteTrackPublication
+import io.livekit.android.room.track.RemoteVideoTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.TrackPublication
 import io.livekit.android.room.types.toSDKType
@@ -110,6 +116,7 @@ import kotlinx.serialization.Serializable
 import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.FrameCryptor
 import livekit.org.webrtc.MediaStream
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.RTCStatsCollectorCallback
@@ -165,6 +172,8 @@ constructor(
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
     private val remoteParticipantFactory: RemoteParticipant.Factory,
+    private val frameMetadataManager: FrameMetadataManager,
+    private val frameTransformerInstaller: FrameTransformerInstaller,
 ) : RTCEngine.Listener, ParticipantListener, RpcManager, IncomingDataStreamManager by incomingDataStreamManager {
 
     private lateinit var coroutineScope: CoroutineScope
@@ -515,6 +524,7 @@ constructor(
 
             if (roomOptions.e2eeOptions != null) {
                 e2eeManager = e2EEManagerFactory.create(roomOptions.e2eeOptions.keyProvider).apply {
+                    frameTransformerFactory = frameTransformerInstaller.factory
                     setup(this@Room) { event ->
                         coroutineScope.launch {
                             emitWhenConnected(event)
@@ -1126,6 +1136,7 @@ constructor(
         isRecording = false
         sidToIdentity.clear()
         incomingDataStreamManager.clearOpenStreams()
+        frameMetadataManager.cleanup()
     }
 
     private suspend fun sendSyncState() {
@@ -1629,8 +1640,10 @@ constructor(
      * @suppress
      */
     override fun onTrackPublished(publication: LocalTrackPublication, participant: LocalParticipant) {
-        if (e2eeManager != null) {
-            e2eeManager!!.addPublishedTrack(publication.track!!, publication, participant, this)
+        val track = publication.track
+        if (track != null) {
+            val frameCryptor = e2eeManager?.addPublishedTrack(track, publication, participant, this)
+            installSendTransformers(track, frameCryptor)
         }
         eventBus.postEvent(RoomEvent.TrackPublished(this, publication, participant), coroutineScope)
     }
@@ -1640,6 +1653,7 @@ constructor(
      */
     override fun onTrackUnpublished(publication: LocalTrackPublication, participant: LocalParticipant) {
         e2eeManager?.removePublishedTrack(publication.track!!, publication, participant, this)
+        publication.track?.let { frameMetadataManager.removePublishedTrack(it) }
         eventBus.postEvent(RoomEvent.TrackUnpublished(this, publication, participant), coroutineScope)
     }
 
@@ -1647,10 +1661,46 @@ constructor(
      * @suppress
      */
     override fun onTrackSubscribed(track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) {
-        if (e2eeManager != null) {
-            e2eeManager!!.addSubscribedTrack(track, publication, participant, this)
-        }
+        val frameCryptor = e2eeManager?.addSubscribedTrack(track, publication, participant, this)
+        frameMetadataManager.addSubscribedTrack(track, publication)
+        installReceiveTransformers(track, frameCryptor)
         eventBus.postEvent(RoomEvent.TrackSubscribed(this, track, publication, participant), coroutineScope)
+    }
+
+    /**
+     * Installs a published track's cryptor and frame metadata transformer, whichever it has, on its
+     * sender in a single install.
+     */
+    internal fun installSendTransformers(track: Track, frameCryptor: FrameCryptor?) {
+        val sender = when (track) {
+            is LocalVideoTrack -> track.sender
+            is LocalAudioTrack -> track.sender
+            else -> null
+        } ?: return
+        // Installs under the track's lock so an unpublish can't dispose the transformer in the
+        // meantime. The chain is kept after that lock is released: the manager's lock is taken
+        // before a track's, never after. setChain disposes the chain if the track was removed.
+        val chain = if (track is LocalVideoTrack) {
+            track.withFrameMetadataTransformer { frameTransformerInstaller.installSend(sender, frameCryptor, it) }
+        } else {
+            frameTransformerInstaller.installSend(sender, frameCryptor, null)
+        }
+        frameMetadataManager.setChain(track, chain)
+    }
+
+    /**
+     * Installs a subscribed track's frame metadata transformer and cryptor, whichever it has, on its
+     * receiver in a single install.
+     */
+    internal fun installReceiveTransformers(track: Track, frameCryptor: FrameCryptor?) {
+        val receiver = when (track) {
+            is RemoteVideoTrack -> track.receiver
+            is RemoteAudioTrack -> track.receiver
+            else -> null
+        } ?: return
+        frameMetadataManager.installReceive(track) { metadataTransformer ->
+            frameTransformerInstaller.installReceive(receiver, metadataTransformer, frameCryptor)
+        }
     }
 
     /**
@@ -1673,6 +1723,7 @@ constructor(
         participant: RemoteParticipant,
     ) {
         e2eeManager?.removeSubscribedTrack(track, publication, participant, this)
+        frameMetadataManager.removeSubscribedTrack(track)
         eventBus.postEvent(RoomEvent.TrackUnsubscribed(this, track, publication, participant), coroutineScope)
     }
 

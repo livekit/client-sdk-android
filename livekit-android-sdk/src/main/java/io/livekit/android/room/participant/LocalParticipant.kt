@@ -44,11 +44,13 @@ import io.livekit.android.room.datatrack.DataTrackSchemaException
 import io.livekit.android.room.datatrack.DataTrackSchemaId
 import io.livekit.android.room.datatrack.LocalDataTrack
 import io.livekit.android.room.datatrack.OutgoingDataTrackManager
+import io.livekit.android.room.framemetadata.FrameMetadataManager
 import io.livekit.android.room.isSVCCodec
 import io.livekit.android.room.rpc.RpcClientManager
 import io.livekit.android.room.rpc.RpcManager
 import io.livekit.android.room.rpc.RpcServerManager
 import io.livekit.android.room.track.DataPublishReliability
+import io.livekit.android.room.track.FrameMetadataPublishOptions
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.LocalScreencastVideoTrack
@@ -63,6 +65,7 @@ import io.livekit.android.room.track.VideoCodec
 import io.livekit.android.room.track.VideoEncoding
 import io.livekit.android.room.track.VideoPreset
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
+import io.livekit.android.room.track.toPacketTrailerFeatures
 import io.livekit.android.room.util.EncodingUtils
 import io.livekit.android.rpc.RpcError
 import io.livekit.android.util.LKLog
@@ -126,6 +129,7 @@ internal constructor(
     private val outgoingDataTrackManager: OutgoingDataTrackManager,
     private val rpcClientManager: RpcClientManager,
     private val rpcServerManager: RpcServerManager,
+    private val frameMetadataManager: FrameMetadataManager,
 ) : Participant(Sid(""), null, coroutineDispatcher),
     OutgoingDataStreamManager by outgoingDataStreamManager,
     RpcManager {
@@ -621,6 +625,7 @@ internal constructor(
                             },
                         )
                     }
+                    options.frameMetadata?.let { addAllPacketTrailerFeatures(it.toPacketTrailerFeatures()) }
                 },
                 encodings = encodings,
                 publishListener = publishListener,
@@ -856,6 +861,11 @@ internal constructor(
                     participant = this,
                     options = options,
                 )
+                if (track is LocalVideoTrack) {
+                    // Before the publication is visible, so a backup codec sender created after it
+                    // finds the transformer.
+                    frameMetadataManager.addPublishedTrack(track, (options as? VideoTrackPublishOptions)?.frameMetadata)
+                }
                 addTrackPublication(publication)
                 LKLog.v { "add track publication $publication" }
 
@@ -1439,6 +1449,12 @@ internal constructor(
                 return@launch
             }
             simulcastTrack.transceiver = transceiver
+            // The backup codec sender shares the primary's metadata transformer: the source and the
+            // frames are the same. No send stream exists yet, so this doesn't recreate one. It's
+            // installed under the track's lock so an unpublish can't dispose it in the meantime.
+            track.withFrameMetadataTransformer { transformer ->
+                transformer?.let { transceiver.sender.setFrameTransformer(it) }
+            }
             val trackRequest = AddTrackRequest.newBuilder().apply {
                 sid = existingPublication.sid
                 muted = !track.enabled
@@ -1733,6 +1749,13 @@ abstract class BaseVideoTrackPublishOptions {
      * When set to null, it defaults to H180 and H360.
      */
     abstract val simulcastLayers: List<VideoPreset>?
+
+    /**
+     * Frame metadata to send with each frame, such as a capture timestamp and a frame ID.
+     * Off when null. See [FrameMetadataPublishOptions].
+     */
+    open val frameMetadata: FrameMetadataPublishOptions?
+        get() = null
 }
 
 // Remember when adding any defaults to add it in the copy constructor of VideoTrackPublishOptions.
@@ -1744,6 +1767,7 @@ data class VideoTrackPublishDefaults(
     override val backupCodec: BackupVideoCodec? = null,
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
+    override val frameMetadata: FrameMetadataPublishOptions? = null,
 ) : BaseVideoTrackPublishOptions()
 
 data class VideoTrackPublishOptions(
@@ -1757,6 +1781,7 @@ data class VideoTrackPublishOptions(
     override val stream: String? = null,
     override val degradationPreference: RtpParameters.DegradationPreference? = null,
     override val simulcastLayers: List<VideoPreset>? = null,
+    override val frameMetadata: FrameMetadataPublishOptions? = null,
 ) : BaseVideoTrackPublishOptions(), TrackPublishOptions {
     constructor(
         name: String? = null,
@@ -1774,6 +1799,7 @@ data class VideoTrackPublishOptions(
         stream = stream,
         degradationPreference = base.degradationPreference,
         simulcastLayers = base.simulcastLayers,
+        frameMetadata = base.frameMetadata,
     )
 
     fun createBackupOptions(): VideoTrackPublishOptions? {
