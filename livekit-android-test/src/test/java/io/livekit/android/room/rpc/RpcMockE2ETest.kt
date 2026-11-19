@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import io.livekit.android.test.mock.MockPeerConnection
 import io.livekit.android.test.mock.TestData
 import io.livekit.android.test.mock.TestData.REMOTE_PARTICIPANT
 import io.livekit.android.test.util.toDataChannelBuffer
+import io.livekit.android.util.toOkioByteString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -414,4 +416,80 @@ class RpcMockE2ETest : MockE2ETest() {
         )
         assertTrue(methodCalled)
     }
+
+    /**
+     * A call to a participant the room knows about is already covered: room cleanup reports
+     * every remote participant as disconnected. This guards that path.
+     */
+    @Test
+    fun disconnectRejectsPendingRpcToAKnownParticipant() = runTest {
+        connect()
+        wsFactory.listener.onMessage(wsFactory.ws, TestData.PARTICIPANT_JOIN.toOkioByteString())
+        val destination = Participant.Identity(REMOTE_PARTICIPANT.identity)
+        assertTrue(
+            "this test is only meaningful while the destination is a known participant",
+            room.remoteParticipants.containsKey(destination),
+        )
+
+        val rpcJob = async { performRpcCatchingError(destination) }
+        subDataChannel.simulateBufferReceived(createAck(sentRequestId()))
+
+        room.disconnect()
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.code,
+            (rpcJob.await() as RpcError).code,
+        )
+    }
+
+    /**
+     * A call to an identity that never appeared in the participant list -- an agent that has
+     * not joined yet, say -- is in no participant loop, so room cleanup never reached it.
+     *
+     * The ack here is what makes this the damaging case: it cancels the round-trip timer, so
+     * before the sweep in `cleanupRoom` nothing failed the call until `responseTimeout`, which
+     * defaults to minutes. Without it the caller only waited out `maxRoundTripLatency` and got
+     * the misleading `CONNECTION_TIMEOUT`.
+     */
+    @Test
+    fun disconnectRejectsAnAckedRpcToAnIdentityTheRoomNeverSaw() = runTest {
+        connect()
+        val destination = Participant.Identity("never-joined")
+        assertFalse(
+            "this test is only meaningful while the destination is unknown to the room",
+            room.remoteParticipants.containsKey(destination),
+        )
+
+        val rpcJob = async { performRpcCatchingError(destination) }
+        subDataChannel.simulateBufferReceived(createAck(sentRequestId()))
+
+        room.disconnect()
+
+        coroutineRule.dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.code,
+            (rpcJob.await() as RpcError).code,
+        )
+    }
+
+    /** The id of the only RPC request published so far. */
+    private fun sentRequestId(): String {
+        val buffers = pubDataChannel.sentBuffers
+        assertEquals(1, buffers.size)
+        return LivekitModels.DataPacket.parseFrom(ByteString.copyFrom(buffers[0].data)).rpcRequest.id
+    }
+
+    private suspend fun performRpcCatchingError(destination: Participant.Identity): Exception? =
+        try {
+            room.localParticipant.performRpc(
+                destinationIdentity = destination,
+                method = "hello",
+                payload = "hello world",
+                responseTimeout = 5.minutes,
+            )
+            null
+        } catch (e: Exception) {
+            e
+        }
 }

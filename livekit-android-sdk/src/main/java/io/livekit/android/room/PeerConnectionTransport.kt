@@ -72,6 +72,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 internal class PeerConnectionTransport
 @AssistedInject
+@Suppress("LongParameterList") // Dagger combines assisted settings with injected dependencies.
 constructor(
     @Assisted config: RTCConfiguration,
     @Assisted pcObserver: PeerConnection.Observer,
@@ -81,6 +82,7 @@ constructor(
     connectionFactory: PeerConnectionFactory,
     private val sdpFactory: SdpFactory,
     private val rtcThreadToken: RTCThreadToken,
+    @Assisted private val singlePeerConnection: Boolean = false,
 ) {
     private val coroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -320,8 +322,9 @@ constructor(
     /**
      * Creates an offer with [constraints] and munges it. Runs on the RTC thread.
      *
-     * The munge adds the dependency descriptor extension to SVC video sections and the
-     * connection-level start bitrate hint to video sections with a registered track bitrate.
+     * The munge adds Opus NACK to audio sections in single peer connection mode, the dependency
+     * descriptor extension to SVC video sections, and the connection-level start bitrate hint to
+     * video sections with a registered track bitrate.
      * Writing the hint is one-shot per peer connection, so the caller marks
      * [hasAppliedVideoStartBitrate] once libwebrtc has accepted [MungedOffer.description].
      *
@@ -371,7 +374,11 @@ constructor(
             }
         }
         for (mediaDesc in mediaDescs) {
-            if (mediaDesc.media.mediaType == "video") {
+            if (mediaDesc.media.mediaType == "audio") {
+                if (singlePeerConnection) {
+                    ensureOpusNack(mediaDesc)
+                }
+            } else if (mediaDesc.media.mediaType == "video") {
                 ensureVideoDDExtensionForSVC(mediaDesc)
                 ensureCodecBitrates(
                     mediaDesc,
@@ -381,6 +388,22 @@ constructor(
             }
         }
         return Either.Left(MungedOffer(sdpOffer, sdpDescription.toString(), connectionStartBitrate))
+    }
+
+    /** Applies an answer accepting Opus NACK only on the MIDs that offered it. */
+    suspend fun setAnswerWithOpusNack(answer: SessionDescription, offer: SessionDescription): Either<SessionDescription, String?> {
+        val munged = mungeOpusNackForAnswer(answer.description, offer.description, sdpFactory)
+        if (munged != answer.description) {
+            val description = SessionDescription(answer.type, munged)
+            val result = withPeerConnection { setLocalDescription(description) }
+            if (result is Either.Left) return Either.Left(description)
+            LKLog.w { "Opus NACK answer rejected, falling back to original SDP" }
+        }
+        return when (val result = withPeerConnection { setLocalDescription(answer) }) {
+            is Either.Left -> Either.Left(answer)
+            is Either.Right -> result
+            null -> Either.Right("PCT closed")
+        }
     }
 
     private suspend fun setMungedSdp(sdp: SessionDescription, mungedDescription: String, remote: Boolean = false): SessionDescription {
@@ -570,6 +593,7 @@ constructor(
             config: RTCConfiguration,
             pcObserver: PeerConnection.Observer,
             listener: Listener?,
+            singlePeerConnection: Boolean = false,
         ): PeerConnectionTransport
     }
 }

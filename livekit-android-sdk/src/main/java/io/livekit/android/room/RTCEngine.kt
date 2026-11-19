@@ -316,6 +316,7 @@ internal constructor(
                 makeRTCConfig(null, effectiveOptions),
                 observer,
                 observer,
+                singlePeerConnection = true,
             )
             earlyPublisherObserver = observer
             earlyPublisher = publisher
@@ -414,6 +415,7 @@ internal constructor(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
+                    singlePeerConnection = connectOptions.singlePeerConnection,
                 )
 
                 val connectionStateListener: PeerConnectionStateListener = { newState ->

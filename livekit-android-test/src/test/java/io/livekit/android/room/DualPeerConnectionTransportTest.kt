@@ -34,12 +34,13 @@ import livekit.LivekitRtc.MediaSectionsRequirement
 import livekit.LivekitRtc.SignalTarget
 import livekit.org.webrtc.IceCandidate
 import livekit.org.webrtc.MediaStreamTrack
-import livekit.org.webrtc.MockPeerConnectionFactory
 import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.PeerConnection.IceConnectionState
 import livekit.org.webrtc.PeerConnection.PeerConnectionState
 import livekit.org.webrtc.PeerConnection.RTCConfiguration
+import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpTransceiver
+import livekit.org.webrtc.SdpObserver
 import livekit.org.webrtc.SessionDescription
 import livekit.org.webrtc.WebRTCInitializer
 import org.junit.Assert.assertEquals
@@ -50,6 +51,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.spy
@@ -85,17 +87,23 @@ class DualPeerConnectionTransportTest {
         subscriber = createPeerConnectionTransport()
     }
 
-    private fun createPeerConnectionTransport(): PeerConnectionTransport = spy(
-        PeerConnectionTransport(
-            config = RTCConfiguration(emptyList()),
-            pcObserver = mock<PeerConnection.Observer>(),
-            listener = null,
-            ioDispatcher = Dispatchers.Unconfined,
-            connectionFactory = MockPeerConnectionFactory(),
-            sdpFactory = SdpFactory.getInstance(),
-            rtcThreadToken = MockRTCThreadToken(),
-        ),
-    )
+    private fun createPeerConnectionTransport(): PeerConnectionTransport {
+        val observer = mock<PeerConnection.Observer>()
+        val pc = spy(MockPeerConnection(RTCConfiguration(emptyList()), observer))
+        val factory = mock<PeerConnectionFactory>()
+        whenever(factory.createPeerConnection(any<RTCConfiguration>(), any<PeerConnection.Observer>())).thenReturn(pc)
+        return spy(
+            PeerConnectionTransport(
+                config = RTCConfiguration(emptyList()),
+                pcObserver = observer,
+                listener = null,
+                ioDispatcher = Dispatchers.Unconfined,
+                connectionFactory = factory,
+                sdpFactory = SdpFactory.getInstance(),
+                rtcThreadToken = MockRTCThreadToken(),
+            ),
+        )
+    }
 
     private fun transport(
         subscriberPrimary: Boolean = true,
@@ -225,6 +233,91 @@ class DualPeerConnectionTransportTest {
         assertSame(offer, subscriberPc.remoteDesc)
         assertSame(answer, subscriberPc.localDesc)
     }
+
+    @Test
+    fun answerAcceptsOnlyOfferedNackByMidWithReorderedSectionsAndDifferentPayloads() = runTest {
+        val offer = audioSdp("0", 111, "a=rtcp-fb:111 nack\r\n") + audioSection("1", 112)
+        val original = stubAudioAnswer(audioSdp("1", 109) + audioSection("0", 110))
+
+        val result = transport().answerServerOffer(SessionDescription(SessionDescription.Type.OFFER, offer), 7)
+
+        assertTrue(result is Either.Left)
+        val answer = (result as Either.Left).value
+        assertSame(answer, subscriberPc.localDesc)
+        val sections = SdpFactory.getInstance().createSessionDescription(answer.description).getMediaDescriptions(true)
+        assertFalse(sections[0].toString().contains(" nack"))
+        assertTrue(sections[1].toString().contains("a=rtcp-fb:110 nack"))
+        assertFalse(original.description.contains(" nack"))
+    }
+
+    @Test
+    fun answerWithoutOfferedNackIsAppliedUnchanged() = runTest {
+        val original = stubAudioAnswer(audioSdp("0", 109))
+        val offer = SessionDescription(SessionDescription.Type.OFFER, audioSdp("0", 111, "a=rtcp-fb:111 nack pli\r\n"))
+
+        val result = transport().answerServerOffer(offer, 7)
+
+        assertTrue(result is Either.Left)
+        assertSame(original, (result as Either.Left).value)
+        assertSame(original, subscriberPc.localDesc)
+    }
+
+    @Test
+    fun rejectedNackAnswerFallsBackAndReturnsTheAppliedOriginal() = runTest {
+        val original = stubAudioAnswer(audioSdp("0", 109))
+        var rejected = false
+        val pc = subscriberPc
+        doAnswer { call ->
+            val description = call.getArgument<SessionDescription>(1)
+            if (description.description.contains("a=rtcp-fb:109 nack")) {
+                rejected = true
+                call.getArgument<SdpObserver>(0).onSetFailure("NACK rejected")
+            } else {
+                call.callRealMethod()
+            }
+            null
+        }.whenever(pc).setLocalDescription(any(), any())
+        val offer = SessionDescription(SessionDescription.Type.OFFER, audioSdp("0", 111, "a=rtcp-fb:* nack\r\n"))
+
+        val result = transport().answerServerOffer(offer, 7)
+
+        assertTrue(rejected)
+        assertTrue(result is Either.Left)
+        assertSame(original, (result as Either.Left).value)
+        assertSame(original, subscriberPc.localDesc)
+    }
+
+    @Test
+    fun failureOfBothAnswersIsReturnedInsteadOfSignalingAnUnappliedAnswer() = runTest {
+        stubAudioAnswer(audioSdp("0", 109))
+        val pc = subscriberPc
+        doAnswer { call ->
+            call.getArgument<SdpObserver>(0).onSetFailure("All answers rejected")
+            null
+        }.whenever(pc).setLocalDescription(any(), any())
+        val offer = SessionDescription(SessionDescription.Type.OFFER, audioSdp("0", 111, "a=rtcp-fb:111 nack\r\n"))
+
+        val result = transport().answerServerOffer(offer, 7)
+
+        assertTrue(result is Either.Right)
+        assertNull(subscriberPc.localDesc)
+    }
+
+    private fun stubAudioAnswer(sdp: String): SessionDescription {
+        val answer = SessionDescription(SessionDescription.Type.ANSWER, sdp)
+        val pc = subscriberPc
+        doAnswer { call ->
+            call.getArgument<SdpObserver>(0).onCreateSuccess(answer)
+            null
+        }.whenever(pc).createAnswer(any(), any())
+        return answer
+    }
+
+    private fun audioSdp(mid: String, payload: Int, feedback: String = ""): String =
+        "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n" + audioSection(mid, payload, feedback)
+
+    private fun audioSection(mid: String, payload: Int, feedback: String = ""): String =
+        "m=audio 9 UDP/TLS/RTP/SAVPF $payload\r\na=mid:$mid\r\na=rtpmap:$payload opus/48000/2\r\n$feedback"
 
     @Test
     fun answerServerOfferPassesOfferId() = runTest {

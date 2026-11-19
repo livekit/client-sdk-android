@@ -322,6 +322,35 @@ class RpcClientManager @Inject constructor(
         }
     }
 
+    /**
+     * Rejects every in-flight call, whoever it was addressed to. Called when the room
+     * disconnects.
+     *
+     * Room cleanup already reports each remote participant as disconnected, which
+     * [handleParticipantDisconnect] turns into a rejection. That only covers calls addressed to
+     * a participant the room still knows about: a call to an identity that never appeared in the
+     * participant list -- an agent that has not joined yet, say -- is in neither loop, and would
+     * otherwise stay pending until its response timeout, long after the room has gone.
+     *
+     * No ack or response can arrive once the local participant has left, so there is nothing to
+     * wait for.
+     */
+    fun failAllPending() {
+        // Resolve outside the locks: onResolve reaches back into pendingAcks.
+        val stranded = synchronized(pendingResponses) {
+            val responses = pendingResponses.values.toList()
+            pendingResponses.clear()
+            responses
+        }
+        synchronized(pendingAcks) {
+            pendingAcks.clear()
+        }
+
+        for (response in stranded) {
+            response.onResolve(null, RpcError.BuiltinRpcError.RECIPIENT_DISCONNECTED.create())
+        }
+    }
+
     private data class PendingRpcAck(
         val participantIdentity: Identity,
         val onResolve: () -> Unit,

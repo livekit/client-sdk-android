@@ -243,6 +243,17 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         assertEquals(2, transceivers.count { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO })
     }
 
+    @Test
+    fun audioOffersAdvertiseOpusNack() = runTest {
+        connectSinglePeerConnection()
+        publisherPeerConnection().offerDescription = OpusNackOfferTest.OFFER
+
+        requireMediaSections(audios = 1, videos = 0)
+
+        val offer = sentOffers().last().sdp
+        assertTrue("expected Opus NACK in the offer:\n$offer", offer.lineSequence().any { it == "a=rtcp-fb:109 nack" })
+    }
+
     /**
      * Adds one receiving audio section with mid "0" and a track on its receiver, and leaves
      * the renegotiation offer unanswered.
