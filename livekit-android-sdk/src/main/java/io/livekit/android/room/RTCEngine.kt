@@ -64,6 +64,7 @@ import io.livekit.android.webrtc.isDisconnected
 import io.livekit.android.webrtc.peerconnection.RTCThreadToken
 import io.livekit.android.webrtc.peerconnection.executeBlockingOnRTCThread
 import io.livekit.android.webrtc.peerconnection.launchBlockingOnRTCThread
+import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -103,6 +104,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.milliseconds
@@ -208,6 +210,12 @@ internal constructor(
     private var publisherObserver: PublisherTransportObserver? = null
     private val subscriberObserver = SubscriberTransportObserver(this, client, rtcThreadToken)
 
+    // Publisher created ahead of a single peer connection join so its offer rides in the /rtc/v1
+    // request. configure adopts it into the transport and clears it; until then close disposes
+    // it, as does the next join.
+    private var earlyPublisher: PeerConnectionTransport? = null
+    private var earlyPublisherObserver: DuplexTransportObserver? = null
+
     internal var transport: Transport? = null
     private var reliableDataChannel: DataChannel? = null
     private var reliableDataChannelSub: DataChannel? = null
@@ -299,8 +307,29 @@ internal constructor(
             connectionState = ConnectionState.CONNECTING
         }
         var effectiveOptions = options
+        if (earlyPublisher != null) {
+            closeEarlyPublisher()
+        }
+        if (effectiveOptions.singlePeerConnection) {
+            val observer = DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
+            val publisher = pctFactory.create(
+                makeRTCConfig(null, effectiveOptions),
+                observer,
+                observer,
+                singlePeerConnection = true,
+            )
+            earlyPublisherObserver = observer
+            earlyPublisher = publisher
+            createPublisherDataChannels(publisher)
+        }
+
+        val offerValue = when (val earlyOffer = earlyPublisher?.createInitialOffer(getPublisherOfferConstraints())) {
+            is Either.Left -> earlyOffer.value.sessionDescription.toProtoSessionDescription(earlyOffer.value.offerId)
+            else -> null
+        }
+
         val joinResponse = try {
-            client.join(url, token, options, roomOptions)
+            client.join(url, token, options, roomOptions, offerValue)
         } catch (e: RoomException.ConnectException) {
             // A server that predates /rtc/v1 answers that handshake with 404.
             if (!options.singlePeerConnection || e.statusCode != 404) {
@@ -310,6 +339,7 @@ internal constructor(
             LKLog.w { "server has no /rtc/v1 path, retrying on the legacy path with dual peer connections" }
             effectiveOptions = options.copy(singlePeerConnection = false)
             connectOptions = effectiveOptions
+            closeEarlyPublisher()
             try {
                 client.join(url, token, effectiveOptions, roomOptions)
             } catch (e: RoomException.ConnectException) {
@@ -349,6 +379,7 @@ internal constructor(
         if (transport?.shouldNegotiatePublisherOnJoin(hasPublished) == true) {
             negotiatePublisher()
         }
+
         client.onReadyForResponses()
 
         return@coroutineScope joinResponse
@@ -365,11 +396,7 @@ internal constructor(
                     }
                 },
             ) {
-                val publisherObserver = if (connectOptions.singlePeerConnection) {
-                    DuplexTransportObserver(this@RTCEngine, client, rtcThreadToken)
-                } else {
-                    PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
-                }
+                val publisherObserver = earlyPublisherObserver ?: PublisherTransportObserver(this@RTCEngine, client, rtcThreadToken)
                 this@RTCEngine.publisherObserver = publisherObserver
 
                 participantSid = if (joinResponse.hasParticipant()) {
@@ -380,7 +407,11 @@ internal constructor(
 
                 // Setup peer connections
                 val rtcConfig = makeRTCConfig(Either.Left(joinResponse), connectOptions)
-                val publisher = pctFactory.create(
+
+                val publisher = earlyPublisher?.also {
+                    it.updateRTCConfig(rtcConfig)
+                    hasPublished = true
+                } ?: pctFactory.create(
                     rtcConfig,
                     publisherObserver,
                     publisherObserver,
@@ -442,45 +473,12 @@ internal constructor(
                 }
 
                 ensureActive()
-                // data channels
-                val reliableInit = DataChannel.Init()
-                reliableInit.ordered = true
-                reliableDataChannel = publisher.withPeerConnection {
-                    createDataChannel(
-                        RELIABLE_DATA_CHANNEL_LABEL,
-                        reliableInit,
-                    ).also { dataChannel ->
-
-                        val dataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
-                        reliableDataChannelManager = dataChannelManager
-                        dataChannel.registerObserver(dataChannelManager)
-                        reliableBufferedAmountJob?.cancel()
-                        reliableBufferedAmountJob = coroutineScope.launch {
-                            dataChannelManager::bufferedAmount.flow.collect { bufferedAmount ->
-                                synchronized(reliableStateLock) {
-                                    reliableMessageBuffer.trim(bufferedAmount)
-                                }
-                            }
-                        }
-                    }
+                if (earlyPublisher == null) {
+                    createPublisherDataChannels(publisher)
                 }
-
-                ensureActive()
-                val lossyInit = DataChannel.Init()
-                lossyInit.ordered = false
-                lossyInit.maxRetransmits = 0
-                lossyDataChannel = publisher.withPeerConnection {
-                    createDataChannel(
-                        LOSSY_DATA_CHANNEL_LABEL,
-                        lossyInit,
-                    ).also { dataChannel ->
-                        lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
-                        dataChannel.registerObserver(lossyDataChannelManager)
-                    }
-                }
-
-                ensureActive()
-                createPublisherDataTrackChannel()
+                // The transport owns the publisher from here on.
+                earlyPublisher = null
+                earlyPublisherObserver = null
             }
         }
     }
@@ -554,6 +552,17 @@ internal constructor(
 
     fun close(reason: String = "Normal Closure") {
         if (isClosed) {
+            // A join that ends before its response leaves the engine closed with the early
+            // publisher still held.
+            if (earlyPublisher != null) {
+                executeBlockingOnRTCThread(rtcThreadToken) {
+                    runBlocking {
+                        configurationLock.withLock {
+                            closeEarlyPublisher()
+                        }
+                    }
+                }
+            }
             return
         }
         LKLog.v { "Close - $reason" }
@@ -591,21 +600,13 @@ internal constructor(
                     subscriberObserver.connectionChangeListener = null
                     transport?.close()
                     transport = null
-                    reliableBufferedAmountJob?.cancel()
-                    reliableBufferedAmountJob = null
-                    reliableDataChannelManager?.dispose()
-                    reliableDataChannelManager = null
-                    reliableDataChannel = null
+                    closeEarlyPublisher()
                     reliableDataChannelSubManager?.dispose()
                     reliableDataChannelSubManager = null
                     reliableDataChannelSub = null
-                    lossyDataChannelManager?.dispose()
-                    lossyDataChannelManager = null
-                    lossyDataChannel = null
                     lossyDataChannelSubManager?.dispose()
                     lossyDataChannelSubManager = null
                     lossyDataChannelSub = null
-                    dataTrackPublisherChannel.detach()
                     dataTrackDataChannelSub = null
                     isSubscriberPrimary = false
                 }
@@ -1045,13 +1046,72 @@ internal constructor(
     }
 
     /**
-     * Creates the publisher `_data_track` channel and hands it to [dataTrackPublisherChannel].
+     * Closes the early publisher when one is still unadopted, and the publisher's data channels
+     * with it. The 404 fallback calls this so the legacy join starts from nothing, a join calls
+     * it for the publisher of an earlier join that ended before its response, and close and
+     * closeResources call it when tearing the connection down.
      */
-    private suspend fun createPublisherDataTrackChannel() {
+    private suspend fun closeEarlyPublisher() {
+        earlyPublisher?.close()
+        earlyPublisher = null
+        earlyPublisherObserver = null
+        reliableBufferedAmountJob?.cancel()
+        reliableBufferedAmountJob = null
+        reliableDataChannelManager?.dispose()
+        reliableDataChannelManager = null
+        reliableDataChannel = null
+        lossyDataChannelManager?.dispose()
+        lossyDataChannelManager = null
+        lossyDataChannel = null
+        dataTrackPublisherChannel.detach()
+    }
+
+    /**
+     * Creates the publisher's three data channels on [publisher]: reliable, lossy, and the
+     * `_data_track` channel handed to [dataTrackPublisherChannel]. They are created before the
+     * publisher's first offer, so that offer carries their `m=application` section.
+     */
+    private suspend fun createPublisherDataChannels(publisher: PeerConnectionTransport) {
+        val reliableInit = DataChannel.Init()
+        reliableInit.ordered = true
+        reliableDataChannel = publisher.withPeerConnection {
+            createDataChannel(
+                RELIABLE_DATA_CHANNEL_LABEL,
+                reliableInit,
+            ).also { dataChannel ->
+                val dataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
+                reliableDataChannelManager = dataChannelManager
+                dataChannel.registerObserver(dataChannelManager)
+                reliableBufferedAmountJob?.cancel()
+                reliableBufferedAmountJob = coroutineScope.launch {
+                    dataChannelManager::bufferedAmount.flow.collect { bufferedAmount ->
+                        synchronized(reliableStateLock) {
+                            reliableMessageBuffer.trim(bufferedAmount)
+                        }
+                    }
+                }
+            }
+        }
+
+        coroutineContext.ensureActive()
+        val lossyInit = DataChannel.Init()
+        lossyInit.ordered = false
+        lossyInit.maxRetransmits = 0
+        lossyDataChannel = publisher.withPeerConnection {
+            createDataChannel(
+                LOSSY_DATA_CHANNEL_LABEL,
+                lossyInit,
+            ).also { dataChannel ->
+                lossyDataChannelManager = DataChannelManager(dataChannel, DataChannelObserver(dataChannel), rtcThreadToken)
+                dataChannel.registerObserver(lossyDataChannelManager)
+            }
+        }
+
+        coroutineContext.ensureActive()
         val dataTrackInit = DataChannel.Init()
         dataTrackInit.ordered = false
         dataTrackInit.maxRetransmits = 0
-        transport?.publisher?.withPeerConnection {
+        publisher.withPeerConnection {
             createDataChannel(
                 DATA_TRACK_DATA_CHANNEL_LABEL,
                 dataTrackInit,
@@ -1098,7 +1158,7 @@ internal constructor(
     }
 
     private fun makeRTCConfig(
-        serverResponse: Either<JoinResponse, ReconnectResponse>,
+        serverResponse: Either<JoinResponse, ReconnectResponse>?,
         connectOptions: ConnectOptions,
     ): RTCConfiguration {
         // Convert protobuf ice servers
@@ -1107,12 +1167,13 @@ internal constructor(
             val responseServers = when (serverResponse) {
                 is Either.Left -> serverResponse.value.iceServersList
                 is Either.Right -> serverResponse.value.iceServersList
+                null -> emptyList()
             }
             for (serverInfo in responseServers) {
                 servers.add(serverInfo.toWebrtc())
             }
 
-            if (servers.isEmpty()) {
+            if (servers.isEmpty() && serverResponse != null) {
                 servers.addAll(SignalClient.DEFAULT_ICE_SERVERS)
             }
             servers
@@ -1164,6 +1225,8 @@ internal constructor(
                     null
                 }
             }
+
+            null -> null
         }
         if (clientConfig != null) {
             if (clientConfig.forceRelay == LivekitModels.ClientConfigSetting.ENABLED) {
@@ -1276,6 +1339,12 @@ internal constructor(
 
                 is Either.Right -> {
                     LKLog.e { "error setting remote description for answer: ${outcome.value} " }
+                    if (transport?.publisher?.hasPendingInitialOffer() == true) {
+                        // The offer sent with the join request could not be applied, so this
+                        // peer connection cannot be negotiated. Rejoin with a new one.
+                        fullReconnectOnNext = true
+                        reconnect()
+                    }
                 }
             }
         }

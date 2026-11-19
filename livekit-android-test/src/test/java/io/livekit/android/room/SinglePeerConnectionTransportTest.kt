@@ -137,6 +137,14 @@ class SinglePeerConnectionTransportTest {
         assertTrue(transport().shouldNegotiatePublisherOnJoin(hasPublished = true))
     }
 
+    @Test
+    fun publisherIsNotNegotiatedOnJoinWhileItsInitialOfferIsPending() {
+        whenever(publisher.hasPendingInitialOffer()).thenReturn(true)
+
+        assertFalse(transport().shouldNegotiatePublisherOnJoin(hasPublished = false))
+        assertFalse(transport().shouldNegotiatePublisherOnJoin(hasPublished = true))
+    }
+
     // endregion
 
     // region addIceCandidate

@@ -61,7 +61,7 @@ internal class SinglePeerConnectionTransport(
         get() = emptyList()
 
     override fun shouldNegotiatePublisherOnJoin(hasPublished: Boolean): Boolean {
-        return true
+        return !publisher.hasPendingInitialOffer()
     }
 
     override fun addIceCandidate(candidate: IceCandidate, target: LivekitRtc.SignalTarget): Boolean {

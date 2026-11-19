@@ -39,12 +39,15 @@ import livekit.org.webrtc.PeerConnection
 import livekit.org.webrtc.RtpTransceiver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import java.util.Base64
+import java.util.zip.GZIPInputStream
 
 /**
  * Connecting with [ConnectOptions.singlePeerConnection] to a server that serves `/rtc/v1`:
@@ -58,7 +61,23 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     private fun publisherPeerConnection() = getPublisherPeerConnection()
 
     /**
-     * @return the offers the client has sent to the server, oldest first.
+     * @return the publisher offer bundled with the `/rtc/v1` join request.
+     */
+    private fun joinOffer(): LivekitRtc.SessionDescription {
+        val param = wsFactory.request.url.queryParameter(SignalUrlBuilder.QUERY_JOIN_REQUEST)
+        val wrapped = LivekitRtc.WrappedJoinRequest.parseFrom(Base64.getUrlDecoder().decode(param))
+        val joinRequestBytes = when (wrapped.compression) {
+            LivekitRtc.WrappedJoinRequest.Compression.GZIP ->
+                GZIPInputStream(wrapped.joinRequest.newInput()).use { it.readBytes() }
+
+            else -> wrapped.joinRequest.toByteArray()
+        }
+        return LivekitRtc.JoinRequest.parseFrom(joinRequestBytes).publisherOffer
+    }
+
+    /**
+     * @return the offers the client has sent over the signal connection, oldest first. The
+     * offer bundled with the join request is not one of them.
      */
     private fun sentOffers(): List<LivekitRtc.SessionDescription> {
         return wsFactory.ws.sentRequests
@@ -68,32 +87,37 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     /**
-     * Answers the client's most recent offer, with [midToTrackId] as the answer's mapping of
-     * receiving media sections to track IDs.
+     * Answers the client's most recent offer sent over the signal connection, with
+     * [midToTrackId] as the answer's mapping of receiving media sections to track IDs.
      */
     private fun TestScope.answerLastOffer(midToTrackId: Map<String, String> = emptyMap()) {
-        val offer = sentOffers().last()
-        val answer = with(LivekitRtc.SignalResponse.newBuilder()) {
+        answerOffer(sentOffers().last().id, midToTrackId)
+    }
+
+    private fun answerTo(offerId: Int, midToTrackId: Map<String, String> = emptyMap()): LivekitRtc.SignalResponse {
+        return with(LivekitRtc.SignalResponse.newBuilder()) {
             setAnswer(
                 with(LivekitRtc.SessionDescription.newBuilder()) {
                     type = "answer"
                     sdp = "remote_answer"
-                    id = offer.id
+                    id = offerId
                     putAllMidToTrackId(midToTrackId)
                     build()
                 },
             )
             build()
         }
-        simulateMessageFromServer(answer)
+    }
+
+    private fun TestScope.answerOffer(offerId: Int, midToTrackId: Map<String, String> = emptyMap()) {
+        simulateMessageFromServer(answerTo(offerId, midToTrackId))
         advanceUntilIdle()
     }
 
     /**
-     * Joins through `/rtc/v1`, answers the offer the join triggers, and connects the peer
-     * connection.
+     * Joins through `/rtc/v1` and leaves the offer bundled with the join request unanswered.
      */
-    private suspend fun TestScope.connectSinglePeerConnection() {
+    private suspend fun TestScope.joinSinglePeerConnection() {
         val connectJob = coroutineRule.scope.launch {
             room.connect(
                 url = TestData.EXAMPLE_URL,
@@ -104,8 +128,16 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         prepareSignal()
         connectJob.join()
         advanceUntilIdle()
+    }
 
-        answerLastOffer()
+    /**
+     * Joins through `/rtc/v1`, answers the offer bundled with the join request, and connects
+     * the peer connection.
+     */
+    private suspend fun TestScope.connectSinglePeerConnection() {
+        joinSinglePeerConnection()
+
+        answerOffer(joinOffer().id)
         publisherPeerConnection().moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
         runCurrent()
     }
@@ -146,6 +178,49 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     @Test
+    fun publisherOfferRidesInTheJoinRequest() = runTest {
+        joinSinglePeerConnection()
+
+        val offer = joinOffer()
+        assertEquals("offer", offer.type)
+        assertEquals(1, offer.id)
+        assertTrue(offer.sdp.isNotEmpty())
+        assertTrue("no offer is expected over the signal connection", sentOffers().isEmpty())
+
+        answerOffer(offer.id)
+
+        assertEquals(offer.sdp, publisherPeerConnection().localDescription?.description)
+        assertTrue("the answered join offer must not be offered again", sentOffers().isEmpty())
+    }
+
+    @Test
+    fun rejectedJoinOfferRejoinsWithANewPeerConnection() = runTest {
+        joinSinglePeerConnection()
+        val joinRequest = wsFactory.request
+        val rejectingPeerConnection = publisherPeerConnection()
+        rejectingPeerConnection.localDescriptionError = "rejected"
+
+        simulateMessageFromServer(answerTo(joinOffer().id))
+        // Wait so that the reconnect job properly starts first.
+        testScheduler.advanceTimeBy(1000)
+
+        val rejoinRequest = wsFactory.request
+        assertTrue("expected a new websocket for the rejoin", rejoinRequest !== joinRequest)
+        assertEquals("/rtc/v1", rejoinRequest.url.encodedPath)
+        assertNull(rejectingPeerConnection.remoteDescription)
+
+        wsFactory.listener.onOpen(wsFactory.ws, createOpenResponse(rejoinRequest))
+        simulateMessageFromServer(TestData.JOIN)
+        runCurrent()
+        assertTrue("expected a new peer connection for the rejoin", publisherPeerConnection() !== rejectingPeerConnection)
+        simulateMessageFromServer(answerTo(joinOffer().id))
+        publisherPeerConnection().moveToIceConnectionState(PeerConnection.IceConnectionState.CONNECTED)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(Room.State.CONNECTED, room.state)
+    }
+
+    @Test
     fun publisherOffersOnJoinWithoutOfferingToReceive() = runTest {
         connectSinglePeerConnection()
 
@@ -166,6 +241,17 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         assertTrue(transceivers.all { it.direction == RtpTransceiver.RtpTransceiverDirection.RECV_ONLY })
         assertEquals(1, transceivers.count { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO })
         assertEquals(2, transceivers.count { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO })
+    }
+
+    @Test
+    fun audioOffersAdvertiseOpusNack() = runTest {
+        connectSinglePeerConnection()
+        publisherPeerConnection().offerDescription = OpusNackOfferTest.OFFER
+
+        requireMediaSections(audios = 1, videos = 0)
+
+        val offer = sentOffers().last().sdp
+        assertTrue("expected Opus NACK in the offer:\n$offer", offer.lineSequence().any { it == "a=rtcp-fb:109 nack" })
     }
 
     /**
@@ -228,6 +314,36 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
 
         val events = collector.stopCollecting()
         assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
+    }
+
+    @Test
+    fun boundTrackDoesNotAttachTwiceWhileTrackCallbackAwaitsPublication() = runTest {
+        connectSinglePeerConnection()
+        val participantWithoutTracks = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
+            update = with(update.toBuilder()) {
+                clearParticipants()
+                addParticipants(TestData.REMOTE_PARTICIPANT.toBuilder().clearTracks())
+                build()
+            }
+            build()
+        }
+        simulateMessageFromServer(participantWithoutTracks)
+        val transceiver = addReceivingAudioSection()
+        val collector = EventCollector(room.events, coroutineRule.scope)
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
+        publisherPeerConnection().observer?.onAddTrack(
+            transceiver.receiver,
+            arrayOf(MockMediaStream(id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "stream"))),
+        )
+        runCurrent()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        advanceUntilIdle()
+
+        val subscribed = collector.stopCollecting().filterIsInstance<RoomEvent.TrackSubscribed>()
+        assertEquals(1, subscribed.size)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        assertSame(subscribed.single().track, remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track)
     }
 
     @Test

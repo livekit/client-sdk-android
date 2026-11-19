@@ -152,8 +152,9 @@ constructor(
         token: String,
         options: ConnectOptions = ConnectOptions(),
         roomOptions: RoomOptions = RoomOptions(),
+        publisherOffer: LivekitRtc.SessionDescription? = null
     ): JoinResponse {
-        return when (val result = connect(url, token, options, roomOptions)) {
+        return when (val result = connect(url, token, options, roomOptions, publisherOffer)) {
             is ConnectResult.Join -> result.response
             else -> throw IllegalStateException("Unexpected response during join: $result")
         }
@@ -175,6 +176,7 @@ constructor(
                         this.participantSid = participantSid
                     },
                 lastRoomOptions ?: RoomOptions(),
+                null
             )
         ) {
             is ConnectResult.Reconnect -> Either.Left(result.response)
@@ -188,6 +190,8 @@ constructor(
         token: String,
         options: ConnectOptions,
         roomOptions: RoomOptions,
+        publisherOffer: LivekitRtc.SessionDescription?,
+
     ): ConnectResult {
         // Clean up any pre-existing connection.
         close(reason = "Starting new connection", shouldClearQueuedRequests = false)
@@ -196,7 +200,7 @@ constructor(
         isReconnecting = options.reconnect
 
         if (options.singlePeerConnection) {
-            wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType())
+            wsUrlString = SignalUrlBuilder.buildJoinRequestUrl(wsUrlString, options, roomOptions, networkInfo.getNetworkType(), publisherOffer)
             // The join request carries client metadata, so only the path is logged.
             LKLog.i { "connecting to ${wsUrlString.substringBefore('?')}?${SignalUrlBuilder.QUERY_JOIN_REQUEST}=<redacted>" }
         } else {

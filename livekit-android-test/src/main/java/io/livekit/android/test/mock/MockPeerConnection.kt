@@ -53,8 +53,17 @@ class MockPeerConnection(
 
     private val transceivers = mutableListOf<RtpTransceiver>()
 
+    /**
+     * When set, [setLocalDescription] fails with this error.
+     */
+    var localDescriptionError: String? = null
+
     override fun getLocalDescription(): SessionDescription? = localDesc
     override fun setLocalDescription(observer: SdpObserver, sdp: SessionDescription) {
+        localDescriptionError?.let {
+            observer.onSetFailure(it)
+            return
+        }
         if (sdp.description.isEmpty()) {
             observer.onSetFailure("empty local description")
             return
@@ -113,9 +122,14 @@ class MockPeerConnection(
      */
     var lastOfferConstraints: MediaConstraints? = null
 
+    /**
+     * The description every [createOffer] returns.
+     */
+    var offerDescription: String = "local_offer"
+
     override fun createOffer(observer: SdpObserver?, constraints: MediaConstraints?) {
         lastOfferConstraints = constraints
-        val sdp = SessionDescription(SessionDescription.Type.OFFER, "local_offer")
+        val sdp = SessionDescription(SessionDescription.Type.OFFER, offerDescription)
         observer?.onCreateSuccess(sdp)
     }
 
