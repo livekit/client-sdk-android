@@ -81,6 +81,12 @@ internal open class PublisherTransportObserver(
     }
 
     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
+        val changeEvent = event ?: return
+        executeOnRTCThread(rtcThreadToken) {
+            val pair = changeEvent.toSelectedIceCandidatePair(IceTarget.PUBLISHER)
+            LKLog.i { "Selected ICE candidate pair changed: ${pair.summary()}" }
+            engine.listener?.onSelectedIceCandidatePairChanged(pair)
+        }
     }
 
     override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
