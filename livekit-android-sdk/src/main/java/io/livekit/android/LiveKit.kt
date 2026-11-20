@@ -65,6 +65,27 @@ object LiveKit {
     var enableWebRTCLogging: Boolean = false
 
     /**
+     * Enables FlexFEC forward error correction for video.
+     *
+     * When enabled, connections negotiate `flexfec-03`, which lets subscribed video tracks
+     * receive repair packets from the server, see
+     * [io.livekit.android.room.track.RemoteTrackPublication.setFecProtection].
+     * Video tracks published without simulcast also send FlexFEC, at a rate WebRTC adapts to the
+     * reported loss; WebRTC does not protect simulcast tracks with FlexFEC.
+     * Disabled by default.
+     *
+     * This is a process-wide WebRTC setting, so it must be set before the first [Room] is
+     * created or [init] is called; later changes have no effect.
+     *
+     * ```
+     * LiveKit.enableFlexFec = true
+     * val room = LiveKit.create(appContext)
+     * ```
+     */
+    @JvmStatic
+    var enableFlexFec: Boolean = false
+
+    /**
      * Certain WebRTC classes need to be initialized prior to use.
      *
      * This does not need to be called under normal circumstances, as [LiveKit.create]

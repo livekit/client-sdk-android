@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,6 +82,104 @@ class RemoteTrackPublicationTest : MockE2ETest() {
         assertTrue(lastRequest.hasTrackSetting())
         assertEquals(100, lastRequest.trackSetting.fps)
         assertEquals(VideoQuality.LOW, lastRequest.trackSetting.quality)
+    }
+
+    private suspend fun subscribeRemoteVideo(): RemoteTrackPublication {
+        connect()
+
+        wsFactory.listener.onMessage(
+            wsFactory.ws,
+            TestData.PARTICIPANT_JOIN.toOkioByteString(),
+        )
+
+        room.onAddTrack(
+            MockRtpReceiver.create(),
+            MockVideoStreamTrack(),
+            arrayOf(
+                MockMediaStream(
+                    id = createMediaStreamId(
+                        TestData.REMOTE_PARTICIPANT.sid,
+                        TestData.REMOTE_VIDEO_TRACK.sid,
+                    ),
+                ),
+            ),
+        )
+
+        return room.remoteParticipants.values.first()
+            .videoTrackPublications.first()
+            .first as RemoteTrackPublication
+    }
+
+    private fun lastTrackSetting(): LivekitRtc.UpdateTrackSettings {
+        val requests = wsFactory.ws.sentRequests.map {
+            LivekitRtc.SignalRequest.newBuilder().mergeFrom(it.toPBByteString()).build()
+        }
+        val lastTrackSetting = requests.lastOrNull { it.hasTrackSetting() }
+        assertTrue("no track setting sent", lastTrackSetting != null)
+        return lastTrackSetting!!.trackSetting
+    }
+
+    @Test
+    fun fecProtectionOmittedUntilRequested() = runTest {
+        room.adaptiveStream = false
+        val remoteVideoPub = subscribeRemoteVideo()
+        advanceUntilIdle()
+        wsFactory.ws.clearRequests()
+
+        remoteVideoPub.setVideoFps(30)
+        advanceUntilIdle()
+
+        assertFalse(lastTrackSetting().hasFec())
+        assertEquals(FecProtection.Disabled, remoteVideoPub.fecProtection)
+    }
+
+    @Test
+    fun fecProtectionSentAndKept() = runTest {
+        room.adaptiveStream = false
+        val remoteVideoPub = subscribeRemoteVideo()
+        advanceUntilIdle()
+        wsFactory.ws.clearRequests()
+
+        remoteVideoPub.setFecProtection(FecProtection.Fixed(FecProtectionLevel.HIGH))
+        advanceUntilIdle()
+
+        assertEquals(FecProtection.Fixed(FecProtectionLevel.HIGH), remoteVideoPub.fecProtection)
+        assertTrue(lastTrackSetting().hasFec())
+        assertEquals(LivekitRtc.FECProtectionMode.FEC_MODE_FIXED, lastTrackSetting().fec.mode)
+        assertEquals(LivekitRtc.FECProtectionLevel.FEC_LEVEL_HIGH, lastTrackSetting().fec.level)
+
+        // later settings updates keep the requested level
+        remoteVideoPub.setVideoFps(30)
+        advanceUntilIdle()
+        assertEquals(30, lastTrackSetting().fps)
+        assertEquals(LivekitRtc.FECProtectionMode.FEC_MODE_FIXED, lastTrackSetting().fec.mode)
+        assertEquals(LivekitRtc.FECProtectionLevel.FEC_LEVEL_HIGH, lastTrackSetting().fec.level)
+
+        remoteVideoPub.setFecProtection(FecProtection.Adaptive)
+        advanceUntilIdle()
+        assertEquals(LivekitRtc.FECProtectionMode.FEC_MODE_ADAPTIVE, lastTrackSetting().fec.mode)
+        assertEquals(LivekitRtc.FECProtectionLevel.FEC_LEVEL_UNSPECIFIED, lastTrackSetting().fec.level)
+
+        // disabling is sent explicitly rather than omitted
+        remoteVideoPub.setFecProtection(FecProtection.Disabled)
+        advanceUntilIdle()
+        assertTrue(lastTrackSetting().hasFec())
+        assertEquals(LivekitRtc.FECProtectionMode.FEC_MODE_DISABLED, lastTrackSetting().fec.mode)
+    }
+
+    @Test
+    fun fecProtectionWithAdaptiveStream() = runTest {
+        room.adaptiveStream = true
+        val remoteVideoPub = subscribeRemoteVideo()
+        advanceUntilIdle()
+        wsFactory.ws.clearRequests()
+
+        // applies even when adaptive stream manages the track's quality
+        remoteVideoPub.setFecProtection(FecProtection.Minimum(FecProtectionLevel.MEDIUM))
+        advanceUntilIdle()
+
+        assertEquals(LivekitRtc.FECProtectionMode.FEC_MODE_MINIMUM, lastTrackSetting().fec.mode)
+        assertEquals(LivekitRtc.FECProtectionLevel.FEC_LEVEL_MEDIUM, lastTrackSetting().fec.level)
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,6 +74,15 @@ class RemoteTrackPublication(
     private var videoQuality: VideoQuality? = VideoQuality.HIGH
     private var videoDimensions: Track.Dimensions? = null
     private var fps: Int? = null
+
+    /**
+     * The FlexFEC protection requested with [setFecProtection].
+     */
+    val fecProtection: FecProtection
+        get() = requestedFecProtection ?: FecProtection.Disabled
+
+    // null until requested, so updates leave the server's setting unchanged
+    private var requestedFecProtection: FecProtection? = null
 
     var subscriptionAllowed: Boolean = true
         internal set
@@ -204,6 +213,29 @@ class RemoteTrackPublication(
         sendUpdateTrackSettings.invoke()
     }
 
+    /**
+     * Requests proactive FlexFEC repair packets from the server for this video track.
+     *
+     * Repairs let the receiver recover lost packets without waiting for a retransmission, at the
+     * cost of extra bandwidth. The protection changes without renegotiation, and is applied even
+     * when the track's quality is managed by adaptive stream.
+     *
+     * Repairs are only sent when the server has downstream FlexFEC enabled and FlexFEC was
+     * negotiated, which requires [io.livekit.android.LiveKit.enableFlexFec]. Otherwise the request
+     * has no effect.
+     *
+     * ```
+     * publication.setFecProtection(FecProtection.Minimum(FecProtectionLevel.MEDIUM))
+     * ```
+     */
+    fun setFecProtection(protection: FecProtection) {
+        if (!subscribed || track !is VideoTrack || protection == requestedFecProtection) {
+            return
+        }
+        requestedFecProtection = protection
+        sendUpdateTrackSettings.invoke()
+    }
+
     private fun handleVisibilityChanged(isVisible: Boolean) {
         disabled = !isVisible
         sendUpdateTrackSettings.invoke()
@@ -237,6 +269,7 @@ class RemoteTrackPublication(
             videoDimensions,
             videoQuality?.toProto(),
             fps,
+            requestedFecProtection?.toProto(),
         )
     }
 
