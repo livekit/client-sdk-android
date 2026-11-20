@@ -23,9 +23,12 @@ import androidx.core.content.ContextCompat
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import io.livekit.android.annotations.Beta
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.memory.SurfaceTextureHelperCloser
 import io.livekit.android.room.DefaultsManager
+import io.livekit.android.room.framemetadata.FrameMetadataStampState
+import io.livekit.android.room.framemetadata.FrameMetadataStampingProcessor
 import io.livekit.android.room.track.video.CameraCapturerUtils
 import io.livekit.android.room.track.video.CameraCapturerUtils.CameraDeviceInfo
 import io.livekit.android.room.track.video.CameraCapturerUtils.createCameraEnumerator
@@ -45,6 +48,7 @@ import livekit.LivekitRtc.SubscribedCodec
 import livekit.org.webrtc.CameraVideoCapturer
 import livekit.org.webrtc.CameraVideoCapturer.CameraEventsHandler
 import livekit.org.webrtc.EglBase
+import livekit.org.webrtc.FrameMetadataTransformer
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpParameters
@@ -121,6 +125,68 @@ constructor(
         get() = simulcastCodecs.values.mapNotNull { it.transceiver }
 
     internal val closeableManager = CloseableManager()
+
+    /**
+     * This track's frame metadata settings. They belong to the track rather than its stamping
+     * processor, so they carry over when [restartTrack] replaces the source and processor.
+     */
+    internal val frameMetadataStampState = FrameMetadataStampState()
+
+    /**
+     * The processor at the end of this track's chain that sets frame metadata on its frames.
+     * Null if the track wasn't created by the SDK's track factories.
+     */
+    internal var frameMetadataStamper: FrameMetadataStampingProcessor? = null
+        set(value) {
+            value?.state = frameMetadataStampState
+            field = value
+        }
+
+    private val frameMetadataLock = Any()
+
+    /**
+     * The send transformer linked to this track's source while it's published with frame metadata.
+     * Backup codec senders reuse it. Use it only through [withFrameMetadataTransformer].
+     */
+    private var frameMetadataTransformer: FrameMetadataTransformer? = null
+
+    /**
+     * Supplies this track's frame metadata in place of, or on top of, the defaults turned on in
+     * [VideoTrackPublishOptions.frameMetadata]. See [FrameMetadataProvider].
+     *
+     * It's only called while the track is published with frame metadata on.
+     */
+    @Beta
+    var frameMetadataProvider: FrameMetadataProvider?
+        get() = frameMetadataStampState.provider
+        set(value) {
+            frameMetadataStampState.provider = value
+        }
+
+    /**
+     * Runs [action] with this track's send transformer, or null if it has none.
+     *
+     * It holds the lock that [detachFrameMetadataTransformer] takes, and the transformer is only
+     * disposed after it's detached, so it can't be disposed while [action] uses it. So [action]
+     * must not wait on the RTC thread, take the frame metadata manager's lock, or call app code.
+     */
+    internal fun <T> withFrameMetadataTransformer(action: (FrameMetadataTransformer?) -> T): T =
+        synchronized(frameMetadataLock) { action(frameMetadataTransformer) }
+
+    internal fun attachFrameMetadataTransformer(transformer: FrameMetadataTransformer) {
+        synchronized(frameMetadataLock) {
+            frameMetadataTransformer = transformer
+            source.addFrameMetadataTransformer(transformer)
+        }
+    }
+
+    internal fun detachFrameMetadataTransformer() {
+        synchronized(frameMetadataLock) {
+            val transformer = frameMetadataTransformer ?: return
+            frameMetadataTransformer = null
+            source.removeFrameMetadataTransformer(transformer)
+        }
+    }
 
     /**
      * Starts the [capturer] with the capture params contained in [options].
@@ -280,6 +346,7 @@ constructor(
 
         oldCapturer.stopCapture()
         oldCapturer.dispose()
+        withFrameMetadataTransformer { transformer -> transformer?.let { oldSource.removeFrameMetadataTransformer(it) } }
         oldSource.dispose()
 
         oldRtcTrack.setEnabled(false)
@@ -312,11 +379,23 @@ constructor(
         }
 
         capturer = newTrack.capturer
-        source = newTrack.source
         rtcTrack = newTrack.rtcTrack
         this.options = options
+        // Keeps this track's frame metadata settings and frame ID counter on the new processor.
+        frameMetadataStamper = newTrack.frameMetadataStamper
+        // The source changes under the same lock as the link, so a detach running now unlinks the
+        // transformer from whichever source has it, and can't dispose it while it's being linked.
+        synchronized(frameMetadataLock) {
+            source = newTrack.source
+            frameMetadataTransformer?.let { source.addFrameMetadataTransformer(it) }
+        }
         startCapture()
         sender?.setTrack(newTrack.rtcTrack, false)
+        // Backup codec senders send the same track, so they move to the new one too.
+        for (simulcastTrackInfo in simulcastCodecs.values) {
+            simulcastTrackInfo.rtcTrack = newTrack.rtcTrack
+            (simulcastTrackInfo.transceiver?.sender ?: simulcastTrackInfo.sender)?.setTrack(newTrack.rtcTrack, false)
+        }
     }
 
     internal fun setPublishingLayers(
@@ -536,7 +615,9 @@ constructor(
             } else {
                 videoProcessor
             }
-            source.setVideoProcessor(finalVideoProcessor)
+            // Installed now and armed at publish, so publishing doesn't have to swap processors.
+            val stampingProcessor = FrameMetadataStampingProcessor(finalVideoProcessor)
+            source.setVideoProcessor(stampingProcessor)
 
             val surfaceTextureHelper = SurfaceTextureHelper.create("VideoCaptureThread", rootEglBase.eglBaseContext)
 
@@ -564,6 +645,7 @@ constructor(
                 rtcTrack = rtcTrack,
                 dispatchObserver = dispatchObserver,
             )
+            track.frameMetadataStamper = stampingProcessor
 
             track.closeableManager.registerResource(
                 rtcTrack,

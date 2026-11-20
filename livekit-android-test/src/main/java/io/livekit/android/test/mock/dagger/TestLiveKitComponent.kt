@@ -25,6 +25,7 @@ import io.livekit.android.dagger.LiveKitComponent
 import io.livekit.android.dagger.MemoryModule
 import io.livekit.android.dagger.UniffiModule
 import io.livekit.android.room.RTCEngine
+import io.livekit.android.test.mock.MockFrameTransformerFactory
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.MockWebSocketFactory
 import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
@@ -55,6 +56,8 @@ interface TestLiveKitComponent : LiveKitComponent {
     fun localDataTrackManagerFactory(): MockLocalDataTrackManagerFactory
 
     fun remoteDataTrackManagerFactory(): MockRemoteDataTrackManagerFactory
+
+    fun frameTransformerFactory(): MockFrameTransformerFactory
 
     @Component.Factory
     interface Factory {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 LiveKit, Inc.
+ * Copyright 2023-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.livekit.android.room.track
 
+import io.livekit.android.annotations.Beta
 import io.livekit.android.events.BroadcastEventBus
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.TrackPublicationEvent
@@ -67,6 +68,16 @@ open class TrackPublication(
     var mimeType: String? = null
         internal set
 
+    /**
+     * The frame metadata fields the publisher declared for this track, so that subscribers know to
+     * expect them. Empty if the track sends no frame metadata. Metadata is unsupported for audio.
+     *
+     * Subscribers read the values with [RemoteVideoTrack.lookupFrameMetadata].
+     */
+    @Beta
+    var frameMetadataFeatures: List<FrameMetadataFeature> = emptyList() // Declared before init, which sets it.
+        internal set
+
     internal var trackInfo: LivekitModels.TrackInfo? = null
 
     var participant: WeakReference<Participant>
@@ -90,6 +101,7 @@ open class TrackPublication(
             dimensions = Track.Dimensions(info.width, info.height)
         }
         mimeType = info.mimeType
+        frameMetadataFeatures = info.packetTrailerFeaturesList.mapNotNull { FrameMetadataFeature.fromProto(it) }
 
         trackInfo = info
     }

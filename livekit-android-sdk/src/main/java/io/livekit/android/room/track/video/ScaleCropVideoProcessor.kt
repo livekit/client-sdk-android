@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class ScaleCropVideoProcessor(
             scaleHeight,
         )
 
-        val croppedFrame = VideoFrame(newBuffer, frame.rotation, frame.timestampNs)
+        val croppedFrame = VideoFrame(newBuffer, frame.rotation, frame.timestampNs, frame.frameMetadata)
         continueChain(croppedFrame)
         croppedFrame.release()
     }

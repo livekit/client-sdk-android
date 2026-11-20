@@ -77,7 +77,10 @@ class ConnectionParamsTest : MockE2ETest() {
 
         assertEquals(ClientProtocolVersion.DATA_STREAM_V2.value, clientInfo.clientProtocol)
         assertEquals(
-            listOf(LivekitModels.ClientInfo.Capability.CAP_COMPRESSION_DEFLATE_RAW),
+            listOf(
+                LivekitModels.ClientInfo.Capability.CAP_PACKET_TRAILER,
+                LivekitModels.ClientInfo.Capability.CAP_COMPRESSION_DEFLATE_RAW,
+            ),
             clientInfo.capabilitiesList,
         )
     }
