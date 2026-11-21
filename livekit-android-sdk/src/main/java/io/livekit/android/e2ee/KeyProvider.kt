@@ -42,6 +42,34 @@ interface KeyProvider {
     var enableSharedKey: Boolean
 }
 
+/**
+ * Implemented by [KeyProvider]s that track the key index the local
+ * participant encrypts with and can push changes to observers.
+ *
+ * [E2EEManager] subscribes so the frame cryptors of media tracks that are
+ * already published get re-stamped whenever the index changes. Receivers
+ * are unaffected: they read the index from each incoming frame.
+ */
+interface KeyIndexObservable {
+
+    /**
+     * The key index the local participant encrypts with.
+     */
+    val currentKeyIndex: Int
+
+    /**
+     * Registers [observer] under [owner]; [removeKeyIndexObserver] with the
+     * same owner detaches it. The observer is invoked with the latest index
+     * on every change and may be called from any thread.
+     */
+    fun addKeyIndexObserver(owner: Any, observer: (keyIndex: Int) -> Unit)
+
+    /**
+     * Detaches the observer previously registered under [owner].
+     */
+    fun removeKeyIndexObserver(owner: Any)
+}
+
 class BaseKeyProvider(
     ratchetSalt: String = defaultRatchetSalt,
     uncryptedMagicBytes: String = defaultMagicBytes,
@@ -51,9 +79,23 @@ class BaseKeyProvider(
     keyRingSize: Int = defaultKeyRingSize,
     discardFrameWhenCryptorNotReady: Boolean = defaultDiscardFrameWhenCryptorNotReady,
     keyDerivationAlgorithm: FrameCryptorKeyDerivationAlgorithm = defaultKeyDerivationAlgorithm,
-) : KeyProvider {
+) : KeyProvider, KeyIndexObservable {
 
-    private val latestSetIndex = mutableMapOf<String, Int>()
+    // The native provider clamps the requested ring size the same way
+    // (<= 0 falls back to the default, > 256 caps at 256); the local index
+    // must wrap by the effective size, not the requested one.
+    private val effectiveKeyRingSize: Int =
+        if (keyRingSize <= 0) defaultKeyRingSize else minOf(keyRingSize, maxKeyRingSize)
+
+    private val keyIndexStateLock = Any()
+    private val keyIndexDispatchLock = Any()
+    private val keyIndexObservers = mutableMapOf<Any, (Int) -> Unit>()
+
+    @Volatile
+    private var _currentKeyIndex: Int = 0
+
+    override val currentKeyIndex: Int
+        get() = _currentKeyIndex
 
     override val rtcKeyProvider: FrameCryptorKeyProvider = FrameCryptorFactory.createFrameCryptorKeyProvider(
         enableSharedKey,
@@ -66,8 +108,24 @@ class BaseKeyProvider(
         keyDerivationAlgorithm,
     )
 
+    /**
+     * Installs the shared key at [keyIndex] and makes it the local encryption
+     * index. A negative [keyIndex] installs into the current slot without
+     * moving it.
+     */
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
-        return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray())
+        // Resolve a negative index against this provider's current index, not
+        // the native handler's — the native pointer only moves on key installs
+        // and can diverge from this one after setCurrentKeyIndex.
+        val index = keyIndex ?: 0
+        return rtcKeyProvider.setSharedKey(
+            if (index >= 0) index else currentKeyIndex,
+            key.toByteArray(),
+        ).also { succeeded ->
+            if (succeeded && index >= 0) {
+                setCurrentKeyIndex(index)
+            }
+        }
     }
 
     override fun ratchetSharedKey(keyIndex: Int?): ByteArray {
@@ -94,10 +152,7 @@ class BaseKeyProvider(
             return
         }
 
-        val keyIndex = keyIndex ?: 0
-        latestSetIndex[participantId] = keyIndex
-
-        rtcKeyProvider.setKey(participantId, keyIndex, key.toByteArray())
+        rtcKeyProvider.setKey(participantId, keyIndex ?: 0, key.toByteArray())
     }
 
     override fun ratchetKey(participantId: String, keyIndex: Int?): ByteArray {
@@ -112,7 +167,43 @@ class BaseKeyProvider(
         rtcKeyProvider.setSifTrailer(trailer)
     }
 
+    /**
+     * Switches the local participant's encryption to the key at [keyIndex]
+     * (modulo the effective key ring size: the default for a size <= 0,
+     * capped at 256, matching the native provider).
+     *
+     * Takes effect immediately for the media tracks already published and
+     * for every data packet sent afterwards. Receivers are unaffected: they
+     * read the index from each frame.
+     */
+    fun setCurrentKeyIndex(keyIndex: Int) {
+        val observers = synchronized(keyIndexStateLock) {
+            _currentKeyIndex = keyIndex.mod(effectiveKeyRingSize)
+            keyIndexObservers.values.toList()
+        }
+        // Dispatch is serialized and each pass re-reads the newest index,
+        // so overlapping rotations can't leave senders on a stale index.
+        synchronized(keyIndexDispatchLock) {
+            val latest = _currentKeyIndex
+            observers.forEach { it(latest) }
+        }
+    }
+
+    /**
+     * The key index outgoing media frames and data packets are stamped with.
+     * In non-shared key mode [setKey] does not move it — the key may belong
+     * to a remote participant — so switch the local one with
+     * [setCurrentKeyIndex].
+     */
     override fun getLatestKeyIndex(participantId: String): Int {
-        return latestSetIndex[participantId] ?: 0
+        return currentKeyIndex
+    }
+
+    override fun addKeyIndexObserver(owner: Any, observer: (keyIndex: Int) -> Unit) {
+        synchronized(keyIndexStateLock) { keyIndexObservers[owner] = observer }
+    }
+
+    override fun removeKeyIndexObserver(owner: Any) {
+        synchronized(keyIndexStateLock) { keyIndexObservers.remove(owner) }
     }
 }

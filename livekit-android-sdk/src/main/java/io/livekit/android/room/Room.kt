@@ -332,6 +332,20 @@ constructor(
      * Options for end-to-end encryption. Must be setup prior to [connect].
      *
      * If null, e2ee will be disabled.
+     *
+     * Example — shared-key encryption with key-index rotation:
+     * ```
+     * val keyProvider = BaseKeyProvider()
+     * keyProvider.setSharedKey("my-secret", keyIndex = 0)
+     * room.e2eeOptions = E2EEOptions(keyProvider = keyProvider)
+     * room.connect(url, token)
+     *
+     * // Later, after distributing the next key out-of-band:
+     * keyProvider.setSharedKey("next-secret", keyIndex = 1)
+     * keyProvider.setCurrentKeyIndex(1) // already-published senders follow
+     * ```
+     * Custom providers can implement [io.livekit.android.e2ee.KeyIndexObservable]
+     * to opt into the same live re-stamping.
      */
     var e2eeOptions: E2EEOptions? = null
 
