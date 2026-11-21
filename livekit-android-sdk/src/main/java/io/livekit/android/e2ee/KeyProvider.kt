@@ -111,14 +111,19 @@ class BaseKeyProvider(
     /**
      * Installs the shared key at [keyIndex] and makes it the local encryption
      * index. A negative [keyIndex] installs into the current slot without
-     * moving it, as the native provider does.
+     * moving it.
      */
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
-        return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray()).also { succeeded ->
-            // A negative index installs into the native provider's current
-            // slot without moving it; the local pointer must not move either.
-            if (succeeded && (keyIndex ?: 0) >= 0) {
-                setCurrentKeyIndex(keyIndex ?: 0)
+        // Resolve a negative index against this provider's current index, not
+        // the native handler's — the native pointer only moves on key installs
+        // and can diverge from this one after setCurrentKeyIndex.
+        val index = keyIndex ?: 0
+        return rtcKeyProvider.setSharedKey(
+            if (index >= 0) index else currentKeyIndex,
+            key.toByteArray(),
+        ).also { succeeded ->
+            if (succeeded && index >= 0) {
+                setCurrentKeyIndex(index)
             }
         }
     }

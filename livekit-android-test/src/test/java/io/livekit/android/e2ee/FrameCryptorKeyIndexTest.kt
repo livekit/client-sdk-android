@@ -386,12 +386,30 @@ class FrameCryptorKeyIndexTest : BaseTest() {
             val seen = mutableListOf<Int>()
             provider.addKeyIndexObserver(this) { seen.add(it) }
 
-            // Matches the native provider: a negative index installs into the
-            // current slot without moving it, so the stamp pointer stays put.
+            // A negative index installs into the current slot without moving
+            // it, so the stamp pointer stays put.
             provider.setSharedKey("key-b", -1)
             assertEquals(5, provider.currentKeyIndex)
             assertTrue("no re-stamp for an unmoved index: $seen", seen.isEmpty())
-            verify(rtcKeyProvider).setSharedKey(eq(-1), any())
+            verify(rtcKeyProvider).setSharedKey(eq(5), eq("key-b".toByteArray()))
+        }
+    }
+
+    @Test
+    fun negativeSharedKeyIndexInstallsAtKotlinCurrentSlotAfterSwitch() {
+        mockedFactory().use {
+            val provider = createProvider()
+            provider.setSharedKey("k0", 0)
+            provider.setSharedKey("k1", 1)
+
+            // The native handler's pointer stays on the last installed slot;
+            // only the local index moves back. A negative install must target
+            // the slot senders actually use, not the stale native pointer.
+            provider.setCurrentKeyIndex(0)
+            provider.setSharedKey("replacement", -1)
+
+            verify(rtcKeyProvider).setSharedKey(eq(0), eq("replacement".toByteArray()))
+            assertEquals(0, provider.currentKeyIndex)
         }
     }
 
