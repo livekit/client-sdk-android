@@ -33,13 +33,18 @@ import livekit.org.webrtc.PeerConnectionFactory
 import livekit.org.webrtc.RtpReceiver
 import livekit.org.webrtc.RtpSender
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.never
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class FrameCryptorKeyIndexTest : BaseTest() {
 
@@ -106,6 +111,57 @@ class FrameCryptorKeyIndexTest : BaseTest() {
 
         manager.addPublishedTrack(track, publication, participant, room)
         return senderCryptor
+    }
+
+    /** Delegates to [BaseKeyProvider] and runs [onLatestRead] once, right after the
+     *  first latest-index read — the point where a concurrent rotation can interleave
+     *  with a new cryptor's initial stamp. */
+    private class InterleavingKeyProvider(private val base: BaseKeyProvider) :
+        KeyProvider by base,
+        KeyIndexObservable by base {
+        @Volatile
+        var onLatestRead: (() -> Unit)? = null
+
+        override fun getLatestKeyIndex(participantId: String): Int {
+            val index = base.getLatestKeyIndex(participantId)
+            onLatestRead?.let {
+                onLatestRead = null
+                it()
+            }
+            return index
+        }
+    }
+
+    /** Mirrors the native wrapper: any call on a disposed FrameCryptor throws.
+     *  [afterDispose] runs right after the cryptor is marked disposed — the window
+     *  where a concurrent loop over the cryptor map can interleave with removal. */
+    private fun throwWhenDisposed(cryptor: FrameCryptor, afterDispose: () -> Unit = {}): MutableList<String> {
+        val callsAfterDispose = Collections.synchronizedList(mutableListOf<String>())
+        var disposed = false
+        doAnswer {
+            if (disposed) {
+                callsAfterDispose.add("setKeyIndex")
+                throw IllegalStateException("FrameCryptor has been disposed.")
+            }
+            null
+        }.whenever(cryptor).keyIndex = any()
+        doAnswer {
+            if (disposed) {
+                callsAfterDispose.add("setEnabled")
+                throw IllegalStateException("FrameCryptor has been disposed.")
+            }
+            null
+        }.whenever(cryptor).isEnabled = any()
+        doAnswer {
+            if (disposed) {
+                callsAfterDispose.add("dispose")
+                throw IllegalStateException("FrameCryptor has been disposed.")
+            }
+            disposed = true
+            afterDispose()
+            null
+        }.whenever(cryptor).dispose()
+        return callsAfterDispose
     }
 
     private fun addRemoteReceiver(manager: E2EEManager, room: Room): FrameCryptor {
@@ -205,6 +261,82 @@ class FrameCryptorKeyIndexTest : BaseTest() {
             provider.setSharedKey("rotated", 9)
             verify(senderCryptor).keyIndex = 9
             verify(receiverCryptor, never()).keyIndex = 9
+        }
+    }
+
+    @Test
+    fun rotationDuringSenderSetupIsNotOverwrittenByStaleIndex() {
+        mockedFactory().use {
+            val base = createProvider()
+            base.setSharedKey("key", 2)
+            val provider = InterleavingKeyProvider(base)
+            val stamped = Collections.synchronizedList(mutableListOf<Int>())
+            doAnswer { invocation ->
+                stamped.add(invocation.getArgument(0))
+                null
+            }.whenever(senderCryptor).keyIndex = any()
+
+            val (manager, room, localParticipant) = createManager(provider)
+
+            // The sender has read index 2 but not stamped it yet; a rotation to 3 runs
+            // its re-stamp on another thread. Unsynchronized setup let that re-stamp
+            // land first and then overwrote it with the stale 2.
+            val rotation = Thread { base.setCurrentKeyIndex(3) }
+            provider.onLatestRead = {
+                rotation.start()
+                // Give the re-stamp time to run if setup doesn't hold the lock; with
+                // the lock held it blocks until setup finishes.
+                rotation.join(300)
+            }
+            addLocalSender(manager, room, localParticipant)
+            rotation.join(TimeUnit.SECONDS.toMillis(5))
+
+            assertEquals(3, stamped.last())
+        }
+    }
+
+    @Test
+    fun removingASenderDuringRotationNeverTouchesTheDisposedCryptor() {
+        mockedFactory().use {
+            val provider = createProvider()
+            val (manager, room, localParticipant) = createManager(provider)
+            addLocalSender(manager, room, localParticipant)
+            // A rotation arriving right after dispose: before the fix the disposed
+            // cryptor was still in the map, so the re-stamp hit it and threw.
+            val rotated = CountDownLatch(1)
+            val callsAfterDispose = throwWhenDisposed(senderCryptor) {
+                provider.setCurrentKeyIndex(5)
+                rotated.countDown()
+            }
+            val publication = mock<TrackPublication>()
+            whenever(publication.sid).thenReturn("sender-sid")
+            manager.removePublishedTrack(mock<LocalAudioTrack>(), publication, localParticipant, room)
+
+            assertTrue(rotated.await(5, TimeUnit.SECONDS))
+            assertTrue("calls after dispose: $callsAfterDispose", callsAfterDispose.isEmpty())
+        }
+    }
+
+    @Test
+    fun removingAReceiverDuringAnEnabledToggleNeverTouchesTheDisposedCryptor() {
+        mockedFactory().use {
+            val provider = createProvider()
+            val (manager, room, _) = createManager(provider)
+            addRemoteReceiver(manager, room)
+            // The enabled toggle walks every cryptor, receivers included.
+            val toggled = CountDownLatch(1)
+            val callsAfterDispose = throwWhenDisposed(receiverCryptor) {
+                manager.enabled = false
+                toggled.countDown()
+            }
+            val participant = mock<RemoteParticipant>()
+            whenever(participant.identity).thenReturn(Participant.Identity("remote"))
+            val publication = mock<TrackPublication>()
+            whenever(publication.sid).thenReturn("receiver-sid")
+            manager.removeSubscribedTrack(mock<RemoteAudioTrack>(), publication, participant, room)
+
+            assertTrue(toggled.await(5, TimeUnit.SECONDS))
+            assertTrue("calls after dispose: $callsAfterDispose", callsAfterDispose.isEmpty())
         }
     }
 }

@@ -147,12 +147,12 @@ constructor(
     fun removeSubscribedTrack(track: Track, publication: TrackPublication, participant: RemoteParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
-        val frameCryptor = frameCryptors.get(trackId to participantId)
-        if (frameCryptor != null) {
-            frameCryptor.isEnabled = false
-            frameCryptor.dispose()
-            frameCryptors.remove(trackId to participantId)
-        }
+        // Remove before disposing: a loop over frameCryptors (key-index re-stamp,
+        // enabled toggle, cleanup) must never see a disposed cryptor, and only the
+        // caller that removed the entry disposes it.
+        val frameCryptor = frameCryptors.remove(trackId to participantId) ?: return
+        frameCryptor.isEnabled = false
+        frameCryptor.dispose()
     }
 
     fun addPublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
@@ -182,12 +182,12 @@ constructor(
     fun removePublishedTrack(track: Track, publication: TrackPublication, participant: LocalParticipant, room: Room) {
         val trackId = publication.sid
         val participantId = participant.identity
-        val frameCryptor = frameCryptors.get(trackId to participantId)
-        if (frameCryptor != null) {
-            frameCryptor.isEnabled = false
-            frameCryptor.dispose()
-            frameCryptors.remove(trackId to participantId)
-        }
+        // Remove before disposing: a loop over frameCryptors (key-index re-stamp,
+        // enabled toggle, cleanup) must never see a disposed cryptor, and only the
+        // caller that removed the entry disposes it.
+        val frameCryptor = frameCryptors.remove(trackId to participantId) ?: return
+        frameCryptor.isEnabled = false
+        frameCryptor.dispose()
     }
 
     private fun e2eeStateFromFrameCryptoState(state: FrameCryptionState?): E2EEState {
@@ -212,9 +212,13 @@ constructor(
             keyProvider.rtcKeyProvider,
         )
 
-        frameCryptors[trackId to participantId] = frameCryptor
-        frameCryptor.isEnabled = enabled
-        frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
+        // Insert and stamp under the same monitor the key-index re-stamp holds, so a
+        // rotation landing mid-setup can't be overwritten by a stale index read here.
+        synchronized(frameCryptors) {
+            frameCryptors[trackId to participantId] = frameCryptor
+            frameCryptor.isEnabled = enabled
+            frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
+        }
         return frameCryptor
     }
 
@@ -227,9 +231,13 @@ constructor(
             keyProvider.rtcKeyProvider,
         )
 
-        frameCryptors[trackId to participantId] = frameCryptor
-        frameCryptor.isEnabled = enabled
-        frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
+        // Receivers read the key index from each frame's trailer; locked for
+        // consistency with addRtpSender (one insert-and-configure step per cryptor).
+        synchronized(frameCryptors) {
+            frameCryptors[trackId to participantId] = frameCryptor
+            frameCryptor.isEnabled = enabled
+            frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
+        }
         return frameCryptor
     }
 
@@ -255,8 +263,8 @@ constructor(
      * RTC thread like all other frame cryptor calls.
      */
     internal fun setSenderKeyIndex(keyIndex: Int) {
-        val localIdentity = room?.localParticipant?.identity ?: return
         executeOnRTCThread(rtcThreadToken) {
+            val localIdentity = room?.localParticipant?.identity ?: return@executeOnRTCThread
             synchronized(frameCryptors) {
                 for ((key, frameCryptor) in frameCryptors) {
                     if (key.second == localIdentity) {
