@@ -81,7 +81,12 @@ class BaseKeyProvider(
     keyDerivationAlgorithm: FrameCryptorKeyDerivationAlgorithm = defaultKeyDerivationAlgorithm,
 ) : KeyProvider, KeyIndexObservable {
 
-    private val keyRingSize: Int = keyRingSize
+    // The native provider clamps the requested ring size the same way
+    // (<= 0 falls back to the default, > 256 caps at 256); the local index
+    // must wrap by the effective size, not the requested one.
+    private val effectiveKeyRingSize: Int =
+        if (keyRingSize <= 0) defaultKeyRingSize else minOf(keyRingSize, maxKeyRingSize)
+
     private val keyIndexStateLock = Any()
     private val keyIndexDispatchLock = Any()
     private val keyIndexObservers = mutableMapOf<Any, (Int) -> Unit>()
@@ -103,9 +108,16 @@ class BaseKeyProvider(
         keyDerivationAlgorithm,
     )
 
+    /**
+     * Installs the shared key at [keyIndex] and makes it the local encryption
+     * index. A negative [keyIndex] installs into the current slot without
+     * moving it, as the native provider does.
+     */
     override fun setSharedKey(key: String, keyIndex: Int?): Boolean {
         return rtcKeyProvider.setSharedKey(keyIndex ?: 0, key.toByteArray()).also { succeeded ->
-            if (succeeded) {
+            // A negative index installs into the native provider's current
+            // slot without moving it; the local pointer must not move either.
+            if (succeeded && (keyIndex ?: 0) >= 0) {
                 setCurrentKeyIndex(keyIndex ?: 0)
             }
         }
@@ -152,7 +164,8 @@ class BaseKeyProvider(
 
     /**
      * Switches the local participant's encryption to the key at [keyIndex]
-     * (modulo the key ring size).
+     * (modulo the effective key ring size: the default for a size <= 0,
+     * capped at 256, matching the native provider).
      *
      * Takes effect immediately for the media tracks already published and
      * for every data packet sent afterwards. Receivers are unaffected: they
@@ -160,7 +173,7 @@ class BaseKeyProvider(
      */
     fun setCurrentKeyIndex(keyIndex: Int) {
         val observers = synchronized(keyIndexStateLock) {
-            _currentKeyIndex = keyIndex.mod(keyRingSize)
+            _currentKeyIndex = keyIndex.mod(effectiveKeyRingSize)
             keyIndexObservers.values.toList()
         }
         // Dispatch is serialized and each pass re-reads the newest index,

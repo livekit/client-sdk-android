@@ -190,6 +190,13 @@ constructor(
         frameCryptor.dispose()
     }
 
+    /** The index local senders stamp with: the observable provider's
+     *  [KeyIndexObservable.currentKeyIndex] when it opts in, else the legacy
+     *  latest-index lookup. */
+    private fun localSenderKeyIndex(participantId: String): Int =
+        (keyProvider as? KeyIndexObservable)?.currentKeyIndex
+            ?: keyProvider.getLatestKeyIndex(participantId)
+
     private fun e2eeStateFromFrameCryptoState(state: FrameCryptionState?): E2EEState {
         return when (state) {
             FrameCryptionState.NEW -> E2EEState.NEW
@@ -217,7 +224,7 @@ constructor(
         synchronized(frameCryptors) {
             frameCryptors[trackId to participantId] = frameCryptor
             frameCryptor.isEnabled = enabled
-            frameCryptor.keyIndex = keyProvider.getLatestKeyIndex(participantId.value)
+            frameCryptor.keyIndex = localSenderKeyIndex(participantId.value)
         }
         return frameCryptor
     }
@@ -300,7 +307,7 @@ constructor(
         val participantId = room?.localParticipant?.identity ?: Participant.Identity("")
         return dataPacketCryptorManager.encrypt(
             participantId,
-            keyIndex = keyProvider.getLatestKeyIndex(participantId.value),
+            keyIndex = localSenderKeyIndex(participantId.value),
             payload = byteArray,
         )
     }

@@ -39,6 +39,7 @@ import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.never
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -51,6 +52,7 @@ class FrameCryptorKeyIndexTest : BaseTest() {
     private val rtcKeyProvider = mock<FrameCryptorKeyProvider>()
     private val senderCryptor = mock<FrameCryptor>()
     private val receiverCryptor = mock<FrameCryptor>()
+    private val dataPacketCryptorManager = RecordingDataPacketCryptorManager()
     private val rtcThreadToken = object : RTCThreadToken {
         override val isDisposed: Boolean = false
     }
@@ -93,7 +95,7 @@ class FrameCryptorKeyIndexTest : BaseTest() {
             provider,
             mock<PeerConnectionFactory>(),
             object : DataPacketCryptorManager.Factory {
-                override fun create(keyProvider: KeyProvider) = mock<DataPacketCryptorManager>()
+                override fun create(keyProvider: KeyProvider) = dataPacketCryptorManager
             },
             rtcThreadToken,
         )
@@ -122,14 +124,21 @@ class FrameCryptorKeyIndexTest : BaseTest() {
         @Volatile
         var onLatestRead: (() -> Unit)? = null
 
-        override fun getLatestKeyIndex(participantId: String): Int {
-            val index = base.getLatestKeyIndex(participantId)
+        // Sender setup reads whichever path E2EEManager takes; fire the
+        // interleave on either so the hook tracks the real read.
+        private fun fireOnce(index: Int): Int {
             onLatestRead?.let {
                 onLatestRead = null
                 it()
             }
             return index
         }
+
+        override val currentKeyIndex: Int
+            get() = fireOnce(base.currentKeyIndex)
+
+        override fun getLatestKeyIndex(participantId: String): Int =
+            fireOnce(base.getLatestKeyIndex(participantId))
     }
 
     /** Mirrors the native wrapper: any call on a disposed FrameCryptor throws.
@@ -337,6 +346,102 @@ class FrameCryptorKeyIndexTest : BaseTest() {
 
             assertTrue(toggled.await(5, TimeUnit.SECONDS))
             assertTrue("calls after dispose: $callsAfterDispose", callsAfterDispose.isEmpty())
+        }
+    }
+
+    /** An observable provider whose legacy latest-index lookup disagrees with
+     *  [currentKeyIndex] — the case [E2EEManager.localSenderKeyIndex] exists for. */
+    private class DivergentProvider(private val base: BaseKeyProvider) :
+        KeyProvider by base,
+        KeyIndexObservable by base {
+        override val currentKeyIndex: Int
+            get() = 7
+    }
+
+    // Participant.Identity is a value class; Mockito matchers can't match its
+    // unboxed args, so record encrypt() calls with a plain fake instead.
+    private class RecordingDataPacketCryptorManager : DataPacketCryptorManager {
+        var lastEncryptKeyIndex: Int? = null
+
+        override fun encrypt(
+            participantId: Participant.Identity,
+            keyIndex: Int,
+            payload: ByteArray,
+        ): EncryptedPacket? {
+            lastEncryptKeyIndex = keyIndex
+            return null
+        }
+
+        override fun decrypt(participantId: Participant.Identity, packet: EncryptedPacket): ByteArray? = null
+
+        override fun dispose() {}
+    }
+
+    @Test
+    fun negativeSharedKeyIndexInstallsWithoutMovingCurrentKeyIndex() {
+        mockedFactory().use {
+            val provider = createProvider()
+            provider.setSharedKey("key-a", 5)
+            assertEquals(5, provider.currentKeyIndex)
+            val seen = mutableListOf<Int>()
+            provider.addKeyIndexObserver(this) { seen.add(it) }
+
+            // Matches the native provider: a negative index installs into the
+            // current slot without moving it, so the stamp pointer stays put.
+            provider.setSharedKey("key-b", -1)
+            assertEquals(5, provider.currentKeyIndex)
+            assertTrue("no re-stamp for an unmoved index: $seen", seen.isEmpty())
+            verify(rtcKeyProvider).setSharedKey(eq(-1), any())
+        }
+    }
+
+    @Test
+    fun zeroKeyRingSizeFallsBackToDefaultRing() {
+        mockedFactory().use {
+            whenever(rtcKeyProvider.setSharedKey(any(), any())).thenReturn(true)
+            val provider = BaseKeyProvider(keyRingSize = 0)
+
+            // Native clamps a non-positive size to the default ring (16), so the
+            // local index must wrap by that, not divide by zero.
+            provider.setSharedKey("key", 2)
+            assertEquals(2, provider.currentKeyIndex)
+
+            provider.setCurrentKeyIndex(17)
+            assertEquals(17 % 16, provider.currentKeyIndex)
+        }
+    }
+
+    @Test
+    fun oversizedKeyRingSizeCapsAtMax() {
+        mockedFactory().use {
+            val provider = BaseKeyProvider(keyRingSize = 300)
+
+            // Native caps the ring at 256; the local index wraps by the capped size.
+            provider.setCurrentKeyIndex(257)
+            assertEquals(257 % 256, provider.currentKeyIndex)
+        }
+    }
+
+    @Test
+    fun observableProvidersStampWithCurrentKeyIndex() {
+        mockedFactory().use {
+            val base = createProvider()
+            val provider = DivergentProvider(base)
+            val (manager, room, localParticipant) = createManager(provider)
+
+            // getLatestKeyIndex() delegates to base and returns 0; the observable
+            // contract says new senders must use currentKeyIndex (7).
+            addLocalSender(manager, room, localParticipant)
+            verify(senderCryptor).keyIndex = 7
+
+            // Data packets take the same path.
+            manager.encrypt(byteArrayOf(1, 2, 3))
+            assertEquals(7, dataPacketCryptorManager.lastEncryptKeyIndex)
+
+            // Receivers are a remote participant's cryptors: they keep the
+            // per-participant lookup, not the local sender index.
+            addRemoteReceiver(manager, room)
+            verify(receiverCryptor).keyIndex = 0
         }
     }
 }
