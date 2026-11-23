@@ -22,11 +22,29 @@ permissions:
   contents: write
 
 jobs:
+  # Only a run by hand, or a merged release PR that the tool opened: the
+  # branch name alone would let any pushed `release/*` branch trigger a
+  # publish. The author is `[release].author`, default
+  # `verwalter-release[bot]`.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.verwalter.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
+      - id: verwalter
+        uses: livekit/verwalter@9da894a1e4f7d298095a961be60c818afd47905b # v0.32.0-rc.1
+        with:
+          command: gate
+
   # A failed build or test stops here, before a tag exists.
   build:
-    # Only a release PR the tool opened: the branch prefix alone would let
-    # any pushed `release/*` branch trigger a publish.
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') && github.event.pull_request.user.login == 'verwalter-release[bot]' && contains(github.event.pull_request.body, '<!-- verwalter release -->'))
+    needs: gate
+    if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,7 +83,7 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
           fetch-depth: 0
       - id: verwalter
-        uses: livekit/verwalter@39e3d7c57c2b6d96cf2d4b7771f3ab199490faba # v0.31.0
+        uses: livekit/verwalter@9da894a1e4f7d298095a961be60c818afd47905b # v0.32.0-rc.1
         with:
           command: release
 
@@ -112,7 +130,7 @@ jobs:
 
       # Runs publish.command from verwalter.toml, skipped when Maven Central
       # already has the version.
-      - uses: livekit/verwalter@39e3d7c57c2b6d96cf2d4b7771f3ab199490faba # v0.31.0
+      - uses: livekit/verwalter@9da894a1e4f7d298095a961be60c818afd47905b # v0.32.0-rc.1
         env:
           GH_TOKEN: ${{ github.token }}
         with:
@@ -120,38 +138,22 @@ jobs:
           releases: ${{ needs.release.outputs.releases }}
 
   # Asserts the end state. Maven Central shows a new version up to about
-  # 30 minutes after Sonatype accepts it, so the job waits for it first.
+  # 30 minutes after Sonatype accepts it, so the check asks again until then.
   verify:
-    needs: [release, publish]
+    needs: publish
     runs-on: ubuntu-latest
     permissions:
       contents: write # reads only. A draft release is visible only with write access
     steps:
-      - name: Wait for Maven Central
-        timeout-minutes: 90
-        env:
-          RELEASES: ${{ needs.release.outputs.releases }}
-        run: |
-          version=$(echo "${RELEASES:-[]}" | jq -r '.[] | select(.package == "client-sdk-android") | .version')
-          if [ -z "$version" ]; then
-            echo "This run released nothing new. status --check covers the last release."
-            exit 0
-          fi
-          url="https://repo1.maven.org/maven2/io/livekit/livekit-android/$version/livekit-android-$version.pom"
-          until curl -fsSI -o /dev/null "$url"; do
-            echo "Waiting for $url"
-            sleep 60
-          done
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
           fetch-depth: 0
 
-      - uses: livekit/verwalter@39e3d7c57c2b6d96cf2d4b7771f3ab199490faba # v0.31.0
+      - uses: livekit/verwalter@9da894a1e4f7d298095a961be60c818afd47905b # v0.32.0-rc.1
         with:
           command: status
-          args: --check
+          args: --check --wait 90m
 
   # Runs after the release is complete. A failure here is red, but the
   # release jobs above stay green.
