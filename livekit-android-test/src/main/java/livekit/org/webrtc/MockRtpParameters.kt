@@ -23,7 +23,8 @@ class MockRtpParameters(
     headerExtensions: MutableList<HeaderExtension>?,
     encodings: MutableList<Encoding>?,
     codecs: MutableList<Codec>?,
-) : RtpParameters(transactionId, degradationPreference, rtcp, headerExtensions, encodings, codecs) {
+    fecProtection: FecProtection? = null,
+) : RtpParameters(transactionId, degradationPreference, fecProtection, rtcp, headerExtensions, encodings, codecs) {
     class MockRtcp(cname: String?, reducedSize: Boolean) : Rtcp(cname, reducedSize)
     class MockHeaderExtension(uri: String?, id: Int, encrypted: Boolean) : HeaderExtension(uri, id, encrypted)
     class MockCodec(payloadType: Int, name: String?, kind: MediaStreamTrack.MediaType?, clockRate: Int?, numChannels: Int?, parameters: MutableMap<String, String>?) :
