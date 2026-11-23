@@ -332,6 +332,14 @@ constructor(
      * Options for end-to-end encryption. Must be setup prior to [connect].
      *
      * If null, e2ee will be disabled.
+     *
+     * To use AES-256-GCM frame keys instead of the default AES-128-GCM, pass a key size to the
+     * key provider. All participants in the room must use the same key size.
+     * ```
+     * val keyProvider = BaseKeyProvider(keySize = KeyProviderKeySize.BITS_256)
+     * keyProvider.setSharedKey("my-shared-key")
+     * room.e2eeOptions = E2EEOptions(keyProvider = keyProvider)
+     * ```
      */
     var e2eeOptions: E2EEOptions? = null
 
