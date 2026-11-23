@@ -1,13 +1,13 @@
 # After a release PR merges: build and test, then tag and create the GitHub
 # release, then publish to Maven Central. The step that cannot be undone
 # comes last.
-# Docs upload and the components-android dispatch run after the publish.
+# `verify` waits until Maven Central has the version, then asserts the
+# end state. Docs and the components-android dispatch run after that.
 name: Release
 
 on:
   pull_request:
     types: [closed]
-    branches: [main]
   # Re-run by hand after a fix: `verwalter release` resumes from the
   # current state and skips what is done. `publish` skips a version that
   # Maven Central already has.
@@ -73,6 +73,10 @@ jobs:
     needs: release
     if: needs.release.outputs.released == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # One upload to Sonatype at a time: a second run waits for the first.
+    concurrency:
+      group: maven-central-publish
+      cancel-in-progress: false
     permissions:
       contents: write # the tool makes the draft release public after the publish
     steps:
@@ -115,13 +119,82 @@ jobs:
           command: publish
           releases: ${{ needs.release.outputs.releases }}
 
-      - name: Get version
-        id: version
-        run: echo "version=$(sed -n 's/^VERSION_NAME=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+  # Asserts the end state. Maven Central shows a new version up to about
+  # 30 minutes after Sonatype accepts it, so the job waits for it first.
+  verify:
+    needs: [release, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # reads only. A draft release is visible only with write access
+    steps:
+      - name: Wait for Maven Central
+        timeout-minutes: 90
+        env:
+          RELEASES: ${{ needs.release.outputs.releases }}
+        run: |
+          version=$(echo "${RELEASES:-[]}" | jq -r '.[] | select(.package == "client-sdk-android") | .version')
+          if [ -z "$version" ]; then
+            echo "This run released nothing new. status --check covers the last release."
+            exit 0
+          fi
+          url="https://repo1.maven.org/maven2/io/livekit/livekit-android/$version/livekit-android-$version.pom"
+          until curl -fsSI -o /dev/null "$url"; do
+            echo "Waiting for $url"
+            sleep 60
+          done
 
-      # The docs site holds one version: an rc must not replace the last final release.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
+          fetch-depth: 0
+
+      - uses: livekit/verwalter@39e3d7c57c2b6d96cf2d4b7771f3ab199490faba # v0.31.0
+        with:
+          command: status
+          args: --check
+
+  # Runs after the release is complete. A failure here is red, but the
+  # release jobs above stay green.
+  notify:
+    needs: [release, verify]
+    if: contains(fromJson(needs.release.outputs.releases || '[]').*.package, 'client-sdk-android')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Read the release
+        id: release
+        env:
+          RELEASES: ${{ needs.release.outputs.releases }}
+        run: |
+          echo "$RELEASES" | jq -r '.[] | select(.package == "client-sdk-android") | "version=\(.version)\nprerelease=\(.prerelease)"' >> "$GITHUB_OUTPUT"
+
+      # Only a final release on main: the docs site holds one version, and
+      # components-android follows the main line.
+      - name: Dispatch to components-android
+        if: steps.release.outputs.prerelease == 'false' && (github.event.pull_request.base.ref || github.ref_name) == 'main'
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.E2E_DISPATCH_TOKEN }}
+          repository: livekit/components-android
+          event-type: update-livekit-version
+          client-payload: '{"version": "${{ steps.release.outputs.version }}"}'
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.release.outputs.prerelease == 'false' && (github.event.pull_request.base.ref || github.ref_name) == 'main'
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
+          submodules: recursive
+
+      - name: Set up JDK 17
+        if: steps.release.outputs.prerelease == 'false' && (github.event.pull_request.base.ref || github.ref_name) == 'main'
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
       - name: Build and upload docs
-        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        if: steps.release.outputs.prerelease == 'false' && (github.event.pull_request.base.ref || github.ref_name) == 'main'
         run: |
           ./gradlew dokkaHtml
           aws s3 cp ./livekit-android-sdk/build/dokka/html/ s3://livekit-docs/client-sdk-android/ --recursive
@@ -129,11 +202,3 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_DEPLOY_AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_DEPLOY_AWS_API_SECRET }}
           AWS_DEFAULT_REGION: "us-east-1"
-
-      - name: Dispatch to components-android
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
-        with:
-          token: ${{ secrets.E2E_DISPATCH_TOKEN }}
-          repository: livekit/components-android
-          event-type: update-livekit-version
-          client-payload: '{"version": "${{ steps.version.outputs.version }}"}'

@@ -20,7 +20,7 @@ Do not change it by hand. The release PR changes it.
 |---|---|---|
 | `changeset-check.yml` | A PR is opened or updated | Fails a PR without a changeset. The `internal` label skips the check. |
 | `release-pr.yml` | A push to `main` | Keeps the release PR `release/main` current. |
-| `release.yml` | The release PR merges | Tags, creates the GitHub release, publishes to Maven Central, uploads the docs, notifies `livekit/components-android`. |
+| `release.yml` | The release PR merges | Builds and tests, tags, creates the GitHub release and publishes to Maven Central. The `verify` job waits until Maven Central has the version. Then `notify` uploads the docs and notifies `livekit/components-android`. |
 | `android.yml` | A push to `main` | Publishes `<next patch version>-SNAPSHOT` to the Sonatype snapshot repository. |
 
 ## Release
