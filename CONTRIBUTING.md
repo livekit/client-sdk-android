@@ -5,13 +5,19 @@ We appreciate any pull requests for changes you may have in mind! Here are some 
 
 * Add a changeset file which explains the changes contained in the PR.
 
-  In the root folder, execute the following commands:
-  ```
-  pnpm install
-  pnpm changeset
+  Add a file such as `.changeset/my-change.md`:
+  ```md
+  ---
+  "client-sdk-android": patch
+  ---
+
+  One sentence for users of the SDK.
   ```
 
-  Follow the instructions on screen to create the changeset file.
+  Use `patch` for a fix and `minor` for a new API. If a PR has no changeset, the
+  changeset check comments with a link to a prefilled file. With
+  [verwalter](https://github.com/livekit/verwalter) installed, you can also run
+  `verwalter changeset --level patch`.
 
 * Format your code using `./gradlew spotlessApply`.
 

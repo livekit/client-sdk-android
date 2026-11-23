@@ -1,0 +1,13 @@
+#:schema https://raw.githubusercontent.com/livekit/verwalter/main/schemas/v1.json
+
+# One version for every published artifact (livekit-android, -camerax,
+# -track-processors, -test). The name matches the existing changesets.
+[packages.client-sdk-android]
+path = "."
+versioning.files = [
+  { path = "gradle.properties", regex = "VERSION_NAME=(?<version>.+)" },
+  { path = "README.md", regex = 'def livekit_version = "(?<version>[^"]+)"' },
+]
+publish.registry = "custom"
+publish.exists_url = "https://repo1.maven.org/maven2/io/livekit/livekit-android/{version}/livekit-android-{version}.pom"
+publish.command = "./gradlew --no-configuration-cache publishReleasePublicationToMavenRepository closeAndReleaseMavenStagingRepository -Dorg.gradle.parallel=false"
