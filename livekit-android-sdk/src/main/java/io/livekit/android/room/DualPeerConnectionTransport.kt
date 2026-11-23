@@ -42,6 +42,7 @@ import livekit.org.webrtc.SessionDescription
  * @param subscriberState connection state of [subscriber], as reported by its observer.
  * @param subscriberPrimary the server's `subscriber_primary` flag from the join response.
  * @param fastPublish the server's `fast_publish` flag from the join response.
+ * @param canSubscribe the local participant's current subscribe permission, or null before it is known.
  */
 @Suppress("TooManyFunctions")
 internal class DualPeerConnectionTransport(
@@ -51,6 +52,7 @@ internal class DualPeerConnectionTransport(
     private val subscriberState: PeerConnectionStateObservable,
     private val subscriberPrimary: Boolean,
     private val fastPublish: Boolean,
+    private val canSubscribe: () -> Boolean? = { null },
 ) : Transport {
     override val publisherConnectsOnDemand: Boolean
         get() = subscriberPrimary
@@ -124,16 +126,20 @@ internal class DualPeerConnectionTransport(
         if (includePublisher) {
             launch { publisherState.waitUntilConnected() }
         }
-        launch { subscriberState.waitUntilConnected() }
+        if (requiresSubscriber(includePublisher)) {
+            launch { subscriberState.waitUntilConnected() }
+        }
         Unit
     }
 
     override suspend fun isConnected(includePublisher: Boolean): Boolean {
-        if (includePublisher) {
-            return publisher.isConnected() && subscriber.isConnected()
-        }
-        return subscriber.isConnected()
+        return (!includePublisher || publisher.isConnected()) &&
+            (!requiresSubscriber(includePublisher) || subscriber.isConnected())
     }
+
+    // The SFU can leave the subscriber peer idle for a participant that is only allowed to publish.
+    private fun requiresSubscriber(includePublisher: Boolean): Boolean =
+        subscriberPrimary || !includePublisher || canSubscribe() != false
 
     override suspend fun syncStateDescriptions(): Transport.SyncStateDescriptions {
         var answer: LivekitRtc.SessionDescription? = null

@@ -27,6 +27,7 @@ import io.livekit.android.util.flowDelegate
 import io.livekit.android.webrtc.toProtoSessionDescription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -108,6 +109,7 @@ class DualPeerConnectionTransportTest {
     private fun transport(
         subscriberPrimary: Boolean = true,
         fastPublish: Boolean = false,
+        canSubscribe: () -> Boolean? = { null },
     ) = DualPeerConnectionTransport(
         publisher = publisher,
         subscriber = subscriber,
@@ -115,6 +117,7 @@ class DualPeerConnectionTransportTest {
         subscriberState = subscriberState,
         subscriberPrimary = subscriberPrimary,
         fastPublish = fastPublish,
+        canSubscribe = canSubscribe,
     )
 
     // region roles
@@ -528,6 +531,41 @@ class DualPeerConnectionTransportTest {
         publisherState.connectionState = PeerConnectionState.CONNECTED
         runCurrent()
         assertTrue(job.isCompleted)
+    }
+
+    @Test
+    fun publisherOnlyReconnectWaitsForPublisherAndIgnoresIdleSubscriber() = runTest {
+        val transport = transport(subscriberPrimary = false, canSubscribe = { false })
+        val job = launch { transport.waitUntilConnected(includePublisher = true) }
+        runCurrent()
+        assertFalse(job.isCompleted)
+        assertFalse(transport.isConnected(includePublisher = true))
+
+        publisherPc.moveToIceConnectionState(IceConnectionState.CONNECTED)
+        publisherState.connectionState = PeerConnectionState.CONNECTED
+        runCurrent()
+
+        assertTrue(job.isCompleted)
+        assertTrue(transport.isConnected(includePublisher = true))
+    }
+
+    @Test
+    fun subscriberWaitUsesCurrentPermissionAndAlwaysKeepsThePrimarySubscriber() = runTest {
+        var canSubscribe = false
+        val publisherPrimary = transport(subscriberPrimary = false, canSubscribe = { canSubscribe })
+        val subscriberPrimary = transport(subscriberPrimary = true, canSubscribe = { canSubscribe })
+        publisherPc.moveToIceConnectionState(IceConnectionState.CONNECTED)
+        publisherState.connectionState = PeerConnectionState.CONNECTED
+
+        assertTrue(publisherPrimary.isConnected(includePublisher = true))
+        assertFalse(subscriberPrimary.isConnected(includePublisher = true))
+
+        canSubscribe = true
+        assertFalse(publisherPrimary.isConnected(includePublisher = true))
+        val job = launch { publisherPrimary.waitUntilConnected(includePublisher = true) }
+        runCurrent()
+        assertFalse(job.isCompleted)
+        job.cancelAndJoin()
     }
 
     @Test
