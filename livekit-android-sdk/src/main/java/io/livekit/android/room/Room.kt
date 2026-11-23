@@ -340,6 +340,24 @@ constructor(
      * keyProvider.setSharedKey("my-shared-key")
      * room.e2eeOptions = E2EEOptions(keyProvider = keyProvider)
      * ```
+     *
+     * Example — shared-key encryption with key-index rotation:
+     * ```
+     * val keyProvider = BaseKeyProvider()
+     * keyProvider.setSharedKey("my-secret", keyIndex = 0)
+     * room.e2eeOptions = E2EEOptions(keyProvider = keyProvider)
+     * room.connect(url, token)
+     *
+     * // Later, after distributing the next key out-of-band. Installing it
+     * // switches local encryption to index 1, including tracks already published:
+     * keyProvider.setSharedKey("next-secret", keyIndex = 1)
+     * ```
+     * In per-participant mode, `keyProvider.setKey(key, localIdentity, index)`
+     * does the same for the local participant's own tracks; keys installed for
+     * remote participants never change what the local participant sends with.
+     *
+     * Custom providers can implement [io.livekit.android.e2ee.KeyIndexObservable]
+     * to opt into the same live re-stamping.
      */
     var e2eeOptions: E2EEOptions? = null
 

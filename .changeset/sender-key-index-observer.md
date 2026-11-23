@@ -1,0 +1,5 @@
+---
+"client-sdk-android": patch
+---
+
+E2EE: already-published tracks now follow key-index changes. Previously a sender's frame cryptor was stamped once when the track was published, so after `setSharedKey(key, n)` (or `setKey(key, localIdentity, n)`) existing tracks kept encrypting with the old slot and receivers hit `MISSING_KEY`. In shared-key mode, tracks published and data packets sent after a rotation also used slot 0; they now use the installed index. `E2EEManager.ratchetKey()` now ratchets the slot senders encrypt with instead of slot 0. `ratchetSharedKey(null)` ratchets the current shared slot instead of slot 0, and `ratchetKey(id, null)` ratchets that participant's current slot. Recorded key indexes now match the slot the native key ring actually writes: an index past the ring wraps (`index % keyRingSize`) and a negative index replaces the key in the current slot without moving it, so senders are never stamped with a slot that doesn't exist. Per-participant key indexes are otherwise unchanged. Custom `KeyProvider`s can implement the new `KeyIndexObservable` interface to get the same live re-stamping.

@@ -24,6 +24,9 @@ internal const val defaultMagicBytes = "LK-ROCKS"
 internal const val defaultRatchetWindowSize = 16
 internal const val defaultFailureTolerance = -1
 internal const val defaultKeyRingSize = 16
+
+// libwebrtc caps the key ring at MAX_KEYRING_SIZE; a size <= 0 falls back to the default.
+internal const val maxKeyRingSize = 256
 internal const val defaultDiscardFrameWhenCryptorNotReady = false
 internal val defaultKeyDerivationAlgorithm = FrameCryptorKeyDerivationAlgorithm.PBKDF2
 internal val defaultKeySize = KeyProviderKeySize.BITS_128
