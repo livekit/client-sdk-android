@@ -1,5 +1,6 @@
-# After a release PR merges: tag and create the GitHub release, then build
-# and publish to Maven Central. The step that cannot be undone comes last.
+# After a release PR merges: build and test, then tag and create the GitHub
+# release, then publish to Maven Central. The step that cannot be undone
+# comes last.
 # Docs upload and the components-android dispatch run after the publish.
 name: Release
 
@@ -21,10 +22,37 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  # A failed build or test stops here, before a tag exists.
+  build:
     # Only a release PR the tool opened: the branch prefix alone would let
     # any pushed `release/*` branch trigger a publish.
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/') && github.event.pull_request.user.login == 'verwalter-release[bot]' && contains(github.event.pull_request.body, '<!-- verwalter release -->'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Fetch livekit-ffi host library
+        id: uniffi
+        run: |
+          lib_dir=$(./ci/fetch_uniffi_cdylib.sh)
+          echo "lib_dir=$lib_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-camerax:assembleRelease livekit-android-test:testRelease "-PlivekitUniffiLibDir=${{ steps.uniffi.outputs.lib_dir }}"
+
+  release:
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.verwalter.outputs.released }}
@@ -59,15 +87,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'adopt'
-
-      - name: Fetch livekit-ffi host library
-        id: uniffi
-        run: |
-          lib_dir=$(./ci/fetch_uniffi_cdylib.sh)
-          echo "lib_dir=$lib_dir" >> "$GITHUB_OUTPUT"
-
-      - name: Build and test
-        run: ./gradlew livekit-android-sdk:assembleRelease livekit-android-camerax:assembleRelease livekit-android-test:testRelease "-PlivekitUniffiLibDir=${{ steps.uniffi.outputs.lib_dir }}"
 
       - name: Write signing and Sonatype credentials
         run: |
