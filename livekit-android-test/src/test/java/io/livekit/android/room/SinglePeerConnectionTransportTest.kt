@@ -33,7 +33,6 @@ import kotlinx.coroutines.test.runTest
 import livekit.LivekitRtc.MediaSectionsRequirement
 import livekit.LivekitRtc.SignalTarget
 import livekit.org.webrtc.IceCandidate
-import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.MediaStreamTrack.MediaType
 import livekit.org.webrtc.MockPeerConnectionFactory
 import livekit.org.webrtc.PeerConnection
@@ -95,16 +94,9 @@ class SinglePeerConnectionTransportTest {
         )
     }
 
-    private val boundTracks = mutableListOf<Pair<RtpReceiver, String>>()
-    private var attachBoundTracks = true
-
     private fun transport() = SinglePeerConnectionTransport(
         publisher = publisher,
         publisherState = publisherState,
-        onTrackBound = { receiver, _, trackId ->
-            boundTracks.add(receiver to trackId)
-            attachBoundTracks
-        },
     )
 
     private fun answer(sdp: String = "remote_answer") = SessionDescription(SessionDescription.Type.ANSWER, sdp)
@@ -244,15 +236,6 @@ class SinglePeerConnectionTransportTest {
         return transceiver.receiver
     }
 
-    /**
-     * Like [receiverForMid], with a track on the receiver as a negotiated section has.
-     */
-    private fun boundReceiverForMid(mid: String): RtpReceiver {
-        val receiver = receiverForMid(mid)
-        whenever(receiver.track()).thenReturn(mock<MediaStreamTrack>())
-        return receiver
-    }
-
     @Test
     fun trackIdForReceiverIsNullBeforeAnswer() {
         val receiver = receiverForMid("0")
@@ -347,104 +330,6 @@ class SinglePeerConnectionTransportTest {
         assertTrue("$result", result is Either.Right)
         assertEquals("TR_a", transport.trackIdForReceiver(receiver))
         verifyBlocking(publisher, never()) { setRemoteDescription(any(), eq(6)) }
-    }
-
-    // endregion
-
-    // region bound tracks
-
-    @Test
-    fun boundReceiverIsOfferedAfterAnswer() = runTest {
-        val receiver = boundReceiverForMid("0")
-
-        transport().applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        assertEquals(listOf(receiver to "TR_a"), boundTracks)
-    }
-
-    @Test
-    fun attachedBindingIsNotOfferedAgain() = runTest {
-        val transport = transport()
-        boundReceiverForMid("0")
-
-        transport.applyServerAnswer(answer("first"), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-        transport.applyServerAnswer(answer("second"), offerId = 8, midToTrackId = mapOf("0" to "TR_a"))
-
-        assertEquals(1, boundTracks.size)
-    }
-
-    @Test
-    fun reboundReceiverIsOfferedAgain() = runTest {
-        val transport = transport()
-        val receiver = boundReceiverForMid("0")
-
-        transport.applyServerAnswer(answer("first"), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-        transport.applyServerAnswer(answer("second"), offerId = 8, midToTrackId = mapOf("0" to "TR_b"))
-
-        assertEquals(listOf(receiver to "TR_a", receiver to "TR_b"), boundTracks)
-    }
-
-    @Test
-    fun unattachedBindingIsOfferedAfterNextAnswer() = runTest {
-        val transport = transport()
-        val receiver = boundReceiverForMid("0")
-        attachBoundTracks = false
-
-        transport.applyServerAnswer(answer("first"), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-        transport.applyServerAnswer(answer("second"), offerId = 8, midToTrackId = emptyMap())
-
-        assertEquals(listOf(receiver to "TR_a", receiver to "TR_a"), boundTracks)
-    }
-
-    @Test
-    fun unattachedBindingIsOfferedOnRequest() = runTest {
-        val transport = transport()
-        val receiver = boundReceiverForMid("0")
-        attachBoundTracks = false
-        transport.applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        transport.attachBoundTracks()
-
-        assertEquals(listOf(receiver to "TR_a", receiver to "TR_a"), boundTracks)
-    }
-
-    @Test
-    fun attachedBindingIsNotOfferedOnRequest() = runTest {
-        val transport = transport()
-        boundReceiverForMid("0")
-        transport.applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        transport.attachBoundTracks()
-
-        assertEquals(1, boundTracks.size)
-    }
-
-    @Test
-    fun receiverWithoutTrackIsNotOffered() = runTest {
-        receiverForMid("0")
-
-        transport().applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        assertTrue(boundTracks.isEmpty())
-    }
-
-    @Test
-    fun unmappedReceiverIsNotOffered() = runTest {
-        boundReceiverForMid("1")
-
-        transport().applyServerAnswer(answer(), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        assertTrue(boundTracks.isEmpty())
-    }
-
-    @Test
-    fun failedAnswerOffersNothing() = runTest {
-        boundReceiverForMid("0")
-
-        val result = transport().applyServerAnswer(answer(sdp = ""), offerId = 7, midToTrackId = mapOf("0" to "TR_a"))
-
-        assertTrue("$result", result is Either.Right)
-        assertTrue(boundTracks.isEmpty())
     }
 
     // endregion

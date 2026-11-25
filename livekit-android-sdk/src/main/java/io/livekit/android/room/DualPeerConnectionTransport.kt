@@ -103,10 +103,6 @@ internal class DualPeerConnectionTransport(
         return null
     }
 
-    override suspend fun attachBoundTracks() {
-        // Not needed for dual transport.
-    }
-
     override suspend fun handleMediaSectionsRequirement(requirement: LivekitRtc.MediaSectionsRequirement) {
         // Not needed for dual transport.
     }

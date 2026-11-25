@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
+import livekit.LivekitModels
 import livekit.LivekitRtc
 import livekit.org.webrtc.MediaStreamTrack
 import livekit.org.webrtc.PeerConnection
@@ -266,15 +267,28 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
         return transceiver
     }
 
+    /**
+     * Has the peer connection report the track on [transceiver]'s receiver. The stream ID
+     * names the participant but no track SID, so only the answer's mapping can resolve it.
+     */
+    private fun TestScope.reportTrack(transceiver: RtpTransceiver) {
+        publisherPeerConnection().observer?.onAddTrack(
+            transceiver.receiver,
+            arrayOf(MockMediaStream(id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "stream"))),
+        )
+        advanceUntilIdle()
+    }
+
     @Test
-    fun boundTrackAttachesWithoutTrackCallback() = runTest {
+    fun reportedTrackResolvesThroughAnswerMapping() = runTest {
         connectSinglePeerConnection()
         simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
         val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
-        addReceivingAudioSection()
+        val transceiver = addReceivingAudioSection()
         val collector = EventCollector(room.events, coroutineRule.scope)
-
         answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+
+        reportTrack(transceiver)
 
         val events = collector.stopCollecting()
         assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
@@ -283,41 +297,65 @@ class SinglePeerConnectionMockE2ETest : MockE2ETest() {
     }
 
     @Test
-    fun boundTrackAttachesOncePublicationArrives() = runTest {
+    fun mappedTrackIsNotAttachedUntilReported() = runTest {
         connectSinglePeerConnection()
+        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
         addReceivingAudioSection()
-        val collector = EventCollector(room.events, coroutineRule.scope)
+
         answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
 
-        simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
-        advanceUntilIdle()
-
-        val events = collector.stopCollecting()
-        assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
-        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
-        assertNotNull(remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track)
+        assertNull(remoteParticipant.getTrackPublication(Track.Source.MICROPHONE)?.track)
     }
 
     @Test
-    fun trackCallbackAfterBoundTrackDoesNotAttachTwice() = runTest {
+    fun trackReportedAgainDoesNotAttachTwice() = runTest {
         connectSinglePeerConnection()
         simulateMessageFromServer(TestData.PARTICIPANT_JOIN)
         val transceiver = addReceivingAudioSection()
         val collector = EventCollector(room.events, coroutineRule.scope)
         answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
 
-        publisherPeerConnection().observer?.onAddTrack(
-            transceiver.receiver,
-            arrayOf(MockMediaStream(id = createMediaStreamId(TestData.REMOTE_PARTICIPANT.sid, "stream"))),
-        )
-        advanceUntilIdle()
+        reportTrack(transceiver)
+        reportTrack(transceiver)
 
         val events = collector.stopCollecting()
         assertEquals(1, events.count { it is RoomEvent.TrackSubscribed })
     }
 
     @Test
-    fun boundTrackDoesNotAttachTwiceWhileTrackCallbackAwaitsPublication() = runTest {
+    fun trackReportedAfterReboundAttachesToTheNewPublication() = runTest {
+        connectSinglePeerConnection()
+        val secondAudioTrack = with(TestData.REMOTE_AUDIO_TRACK.toBuilder()) {
+            sid = "TR_second_remote_audio_track_sid"
+            source = LivekitModels.TrackSource.SCREEN_SHARE_AUDIO
+            build()
+        }
+        val participantWithTwoAudioTracks = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
+            update = with(update.toBuilder()) {
+                clearParticipants()
+                addParticipants(TestData.REMOTE_PARTICIPANT.toBuilder().addTracks(secondAudioTrack))
+                build()
+            }
+            build()
+        }
+        simulateMessageFromServer(participantWithTwoAudioTracks)
+        val remoteParticipant = room.getParticipantBySid(TestData.REMOTE_PARTICIPANT.sid) as RemoteParticipant
+        val transceiver = addReceivingAudioSection()
+        answerLastOffer(midToTrackId = mapOf("0" to TestData.REMOTE_AUDIO_TRACK.sid))
+        reportTrack(transceiver)
+
+        // The server binds another track to the same section and libwebrtc reports it again.
+        publisherPeerConnection().observer?.onRenegotiationNeeded()
+        advanceUntilIdle()
+        answerLastOffer(midToTrackId = mapOf("0" to secondAudioTrack.sid))
+        reportTrack(transceiver)
+
+        assertNotNull(remoteParticipant.getTrackPublication(Track.Source.SCREEN_SHARE_AUDIO)?.track)
+    }
+
+    @Test
+    fun reportedTrackAttachesOncePublicationArrives() = runTest {
         connectSinglePeerConnection()
         val participantWithoutTracks = with(TestData.PARTICIPANT_JOIN.toBuilder()) {
             update = with(update.toBuilder()) {
