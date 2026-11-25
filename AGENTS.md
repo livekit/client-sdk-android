@@ -140,6 +140,25 @@ in tests.
 - Add short code examples for new APIs to the entry point (e.g., `Room` class)
 - Use `LKLog` for logging
 
+## Changesets
+
+- Add a changeset in `.changeset/` for every change SDK users will notice (fixes, new APIs,
+  behavior changes). Tests, CI and internal refactors don't need one.
+- Write the file by hand, for example `.changeset/my-change.md`:
+
+```md
+---
+"client-sdk-android": patch
+---
+
+Fix memory usage growing steadily for as long as a room stays connected.
+```
+
+- Use `patch` for fixes and `minor` for new APIs.
+- Write it for app developers: one or two plain sentences about what they will notice. Leave out
+  internal details such as class names, root causes and implementation; those belong in the commit
+  message or PR.
+
 <skills_system priority="1">
 
 ## Available Skills
