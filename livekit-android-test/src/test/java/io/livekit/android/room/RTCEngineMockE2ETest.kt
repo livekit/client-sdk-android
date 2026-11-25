@@ -539,6 +539,30 @@ class RTCEngineMockE2ETest : MockE2ETest() {
         assertArrayEquals(payload, replay2.user.payload.toByteArray())
     }
 
+    /**
+     * Regression for https://github.com/livekit/client-sdk-android/issues/1063: the reliable buffer
+     * must be trimmed on send, even when the channel's buffered amount never changes.
+     */
+    @Test
+    fun reliableBufferTrimsOnSendWithoutBufferedAmountChange() = runTest {
+        connect()
+        val pubDataChannel = getPublisherPeerConnection()
+            .dataChannels[RTCEngine.RELIABLE_DATA_CHANNEL_LABEL] as MockDataChannel
+
+        // 50 x 60 KB = 3 MB, past the 2.5 MB retry allowance; bufferedAmount stays 0 throughout.
+        val packetCount = 50
+        repeat(packetCount) {
+            assertTrue(room.localParticipant.publishData(ByteArray(60_000)).isSuccess)
+        }
+        pubDataChannel.clearSentBuffers()
+
+        assertTrue(rtcEngine.resendReliableMessagesForResume(0).isSuccess)
+
+        val replayedSequences = pubDataChannel.sentPayloads.map { DataPacket.parseFrom(it).sequence }
+        assertTrue("oldest packets should be trimmed, got $replayedSequences", replayedSequences.first() > 1)
+        assertEquals(packetCount, replayedSequences.last())
+    }
+
     @Test
     fun resendReliableMessagesReturnsFailureWhenReplaySendFails() = runTest {
         connect()

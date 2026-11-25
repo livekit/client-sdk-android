@@ -911,6 +911,7 @@ internal constructor(
                     // ByteBuffer just sent has been drained by DataChannel.send.
                     reliableMessageBuffer.queue(DataPacketItem(ByteBuffer.wrap(packetBytes), dataPacket.sequence))
                     reliableDataSequence++
+                    reliableMessageBuffer.trim(channel.bufferedAmount())
                 }
             } catch (e: Exception) {
                 e.rethrowIfCancellationSignal()
