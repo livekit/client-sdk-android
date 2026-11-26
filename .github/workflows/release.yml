@@ -95,9 +95,11 @@ jobs:
     if: needs.release.outputs.released == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # One upload to Sonatype at a time: a second run waits for the first.
+    # Without `queue: max`, a third run cancels the waiting one.
     concurrency:
       group: maven-central-publish
       cancel-in-progress: false
+      queue: max
     permissions:
       contents: write # the tool makes the draft release public after the publish
     steps:
@@ -172,7 +174,7 @@ jobs:
         env:
           RELEASES: ${{ needs.release.outputs.releases }}
         run: |
-          echo "$RELEASES" | jq -r '.[] | select(.package == "client-sdk-android") | "version=\(.version)\nprerelease=\(.prerelease)"' >> "$GITHUB_OUTPUT"
+          echo "$RELEASES" | jq -r '.[] | select(.package == "client-sdk-android") | "version=\(.version)\ntag=\(.tag)\nprerelease=\(.prerelease)"' >> "$GITHUB_OUTPUT"
 
       # Only a final release on main: the docs site holds one version, and
       # components-android follows the main line.
@@ -188,7 +190,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.release.outputs.prerelease == 'false' && (github.event.pull_request.base.ref || github.ref_name) == 'main'
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha || inputs.ref || github.sha }}
+          # The released tag: a run by hand from a newer commit must not
+          # publish docs for code that Maven Central does not ship.
+          ref: refs/tags/${{ steps.release.outputs.tag }}
           submodules: recursive
 
       - name: Set up JDK 17
