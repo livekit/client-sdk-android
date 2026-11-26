@@ -70,6 +70,7 @@ import io.livekit.android.util.flow
 import io.livekit.android.util.rethrowIfCancellationSignal
 import io.livekit.android.webrtc.sortVideoCodecPreferences
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -815,10 +816,9 @@ internal constructor(
                 // Can simultaneous publish and negotiate.
                 // codec is pre-verified in publishVideoTrack
                 trackInfo = coroutineScope {
-                    val negotiateJob = launch { negotiate() }
-                    val publishJob = async { requestAddTrack() }
-
-                    negotiateJob.join()
+                    // addTrack installs its waiter and sends the request before its first suspension.
+                    val publishJob = async(start = CoroutineStart.UNDISPATCHED) { requestAddTrack() }
+                    negotiate()
                     return@coroutineScope publishJob.await()
                 }
             } else {
