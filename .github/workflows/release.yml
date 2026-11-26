@@ -86,6 +86,9 @@ jobs:
         uses: livekit/verwalter@9da894a1e4f7d298095a961be60c818afd47905b # v0.32.0-rc.1
         with:
           command: release
+          # On a run by hand, report the package even when its release is
+          # complete, so that `notify` runs again after a recovery.
+          args: ${{ github.event_name == 'workflow_dispatch' && '--package client-sdk-android' || '' }}
 
   publish:
     needs: release

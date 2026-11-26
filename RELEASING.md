@@ -49,6 +49,9 @@ Find the cause first. The paths by cause are in the
 | The workflow file needed a fix, and the fix is on `main` | `gh workflow run release.yml -f ref=<tag>` |
 | The released commit is wrong | `verwalter release --abandon <tag>`, then a changeset and the next version |
 
+A run by hand always reports the package to the later jobs. So it also
+uploads the docs and notifies `livekit/components-android` again.
+
 While Sonatype still processes an upload, do not re-run the publish job.
 The existence check reads `repo1.maven.org`, which shows a new version
 late. A second upload of the same version fails at Sonatype.
