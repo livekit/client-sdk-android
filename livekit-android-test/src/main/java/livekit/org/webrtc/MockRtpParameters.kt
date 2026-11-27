@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 LiveKit, Inc.
+ * Copyright 2024-2026 LiveKit, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ class MockRtpParameters(
     headerExtensions: MutableList<HeaderExtension>?,
     encodings: MutableList<Encoding>?,
     codecs: MutableList<Codec>?,
-) : RtpParameters(transactionId, degradationPreference, rtcp, headerExtensions, encodings, codecs) {
+    fecProtection: FecProtection? = null,
+) : RtpParameters(transactionId, degradationPreference, fecProtection, rtcp, headerExtensions, encodings, codecs) {
     class MockRtcp(cname: String?, reducedSize: Boolean) : Rtcp(cname, reducedSize)
     class MockHeaderExtension(uri: String?, id: Int, encrypted: Boolean) : HeaderExtension(uri, id, encrypted)
     class MockCodec(payloadType: Int, name: String?, kind: MediaStreamTrack.MediaType?, clockRate: Int?, numChannels: Int?, parameters: MutableMap<String, String>?) :

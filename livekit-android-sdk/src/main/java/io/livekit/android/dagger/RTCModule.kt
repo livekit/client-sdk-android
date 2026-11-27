@@ -91,6 +91,10 @@ internal object RTCModule {
      * it.
      */
     private const val DEFAULT_FIELD_TRIALS = "WebRTC-IceHandshakeDtls/Enabled/"
+    private const val FLEXFEC_FIELD_TRIALS = "WebRTC-FlexFEC-03-Advertised/Enabled/WebRTC-FlexFEC-03/Enabled/"
+
+    private val fieldTrials: String
+        get() = if (LiveKit.enableFlexFec) DEFAULT_FIELD_TRIALS + FLEXFEC_FIELD_TRIALS else DEFAULT_FIELD_TRIALS
 
     /**
      * Certain classes require libwebrtc to be initialized prior to use.
@@ -122,7 +126,7 @@ internal object RTCModule {
                         PeerConnectionFactory.InitializationOptions
                             .builder(appContext)
                             .setNativeLibraryName("lkjingle_peerconnection_so")
-                            .setFieldTrials(DEFAULT_FIELD_TRIALS)
+                            .setFieldTrials(fieldTrials)
                             .setInjectableLogger(
                                 { s, severity, s2 ->
                                     if (!LiveKit.enableWebRTCLogging) {
