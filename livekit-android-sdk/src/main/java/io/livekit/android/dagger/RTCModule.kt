@@ -38,6 +38,8 @@ import io.livekit.android.e2ee.DataPacketCryptorManagerImpl
 import io.livekit.android.memory.CloseableManager
 import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
 import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
+import io.livekit.android.room.framemetadata.DefaultFrameTransformerFactory
+import io.livekit.android.room.framemetadata.FrameTransformerFactory
 import io.livekit.android.util.LKLog
 import io.livekit.android.util.LoggingLevel
 import io.livekit.android.webrtc.CustomAudioProcessingFactory
@@ -403,6 +405,11 @@ internal object RTCModule {
     @Provides
     fun dataPacketCryptorManagerFactory(): DataPacketCryptorManager.Factory {
         return DataPacketCryptorManagerImpl.Factory
+    }
+
+    @Provides
+    internal fun frameTransformerFactory(peerConnectionFactory: PeerConnectionFactory): FrameTransformerFactory {
+        return DefaultFrameTransformerFactory(peerConnectionFactory)
     }
 
     @Provides

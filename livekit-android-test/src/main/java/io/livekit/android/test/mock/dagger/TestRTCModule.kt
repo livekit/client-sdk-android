@@ -32,9 +32,11 @@ import io.livekit.android.e2ee.DataPacketCryptorManager
 import io.livekit.android.e2ee.KeyProvider
 import io.livekit.android.room.datatrack.LocalDataTrackManagerFactory
 import io.livekit.android.room.datatrack.RemoteDataTrackManagerFactory
+import io.livekit.android.room.framemetadata.FrameTransformerFactory
 import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
+import io.livekit.android.test.mock.MockFrameTransformerFactory
 import io.livekit.android.test.mock.e2ee.ReversingDataPacketCryptorManager
 import io.livekit.android.test.mock.room.datatrack.MockLocalDataTrackManagerFactory
 import io.livekit.android.test.mock.room.datatrack.MockRemoteDataTrackManagerFactory
@@ -142,6 +144,17 @@ object TestRTCModule {
             return ReversingDataPacketCryptorManager()
         }
     }
+
+    @Provides
+    @Singleton
+    fun mockFrameTransformerFactory(): MockFrameTransformerFactory {
+        return MockFrameTransformerFactory()
+    }
+
+    @Provides
+    internal fun frameTransformerFactory(
+        factory: MockFrameTransformerFactory,
+    ): FrameTransformerFactory = factory.factory
 
     @Provides
     @Singleton

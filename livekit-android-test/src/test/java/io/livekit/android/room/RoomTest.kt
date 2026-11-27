@@ -33,6 +33,8 @@ import io.livekit.android.room.datastream.DataStreams
 import io.livekit.android.room.datastream.incoming.IncomingDataStreamManagerImpl
 import io.livekit.android.room.datatrack.IncomingDataTrackEvent
 import io.livekit.android.room.datatrack.IncomingDataTrackManager
+import io.livekit.android.room.framemetadata.FrameMetadataManager
+import io.livekit.android.room.framemetadata.FrameTransformerInstaller
 import io.livekit.android.room.network.NetworkCallbackManagerImpl
 import io.livekit.android.room.participant.LocalParticipant
 import io.livekit.android.test.assert.assertIsClassList
@@ -41,6 +43,7 @@ import io.livekit.android.test.events.EventCollector
 import io.livekit.android.test.mock.MockAudioDeviceModule
 import io.livekit.android.test.mock.MockAudioProcessingController
 import io.livekit.android.test.mock.MockEglBase
+import io.livekit.android.test.mock.MockFrameTransformerFactory
 import io.livekit.android.test.mock.MockLKObjects
 import io.livekit.android.test.mock.MockNetworkCallbackRegistry
 import io.livekit.android.test.mock.TestData
@@ -170,8 +173,12 @@ class RoomTest {
                 ioDispatcher = coroutineRule.dispatcher,
                 defaultDispatcher = coroutineRule.dispatcher,
             ),
+            frameMetadataManager = FrameMetadataManager(frameTransformerFactory.factory),
+            frameTransformerInstaller = FrameTransformerInstaller(frameTransformerFactory.factory),
         )
     }
+
+    private val frameTransformerFactory = MockFrameTransformerFactory()
 
     suspend fun connect(joinResponse: JoinResponse = TestData.JOIN.join) {
         rtcEngine.stub {

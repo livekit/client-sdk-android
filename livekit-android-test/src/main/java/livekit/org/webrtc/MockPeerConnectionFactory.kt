@@ -45,12 +45,15 @@ class MockPeerConnectionFactory : PeerConnectionFactory(1L) {
         return MockAudioStreamTrack(id = id)
     }
 
+    /** Every video source created, in order. */
+    val createdVideoSources = mutableListOf<MockVideoSource>()
+
     override fun createVideoSource(isScreencast: Boolean, alignTimestamps: Boolean): VideoSource {
-        return MockVideoSource()
+        return MockVideoSource().also { createdVideoSources.add(it) }
     }
 
     override fun createVideoSource(isScreencast: Boolean): VideoSource {
-        return MockVideoSource()
+        return MockVideoSource().also { createdVideoSources.add(it) }
     }
 
     override fun createVideoTrack(id: String, source: VideoSource?): VideoTrack {
