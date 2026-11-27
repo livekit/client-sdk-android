@@ -199,6 +199,9 @@ internal constructor(
     private var connectOptions: ConnectOptions? = null
     private var lastRoomOptions: RoomOptions? = null
     private var participantSid: String? = null
+
+    @Volatile
+    private var localCanSubscribe: Boolean? = null
     private var localParticipantIdentity: String? = null
 
     internal val serverVersion: Semver?
@@ -352,6 +355,7 @@ internal constructor(
         if (joinResponse.hasParticipant()) {
             localParticipantIdentity = joinResponse.participant.identity
         }
+        localCanSubscribe = joinResponse.participant.takeIf { it.hasPermission() }?.permission?.canSubscribe
         // Participants first, then the original join bytes (Swift order): UniFFI discovers
         // tracks once publishers are registered, and re-encoding would drop newer fields.
         listener?.onJoinResponse(joinResponse)
@@ -469,6 +473,7 @@ internal constructor(
                         subscriberObserver,
                         joinResponse.subscriberPrimary,
                         joinResponse.fastPublish,
+                        canSubscribe = { localCanSubscribe },
                     )
                 }
 
@@ -576,6 +581,7 @@ internal constructor(
         connectOptions = null
         lastRoomOptions = null
         participantSid = null
+        localCanSubscribe = null
         localParticipantIdentity = null
         regionUrlProvider = null
         endSignalSession()
@@ -1399,6 +1405,9 @@ internal constructor(
     }
 
     override fun onParticipantUpdate(updates: List<LivekitModels.ParticipantInfo>, encoded: ByteArray) {
+        updates.firstOrNull { it.sid == participantSid && it.hasPermission() }?.let {
+            localCanSubscribe = it.permission.canSubscribe
+        }
         listener?.onUpdateParticipants(updates)
         val identity = localParticipantIdentity
         if (identity != null) {
