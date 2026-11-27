@@ -96,8 +96,8 @@ dependencies {
   // Track processors, such as virtual background
   implementation "io.livekit:livekit-android-track-processors:$livekit_version"
 
-  // Snapshots of the latest development version are available at:
-  // implementation "io.livekit:livekit-android:2.31.1-SNAPSHOT"
+  // Snapshots of the latest development version are published as the next patch version:
+  // implementation "io.livekit:livekit-android:<next patch version>-SNAPSHOT"
 }
 ```
 
